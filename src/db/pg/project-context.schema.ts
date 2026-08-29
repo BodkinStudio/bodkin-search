@@ -1,6 +1,9 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
+  check,
   index,
+  integer,
   pgTable,
   primaryKey,
   text,
@@ -76,6 +79,9 @@ export const projectKeyPages = pgTable(
     role: text("role", { enum: ["hub", "spoke", "money", "other"] }).notNull(),
     topic: text("topic"),
     notes: text("notes"),
+    commercialWeight: integer("commercial_weight"),
+    protected: boolean("protected").notNull().default(false),
+    activelyOptimized: boolean("actively_optimized").notNull().default(false),
     updatedAt: text("updated_at").notNull().default(isoNow),
     updatedBy: text("updated_by", { enum: ["user", "sam", "mcp"] }).notNull(),
   },
@@ -83,6 +89,10 @@ export const projectKeyPages = pgTable(
     uniqueIndex("project_key_pages_project_url_idx").on(
       table.projectId,
       table.url,
+    ),
+    check(
+      "project_key_pages_commercial_weight_check",
+      sql`${table.commercialWeight} IS NULL OR ${table.commercialWeight} BETWEEN 1 AND 5`,
     ),
   ],
 );

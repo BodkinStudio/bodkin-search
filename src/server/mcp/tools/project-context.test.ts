@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   upsertSection: vi.fn(),
   listCompetitors: vi.fn(),
   listKeyPages: vi.fn(),
+  upsertKeyPages: vi.fn(),
   listResearchLog: vi.fn(),
 }));
 
@@ -32,7 +33,10 @@ vi.mock(
 );
 
 beforeEach(() => {
-  mocks.getProjectForOrganization.mockResolvedValue({ id: "project_1" });
+  mocks.getProjectForOrganization.mockResolvedValue({
+    id: "project_1",
+    domain: "acme.com",
+  });
   mocks.listSections.mockResolvedValue([]);
   mocks.listCompetitors.mockResolvedValue([]);
   mocks.listKeyPages.mockResolvedValue([]);
@@ -75,5 +79,37 @@ describe("update_project_context", () => {
       }),
     );
     expect(textContent(result)).toContain("Grow signups");
+  });
+
+  it("uses the authorized project's domain for key-page validation", async () => {
+    await updateProjectContextTool.handler(
+      {
+        projectId: "project_1",
+        updates: [{ addKeyPages: [{ url: "https://shop.acme.com/pricing" }] }],
+      },
+      makeToolContext(),
+    );
+
+    expect(mocks.upsertKeyPages).toHaveBeenCalledWith(
+      expect.anything(),
+      "project_1",
+      [expect.objectContaining({ url: "https://shop.acme.com/pricing" })],
+      "mcp",
+    );
+  });
+
+  it("rejects a key page outside the authorized project's domain", async () => {
+    await expect(
+      updateProjectContextTool.handler(
+        {
+          projectId: "project_1",
+          updates: [
+            { addKeyPages: [{ url: "https://acme.com.evil.test/pricing" }] },
+          ],
+        },
+        makeToolContext(),
+      ),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(mocks.upsertKeyPages).not.toHaveBeenCalled();
   });
 });

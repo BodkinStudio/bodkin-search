@@ -44,10 +44,11 @@ beforeAll(async () => {
   await client.executeMultiple(
     [
       `CREATE TABLE projects (id text PRIMARY KEY);`,
-      `INSERT INTO projects (id) VALUES ('proj_1');`,
+      `INSERT INTO projects (id) VALUES ('proj_1'), ('proj_2');`,
       ...readFileSync("drizzle/0042_project_memory.sql", "utf8")
         .split("--> statement-breakpoint")
         .filter((statement) => !statement.includes("DROP TABLE")),
+      readFileSync("drizzle/0043_wild_proteus.sql", "utf8"),
     ].join("\n"),
   );
 
@@ -89,6 +90,9 @@ describe("upsertKeyPages", () => {
             role: "money",
             topic: null,
             notes: null,
+            commercialWeight: 5,
+            protected: true,
+            activelyOptimized: true,
           },
         ],
         "user",
@@ -118,10 +122,117 @@ describe("upsertKeyPages", () => {
         role: "money",
         topic: "Pricing",
         notes: "Compare against acme.io",
+        commercialWeight: 5,
+        protected: true,
+        activelyOptimized: true,
         updatedAt: "2026-08-02T00:00:00.000Z",
         updatedBy: "mcp",
       }),
     ]);
+  });
+
+  it("distinguishes omitted Growth metadata from explicit false and null", async () => {
+    await runStatements(
+      ProjectContextRepository.upsertKeyPages(
+        tx,
+        PROJECT_ID,
+        [
+          {
+            url: "https://acme.com/services",
+            role: "money",
+            topic: null,
+            notes: null,
+            commercialWeight: 4,
+            protected: true,
+            activelyOptimized: true,
+          },
+        ],
+        "user",
+      ),
+    );
+
+    await runStatements(
+      ProjectContextRepository.upsertKeyPages(
+        tx,
+        PROJECT_ID,
+        [
+          {
+            url: "https://acme.com/services",
+            role: null,
+            topic: null,
+            notes: null,
+            commercialWeight: null,
+            protected: false,
+            activelyOptimized: false,
+          },
+        ],
+        "user",
+      ),
+    );
+
+    expect(await ProjectContextRepository.listKeyPages(PROJECT_ID)).toEqual([
+      expect.objectContaining({
+        commercialWeight: null,
+        protected: false,
+        activelyOptimized: false,
+      }),
+    ]);
+  });
+
+  it("uses neutral Growth defaults for a new row when metadata is omitted", async () => {
+    await runStatements(
+      ProjectContextRepository.upsertKeyPages(
+        tx,
+        PROJECT_ID,
+        [
+          {
+            url: "https://acme.com/about",
+            role: null,
+            topic: null,
+            notes: null,
+          },
+        ],
+        "mcp",
+      ),
+    );
+
+    expect(await ProjectContextRepository.listKeyPages(PROJECT_ID)).toEqual([
+      expect.objectContaining({
+        commercialWeight: null,
+        protected: false,
+        activelyOptimized: false,
+      }),
+    ]);
+  });
+
+  it("keeps identical URLs isolated by project", async () => {
+    const row = {
+      url: "https://acme.com/pricing",
+      role: "money" as const,
+      topic: null,
+      notes: null,
+      commercialWeight: 5,
+      protected: true,
+      activelyOptimized: false,
+    };
+    await runStatements(
+      ProjectContextRepository.upsertKeyPages(tx, "proj_1", [row], "user"),
+    );
+    await runStatements(
+      ProjectContextRepository.upsertKeyPages(
+        tx,
+        "proj_2",
+        [{ ...row, commercialWeight: 2, protected: false }],
+        "user",
+      ),
+    );
+
+    await expect(
+      ProjectContextRepository.listKeyPages("proj_1"),
+    ).resolves.toEqual([expect.objectContaining({ commercialWeight: 5 })]);
+    await expect(
+      ProjectContextRepository.listKeyPages("proj_2"),
+    ).resolves.toEqual([expect.objectContaining({ commercialWeight: 2 })]);
   });
 });
 

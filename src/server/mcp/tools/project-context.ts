@@ -97,7 +97,10 @@ export function buildUpdateProjectContextTool(author: ContextAuthor) {
     handler: withMcpProjectAuth(
       async (args: z.infer<z.ZodObject<typeof updateInputSchema>>, context) => {
         const projectContext = await ProjectContextService.applyContextUpdates(
-          args.projectId,
+          {
+            projectId: args.projectId,
+            projectDomain: context.project.domain,
+          },
           args.updates,
           author,
         );

@@ -52,6 +52,11 @@ export function KeyPagesSection({
           role: draft.role,
           topic: draft.topic.trim(),
           notes: draft.notes.trim(),
+          // The current form does not edit Growth metadata, but it must carry
+          // it across the remove+add sequence used for URL renames.
+          commercialWeight: draft.commercialWeight,
+          protected: draft.protected,
+          activelyOptimized: draft.activelyOptimized,
         },
       ],
     });
@@ -164,6 +169,9 @@ type KeyPageDraft = {
   role: KeyPageRole;
   topic: string;
   notes: string;
+  commercialWeight: number | null;
+  protected: boolean;
+  activelyOptimized: boolean;
 };
 
 function KeyPageForm({
@@ -182,6 +190,9 @@ function KeyPageForm({
     role: initial?.role ?? "other",
     topic: initial?.topic ?? "",
     notes: initial?.notes ?? "",
+    commercialWeight: initial?.commercialWeight ?? null,
+    protected: initial?.protected ?? false,
+    activelyOptimized: initial?.activelyOptimized ?? false,
   });
 
   return (

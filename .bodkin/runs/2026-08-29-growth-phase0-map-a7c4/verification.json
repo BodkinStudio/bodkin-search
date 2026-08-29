@@ -1,0 +1,71 @@
+{
+  "runId": "2026-08-29-growth-phase0-map-a7c4",
+  "verifiedAt": "2026-08-29T09:03:11Z",
+  "baseCommit": "c469a48ae90ab58413b198fe3d1ac1aa90a9b070",
+  "result": "pass",
+  "checks": [
+    {
+      "command": "pnpm install --frozen-lockfile",
+      "result": "pass",
+      "evidence": "Installed 983 packages from the existing lockfile with pnpm 10.30.1; package manifests and lockfiles remained unchanged. COREPACK_HOME was redirected to a writable temporary directory and dependency download required network access outside the sandbox."
+    },
+    {
+      "command": "pnpm test:ci",
+      "result": "pass",
+      "evidence": "133 test files and 1,113 tests passed."
+    },
+    {
+      "command": "pnpm ci:check",
+      "result": "pass",
+      "evidence": "Prettier, Knip, root and badseo TypeScript, type-aware Oxlint, skill synchronization, and the generated-skill cleanliness check passed."
+    },
+    {
+      "command": "pnpm vite build",
+      "result": "pass",
+      "evidence": "Client and SSR/Worker builds passed, including the eager-bundle guard. Wrangler's optional user-level debug log could not be written inside the sandbox; the build exited successfully."
+    },
+    {
+      "command": "pnpm --dir web run types:check",
+      "result": "pass",
+      "evidence": "Fumadocs types generated and TypeScript passed; the Zod v3 recommendation was advisory."
+    },
+    {
+      "command": "pnpm --dir web run build",
+      "result": "pass",
+      "evidence": "The escalated run completed client and SSR bundles, prerendered 81 pages, and generated a 58-URL sitemap. The first sandboxed attempt failed only because the prerender process could not start its temporary localhost server."
+    },
+    {
+      "command": "./node_modules/.bin/prettier --check docs/growth/UPSTREAM_MAP.md .bodkin/runs/2026-08-29-growth-phase0-map-a7c4/{plan.md,acceptance.md,run.json}",
+      "result": "pass",
+      "evidence": "All authored Phase 0 deliverables and run artifacts matched repository formatting."
+    },
+    {
+      "command": "git diff --check",
+      "result": "pass",
+      "evidence": "No tracked working-tree diff errors were present."
+    },
+    {
+      "command": "upstream GitHub Actions at the identical base SHA",
+      "result": "pass",
+      "evidence": "OpenSEO CI run 32676314249 and Docker publish run 32676314270 succeeded for c469a48ae90ab58413b198fe3d1ac1aa90a9b070. A local Docker build was not repeated."
+    }
+  ],
+  "acceptanceAudit": {
+    "requestedArchitectureAreasCovered": true,
+    "fourGrowthGapTablesPresent": true,
+    "relevantIssuesAndPullRequestsReviewed": true,
+    "smallestPhase1SequenceProposed": true,
+    "applicationCodeChanged": false,
+    "dependencyManifestOrLockfileChanged": false,
+    "remoteStateChanged": false,
+    "workingTreeScope": [
+      "docs/growth/**",
+      ".bodkin/runs/2026-08-29-growth-phase0-map-a7c4/**"
+    ]
+  },
+  "notes": [
+    "The planning-pack files were copied from the user-supplied archive as source context; UPSTREAM_MAP.md is the authored Phase 0 deliverable.",
+    "The Bodkin fork and public upstream were at the same commit during discovery, so current source conclusions apply to both at the dated snapshot.",
+    "No application, schema, migration, auth, MCP, workflow, dependency, or control-plane file was changed."
+  ]
+}

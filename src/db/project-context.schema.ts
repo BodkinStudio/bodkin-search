@@ -1,5 +1,7 @@
 import {
+  check,
   index,
+  integer,
   primaryKey,
   sqliteTable,
   text,
@@ -75,6 +77,13 @@ export const projectKeyPages = sqliteTable(
     role: text("role", { enum: ["hub", "spoke", "money", "other"] }).notNull(),
     topic: text("topic"),
     notes: text("notes"),
+    commercialWeight: integer("commercial_weight"),
+    protected: integer("protected", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    activelyOptimized: integer("actively_optimized", { mode: "boolean" })
+      .notNull()
+      .default(false),
     updatedAt: text("updated_at")
       .notNull()
       .default(sql`(current_timestamp)`),
@@ -84,6 +93,10 @@ export const projectKeyPages = sqliteTable(
     uniqueIndex("project_key_pages_project_url_idx").on(
       table.projectId,
       table.url,
+    ),
+    check(
+      "project_key_pages_commercial_weight_check",
+      sql`${table.commercialWeight} IS NULL OR ${table.commercialWeight} BETWEEN 1 AND 5`,
     ),
   ],
 );

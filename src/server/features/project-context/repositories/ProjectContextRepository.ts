@@ -32,11 +32,43 @@ type KeyPageRow = {
   role: KeyPageRole | null;
   topic: string | null;
   notes: string | null;
+  // Undefined means the caller omitted the Growth field. Null is a deliberate
+  // commercial-weight clear and must be included in the conflict update.
+  commercialWeight?: number | null;
+  protected?: boolean;
+  activelyOptimized?: boolean;
 };
+
+type KeyPageUpdateMask = {
+  role: boolean;
+  commercialWeight: boolean;
+  protected: boolean;
+  activelyOptimized: boolean;
+};
+
+function keyPageUpdateMask(row: KeyPageRow): KeyPageUpdateMask {
+  return {
+    role: row.role !== null,
+    commercialWeight: row.commercialWeight !== undefined,
+    protected: row.protected !== undefined,
+    activelyOptimized: row.activelyOptimized !== undefined,
+  };
+}
+
+function keyPageUpdateMaskKey(mask: KeyPageUpdateMask): string {
+  return [
+    mask.role,
+    mask.commercialWeight,
+    mask.protected,
+    mask.activelyOptimized,
+  ]
+    .map(Number)
+    .join("");
+}
 
 // D1 caps bound parameters per statement, so multi-row writes are chunked into
 // several statements within the same atomic batch.
-const ROWS_PER_INSERT = 10;
+const ROWS_PER_INSERT = 8;
 const VALUES_PER_DELETE = 90;
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -163,7 +195,19 @@ function upsertKeyPages(
   updatedBy: ContextAuthor,
 ) {
   const updatedAt = new Date().toISOString();
-  const buildInsert = (rowChunk: KeyPageRow[], setRole: boolean) =>
+  const grouped = new Map<
+    string,
+    { mask: KeyPageUpdateMask; rows: KeyPageRow[] }
+  >();
+  for (const row of rows) {
+    const mask = keyPageUpdateMask(row);
+    const key = keyPageUpdateMaskKey(mask);
+    const group = grouped.get(key);
+    if (group) group.rows.push(row);
+    else grouped.set(key, { mask, rows: [row] });
+  }
+
+  const buildInsert = (rowChunk: KeyPageRow[], mask: KeyPageUpdateMask) =>
     tx
       .insert(projectKeyPages)
       .values(
@@ -173,6 +217,9 @@ function upsertKeyPages(
           ...row,
           // New rows need a concrete role; existing rows keep theirs below.
           role: row.role ?? "other",
+          commercialWeight: row.commercialWeight ?? null,
+          protected: row.protected ?? false,
+          activelyOptimized: row.activelyOptimized ?? false,
           updatedAt,
           updatedBy,
         })),
@@ -181,20 +228,26 @@ function upsertKeyPages(
         target: [projectKeyPages.projectId, projectKeyPages.url],
         set: {
           // Omitting the role from the SET keeps the stored classification.
-          ...(setRole ? { role: sql`excluded.role` } : {}),
+          ...(mask.role ? { role: sql`excluded.role` } : {}),
           topic: sql`coalesce(excluded.topic, ${projectKeyPages.topic})`,
           notes: sql`coalesce(excluded.notes, ${projectKeyPages.notes})`,
+          ...(mask.commercialWeight
+            ? { commercialWeight: sql`excluded.commercial_weight` }
+            : {}),
+          ...(mask.protected ? { protected: sql`excluded.protected` } : {}),
+          ...(mask.activelyOptimized
+            ? { activelyOptimized: sql`excluded.actively_optimized` }
+            : {}),
           updatedAt,
           updatedBy,
         },
       });
 
-  const withRole = rows.filter((row) => row.role !== null);
-  const withoutRole = rows.filter((row) => row.role === null);
-  return [
-    ...chunk(withRole, ROWS_PER_INSERT).map((c) => buildInsert(c, true)),
-    ...chunk(withoutRole, ROWS_PER_INSERT).map((c) => buildInsert(c, false)),
-  ];
+  return [...grouped.values()].flatMap(({ mask, rows: groupedRows }) =>
+    chunk(groupedRows, ROWS_PER_INSERT).map((rowChunk) =>
+      buildInsert(rowChunk, mask),
+    ),
+  );
 }
 
 function deleteKeyPages(tx: Tx, projectId: string, urls: string[]) {
