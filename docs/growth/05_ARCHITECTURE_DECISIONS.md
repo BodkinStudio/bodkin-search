@@ -348,3 +348,23 @@ This preserves the distinction between measured Signals, interpreted Insights an
 ### Deferred
 
 Actions, generic graph editing, semantic deduplication, dismissal cooldowns, cross-run evidence, scheduling, AI/provider execution and public surfaces remain deferred.
+
+## ADR-024 - Actions use an atomic state projection and immutable event ledger
+
+**Status:** Accepted
+
+### Decision
+
+- An Action is created only from an accepted Recommendation in the same project. It snapshots the Recommendation category and priority, carries an immutable title, description and due date, and selects one or more canonical targets from that Recommendation. A project-scoped caller key plus complete fact hash makes exact creation retryable while allowing one Recommendation to split into multiple Actions.
+- Actions begin `approved`. The state graph is `approved → ready → in_progress → implemented → measuring → evaluated`, with `in_progress → blocked`, `blocked → in_progress | implemented`, and cancellation from approved, ready, in-progress or blocked. Evaluated and cancelled are terminal. Recommendation dismissal remains pre-Action; approved work is cancelled instead of receiving a second dismissed state.
+- The Action row is the current projection with an integer version and first-entry milestone timestamps. Every creation or transition appends one immutable, project-scoped event at the matching version in the same provider-aware batch/transaction. Event hashes cover semantic transition data but exclude generated timestamps so exact delayed retries remain stable.
+- Targets and events are normalized relations. Composite project-leading foreign keys prevent cross-tenant attachment. Recommendation and run deletion cascade through their Actions and event history, retaining ADR-023's independent run-deletion behavior; no ordinary Action delete API is introduced.
+- Owner/team assignment is nullable and deferred until existing organisation membership can be applied at an authorized boundary. Change Events, implementation notes and Measurement records remain separate later aggregates; `implemented` is not equivalent to `evaluated`.
+
+### Why
+
+This makes Action work trackable without losing how it changed, keeps retries and concurrent updates safe on both database providers, and preserves the complete Recommendation-to-Action evidence chain without inventing a second workflow system.
+
+### Deferred
+
+Owner assignment, metadata editing, website Change Events, Measurement Plans/Results, measurement-enforced transitions, UI, MCP, scheduling, semantic deduplication and external project-management sync remain deferred.

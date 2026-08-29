@@ -1,20 +1,14 @@
 import { sha256Hex } from "@/server/lib/audit/ids";
 import { AppError } from "@/server/lib/errors";
-import {
-  parseResearchTarget,
-  urlMatchesResearchTarget,
-} from "@/shared/researchScope";
 import type {
   CreateGrowthInsightInput,
   CreateGrowthRecommendationInput,
   ReviewGrowthRecommendationInput,
 } from "@/types/schemas/growth";
 import { GrowthInsightsRepository as repo } from "../repositories/GrowthInsightsRepository";
+import { normalizeGrowthTargets } from "./GrowthTargetNormalizer";
 
 const ids = (values: string[]) => [...new Set(values)].toSorted();
-const words = (value: string) =>
-  value.trim().replace(/\s+/g, " ").toLowerCase();
-
 async function running(projectId: string, runId: string) {
   const status = await repo.runState(projectId, runId);
   if (!status) throw new AppError("NOT_FOUND", "Growth run not found");
@@ -27,44 +21,7 @@ async function targets(
 ) {
   const domain = await repo.projectDomain(projectId);
   if (!domain) throw new AppError("NOT_FOUND", "Growth project not found");
-  const project = parseResearchTarget(domain, "subdomains");
-  if (!project.ok)
-    throw new AppError("VALIDATION_ERROR", "Project domain is invalid");
-  const rows = values.map(({ type, value }) => {
-    if (type === "keyword" || type === "cluster")
-      return { targetType: type, targetValue: words(value) };
-    const parsed = parseResearchTarget(
-      value,
-      type === "url" ? "exact_url" : "subdomains",
-    );
-    if (
-      !parsed.ok ||
-      !urlMatchesResearchTarget(
-        `https://${parsed.target.hostname}${parsed.target.path}`,
-        project.target,
-      )
-    )
-      throw new AppError(
-        "VALIDATION_ERROR",
-        "Targets must belong to the project domain",
-      );
-    return {
-      targetType: type,
-      targetValue:
-        type === "url"
-          ? `https://${parsed.target.hostname}${parsed.target.path}`
-          : parsed.target.hostname,
-    };
-  });
-  return [
-    ...new Map(
-      rows.map((row) => [`${row.targetType}:${row.targetValue}`, row]),
-    ).values(),
-  ].toSorted((a, b) =>
-    `${a.targetType}:${a.targetValue}`.localeCompare(
-      `${b.targetType}:${b.targetValue}`,
-    ),
-  );
+  return normalizeGrowthTargets(domain, values);
 }
 
 function insightFact(input: CreateGrowthInsightInput, signalIds: string[]) {
