@@ -1,17 +1,19 @@
 import { sha256Hex } from "@/server/lib/audit/ids";
 import { AppError } from "@/server/lib/errors";
 import {
-  isLegalGrowthActionTransition,
+  isDirectGrowthActionTransition,
   type CreateGrowthActionInput,
   type TransitionGrowthActionInput,
 } from "@/types/schemas/growth-actions";
 import { GrowthActionsRepository as repo } from "../repositories/GrowthActionsRepository";
 import {
+  assertGrowthActionEvent,
+  growthActionEventFactHash,
+} from "./GrowthActionEventFact";
+import {
   normalizeGrowthTargets,
   type NormalizedGrowthTarget,
 } from "./GrowthTargetNormalizer";
-
-type ActionStatus = TransitionGrowthActionInput["status"];
 
 const targetKey = (target: NormalizedGrowthTarget) =>
   `${target.targetType}:${target.targetValue}`;
@@ -44,56 +46,6 @@ function actionFact(
       note: input.note ?? null,
     },
   };
-}
-
-async function eventFactHash(input: {
-  projectId: string;
-  actionId: string;
-  actionVersion: number;
-  eventType: "created" | "status_changed";
-  fromStatus: ActionStatus | null;
-  toStatus: ActionStatus;
-  actorType: CreateGrowthActionInput["actorType"];
-  actorId: string;
-  note: string | null;
-}) {
-  return sha256Hex(JSON.stringify(input));
-}
-
-function assertEvent(
-  event: Awaited<ReturnType<typeof repo.getActionEvent>>,
-  expected: {
-    projectId: string;
-    actionId: string;
-    actionVersion: number;
-    eventType: "created" | "status_changed";
-    fromStatus: ActionStatus | null;
-    toStatus: ActionStatus;
-    actorType: CreateGrowthActionInput["actorType"];
-    actorId: string;
-    note: string | null;
-    factHash: string;
-  },
-) {
-  if (
-    !event ||
-    event.projectId !== expected.projectId ||
-    event.actionId !== expected.actionId ||
-    event.actionVersion !== expected.actionVersion ||
-    event.eventType !== expected.eventType ||
-    event.fromStatus !== expected.fromStatus ||
-    event.toStatus !== expected.toStatus ||
-    event.actorType !== expected.actorType ||
-    event.actorId !== expected.actorId ||
-    event.note !== expected.note ||
-    event.factHash !== expected.factHash
-  ) {
-    throw new AppError(
-      "CONFLICT",
-      "Stored Growth Action event does not match its immutable fact",
-    );
-  }
-  return event;
 }
 
 async function readCreationGraph(
@@ -137,7 +89,7 @@ async function readCreationGraph(
       "Stored Growth Action graph does not match its immutable fact",
     );
   }
-  assertEvent(graph.creationEvent, {
+  assertGrowthActionEvent(graph.creationEvent, {
     projectId,
     actionId,
     actionVersion: 0,
@@ -200,7 +152,7 @@ async function createAction(input: CreateGrowthActionInput) {
         "CONFLICT",
         "Growth Action creation key is occupied by a different immutable fact",
       );
-    const creationEventFactHash = await eventFactHash({
+    const creationEventFactHash = await growthActionEventFactHash({
       projectId: input.projectId,
       actionId: existing.id,
       actionVersion: 0,
@@ -230,7 +182,7 @@ async function createAction(input: CreateGrowthActionInput) {
 
   const actionId = crypto.randomUUID();
   const eventId = crypto.randomUUID();
-  const creationEventFactHash = await eventFactHash({
+  const creationEventFactHash = await growthActionEventFactHash({
     projectId: input.projectId,
     actionId,
     actionVersion: 0,
@@ -268,7 +220,7 @@ async function createAction(input: CreateGrowthActionInput) {
       "CONFLICT",
       "Growth Action creation key is occupied by a different immutable fact",
     );
-  const winnerEventFactHash = await eventFactHash({
+  const winnerEventFactHash = await growthActionEventFactHash({
     projectId: input.projectId,
     actionId: winner.id,
     actionVersion: 0,
@@ -301,7 +253,7 @@ async function transitionAction(input: TransitionGrowthActionInput) {
   if (!action) throw new AppError("NOT_FOUND", "Growth Action not found");
   const note = input.note ?? null;
   const actionVersion = input.expectedVersion + 1;
-  const factHash = await eventFactHash({
+  const factHash = await growthActionEventFactHash({
     projectId: input.projectId,
     actionId: input.actionId,
     actionVersion,
@@ -331,7 +283,7 @@ async function transitionAction(input: TransitionGrowthActionInput) {
     actionVersion,
   );
   if (existingEvent) {
-    const event = assertEvent(existingEvent, expectedEvent);
+    const event = assertGrowthActionEvent(existingEvent, expectedEvent);
     if (action.stateVersion < actionVersion)
       throw new AppError(
         "CONFLICT",
@@ -343,7 +295,7 @@ async function transitionAction(input: TransitionGrowthActionInput) {
   if (
     action.status !== input.expectedStatus ||
     action.stateVersion !== input.expectedVersion ||
-    !isLegalGrowthActionTransition(input.expectedStatus, input.status)
+    !isDirectGrowthActionTransition(input.expectedStatus, input.status)
   ) {
     throw new AppError(
       "CONFLICT",
@@ -371,7 +323,7 @@ async function transitionAction(input: TransitionGrowthActionInput) {
   if (winner.stateVersion < actionVersion) {
     throw new AppError("CONFLICT", "Growth Action transition lost a race");
   }
-  const winningEvent = assertEvent(event, expectedEvent);
+  const winningEvent = assertGrowthActionEvent(event, expectedEvent);
   return { action: winner, event: winningEvent };
 }
 

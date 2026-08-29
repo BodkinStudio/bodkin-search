@@ -389,3 +389,26 @@ Website changes are durable evidence and future measurement confounders even whe
 ### Deferred
 
 Site-wide targets, event correction/void/supersession, unlinking, link audit metadata, implementation notes, deployment/CMS adapters, Action orchestration, Measurement Plans/Results, confounder scoring, UI, MCP and reports remain deferred.
+
+## ADR-026 - Measurement is one atomic Action lifecycle with frozen scalar evidence
+
+**Status:** Accepted
+
+### Decision
+
+- An Action has at most one Measurement Plan and a Plan has at most one terminal Result in the Phase 1 model. The Plan is an immutable schedule/Metric graph with mutable `active | completed` status; the Result and its confounder set are immutable. Revised Plans, early-plus-long-term Result versions and correction/supersession semantics require a later explicit design.
+- Starting measurement is the only ordinary path from Action `implemented` to `measuring`. One atomic provider-aware write appends the Action event and creates the active Plan/Metric graph. Finalizing measurement atomically creates the Result/confounder graph, marks the Plan completed and appends the Action `measuring` to `evaluated` event. Exact historical retries remain valid after both projections advance.
+- The Plan is anchored to the Action's persisted, server-stamped `implementedAt` milestone and records that timestamp plus the project's report timezone. No Change Event is silently treated as the cause or primary implementation. Result-level Change Event links are frozen, explicit confounders; deleting an independent Event removes only its join row, while deleting the Action removes the complete Measurement aggregate.
+- Plan windows are resolved inclusive calendar dates. Baseline must end before the implementation date, cooldown contains the implementation date, measurement begins after cooldown, and an optional long window ends after the primary window. Comparison mode records how the baseline was selected: `preceding_period | year_over_year | custom`. Operational due date is derived from the final configured window.
+- Metrics reuse normalized Growth entity coordinates (`site | url | keyword | cluster`), have a closed Phase 1 scalar registry and a primary/secondary flag, and form part of the Plan fact hash. At least one Metric is primary. Site/cluster context is a secondary Metric rather than a duplicated Result field or ambiguous `comparison` observation period.
+- Observations are append-only scalar facts with one natural coordinate per Plan/Metric and `baseline | measurement | long_term` period. They freeze resolved effective dates, finite value, completeness, evidence kind/reference and capture time. Values remain provider-neutral; raw responses and provider-specific dimension blobs are not copied.
+- A non-`not_measurable` Result requires baseline and measurement observations for every primary Metric, plus long-term observations when the Plan configured that window. The Result freezes a digest of the complete Observation set, its sorted confounder IDs, outcome, confidence and non-causal summary. Absolute/percentage changes are derived from immutable Observation values; percentage change is null when the baseline is zero.
+- Every Measurement table carries `project_id` and uses project-leading composite relationships. Natural uniqueness is Plan per Action, Metric semantic coordinate per Plan, Observation period per Metric and Result per Plan. Complete semantic hashes make exact retries idempotent and reject drift; losing concurrent writes cannot attach Metrics or confounders to the winner.
+
+### Why
+
+This is the smallest model that completes the existing Action lifecycle without allowing `measuring` Actions with no Plan, `evaluated` Actions with no Result or later observations that silently rewrite a reported outcome. It preserves scalar arithmetic truth and provenance while leaving data collection to the OpenSEO services that already own GSC, GA4, rank, backlink and audit semantics.
+
+### Deferred
+
+Plan proposals/default calculation, editing/cancellation/revisions, implementation backdating, Change Event causal anchors, multiple or early/long-term Results, late Observation correction, unavailable/censored value semantics, provider collection adapters, automatic completeness/confounder/outcome scoring, scheduling, AI interpretation, UI, MCP and reporting remain deferred.

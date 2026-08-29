@@ -1,6 +1,6 @@
-import { and, eq, exists, sql } from "drizzle-orm";
+import { and, eq, exists, sql, type SQL } from "drizzle-orm";
 import { getDatabaseProvider } from "@/db/provider";
-import { runBatch } from "@/db/runBatch";
+import { runBatch, type BatchExecutor } from "@/db/runBatch";
 import {
   growthActionEvents,
   growthActions,
@@ -215,7 +215,7 @@ export async function createActionGraph(input: CreateActionGraphInput) {
   });
 }
 
-type TransitionActionInput = {
+type ActionTransitionStatementInput = {
   projectId: string;
   actionId: string;
   expectedStatus: ActionStatus;
@@ -228,80 +228,89 @@ type TransitionActionInput = {
   note: string | null;
 };
 
-export async function transitionAction(input: TransitionActionInput) {
-  const createdAt = new Date().toISOString();
-  await runBatch((tx) => {
-    const update = tx
-      .update(growthActions)
-      .set({
-        status: input.status,
-        stateVersion: sql`${growthActions.stateVersion} + 1`,
-        startedAt:
-          input.status === "in_progress"
-            ? sql`COALESCE(${growthActions.startedAt}, ${createdAt})`
-            : growthActions.startedAt,
-        implementedAt:
-          input.status === "implemented"
-            ? sql`COALESCE(${growthActions.implementedAt}, ${createdAt})`
-            : growthActions.implementedAt,
-        evaluatedAt:
-          input.status === "evaluated"
-            ? sql`COALESCE(${growthActions.evaluatedAt}, ${createdAt})`
-            : growthActions.evaluatedAt,
-        cancelledAt:
-          input.status === "cancelled"
-            ? sql`COALESCE(${growthActions.cancelledAt}, ${createdAt})`
-            : growthActions.cancelledAt,
-        updatedAt: createdAt,
-      })
-      .where(
-        and(
-          eq(growthActions.projectId, input.projectId),
-          eq(growthActions.id, input.actionId),
-          eq(growthActions.status, input.expectedStatus),
-          eq(growthActions.stateVersion, input.expectedVersion),
-        ),
-      );
-    const event = tx
-      .insert(growthActionEvents)
-      .select(
-        tx
-          .select({
-            id: sql<string>`${input.eventId}`.as("id"),
-            projectId: growthActions.projectId,
-            actionId: growthActions.id,
-            actionVersion: growthActions.stateVersion,
-            factHash: sql<string>`${input.eventFactHash}`.as("fact_hash"),
-            eventType: sql<"status_changed">`'status_changed'`.as("event_type"),
-            actorType: sql<ActionActorType>`${input.actorType}`.as(
-              "actor_type",
-            ),
-            actorId: sql<string>`${input.actorId}`.as("actor_id"),
-            fromStatus: sql<ActionStatus>`${input.expectedStatus}`.as(
-              "from_status",
-            ),
-            toStatus: growthActions.status,
-            note: sql<string | null>`${input.note}`.as("note"),
-            createdAt: sql<string>`${createdAt}`.as("created_at"),
-          })
-          .from(growthActions)
-          .where(
-            and(
-              eq(growthActions.projectId, input.projectId),
-              eq(growthActions.id, input.actionId),
-              eq(growthActions.status, input.status),
-              eq(growthActions.stateVersion, input.expectedVersion + 1),
-              eq(growthActions.updatedAt, createdAt),
-            ),
+export function buildActionTransitionStatements(
+  tx: BatchExecutor,
+  input: ActionTransitionStatementInput,
+  occurredAt: string,
+  guard?: SQL,
+) {
+  const update = tx
+    .update(growthActions)
+    .set({
+      status: input.status,
+      stateVersion: sql`${growthActions.stateVersion} + 1`,
+      startedAt:
+        input.status === "in_progress"
+          ? sql`COALESCE(${growthActions.startedAt}, ${occurredAt})`
+          : growthActions.startedAt,
+      implementedAt:
+        input.status === "implemented"
+          ? sql`COALESCE(${growthActions.implementedAt}, ${occurredAt})`
+          : growthActions.implementedAt,
+      evaluatedAt:
+        input.status === "evaluated"
+          ? sql`COALESCE(${growthActions.evaluatedAt}, ${occurredAt})`
+          : growthActions.evaluatedAt,
+      cancelledAt:
+        input.status === "cancelled"
+          ? sql`COALESCE(${growthActions.cancelledAt}, ${occurredAt})`
+          : growthActions.cancelledAt,
+      updatedAt: occurredAt,
+    })
+    .where(
+      and(
+        eq(growthActions.projectId, input.projectId),
+        eq(growthActions.id, input.actionId),
+        eq(growthActions.status, input.expectedStatus),
+        eq(growthActions.stateVersion, input.expectedVersion),
+        guard,
+      ),
+    );
+  const event = tx
+    .insert(growthActionEvents)
+    .select(
+      tx
+        .select({
+          id: sql<string>`${input.eventId}`.as("id"),
+          projectId: growthActions.projectId,
+          actionId: growthActions.id,
+          actionVersion: growthActions.stateVersion,
+          factHash: sql<string>`${input.eventFactHash}`.as("fact_hash"),
+          eventType: sql<"status_changed">`'status_changed'`.as("event_type"),
+          actorType: sql<ActionActorType>`${input.actorType}`.as("actor_type"),
+          actorId: sql<string>`${input.actorId}`.as("actor_id"),
+          fromStatus: sql<ActionStatus>`${input.expectedStatus}`.as(
+            "from_status",
           ),
-      )
-      .onConflictDoNothing({
-        target: [
-          growthActionEvents.projectId,
-          growthActionEvents.actionId,
-          growthActionEvents.actionVersion,
-        ],
-      });
-    return [update, event];
+          toStatus: growthActions.status,
+          note: sql<string | null>`${input.note}`.as("note"),
+          createdAt: sql<string>`${occurredAt}`.as("created_at"),
+        })
+        .from(growthActions)
+        .where(
+          and(
+            eq(growthActions.projectId, input.projectId),
+            eq(growthActions.id, input.actionId),
+            eq(growthActions.status, input.status),
+            eq(growthActions.stateVersion, input.expectedVersion + 1),
+            eq(growthActions.updatedAt, occurredAt),
+            guard,
+          ),
+        ),
+    )
+    .onConflictDoNothing({
+      target: [
+        growthActionEvents.projectId,
+        growthActionEvents.actionId,
+        growthActionEvents.actionVersion,
+      ],
+    });
+  return [update, event] as const;
+}
+
+export async function transitionAction(input: ActionTransitionStatementInput) {
+  const occurredAt = new Date().toISOString();
+  await runBatch((tx) => {
+    return buildActionTransitionStatements(tx, input, occurredAt);
   });
 }

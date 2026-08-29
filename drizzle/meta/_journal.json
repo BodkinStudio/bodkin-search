@@ -337,6 +337,13 @@
       "when": 1788035165117,
       "tag": "0047_flaky_felicia_hardy",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "6",
+      "when": 1788039423985,
+      "tag": "0048_dry_kate_bishop",
+      "breakpoints": true
     }
   ]
 }

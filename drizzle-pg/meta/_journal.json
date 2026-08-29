@@ -183,6 +183,13 @@
       "when": 1788035167759,
       "tag": "0025_huge_ben_parker",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1788039427101,
+      "tag": "0026_narrow_cassandra_nova",
+      "breakpoints": true
     }
   ]
 }

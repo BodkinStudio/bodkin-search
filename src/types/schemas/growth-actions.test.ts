@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   GROWTH_ACTION_STATUSES,
   createGrowthActionSchema,
+  isDirectGrowthActionTransition,
   isLegalGrowthActionTransition,
   transitionGrowthActionSchema,
 } from "./growth-actions";
@@ -103,8 +104,11 @@ describe("Growth Action schemas", () => {
     ["measuring", "evaluated"],
   ] as const;
 
-  it.each(legalTransitions)(
-    "accepts the legal transition %s to %s",
+  const directTransitions = legalTransitions.slice(0, -2);
+  const measurementTransitions = legalTransitions.slice(-2);
+
+  it.each(directTransitions)(
+    "accepts the direct transition %s to %s",
     (from, to) => {
       expect(
         transitionGrowthActionSchema.parse({
@@ -118,6 +122,26 @@ describe("Growth Action schemas", () => {
         }),
       ).toMatchObject({ expectedStatus: from, status: to });
       expect(isLegalGrowthActionTransition(from, to)).toBe(true);
+      expect(isDirectGrowthActionTransition(from, to)).toBe(true);
+    },
+  );
+
+  it.each(measurementTransitions)(
+    "reserves the legal measurement transition %s to %s",
+    (from, to) => {
+      expect(isLegalGrowthActionTransition(from, to)).toBe(true);
+      expect(isDirectGrowthActionTransition(from, to)).toBe(false);
+      expect(
+        transitionGrowthActionSchema.safeParse({
+          projectId: "project_1",
+          actionId: "action_1",
+          expectedStatus: from,
+          expectedVersion: 1,
+          status: to,
+          actorType: "system",
+          actorId: "growth-worker",
+        }).success,
+      ).toBe(false);
     },
   );
 
@@ -141,6 +165,7 @@ describe("Growth Action schemas", () => {
           `${from} to ${to}`,
         ).toBe(false);
         expect(isLegalGrowthActionTransition(from, to)).toBe(false);
+        expect(isDirectGrowthActionTransition(from, to)).toBe(false);
       }
     }
   });

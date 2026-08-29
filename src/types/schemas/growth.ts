@@ -77,7 +77,7 @@ const GROWTH_RUN_TYPES = [
   "measurement_review",
   "manual_analysis",
 ] as const;
-const GROWTH_EVIDENCE_KINDS = [
+export const GROWTH_EVIDENCE_KINDS = [
   "gsc_period",
   "ga4_period",
   "rank_snapshot",

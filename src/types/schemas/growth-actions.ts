@@ -35,7 +35,21 @@ export function isLegalGrowthActionTransition(
   return LEGAL_GROWTH_ACTION_TRANSITIONS[from].includes(to);
 }
 
+export function isDirectGrowthActionTransition(
+  from: GrowthActionStatus,
+  to: GrowthActionStatus,
+) {
+  return (
+    isLegalGrowthActionTransition(from, to) &&
+    !(
+      (from === "implemented" && to === "measuring") ||
+      (from === "measuring" && to === "evaluated")
+    )
+  );
+}
+
 export const GROWTH_ACTOR_TYPES = ["user", "agent", "system"] as const;
+export type GrowthActorType = (typeof GROWTH_ACTOR_TYPES)[number];
 
 const boundedText = (max: number) => z.string().trim().min(1).max(max);
 const actorFields = {
@@ -71,7 +85,7 @@ export const transitionGrowthActionSchema = z
         path: ["expectedVersion"],
         message: "Only an approved Action can have version zero",
       });
-    if (!isLegalGrowthActionTransition(value.expectedStatus, value.status))
+    if (!isDirectGrowthActionTransition(value.expectedStatus, value.status))
       context.addIssue({
         code: "custom",
         path: ["status"],

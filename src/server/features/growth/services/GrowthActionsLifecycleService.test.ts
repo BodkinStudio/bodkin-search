@@ -202,8 +202,6 @@ const legalCases = [
   ["blocked", 3, "in_progress"],
   ["blocked", 3, "implemented"],
   ["blocked", 3, "cancelled"],
-  ["implemented", 4, "measuring"],
-  ["measuring", 5, "evaluated"],
 ] as const;
 
 describe("GrowthActionsService lifecycle", () => {
@@ -326,7 +324,9 @@ describe("GrowthActionsService lifecycle", () => {
     ["in_progress", 2, "measuring"],
     ["blocked", 3, "ready"],
     ["implemented", 4, "cancelled"],
+    ["implemented", 4, "measuring"],
     ["measuring", 5, "cancelled"],
+    ["measuring", 5, "evaluated"],
     ["evaluated", 6, "cancelled"],
     ["cancelled", 1, "ready"],
   ] as const)(
@@ -443,21 +443,29 @@ describe("GrowthActionsService lifecycle", () => {
     expect(repository.transitionAction).toHaveBeenCalledTimes(2);
   });
 
-  it("preserves implementation milestones while entering measurement", async () => {
-    const { current, winner } = installSuccessfulTransition(
-      "implemented",
-      4,
-      "measuring",
-    );
+  it("recognizes an exact historical measurement-managed event replay", async () => {
+    const action = actionRow("measuring", 5);
+    const event = eventRow({
+      projectId: "project_1",
+      actionId: "action_1",
+      expectedStatus: "implemented",
+      expectedVersion: 4,
+      status: "measuring",
+      eventId: "event_measurement_started",
+      eventFactHash: await expectedEventHash("implemented", 4, "measuring"),
+      actorType: "agent",
+      actorId: "agent_1",
+      note: "Workflow update",
+    });
+    repository.getAction.mockResolvedValue(action);
+    repository.getActionEvent.mockResolvedValue(event);
 
-    const result = await GrowthActionsService.transitionAction(
-      transitionInput("implemented", 4, "measuring"),
-    );
-
-    expect(result.action.startedAt).toBe(current.startedAt);
-    expect(result.action.implementedAt).toBe(current.implementedAt);
-    expect(result.action.evaluatedAt).toBeNull();
-    expect(result.action).toBe(winner);
+    await expect(
+      GrowthActionsService.transitionAction(
+        uncheckedTransitionInput("implemented", 4, "measuring"),
+      ),
+    ).resolves.toEqual({ action, event });
+    expect(repository.transitionAction).not.toHaveBeenCalled();
   });
 
   it("hides missing and foreign Actions as NOT_FOUND", async () => {
