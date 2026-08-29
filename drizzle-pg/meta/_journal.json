@@ -176,6 +176,13 @@
       "when": 1788032011658,
       "tag": "0024_friendly_mystique",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1788035167759,
+      "tag": "0025_huge_ben_parker",
+      "breakpoints": true
     }
   ]
 }

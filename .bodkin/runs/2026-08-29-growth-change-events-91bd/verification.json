@@ -1,0 +1,80 @@
+{
+  "runId": "2026-08-29-growth-change-events-91bd",
+  "verifiedAt": "2026-08-29T21:04:57Z",
+  "baseCommit": "6c796a4c1fc0b0b57252157554296bcee693e924",
+  "result": "pass",
+  "finalAcceptanceAudit": "PASS",
+  "checks": [
+    {
+      "command": "pnpm run db:generate",
+      "result": "pass",
+      "evidence": "Generated only D1 migration 0047_flaky_felicia_hardy and Postgres migration 0025_huge_ben_parker with their snapshots/journal entries. A second generation reported no schema changes for either provider."
+    },
+    {
+      "command": "focused Growth schema, contract, migration, repository and service tests",
+      "result": "pass",
+      "evidence": "Twenty focused files passed with 439 assertions; four provider-gated files and eight tests were skipped. Coverage includes prior Growth regressions, Change Event contracts, real-libSQL migration and repository behavior, URL/timestamp normalization, manual source stamping, exact/drift retry semantics, project isolation, Action links and deletion direction."
+    },
+    {
+      "command": "complete Postgres migration tree against fresh disposable Postgres 16",
+      "result": "pass",
+      "evidence": "A brand-new openseo_growth_change_events_audit database was created in the dedicated local Postgres 16 test container. The complete checked-in migration tree through 0025_huge_ben_parker applied successfully from scratch, and growth_change_events, growth_change_event_urls and growth_action_changes were present. No existing project database or remote environment was touched."
+    },
+    {
+      "command": "TEST_POSTGRES_DATABASE_URL=... pnpm vitest run GrowthChangeEventsRepository.postgres.test.ts",
+      "result": "pass",
+      "evidence": "Two live-provider tests passed through the production provider-aware writer/repository path. They exercise concurrent same-key exact/drift winner isolation, same-project many-to-many Action links, absence of Action lifecycle mutation, run-deletion link pruning, Event retention and cascading deletion."
+    },
+    {
+      "command": "pnpm exec vitest run --reporter=dot --maxWorkers=1",
+      "result": "pass",
+      "evidence": "The complete root suite passed: 154 files and 1,390 tests passed, with four files and eight explicitly provider-gated tests skipped, in 85.41 seconds. Two uncapped standard runs first reproduced the existing documented fixed-timeout papercut in unrelated OAuth/DataForSEO tests; the affected OAuth provider and DataForSEO files each passed alone, and the complete single-worker run removed contention without changing coverage or tests."
+    },
+    {
+      "command": "pnpm run ci:check",
+      "result": "pass",
+      "evidence": "Prettier, Knip, root TypeScript, badseo TypeScript, type-aware Oxlint (861 files, zero warnings/errors), skill synchronization and generated-skill cleanliness passed. The initial lint pass identified four test-only mutating sort/reverse uses; they were replaced with non-mutating, explicitly compared forms and the full gate then passed."
+    },
+    {
+      "command": "pnpm vite build",
+      "result": "pass",
+      "evidence": "Client and SSR/Worker production bundles completed successfully: 3,662 client modules and 7,566 server modules transformed, command exit 0. Wrangler could not write its optional user-level debug log inside the filesystem sandbox, but bundle generation completed."
+    },
+    {
+      "command": "git diff --check and final scope audit",
+      "result": "pass",
+      "evidence": "No whitespace errors. No dependency manifest, lockfile, auth flow, scheduler, deployment, provider adapter, UI, MCP, Measurement or report surface changed. Build artifacts remained ignored."
+    }
+  ],
+  "migrationReview": {
+    "d1": "Migration 0047 creates normalized Change Event, exact-URL and Action-link tables with explicit source/type/actor/text checks, project-leading composite keys, complete cascades and unique immutable coordinates. A real-libSQL test begins after 0046 with populated Actions, applies 0047, exercises raw constraints, cross-project rejection and deletion direction, and ends with a clean PRAGMA foreign_key_check.",
+    "postgres": "Migration 0025 creates the equivalent normalized graph with parent composite uniqueness declared before dependent foreign keys. The complete migration tree applied from scratch before production repository concurrency/cascade tests.",
+    "schemaParity": "Both providers expose matching Change Event, URL and link tables, columns, defaults, keys, foreign-key pairings, checks and cascades; the focused parity suite passed."
+  },
+  "acceptanceAudit": {
+    "adrRecorded": true,
+    "manualSourceTrustedAndStamped": true,
+    "projectScopedCreationKey": true,
+    "immutableFactIncludesSortedCanonicalUrls": true,
+    "exactRetryAndDriftConflict": true,
+    "exactRetrySurvivesProjectDomainChange": true,
+    "newEventsRequireCurrentActiveProjectDomain": true,
+    "oneToOneHundredExactUrls": true,
+    "manyToManyActionLinks": true,
+    "linksExcludedFromEventHash": true,
+    "linkRetryIsIdempotent": true,
+    "linkingDoesNotMutateActionLifecycle": true,
+    "crossProjectConstraints": true,
+    "actionAndRunDeletionPruneOnlyLinks": true,
+    "projectDeletionCascadesGraph": true,
+    "dualProviderSchemaMigrationAndRuntimeEvidence": true,
+    "dependenciesChanged": false,
+    "productionMigrationPaidCallOrRemoteStateExecuted": false
+  },
+  "scopeNotes": [
+    "This is an internal service/repository slice. It intentionally exposes no server function, UI, MCP tool, scheduler or caller-supplied authorization boundary.",
+    "Change Event facts and URL children expose no ordinary update/delete methods. Action links are append-only associations and expose no unlink method.",
+    "The shared exact-URL normalizer preserves existing Recommendation/Action behavior while adding a deterministic multi-URL wrapper for Change Events.",
+    "Measurement anchors, corrections/voiding, site-wide scope, external source adapters and public surfaces remain deferred."
+  ]
+}

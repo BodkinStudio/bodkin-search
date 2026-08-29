@@ -17,6 +17,17 @@ export type NormalizedGrowthTarget = {
 const normalizeWords = (value: string) =>
   value.trim().replace(/\s+/g, " ").toLowerCase();
 
+function canonicalizeGrowthExactUrl(value: string) {
+  const parsed = parseResearchTarget(value, "exact_url");
+  if (!parsed.ok)
+    throw new AppError("VALIDATION_ERROR", "Target must be a valid exact URL");
+  return `https://${parsed.target.hostname}${parsed.target.path}`;
+}
+
+export function canonicalizeGrowthExactUrls(values: string[]): string[] {
+  return [...new Set(values.map(canonicalizeGrowthExactUrl))].toSorted();
+}
+
 export function normalizeGrowthTargets(
   projectDomain: string,
   values: GrowthTargetInput[],
@@ -30,14 +41,21 @@ export function normalizeGrowthTargets(
       return { targetType: type, targetValue: normalizeWords(value) };
     }
 
-    const parsed = parseResearchTarget(
-      value,
-      type === "url" ? "exact_url" : "subdomains",
-    );
+    if (type === "url") {
+      const targetValue = canonicalizeGrowthExactUrl(value);
+      if (!urlMatchesResearchTarget(targetValue, project.target))
+        throw new AppError(
+          "VALIDATION_ERROR",
+          "Targets must belong to the project domain",
+        );
+      return { targetType: type, targetValue };
+    }
+
+    const parsed = parseResearchTarget(value, "subdomains");
     if (
       !parsed.ok ||
       !urlMatchesResearchTarget(
-        `https://${parsed.target.hostname}${parsed.target.path}`,
+        `https://${parsed.target.hostname}`,
         project.target,
       )
     ) {
@@ -49,10 +67,7 @@ export function normalizeGrowthTargets(
 
     return {
       targetType: type,
-      targetValue:
-        type === "url"
-          ? `https://${parsed.target.hostname}${parsed.target.path}`
-          : parsed.target.hostname,
+      targetValue: parsed.target.hostname,
     };
   });
 
@@ -68,4 +83,20 @@ export function normalizeGrowthTargets(
       `${b.targetType}:${b.targetValue}`,
     ),
   );
+}
+
+export function normalizeGrowthExactUrls(
+  projectDomain: string,
+  values: string[],
+): string[] {
+  const urls = canonicalizeGrowthExactUrls(values);
+  const project = parseResearchTarget(projectDomain, "subdomains");
+  if (!project.ok)
+    throw new AppError("VALIDATION_ERROR", "Project domain is invalid");
+  if (urls.some((url) => !urlMatchesResearchTarget(url, project.target)))
+    throw new AppError(
+      "VALIDATION_ERROR",
+      "Targets must belong to the project domain",
+    );
+  return urls;
 }

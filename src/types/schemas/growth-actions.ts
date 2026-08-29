@@ -35,11 +35,11 @@ export function isLegalGrowthActionTransition(
   return LEGAL_GROWTH_ACTION_TRANSITIONS[from].includes(to);
 }
 
-const GROWTH_ACTION_ACTOR_TYPES = ["user", "agent", "system"] as const;
+export const GROWTH_ACTOR_TYPES = ["user", "agent", "system"] as const;
 
 const boundedText = (max: number) => z.string().trim().min(1).max(max);
 const actorFields = {
-  actorType: z.enum(GROWTH_ACTION_ACTOR_TYPES),
+  actorType: z.enum(GROWTH_ACTOR_TYPES),
   actorId: boundedText(200),
   note: boundedText(5000).nullable().optional(),
 } as const;

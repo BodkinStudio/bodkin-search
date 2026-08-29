@@ -10,3 +10,4 @@ export * from "./telemetry.schema";
 export * from "./growth.schema";
 export * from "./growth-insights.schema";
 export * from "./growth-actions.schema";
+export * from "./growth-change-events.schema";

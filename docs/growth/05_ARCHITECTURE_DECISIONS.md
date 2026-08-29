@@ -368,3 +368,24 @@ This makes Action work trackable without losing how it changed, keeps retries an
 ### Deferred
 
 Owner assignment, metadata editing, website Change Events, Measurement Plans/Results, measurement-enforced transitions, UI, MCP, scheduling, semantic deduplication and external project-management sync remain deferred.
+
+## ADR-025 - Change Events are immutable website facts with independent Action links
+
+**Status:** Accepted
+
+### Decision
+
+- A Change Event is a project-owned website fact with a caller-stable key and immutable source, change type, recording actor, description, occurrence time, optional external reference and non-empty normalized exact-URL set. A complete semantic fact hash makes exact retries idempotent and rejects drift without copying payload blobs.
+- BG-0108 records `manual` events through a trusted internal service. Persisted source vocabulary is `manual | sherpa | cms_webhook | deployment`; later authenticated adapters stamp the non-manual sources. Change types use the PRD vocabulary with separate `unknown` and `mixed` values.
+- Event URLs reuse Growth exact-URL canonicalization and must belong to the current unarchived project domain or its subdomains. They are exact historical coordinates; the root URL is not a hidden site wildcard, removed pages are valid facts, and site-wide confounder scope is deferred.
+- Events and URL children are immutable and have no ordinary update/delete API. Action links are separate append-only many-to-many associations, excluded from the Event fact hash, so a standalone Event can be linked later and remains internally consistent when Action/run deletion cascades remove a join row.
+- Every relation uses project-leading composite keys. Project deletion cascades the Change graph; Action, Recommendation or run deletion removes only affected join rows and preserves the independent Event. Linking requires no URL overlap or Action status, and does not transition the Action, alter milestones or start measurement.
+- Measurement anchor/primary-change semantics, event correction/voiding, unlinking and link audit metadata require later explicit decisions rather than overloading this primitive.
+
+### Why
+
+Website changes are durable evidence and future measurement confounders even when they were unrelated to planned work or their linked Action later disappears. Separating the immutable fact from its evolving work associations preserves that history without weakening tenant constraints or retry safety.
+
+### Deferred
+
+Site-wide targets, event correction/void/supersession, unlinking, link audit metadata, implementation notes, deployment/CMS adapters, Action orchestration, Measurement Plans/Results, confounder scoring, UI, MCP and reports remain deferred.
