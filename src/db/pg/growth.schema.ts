@@ -178,6 +178,11 @@ export const growthSignals = pgTable(
       table.runId,
       table.createdAt,
     ),
+    uniqueIndex("growth_signals_project_run_id_key").on(
+      table.projectId,
+      table.runId,
+      table.id,
+    ),
     check(
       "growth_signals_period_check",
       sql`${table.periodStart} <= ${table.periodEnd} AND length(${table.periodStart}) = 10 AND length(${table.periodEnd}) = 10`,

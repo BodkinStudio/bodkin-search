@@ -9,6 +9,7 @@ import * as sqliteGa4 from "./ga4.schema";
 import * as sqliteGsc from "./gsc.schema";
 import * as sqliteTelemetry from "./telemetry.schema";
 import * as sqliteGrowth from "./growth.schema";
+import * as sqliteGrowthInsights from "./growth-insights.schema";
 import * as pgApp from "./pg/app.schema";
 import * as pgProjectContext from "./pg/project-context.schema";
 import * as pgAudit from "./pg/audit.schema";
@@ -19,6 +20,7 @@ import * as pgGa4 from "./pg/ga4.schema";
 import * as pgGsc from "./pg/gsc.schema";
 import * as pgTelemetry from "./pg/telemetry.schema";
 import * as pgGrowth from "./pg/growth.schema";
+import * as pgGrowthInsights from "./pg/growth-insights.schema";
 
 // Canonical schema barrel. Repositories import their tables from here and the
 // provider-aware `db` from "@/db", so each repository is written ONCE for both
@@ -39,7 +41,8 @@ type AppSchema = typeof sqliteApp &
   typeof sqliteGa4 &
   typeof sqliteGsc &
   typeof sqliteTelemetry &
-  typeof sqliteGrowth;
+  typeof sqliteGrowth &
+  typeof sqliteGrowthInsights;
 
 const runtimeSchema =
   getDatabaseProvider() === "postgres"
@@ -54,6 +57,7 @@ const runtimeSchema =
         ...pgGsc,
         ...pgTelemetry,
         ...pgGrowth,
+        ...pgGrowthInsights,
       }
     : {
         ...sqliteApp,
@@ -66,6 +70,7 @@ const runtimeSchema =
         ...sqliteGsc,
         ...sqliteTelemetry,
         ...sqliteGrowth,
+        ...sqliteGrowthInsights,
       };
 
 // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- guarded by schema-parity.test.ts
@@ -109,4 +114,10 @@ export const {
   growthProjectSettings,
   growthRuns,
   growthSignals,
+  growthInsights,
+  growthInsightSignals,
+  growthRecommendations,
+  growthRecommendationInsights,
+  growthRecommendationTargets,
+  growthRecommendationSteps,
 } = schema;

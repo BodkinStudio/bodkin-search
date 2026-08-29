@@ -184,6 +184,13 @@ export const growthSignals = sqliteTable(
       table.runId,
       table.createdAt,
     ),
+    // Added separately from the original Signal table so deployed D1 databases
+    // gain the composite FK parent key without a table rebuild.
+    uniqueIndex("growth_signals_project_run_id_key").on(
+      table.projectId,
+      table.runId,
+      table.id,
+    ),
     check(
       "growth_signals_period_check",
       sql`${table.periodStart} <= ${table.periodEnd} AND length(${table.periodStart}) = 10 AND length(${table.periodEnd}) = 10`,

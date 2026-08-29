@@ -1,11 +1,16 @@
+/* eslint-disable max-lines -- schema contracts stay grouped by their public Growth boundary */
 import { describe, expect, it } from "vitest";
 import {
   completeGrowthRunSchema,
   completeGrowthRunWithErrorsSchema,
+  createGrowthInsightSchema,
+  createGrowthRecommendationSchema,
   createManualGrowthRunSchema,
   GROWTH_SETTINGS_DEFAULTS,
+  growthRecommendationTargetSchema,
   growthSettingsInputSchema,
   recordGrowthSignalSchema,
+  reviewGrowthRecommendationSchema,
   updateGrowthSettingsSchema,
 } from "./growth";
 
@@ -182,5 +187,299 @@ describe("Growth run and Signal schemas", () => {
         evidenceKind: "raw_payload",
       }),
     ).toThrow();
+  });
+});
+
+describe("Growth Insight and Recommendation schemas", () => {
+  const insight = {
+    projectId: "project_1",
+    runId: "run_1",
+    creationKey: "insight:clicks-down",
+    title: "Clicks fell on the pricing page",
+    explanation: "Pricing-page clicks are below the preceding period.",
+    hypothesis: "The loss is concentrated in non-brand commercial queries.",
+    confidence: 0.5,
+    signalIds: ["signal_2", "signal_1", "signal_2"],
+  };
+
+  const recommendation = {
+    projectId: "project_1",
+    runId: "run_1",
+    creationKey: "recommendation:pricing-refresh",
+    title: "Refresh the pricing page",
+    rationale: "The page lost clicks for high-intent terms.",
+    category: "content_refresh",
+    insightIds: ["insight_2", "insight_1", "insight_2"],
+    impact: 5,
+    commercialRelevance: 4,
+    effort: 2,
+    urgency: 3,
+    confidence: 0.75,
+    priorityScore: 0,
+    targets: [
+      { type: "url" as const, value: " https://example.test/pricing " },
+    ],
+    steps: [" Audit   the current page ", "Draft the revised copy"],
+  };
+
+  it("deduplicates and sorts source IDs while preserving bounded facts", () => {
+    expect(createGrowthInsightSchema.parse(insight)).toMatchObject({
+      signalIds: ["signal_1", "signal_2"],
+      confidence: 0.5,
+    });
+    expect(
+      createGrowthRecommendationSchema.parse(recommendation),
+    ).toMatchObject({
+      insightIds: ["insight_1", "insight_2"],
+      priorityScore: 0,
+      steps: ["Audit the current page", "Draft the revised copy"],
+    });
+  });
+
+  it("requires at least one source, target and step and caps each collection", () => {
+    expect(() =>
+      createGrowthInsightSchema.parse({ ...insight, signalIds: [] }),
+    ).toThrow();
+    expect(() =>
+      createGrowthInsightSchema.parse({
+        ...insight,
+        signalIds: Array.from({ length: 101 }, (_, index) => `signal_${index}`),
+      }),
+    ).toThrow();
+    expect(() =>
+      createGrowthRecommendationSchema.parse({
+        ...recommendation,
+        insightIds: [],
+      }),
+    ).toThrow();
+    expect(() =>
+      createGrowthRecommendationSchema.parse({
+        ...recommendation,
+        targets: [],
+      }),
+    ).toThrow();
+    expect(() =>
+      createGrowthRecommendationSchema.parse({
+        ...recommendation,
+        targets: Array.from({ length: 101 }, (_, index) => ({
+          type: "keyword",
+          value: `keyword ${index}`,
+        })),
+      }),
+    ).toThrow();
+    expect(() =>
+      createGrowthRecommendationSchema.parse({
+        ...recommendation,
+        steps: [],
+      }),
+    ).toThrow();
+    expect(() =>
+      createGrowthRecommendationSchema.parse({
+        ...recommendation,
+        steps: Array.from({ length: 101 }, (_, index) => `Step ${index}`),
+      }),
+    ).toThrow();
+  });
+
+  it("enforces bounded content and paired model provenance", () => {
+    expect(() =>
+      createGrowthInsightSchema.parse({
+        ...insight,
+        title: "x".repeat(301),
+      }),
+    ).toThrow();
+    expect(() =>
+      createGrowthInsightSchema.parse({
+        ...insight,
+        explanation: "x".repeat(5001),
+      }),
+    ).toThrow();
+    expect(() =>
+      createGrowthRecommendationSchema.parse({
+        ...recommendation,
+        rationale: "x".repeat(5001),
+      }),
+    ).toThrow();
+    expect(() =>
+      createGrowthInsightSchema.parse({ ...insight, model: "gpt-5" }),
+    ).toThrow("Model and prompt version must be supplied together");
+    expect(() =>
+      createGrowthRecommendationSchema.parse({
+        ...recommendation,
+        promptVersion: "growth-v1",
+      }),
+    ).toThrow("Model and prompt version must be supplied together");
+    expect(
+      createGrowthInsightSchema.parse({
+        ...insight,
+        model: "gpt-5",
+        promptVersion: "growth-v1",
+      }),
+    ).toMatchObject({ model: "gpt-5", promptVersion: "growth-v1" });
+  });
+
+  it("accepts zero and one confidence and zero priority but rejects invalid scores", () => {
+    expect(
+      createGrowthInsightSchema.parse({ ...insight, confidence: 0 }),
+    ).toMatchObject({ confidence: 0 });
+    expect(
+      createGrowthInsightSchema.parse({ ...insight, confidence: 1 }),
+    ).toMatchObject({ confidence: 1 });
+    expect(
+      createGrowthRecommendationSchema.parse({
+        ...recommendation,
+        confidence: 0,
+        priorityScore: 0,
+      }),
+    ).toMatchObject({ confidence: 0, priorityScore: 0 });
+
+    for (const [field, value] of [
+      ["impact", 0],
+      ["impact", 6],
+      ["impact", 1.5],
+      ["commercialRelevance", 0],
+      ["effort", 6],
+      ["urgency", 0],
+      ["urgency", 4],
+      ["confidence", -0.01],
+      ["confidence", 1.01],
+      ["confidence", Number.POSITIVE_INFINITY],
+      ["priorityScore", -1],
+      ["priorityScore", Number.NaN],
+    ] as const) {
+      expect(() =>
+        createGrowthRecommendationSchema.parse({
+          ...recommendation,
+          [field]: value,
+        }),
+      ).toThrow();
+    }
+  });
+
+  it("accepts only bounded canonical target inputs", () => {
+    expect(
+      growthRecommendationTargetSchema.parse({
+        type: "keyword",
+        value: "  high intent seo  ",
+      }),
+    ).toEqual({ type: "keyword", value: "high intent seo" });
+    for (const type of ["url", "keyword", "cluster", "site"] as const) {
+      expect(
+        growthRecommendationTargetSchema.parse({ type, value: "target" }),
+      ).toEqual({ type, value: "target" });
+    }
+    expect(() =>
+      growthRecommendationTargetSchema.parse({
+        type: "page",
+        value: "https://example.test/",
+      }),
+    ).toThrow();
+    expect(() =>
+      growthRecommendationTargetSchema.parse({
+        type: "keyword",
+        value: "   ",
+      }),
+    ).toThrow();
+    expect(() =>
+      growthRecommendationTargetSchema.parse({
+        type: "keyword",
+        value: "x".repeat(2001),
+      }),
+    ).toThrow();
+  });
+
+  it("enforces dismissal, snooze and resolution metadata", () => {
+    const review = {
+      projectId: "project_1",
+      recommendationId: "recommendation_1",
+      expectedStatus: "proposed" as const,
+      expectedVersion: 0,
+    };
+    const dismissalReasons = [
+      "irrelevant",
+      "already_planned",
+      "not_commercially_important",
+      "insufficient_evidence",
+      "wrong_diagnosis",
+      "too_much_effort",
+      "duplicate",
+      "defer",
+    ] as const;
+
+    for (const dismissalReason of dismissalReasons) {
+      expect(
+        reviewGrowthRecommendationSchema.parse({
+          ...review,
+          status: "dismissed",
+          dismissalReason,
+        }),
+      ).toMatchObject({ status: "dismissed", dismissalReason });
+    }
+    expect(() =>
+      reviewGrowthRecommendationSchema.parse({
+        ...review,
+        status: "dismissed",
+        dismissalReason: "not_now",
+      }),
+    ).toThrow();
+    expect(() =>
+      reviewGrowthRecommendationSchema.parse({
+        ...review,
+        status: "accepted",
+        dismissalReason: "defer",
+      }),
+    ).toThrow("Dismissal metadata only applies to dismissed recommendations");
+
+    expect(
+      reviewGrowthRecommendationSchema.parse({
+        ...review,
+        status: "snoozed",
+        snoozedUntil: "2999-01-01T00:00:00.000Z",
+      }),
+    ).toMatchObject({ status: "snoozed" });
+    expect(
+      reviewGrowthRecommendationSchema.parse({
+        ...review,
+        status: "snoozed",
+        snoozedUntil: "2000-01-01T00:00:00.000Z",
+      }),
+    ).toMatchObject({ status: "snoozed" });
+    expect(() =>
+      reviewGrowthRecommendationSchema.parse({
+        ...review,
+        status: "accepted",
+        snoozedUntil: "2999-01-01T00:00:00.000Z",
+      }),
+    ).toThrow("Snooze metadata only applies to snoozed recommendations");
+
+    expect(
+      reviewGrowthRecommendationSchema.parse({
+        ...review,
+        status: "merged",
+        resolutionRecommendationId: "recommendation_2",
+      }),
+    ).toMatchObject({ status: "merged" });
+    expect(() =>
+      reviewGrowthRecommendationSchema.parse({
+        ...review,
+        status: "superseded",
+      }),
+    ).toThrow("Resolution recommendation is required");
+    expect(() =>
+      reviewGrowthRecommendationSchema.parse({
+        ...review,
+        status: "merged",
+        resolutionRecommendationId: "recommendation_1",
+      }),
+    ).toThrow("A recommendation cannot resolve itself");
+    expect(() =>
+      reviewGrowthRecommendationSchema.parse({
+        ...review,
+        status: "accepted",
+        resolutionRecommendationId: "recommendation_2",
+      }),
+    ).toThrow(
+      "Resolution metadata only applies to merged or superseded recommendations",
+    );
   });
 });

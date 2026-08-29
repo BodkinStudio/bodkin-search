@@ -325,3 +325,26 @@ This keeps Growth facts reproducible, tenant-safe and auditable without prematur
 ### Deferred
 
 Scheduling, retries, provider cost metering, detector implementations, multiple evidence references, Insights, Recommendations, Actions, and public/UI boundaries remain out of scope.
+
+---
+
+## ADR-023 - Insights and Recommendations use immutable, normalized run graphs
+
+**Status:** Accepted
+
+### Decision
+
+- Insights are immutable interpretations created from one or more Signals in one project and one originating Growth run. They do not receive a speculative status lifecycle.
+- Recommendations are immutable proposed work derived from one or more Insights in that same project and run. Insight links, targets and ordered steps are normalized relations, rather than JSON or prose lists.
+- A caller-stable creation key is unique within a project/run. A SHA-256 fact hash covers every immutable parent field and canonical child coordinate. Exact retries return the original graph; drift is a conflict and cannot add children.
+- URL and site targets are canonicalized within the project's domain; keyword and cluster targets use trimmed, collapsed lowercase whitespace. Duplicated sources/targets are reduced deterministically; repeated step text is allowed only at different positions.
+- Recommendations begin `proposed`. Human review uses project-scoped versioned compare-and-set transitions: proposed may become accepted, dismissed, snoozed, merged or superseded; snoozed may return to proposed. Dismissal requires the PRD reason vocabulary. A new snooze requires a future timestamp, but an exact persisted snooze replay remains valid after that timestamp passes. Merge/supersede requires another non-self Recommendation in the same project and originating run, keeping each run independently cascade-deletable.
+- Composite project/run foreign keys enforce that graph links cannot cross tenant or origin-run boundaries. Project and run deletion cascade through this graph.
+
+### Why
+
+This preserves the distinction between measured Signals, interpreted Insights and proposed work while making retries, auditability and tenant boundaries explicit before any AI, UI or Action surface is introduced.
+
+### Deferred
+
+Actions, generic graph editing, semantic deduplication, dismissal cooldowns, cross-run evidence, scheduling, AI/provider execution and public surfaces remain deferred.

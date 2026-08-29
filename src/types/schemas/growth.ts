@@ -203,3 +203,156 @@ export type CompleteGrowthRunWithErrorsInput = z.infer<
   typeof completeGrowthRunWithErrorsSchema
 >;
 export type RecordGrowthSignalInput = z.infer<typeof recordGrowthSignalSchema>;
+
+const GROWTH_RECOMMENDATION_STATUSES = [
+  "proposed",
+  "accepted",
+  "dismissed",
+  "snoozed",
+  "merged",
+  "superseded",
+] as const;
+const GROWTH_DISMISSAL_REASONS = [
+  "irrelevant",
+  "already_planned",
+  "not_commercially_important",
+  "insufficient_evidence",
+  "wrong_diagnosis",
+  "too_much_effort",
+  "duplicate",
+  "defer",
+] as const;
+const collapsedText = (max: number) =>
+  boundedText(max).transform((value) => value.replace(/\s+/g, " "));
+const idList = z
+  .array(boundedText(100))
+  .min(1)
+  .max(100)
+  .transform((ids) => [...new Set(ids)].toSorted());
+
+export const createGrowthInsightSchema = z
+  .object({
+    projectId: boundedText(100),
+    runId: boundedText(100),
+    creationKey: boundedText(200),
+    title: boundedText(300),
+    explanation: boundedText(5000),
+    hypothesis: boundedText(5000),
+    confidence: z.number().finite().min(0).max(1),
+    signalIds: idList,
+    model: boundedText(200).nullable().optional(),
+    promptVersion: boundedText(100).nullable().optional(),
+  })
+  .superRefine((value, context) => {
+    if ((value.model == null) !== (value.promptVersion == null))
+      context.addIssue({
+        code: "custom",
+        path: ["model"],
+        message: "Model and prompt version must be supplied together",
+      });
+  });
+
+export const growthRecommendationTargetSchema = z.object({
+  type: z.enum(["url", "keyword", "cluster", "site"]),
+  value: boundedText(2000),
+});
+export const createGrowthRecommendationSchema = z
+  .object({
+    projectId: boundedText(100),
+    runId: boundedText(100),
+    creationKey: boundedText(200),
+    title: boundedText(300),
+    rationale: boundedText(5000),
+    category: boundedText(100),
+    insightIds: idList,
+    impact: z.number().int().min(1).max(5),
+    commercialRelevance: z.number().int().min(1).max(5),
+    effort: z.number().int().min(1).max(5),
+    urgency: z.number().int().min(1).max(3),
+    confidence: z.number().finite().min(0).max(1),
+    priorityScore: z.number().finite().nonnegative(),
+    targets: z.array(growthRecommendationTargetSchema).min(1).max(100),
+    steps: z.array(collapsedText(2000)).min(1).max(100),
+    model: boundedText(200).nullable().optional(),
+    promptVersion: boundedText(100).nullable().optional(),
+  })
+  .superRefine((value, context) => {
+    if ((value.model == null) !== (value.promptVersion == null))
+      context.addIssue({
+        code: "custom",
+        path: ["model"],
+        message: "Model and prompt version must be supplied together",
+      });
+  });
+
+export const reviewGrowthRecommendationSchema = z
+  .object({
+    projectId: boundedText(100),
+    recommendationId: boundedText(100),
+    expectedStatus: z.enum(GROWTH_RECOMMENDATION_STATUSES),
+    expectedVersion: z.number().int().nonnegative(),
+    status: z.enum(GROWTH_RECOMMENDATION_STATUSES),
+    dismissalReason: z.enum(GROWTH_DISMISSAL_REASONS).optional(),
+    snoozedUntil: z.string().datetime({ offset: true }).optional(),
+    resolutionRecommendationId: boundedText(100).optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.status === "dismissed" && !value.dismissalReason)
+      context.addIssue({
+        code: "custom",
+        path: ["dismissalReason"],
+        message: "Dismissal reason is required",
+      });
+    if (value.status === "snoozed" && !value.snoozedUntil)
+      context.addIssue({
+        code: "custom",
+        path: ["snoozedUntil"],
+        message: "Snooze timestamp is required",
+      });
+    if (
+      ["merged", "superseded"].includes(value.status) &&
+      !value.resolutionRecommendationId
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["resolutionRecommendationId"],
+        message: "Resolution recommendation is required",
+      });
+    if (value.resolutionRecommendationId === value.recommendationId)
+      context.addIssue({
+        code: "custom",
+        path: ["resolutionRecommendationId"],
+        message: "A recommendation cannot resolve itself",
+      });
+    if (!["dismissed"].includes(value.status) && value.dismissalReason)
+      context.addIssue({
+        code: "custom",
+        path: ["dismissalReason"],
+        message: "Dismissal metadata only applies to dismissed recommendations",
+      });
+    if (!["snoozed"].includes(value.status) && value.snoozedUntil)
+      context.addIssue({
+        code: "custom",
+        path: ["snoozedUntil"],
+        message: "Snooze metadata only applies to snoozed recommendations",
+      });
+    if (
+      !["merged", "superseded"].includes(value.status) &&
+      value.resolutionRecommendationId
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["resolutionRecommendationId"],
+        message:
+          "Resolution metadata only applies to merged or superseded recommendations",
+      });
+  });
+export type CreateGrowthInsightInput = z.infer<
+  typeof createGrowthInsightSchema
+>;
+export type CreateGrowthRecommendationInput = z.infer<
+  typeof createGrowthRecommendationSchema
+>;
+export type ReviewGrowthRecommendationInput = z.infer<
+  typeof reviewGrowthRecommendationSchema
+>;
