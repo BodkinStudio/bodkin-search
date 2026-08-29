@@ -107,4 +107,6 @@ export const {
   gscConnections,
   telemetryState,
   growthProjectSettings,
+  growthRuns,
+  growthSignals,
 } = schema;

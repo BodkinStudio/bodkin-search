@@ -302,3 +302,26 @@ OpenSEO already owns project identity, tenancy, context, competitors, key pages 
 ### Deferred
 
 This foundation does not add Growth UI, runs, signals, recommendations, actions, measurement observations, reports, schedules, detectors, provider adapters, AI generation or new MCP tools.
+
+---
+
+## ADR-022 - Growth runs and Signals are project-scoped immutable facts
+
+**Status:** Accepted
+
+### Decision
+
+- A Growth run is project-scoped, has one of the bounded run types, and records an inclusive `YYYY-MM-DD` period (`start <= end`). Manual creation stamps `trigger=manual` and `status=running`.
+- Every run has a caller-stable cadence slot, unique by project, run type and slot. An exact retry returns the original row; changed immutable creation metadata is a conflict.
+- A run can transition once from running to `completed`, `completed_with_errors`, or `failed`. Terminal rows are immutable. Partial/failed outcomes require bounded failure code and message; completion forbids them. Provider cost is nullable and only persisted when an authoritative caller has it.
+- A Signal is immutable and stores scalar baseline/current/delta facts plus exactly one required evidence kind/reference. Evidence kinds are a closed registry: GSC/GA4 periods, rank snapshots, audit results, backlink snapshots and manual observations. No raw provider payload or generic evidence table is introduced.
+- Signal identity is SHA-256 derived from stable semantic coordinates. Exact retries return the original; any stored fact or provenance drift for that identity conflicts.
+- Signals use a composite `(project_id, run_id)` foreign key to the owning run and are written only while that run is running. Project deletion cascades through both tables.
+
+### Why
+
+This keeps Growth facts reproducible, tenant-safe and auditable without prematurely adding workflow, provider, AI, or evidence-aggregation abstractions.
+
+### Deferred
+
+Scheduling, retries, provider cost metering, detector implementations, multiple evidence references, Insights, Recommendations, Actions, and public/UI boundaries remain out of scope.

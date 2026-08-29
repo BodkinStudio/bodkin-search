@@ -122,19 +122,19 @@ function primaryKeyColumns(table: Table, dialect: Dialect): string[] {
   return sortStrings([...pk]);
 }
 
-// FK as "cols->refTable.refCols onDelete=action" so a dropped/changed cascade is
-// caught (the parity property repositories rely on for cascading deletes).
+// FK as positional "local->foreign" pairs so a swapped composite relationship
+// cannot pass parity merely because both sides contain the same column names.
 function foreignKeys(table: Table, dialect: Dialect): string[] {
   const config = getConfig(table, dialect);
   return sortStrings(
     config.foreignKeys.map((fk) => {
       const ref = fk.reference();
-      const cols = sortStrings(ref.columns.map((c) => c.name)).join(",");
       const refTable = getTableName(ref.foreignTable);
-      const refCols = sortStrings(ref.foreignColumns.map((c) => c.name)).join(
-        ",",
+      const pairs = ref.columns.map(
+        (column, index) =>
+          `${column.name}->${refTable}.${ref.foreignColumns[index]?.name ?? "missing"}`,
       );
-      return `${cols}->${refTable}.${refCols} onDelete=${fk.onDelete ?? "none"}`;
+      return `${sortStrings(pairs).join(",")} onDelete=${fk.onDelete ?? "none"}`;
     }),
   );
 }
