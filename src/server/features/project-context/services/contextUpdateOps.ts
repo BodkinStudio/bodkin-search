@@ -17,7 +17,7 @@ import {
  * and query — unlike backlinks targets, real pages may live behind a query
  * string. Bare "example.com" gets https:// prepended.
  */
-function normalizeKeyPageUrl(raw: string): string {
+export function normalizeKeyPageUrl(raw: string): string {
   const input = raw.trim();
   const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(input)
     ? input

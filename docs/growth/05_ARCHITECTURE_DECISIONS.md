@@ -440,3 +440,28 @@ Monthly reporting must remain explainable after live metrics, Actions and Measur
 ### Deferred
 
 Automatic source selection, historical as-of queries, KPI/provider collection, scheduled generation, AI narrative/model provenance, weekly/custom reports, correction/supersession, UI, HTML/share/PDF/print surfaces, redaction, public authorization and external client boundaries remain deferred.
+
+## ADR-028 - The first detector compares observed GSC page clicks
+
+**Status:** Accepted for the internal BG-0201 through BG-0203 slice
+
+### Decision
+
+- Growth collects search facts through `GscService.getPerformance` and reads the existing project's curated key pages. It does not add Google OAuth, a provider client, source tables or another scheduler.
+- A collection covers explicit inclusive dates, at most 90 days, in Google's `America/Los_Angeles` source calendar. It requests `web` and `final` data, with an end at least three calendar days before the supplied capture date. The adapter checks the actual request returned by OpenSEO so its 16-month clamp cannot silently shorten a comparison.
+- Page/date retrieval uses the existing 1,000-row limit and at most 25 calls. An empty page marks pagination exhausted; hitting the call cap marks it capped. These states describe retrieval, not Google's completeness. The DTO records that GSC may omit page rows even after pagination ends. Google's [query reference](https://developers.google.com/webmaster-tools/v1/searchanalytics/query) and [performance guide](https://developers.google.com/webmaster-tools/v1/how-tos/all-your-data) document the source behavior.
+- The DTO holds bounded observed daily click/impression facts and source URLs, plus property, capture and retrieval metadata. It excludes connection email, tokens and raw provider payloads. Provider/request/property drift, duplicate raw URL/day coordinates and invalid source facts fail collection.
+- URL matching reuses the existing key-page normalizer unchanged. HTTP/HTTPS, leading `www` and root-slash aliases can map to one key-page ID; meaningful queries, path case, non-root trailing slashes and subdomains remain distinct. Numeric aggregation preserves source coordinates and rejects unsafe sums.
+- The detector accepts explicit equal-length adjacent current/comparison windows contained in the snapshot. Each page needs an observed row on every date in both windows. Capped retrieval, missing observations, zero/low baseline and immaterial change suppress output. An absent row is never interpreted as zero clicks, so a complete disappearance may remain undetected until a later source-coverage design.
+- Optional site context is an explicit extra date-grouped property query for the same source window. It is never derived by summing page rows. Requested but incomplete context suppresses detection; omitted context stays explicit. A material site decline suppresses a page decline at most 10 percentage points worse than the site's decline.
+- Version 1 defaults require at least 100 baseline clicks, 20 lost clicks and a 30% decline. Critical severity requires at least 100 lost clicks and a 50% decline. These are provisional, configurable rule thresholds, not evidence of live-site usefulness. Priority is lost clicks multiplied by the curated page's commercial weight (null means 1); measured values remain unweighted.
+- Signal drafts use `priority_page_click_decline`, `key_page` and `gsc_clicks`. Stable page IDs avoid overflowing the existing 500-character entity reference limit. A bounded SHA-256 evidence reference covers source/page/window facts, canonical capture time and detector configuration. The existing Signal schema validates output, and equivalent input order produces the same result.
+- The fixed confidence value 0.8 describes an uncalibrated detector rule convention. It is not the probability of a cause, the completeness of GSC or a statistical significance estimate. Insights and Recommendations remain separate later steps.
+
+### Why
+
+This provides a testable source-to-Signal path without adding another data platform. Explicit retrieval limits and suppression rules prevent common false declines caused by truncated pages, mismatched periods or absent data.
+
+### Deferred
+
+Persistent source snapshots, Run/Signal orchestration, evidence packets, AI interpretation, Recommendation generation, seasonality and causal diagnosis, automatic site-context collection, live usefulness validation, UI, scheduling and full Phase 2 acceptance remain separate work.

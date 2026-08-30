@@ -1,0 +1,51 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "Evidence references are not deterministic for valid Unicode URL aliases.",
+      "location": "src/server/features/growth/services/PriorityPageClickDeclineDetector.ts:368-371",
+      "evidence": "Provenance observations are sorted with localeCompare. Distinct precomposed/decomposed Unicode URL strings can compare equal, so stable sorting retains input order. The Director's acceptance test at GrowthSearchPerformanceAcceptance.test.ts:432-460 reproduces different detector output after reversal.",
+      "impact": "Equivalent source retries can generate different evidenceRef values for the same Signal facts, breaking deterministic provenance and risking conflicting exact retries.",
+      "recommendation": "Use a total, locale-independent comparator for provenance coordinates (for example code-unit comparison with explicit equality), and retain the regression test."
+    },
+    {
+      "summary": "The adapter accepts malformed non-curated provider URLs because validation occurs only after curation.",
+      "location": "src/server/features/growth/services/GrowthSearchPerformanceAdapter.ts:204-223",
+      "evidence": "Each row is passed to normalizeKeyPageUrl, which intentionally accepts bare hosts and has no 4,096-character cap; only rows matching curatedUrls enter observations and reach growthSearchPerformanceObservationSchema. The Director reproduced successful empty snapshots for a relative non-curated URL and an oversized non-curated URL.",
+      "impact": "Untrusted GSC data is not fully validated at the source boundary, contrary to the DTO contract; malformed rows can be silently discarded instead of failing collection.",
+      "recommendation": "Validate every parsed page/date row against the narrow observation URL schema before normalization and curation, while preserving the existing key-page normalizer behavior."
+    },
+    {
+      "summary": "Detector expands attacker-controlled comparison dates before proving they are inside the bounded snapshot.",
+      "location": "src/server/features/growth/services/PriorityPageClickDeclineDetector.ts:124-152",
+      "evidence": "validateWindows calls days for both input windows at lines133-134 before the containment check at lines148-152. The acceptance regression at GrowthSearchPerformanceAcceptance.test.ts:480-510 reproduces excessive date formatting/allocation for a years-long out-of-snapshot baseline.",
+      "impact": "A pure-detector caller can trigger unnecessary large allocation/work before the intended bounded-window validation rejects the input.",
+      "recommendation": "Parse and compare scalar date coordinates first; reject invalid, non-adjacent, unequal, out-of-snapshot, or over-90-day windows before constructing day arrays."
+    },
+    {
+      "summary": "Tie ordering is still input-order dependent for distinct key-page IDs that collate equally.",
+      "location": "src/server/features/growth/services/PriorityPageClickDeclineDetector.ts:257-259 and418-423",
+      "evidence": "Both key-page traversal and final priority tie-breaking use localeCompare, while the DTO permits arbitrary non-empty Unicode IDs. As with the reproduced Unicode URL case, distinct canonically equivalent IDs can compare equal; stable toSorted then preserves incoming keyPages order.",
+      "impact": "Reordered equivalent snapshots can produce differently ordered outcomes, violating the explicit deterministic-input-order and stable page-ID tie-break requirements.",
+      "recommendation": "Use the same total locale-independent string comparator for key-page traversal and final keyPageId priority ties, and add a Unicode-ID reorder regression."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "Required acceptance and CI gates are currently failing.",
+      "location": ".bodkin/runs/2026-08-30-growth-page-decline-84c1/verification.json",
+      "evidence": "The authoritative verification records four failed expanded acceptance tests and pnpm ci:check failing Knip on six unused exported schemas and two unused exported types. Earlier focused tests, full tests, and build passing do not supersede these required gates.",
+      "impact": "The candidate cannot be accepted with the recorded validation and repository quality gates failing.",
+      "recommendation": "Repair the functional findings, remove or genuinely consume unnecessary exports/types without exclusions or artificial imports, then rerun the affected acceptance test and ci:check plus the Director's required refreshed verification."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep using the existing GscService and same-project curated key-page repository boundaries; do not add provider clients, OAuth, persistence, scheduling, or live calls.",
+    "Preserve existing normalizeKeyPageUrl semantics, including meaningful queries and non-root trailing-slash distinctions, while adding strict provider-row validation before curation.",
+    "Keep explicit capped/exhausted retrieval status, source-coverage limitations, and the rule that absent observations are never zero-filled.",
+    "Keep page-level facts separate from optional date-grouped site totals and preserve requested-incomplete site-context suppression."
+  ]
+}
