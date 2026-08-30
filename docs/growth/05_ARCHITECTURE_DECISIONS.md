@@ -412,3 +412,31 @@ This is the smallest model that completes the existing Action lifecycle without 
 ### Deferred
 
 Plan proposals/default calculation, editing/cancellation/revisions, implementation backdating, Change Event causal anchors, multiple or early/long-term Results, late Observation correction, unavailable/censored value semantics, provider collection adapters, automatic completeness/confounder/outcome scoring, scheduling, AI interpretation, UI, MCP and reporting remain deferred.
+
+## ADR-027 - Monthly Reports are immutable, versioned presentation snapshots
+
+**Status:** Accepted
+
+### Decision
+
+- BG-0110 supports `monthly` Reports only. Weekly review remains a different workflow and does not reuse or partially populate the monthly section contract.
+- Report identity is the natural project-scoped family/version coordinate `(project_id, report_type, period_start, period_end, version)`. Period dates are inclusive valid calendar dates and the caller-stable version is a positive integer. There is no second creation-key namespace.
+- Creating a version freezes the current Growth report timezone, canonical data cutoff, server generation time, builder version, content-schema version and creator actor. The immutable fact hash covers every semantic header field, creator identity and canonical section value, including the sorted direct source coordinates embedded in those sections. Random row IDs, server generation time, derived navigation links and later publication metadata are excluded from that hash; an exact delayed retry retains the winner's original generation time.
+- A Report begins `draft` and has exactly these eight sections once at positions 0–7: `executive_summary`, `performance`, `meaningful_changes`, `work_completed`, `results_from_earlier_work`, `risks`, `opportunities`, `next_month`. Caller section order is canonicalized to that order; section vocabulary, cardinality and position remain closed.
+- Each section stores bounded canonical JSON text as a frozen presentation snapshot. Content schema v1 is strict: one non-empty summary and zero or more explicitly positioned stable-key items; each item has bounded title/summary text, explicitly positioned scalar display facts, typed Growth evidence references and at most one nullable internal source. Fact values are finite numbers, bounded strings, booleans or null. Unknown or nested arbitrary payload fields are invalid.
+- Item and fact positions are unique, contiguous from zero and canonicalized by position. Item/fact keys and semantic facts are unique. Evidence references reuse the ADR-022 registry and are deduplicated and sorted by kind/reference. Changed item or fact positions are semantic presentation drift, not an interchangeable ordering.
+- Source compatibility is closed: executive summary and meaningful changes may cite an Action or Measurement Result; performance and results from earlier work may cite a Measurement Result; work completed, risks, opportunities and next month may cite an Action. Unsourced items and empty item lists are valid when the section summary says nothing was material, but every Report must contain at least one sourced item.
+- Each section is at most 64 KiB and all eight section payloads together are at most 256 KiB. A section has at most 100 items, an item at most 50 facts and 50 evidence references, and a Report at most 100 unique Action sources and 50 unique Measurement Result sources. Invalid dates/timestamps, non-finite values, duplicate coordinates, incompatible sources and oversized content fail before persistence.
+- Source identity is also stored relationally as deduplicated, sorted Report-wide Action and terminal Measurement Result links. A linked Result must be same-project, terminal and valid; linking it also links its owning Action. Frozen content keeps the source IDs and presentation facts, while normalized joins provide live navigation and tenancy enforcement.
+- Creation atomically writes the header, all eight sections and the normalized navigation links derived from their direct sources, including each Result's then-current owning Action. Every child and source relationship is project-leading and composite. Invalid, deleted or cross-project sources leave no Report graph, and a losing concurrent fact cannot attach children to the winning family/version. Derived owner-Action links are not separately hash-authoritative and may later be pruned with their live source.
+- Exact retry of the same family/version and complete semantic fact returns the original graph. Any cutoff, timezone, builder/content version, creator, section byte, presentation order, evidence or source-coordinate drift conflicts without extending the winner.
+- Draft content and links are immutable after creation. Publication first validates the stored snapshot, then atomically performs the one-way `draft → published` projection with server time and publisher actor. Repeated or concurrent publication returns the first published projection without changing its actor/time. There is no content/link update, unpublish, correction, supersession or ordinary Report delete API in this slice.
+- Reports render only from frozen section content, never from mutable source rows. Deleting an Action or Measurement Result cascades only its navigation join and never deletes or rewrites a Report. Drafts and published Reports remain readable and exactly retryable after pruning; a draft with missing sources cannot publish. Deleting only a Result may leave its surviving owner Action navigable. Deleting a project cascades its complete Report graph.
+
+### Why
+
+Monthly reporting must remain explainable after live metrics, Actions and Measurements move on. A small closed presentation schema provides stable rendering and deterministic retries without turning arbitrary JSON into a second application model, while normalized source joins preserve project isolation and useful navigation without blocking accepted source-deletion behavior.
+
+### Deferred
+
+Automatic source selection, historical as-of queries, KPI/provider collection, scheduled generation, AI narrative/model provenance, weekly/custom reports, correction/supersession, UI, HTML/share/PDF/print surfaces, redaction, public authorization and external client boundaries remain deferred.

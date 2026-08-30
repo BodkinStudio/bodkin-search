@@ -12,3 +12,4 @@ export * from "./growth-insights.schema";
 export * from "./growth-actions.schema";
 export * from "./growth-change-events.schema";
 export * from "./growth-measurements.schema";
+export * from "./growth-reports.schema";

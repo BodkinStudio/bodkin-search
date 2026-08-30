@@ -1,0 +1,124 @@
+{
+  "runId": "2026-08-30-growth-reports-5e91",
+  "status": "pass",
+  "generatedAt": "2026-08-30T00:10:22.383Z",
+  "checks": [
+    {
+      "name": "Mirrored migration generation",
+      "command": "pnpm db:generate",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 1395,
+      "output": "Both D1 and Postgres generators inspected 58 tables and reported no schema changes. Checked-in migrations are drizzle/0049_gray_hedge_knight.sql and drizzle-pg/0027_mean_ogun.sql with matching snapshots and journal entries."
+    },
+    {
+      "name": "Report contracts, deterministic snapshot, D1 migration/repository, Phase 1 service chain and schema parity",
+      "command": "pnpm exec vitest run src/types/schemas/growth-reports.test.ts src/server/features/growth/services/GrowthReportSnapshot.test.ts src/server/features/growth/services/GrowthSignalToReport.test.ts src/server/features/growth/repositories/GrowthReportsRepository.query.test.ts src/server/features/growth/repositories/GrowthReportsRepository.migration.test.ts src/db/schema-parity.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 4960,
+      "output": "6 files and 318 tests passed after the final repair. The D1 migration runs over populated prior Growth state and finishes with a clean foreign-key check. The service fixture completes Signal -> Insight -> Recommendation -> Action -> Change -> Measurement -> Report, freezes timezone/content, rejects drift and missing sources, publishes first-wins, and proves draft/published Result-only reports remain readable and exactly retryable after Result-first and later Action deletion while a pruned draft cannot publish. The maximum-cardinality repository case creates/publishes 100 Actions and 50 terminal Results while asserting every emitted statement binds at most 100 values and substituted/duplicate same-cardinality manifests remain draft."
+    },
+    {
+      "name": "Complete Postgres migration tree on fresh disposable database",
+      "command": "POSTGRES_DATABASE_URL=<task-owned-local-postgres-url> pnpm db:migrate:pg",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 0,
+      "output": "The complete checked-in Postgres migration tree, including 0027_mean_ogun, applied from scratch earlier in this run to task-created Postgres 16 container bodkin-growth-reports-pg-5e91 on localhost port 55449. No existing database or remote environment was touched. The sandboxed localhost attempt was denied; the approved identical rerun succeeded. Elapsed duration for this earlier command was not retained."
+    },
+    {
+      "name": "Live Postgres Growth regression and report concurrency/deletion",
+      "command": "TEST_POSTGRES_DATABASE_URL=<task-owned-local-postgres-url> pnpm exec vitest run src/server/features/growth/repositories/GrowthActionsRepository.postgres.test.ts src/server/features/growth/repositories/GrowthChangeEventsRepository.postgres.test.ts src/server/features/growth/repositories/GrowthInsightsRepository.postgres.test.ts src/server/features/growth/repositories/GrowthMeasurementsRepository.postgres.test.ts src/server/features/growth/repositories/GrowthReportsRepository.postgres.test.ts src/server/features/growth/repositories/GrowthRunsRepository.postgres.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 8520,
+      "output": "6 live-provider files and 11 tests passed after the final compact publication-SQL repair. Production provider/runBatch paths cover concurrent immutable-fact drift, child isolation, one-way publication, rejection of changed Action/Result manifests, cross-project rejection, Result-first navigation pruning, later Action deletion, and existing Run/Insight/Action/Change/Measurement invariants."
+    },
+    {
+      "name": "Full root tests",
+      "command": "pnpm test:ci",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 17180,
+      "output": "163 test files and 1491 tests passed; 6 provider-gated files and 11 tests skipped in the default run. All 11 skipped Growth Postgres tests passed separately against the disposable live provider. Expected negative-path logging did not produce failures."
+    },
+    {
+      "name": "Complete static repository gate",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 53012,
+      "output": "Prettier, Knip, root TypeScript, badseo TypeScript, type-aware Oxlint (892 files, 184 rules, 0 warnings/errors), skill synchronization and generated-skill cleanliness passed after the final publication-SQL and maximum-cardinality test repair."
+    },
+    {
+      "name": "Production client and Worker build",
+      "command": "pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 50604,
+      "output": "Production client and SSR/Worker bundles were produced and trailing TypeScript passed. Existing bundle-size warnings and Wrangler's optional user-level log-file EPERM inside the sandbox did not prevent output; command exited 0."
+    },
+    {
+      "name": "Independent verification and targeted re-verification",
+      "command": "read-only independent verifier audit plus focused D1 and live Postgres test commands",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 0,
+      "output": "The independent verifier initially found two source-deletion defects; both were accepted, repaired and independently re-verified. After the fresh review found a D1 parameter-budget defect, round-2 verification independently passed the D1 maximum-cardinality repository plus Phase 1 service fixtures (2 files, 3 tests) and the live Postgres publication/manifests/concurrency regression (1 file, 1 test). Inspection confirmed constant 65-parameter publication SQL with counts, distinctness and membership preserving exact sets. Final independent verdict: pass, no new concrete defect. See verification-findings.md and review-dispositions.md; audit duration was not measured."
+    },
+    {
+      "name": "Whitespace and scope audit",
+      "command": "git diff --check; git status --short",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 0,
+      "output": "No whitespace errors in staged or unstaged diffs. Changes are limited to BG-0110 Report contracts, mirrored schema/migrations/barrels/parity, internal service/repository/snapshot logic, tests, ADR-027 and run evidence. No dependency manifest/lockfile, public server function, UI, MCP, scheduler, provider collector, deployment or remote state changed. Build artifacts remain ignored."
+    },
+    {
+      "name": "Fresh adversarial review and repair review",
+      "command": "read-only full-scope review, explicit finding dispositions, then fresh repair-scope review",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 0,
+      "output": "The initial full review's D1 parameter-budget major and matching plan gap were accepted and repaired in round 2. The fresh repair-scope reviewer then returned strict pass with no critical, major, minor, verification or plan findings. See review.json, review-dispositions.md and review-final.json. Review duration was not measured."
+    },
+    {
+      "name": "Disposable provider cleanup",
+      "command": "docker ps --filter name=^/bodkin-growth-reports-pg-5e91$; docker rm -f bodkin-growth-reports-pg-5e91",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 100,
+      "output": "Resolved the exact task-owned postgres:16-alpine container 9ab53810fbfb on port 55449, then removed it after live verification and review. Only disposable test data was deleted; it is reproducible from checked-in migrations and fixtures. No other container or existing database was touched."
+    },
+    {
+      "name": "Final acceptance evidence-only probes",
+      "command": "pnpm exec vitest run src/server/features/growth/repositories/GrowthReportsRepository.acceptance-probe.test.ts src/server/features/growth/services/GrowthSignalToReport.acceptance-probe.test.ts --maxWorkers=1 --reporter=verbose",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 1370,
+      "output": "2 temporary fixture copies and 2 tests passed, filling the fresh audit's evidence gaps without application changes. Raw migrated D1 rejected a 101-character header ID under growth_reports_text_bounds_check and valid JSON over 65536 UTF-8 bytes under growth_report_sections_text_bounds_check. Separate service requests for foreign Action-only and Result-only sources returned NOT_FOUND and left no header. Concurrent service publication with different actors/times returned the same first committed projection. Exact probe insertions and reproduction details are retained in acceptance-probes.md; temporary copies were removed after audit."
+    },
+    {
+      "name": "Fresh final acceptance audit",
+      "command": "read-only fresh-context criterion-by-criterion evidence audit",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 0,
+      "output": "The audit initially identified two missing runtime proofs. Isolated acceptance probes supplied both without further application repair; the auditor then returned PASS. All acceptance criteria, review dispositions, specialist requirements (none), cleanup and the two-round cap were reconciled. See acceptance-result.md and acceptance-probes.md. Audit duration was not measured."
+    }
+  ]
+}
