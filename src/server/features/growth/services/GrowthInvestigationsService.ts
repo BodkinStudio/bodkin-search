@@ -4,6 +4,10 @@ import type {
   GrowthWorkItem,
   GrowthWorkOverview,
 } from "@/types/schemas/growth-investigations";
+import type {
+  GrowthWorkHistory,
+  UpdateGrowthWorkStatusInput,
+} from "@/types/schemas/growth-work";
 import { GrowthActionsRepository } from "../repositories/GrowthActionsRepository";
 import { GrowthInsightsRepository } from "../repositories/GrowthInsightsRepository";
 import { GrowthRunsRepository } from "../repositories/GrowthRunsRepository";
@@ -115,6 +119,7 @@ function projectedWorkItem(
     id: string;
     title: string;
     status: GrowthWorkItem["status"];
+    stateVersion: number;
     dueAt: string;
     createdAt: string;
     runId: string;
@@ -125,10 +130,62 @@ function projectedWorkItem(
     id: action.id,
     title: action.title,
     status: action.status,
+    stateVersion: action.stateVersion,
     dueOn: dueOn(action.dueAt),
     createdAt: action.createdAt,
     runId: action.runId,
     displayUrls: displayUrls(targets),
+  };
+}
+
+async function getQualifiedWork(projectId: string, actionId: string) {
+  const [action] = await GrowthActionsRepository.listInvestigationWork(
+    projectId,
+    1,
+    actionId,
+  );
+  if (!action) throw new AppError("NOT_FOUND", "Growth Work item not found");
+  return action;
+}
+
+async function updateWorkStatus(
+  input: UpdateGrowthWorkStatusInput & { actorId: string },
+) {
+  const qualified = await getQualifiedWork(input.projectId, input.actionId);
+  const transitioned = await GrowthActionsService.transitionAction({
+    ...input,
+    actorType: "user",
+  });
+  const targets = await GrowthActionsRepository.listActionTargetsForActions(
+    input.projectId,
+    [input.actionId],
+  );
+  return projectedWorkItem(
+    { ...transitioned.action, runId: qualified.runId },
+    targets,
+  );
+}
+
+async function getWorkHistory(
+  projectId: string,
+  actionId: string,
+): Promise<GrowthWorkHistory> {
+  await getQualifiedWork(projectId, actionId);
+  const events = await GrowthActionsRepository.listRecentActionEvents(
+    projectId,
+    actionId,
+  );
+  return {
+    actionId,
+    events: events.map((event) => ({
+      version: event.actionVersion,
+      eventType: event.eventType,
+      fromStatus: event.fromStatus,
+      toStatus: event.toStatus,
+      note: event.note,
+      recordedAt: event.createdAt,
+    })),
+    limit: WORK_LIMIT,
   };
 }
 
@@ -260,4 +317,6 @@ export const GrowthInvestigationsService = {
   getInvestigation,
   approveInvestigation,
   getWork,
+  updateWorkStatus,
+  getWorkHistory,
 } as const;

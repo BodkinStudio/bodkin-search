@@ -293,7 +293,15 @@ describePostgres("GrowthActionsRepository Postgres", () => {
         ),
       ]);
 
-      const [action, event, events, foreignEvents] = await Promise.all([
+      const [
+        action,
+        event,
+        events,
+        recentEvents,
+        foreignRecentEvents,
+        missingRecentEvents,
+        foreignEvents,
+      ] = await Promise.all([
         withPgClient(() =>
           GrowthActionsRepository.getAction(projectId, actionId),
         ),
@@ -302,6 +310,21 @@ describePostgres("GrowthActionsRepository Postgres", () => {
         ),
         withPgClient(() =>
           GrowthActionsRepository.listActionEvents(projectId, actionId),
+        ),
+        withPgClient(() =>
+          GrowthActionsRepository.listRecentActionEvents(projectId, actionId),
+        ),
+        withPgClient(() =>
+          GrowthActionsRepository.listRecentActionEvents(
+            "foreign-project",
+            actionId,
+          ),
+        ),
+        withPgClient(() =>
+          GrowthActionsRepository.listRecentActionEvents(
+            projectId,
+            "missing-action",
+          ),
         ),
         withPgClient(() =>
           GrowthActionsRepository.listActionEvents("foreign-project", actionId),
@@ -316,6 +339,12 @@ describePostgres("GrowthActionsRepository Postgres", () => {
         note: "Queued for delivery",
       });
       expect(events.map(({ actionVersion }) => actionVersion)).toEqual([0, 1]);
+      expect(recentEvents.map(({ actionVersion }) => actionVersion)).toEqual([
+        1, 0,
+      ]);
+      expect(recentEvents[0]).not.toHaveProperty("actorId");
+      expect(foreignRecentEvents).toEqual([]);
+      expect(missingRecentEvents).toEqual([]);
       expect(foreignEvents).toEqual([]);
     } finally {
       await sql`DELETE FROM projects WHERE id = ${projectId}`;

@@ -28,6 +28,10 @@ vi.mock("@/serverFunctions/growthInvestigations", () => ({
   approveGrowthInvestigation: vi.fn(),
   getGrowthWork: vi.fn(),
 }));
+vi.mock("@/serverFunctions/growthWork", () => ({
+  getGrowthWorkHistory: vi.fn(),
+  updateGrowthWorkStatus: vi.fn(),
+}));
 
 describe("GrowthPreview rendered contract", () => {
   it("labels the preview even before data is available", () => {

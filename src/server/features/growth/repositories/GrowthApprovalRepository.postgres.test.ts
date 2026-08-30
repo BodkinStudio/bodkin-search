@@ -405,6 +405,54 @@ describePostgres("Growth approval Postgres races and saved Work", () => {
         INSERT INTO growth_recommendation_insights (project_id, run_id, recommendation_id, insight_id)
         VALUES (${work.projectId}, ${work.runId}, ${work.recommendationId}, ${duplicateInsightId})
       `;
+      const newerSignalId = `growth_approval_newer_${work.signalId}`;
+      const newerInsightId = `growth_approval_newer_insight_${work.signalId}`;
+      const newerRecommendationId = `growth_approval_newer_recommendation_${work.signalId}`;
+      await sql`
+        INSERT INTO growth_signals (id, project_id, run_id, signal_type, entity_type, entity_ref, metric, severity, confidence, period_start, period_end, baseline_value, current_value, delta_value, evidence_kind, evidence_ref, captured_at)
+        VALUES (${newerSignalId}, ${work.projectId}, ${work.runId}, 'priority_page_click_decline', 'key_page', 'newer_page', 'gsc_clicks', 'warning', 0, '2026-08-01', '2026-08-29', 10, 5, -5, 'gsc_period', 'saved', '2026-08-30T10:00:00.000Z')
+      `;
+      await sql`
+        INSERT INTO growth_insights (id, project_id, run_id, creation_key, fact_hash, title, explanation, hypothesis, confidence)
+        VALUES (${newerInsightId}, ${work.projectId}, ${work.runId}, ${keys(newerSignalId).insight}, ${"a".repeat(64)}, 'Newer decline', 'Observed facts.', 'Cause unknown.', 0)
+      `;
+      await sql`
+        INSERT INTO growth_insight_signals (project_id, run_id, insight_id, signal_id)
+        VALUES (${work.projectId}, ${work.runId}, ${newerInsightId}, ${newerSignalId})
+      `;
+      await sql`
+        INSERT INTO growth_recommendations (id, project_id, run_id, creation_key, fact_hash, title, rationale, category, impact, commercial_relevance, effort, urgency, confidence, priority_score, status, review_version)
+        VALUES (${newerRecommendationId}, ${work.projectId}, ${work.runId}, ${keys(newerSignalId).recommendation}, ${"b".repeat(64)}, 'Newer investigation', 'Review the saved evidence.', 'investigation', 1, 1, 1, 1, 0, 0, 'accepted', 1)
+      `;
+      await sql`
+        INSERT INTO growth_recommendation_insights (project_id, run_id, recommendation_id, insight_id)
+        VALUES (${work.projectId}, ${work.runId}, ${newerRecommendationId}, ${newerInsightId})
+      `;
+      await sql`
+        INSERT INTO growth_recommendation_targets (project_id, run_id, recommendation_id, target_type, target_value)
+        VALUES (${work.projectId}, ${work.runId}, ${newerRecommendationId}, 'url', 'https://example.com/newer')
+      `;
+      const newerActionId = `growth_approval_newer_action_${work.signalId}`;
+      await withPgClient(() =>
+        GrowthActionsRepository.createActionGraph(
+          approvalInput(work, {
+            id: newerActionId,
+            recommendationId: newerRecommendationId,
+            creationKey: keys(newerSignalId).action,
+            eventId: `growth_approval_newer_event_${work.signalId}`,
+            factHash: "c".repeat(64),
+            eventFactHash: "d".repeat(64),
+            title: "Newer investigation",
+            dueAt: "2026-09-05T00:00:00.000Z",
+            targets: [
+              {
+                targetType: "url" as const,
+                targetValue: "https://example.com/newer",
+              },
+            ],
+          }),
+        ),
+      );
 
       const [workRows, foreignRows] = await Promise.all([
         withPgClient(() =>
@@ -415,12 +463,57 @@ describePostgres("Growth approval Postgres races and saved Work", () => {
         ),
       ]);
       expect(workRows).toEqual([
-        expect.objectContaining({ runId: work.runId }),
+        expect.objectContaining({ id: newerActionId, runId: work.runId }),
+        expect.objectContaining({
+          id: approvalInput(work).id,
+          runId: work.runId,
+        }),
       ]);
       expect(foreignRows).toEqual([
         expect.objectContaining({ runId: foreign.runId }),
       ]);
-      expect(workRows).toHaveLength(1);
+      expect(workRows).toHaveLength(2);
+      const newestOnly = await withPgClient(() =>
+        GrowthActionsRepository.listInvestigationWork(work.projectId, 1),
+      );
+      expect(newestOnly).toEqual([
+        expect.objectContaining({ id: newerActionId, stateVersion: 0 }),
+      ]);
+      await expect(
+        withPgClient(() =>
+          GrowthActionsRepository.listInvestigationWork(
+            work.projectId,
+            1,
+            approvalInput(work).id,
+          ),
+        ),
+      ).resolves.toEqual([
+        expect.objectContaining({
+          id: approvalInput(work).id,
+          runId: work.runId,
+          stateVersion: 0,
+        }),
+      ]);
+      await expect(
+        withPgClient(() =>
+          GrowthActionsRepository.listInvestigationWork(
+            work.projectId,
+            1,
+            "missing_action",
+          ),
+        ),
+      ).resolves.toEqual([]);
+      // The original qualified Action has fallen outside the one-item Work
+      // list, but exact-ID scope remains independently source-qualified.
+      await expect(
+        withPgClient(() =>
+          GrowthActionsRepository.listInvestigationWork(
+            work.projectId,
+            1,
+            approvalInput(work).id,
+          ),
+        ),
+      ).resolves.toHaveLength(1);
       expect(
         await withPgClient(() =>
           GrowthActionsRepository.listInvestigationWork(orphan.projectId, 50),

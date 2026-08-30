@@ -8,6 +8,10 @@ import { GrowthWork, GrowthWorkList } from "./GrowthWork";
 vi.mock("@/serverFunctions/growthInvestigations", () => ({
   getGrowthWork: vi.fn(),
 }));
+vi.mock("@/serverFunctions/growthWork", () => ({
+  getGrowthWorkHistory: vi.fn(),
+  updateGrowthWorkStatus: vi.fn(),
+}));
 
 const overview: GrowthWorkOverview = {
   limit: 50,
@@ -16,6 +20,7 @@ const overview: GrowthWorkOverview = {
       id: "action_1",
       title: "Investigate the pricing-page decline",
       status: "approved",
+      stateVersion: 0,
       dueOn: "2026-09-04",
       createdAt: "2026-08-30T23:30:00.000Z",
       runId: "source_run_1",
@@ -77,6 +82,7 @@ describe("Growth work list", () => {
   it("renders the persisted status, UTC dates, source and disclosed bound", () => {
     const html = renderToStaticMarkup(
       createElement(GrowthWorkList, {
+        projectId: "project_1",
         data: overview,
         onOpenCheck: vi.fn(),
       }),
@@ -87,12 +93,17 @@ describe("Growth work list", () => {
     expect(html).toContain("4 Sept 2026");
     expect(html).toContain("30 Aug 2026");
     expect(html).toContain('href="#growth-live-check-title"');
-    expect(html).not.toContain("Mark implemented");
+    expect(html).toContain("Update status and view history");
+    expect(html).not.toContain("Save status");
   });
 
   it("opens the action's actual source run, not merely the latest check", () => {
     const open = vi.fn();
-    const tree = GrowthWorkList({ data: overview, onOpenCheck: open });
+    const tree = GrowthWorkList({
+      projectId: "project_1",
+      data: overview,
+      onOpenCheck: open,
+    });
     findSourceLink(tree)?.props.onClick?.();
     expect(open).toHaveBeenCalledExactlyOnceWith("source_run_1");
   });
@@ -121,6 +132,7 @@ describe("Growth work list", () => {
   it("keeps non-approved lifecycle states literal and wraps escaped historic content", () => {
     const html = renderToStaticMarkup(
       createElement(GrowthWorkList, {
+        projectId: "project_1",
         data: {
           ...overview,
           actions: [

@@ -58,6 +58,7 @@ export type GrowthWorkItem = {
   id: string;
   title: string;
   status: GrowthActionStatus;
+  stateVersion: number;
   dueOn: string | null;
   createdAt: string;
   runId: string;

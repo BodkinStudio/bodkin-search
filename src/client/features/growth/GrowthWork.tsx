@@ -1,19 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useIsMutating, useQuery } from "@tanstack/react-query";
 import { getGrowthWork } from "@/serverFunctions/growthInvestigations";
-import type { GrowthActionStatus } from "@/types/schemas/growth-actions";
 import type { GrowthWorkOverview } from "@/types/schemas/growth-investigations";
 import { formatGrowthPreviewDate } from "./GrowthPreviewPresentation";
-
-const STATUS_LABELS: Record<GrowthActionStatus, string> = {
-  approved: "Approved",
-  ready: "Ready",
-  in_progress: "In progress",
-  blocked: "Blocked",
-  implemented: "Implemented",
-  measuring: "Measuring",
-  evaluated: "Evaluated",
-  cancelled: "Cancelled",
-};
+import { GROWTH_WORK_STATUS_LABELS } from "./GrowthWorkPresentation";
+import { GrowthWorkDelivery } from "./GrowthWorkDelivery";
 
 export function GrowthWork({
   projectId,
@@ -22,6 +12,8 @@ export function GrowthWork({
   projectId: string;
   onOpenCheck: (runId: string) => void;
 }) {
+  const updating =
+    useIsMutating({ mutationKey: ["growthWorkStatus", projectId] }) > 0;
   const query = useQuery({
     queryKey: ["growthWork", projectId],
     queryFn: () => getGrowthWork({ data: { projectId } }),
@@ -46,7 +38,7 @@ export function GrowthWork({
         <button
           type="button"
           className="btn btn-ghost btn-sm"
-          disabled={query.isFetching}
+          disabled={query.isFetching || updating}
           onClick={() => void query.refetch()}
         >
           Refresh saved work
@@ -66,16 +58,22 @@ export function GrowthWork({
         </p>
       ) : null}
       {query.data ? (
-        <GrowthWorkList data={query.data} onOpenCheck={onOpenCheck} />
+        <GrowthWorkList
+          projectId={projectId}
+          data={query.data}
+          onOpenCheck={onOpenCheck}
+        />
       ) : null}
     </section>
   );
 }
 
 export function GrowthWorkList({
+  projectId,
   data,
   onOpenCheck,
 }: {
+  projectId: string;
   data: GrowthWorkOverview;
   onOpenCheck: (runId: string) => void;
 }) {
@@ -108,7 +106,9 @@ export function GrowthWorkList({
             <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
               <div>
                 <dt className="text-xs text-base-content/70">Status</dt>
-                <dd className="font-medium">{STATUS_LABELS[action.status]}</dd>
+                <dd className="font-medium">
+                  {GROWTH_WORK_STATUS_LABELS[action.status]}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs text-base-content/70">Due date (UTC)</dt>
@@ -132,6 +132,11 @@ export function GrowthWorkList({
             >
               Open source check
             </a>
+            <GrowthWorkDelivery
+              key={`${projectId}:${action.id}`}
+              projectId={projectId}
+              action={action}
+            />
           </li>
         ))}
       </ul>

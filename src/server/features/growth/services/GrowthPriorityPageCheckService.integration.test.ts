@@ -219,8 +219,55 @@ describe("GrowthPriorityPageCheckService SQLite integration", () => {
     expect(events.rows).toEqual([
       { actor_id: "reviewer_1", event_type: "created" },
     ]);
+    const statusInput = {
+      projectId: "project_1",
+      actionId: approval.id,
+      expectedStatus: "approved" as const,
+      expectedVersion: 0,
+      status: "ready" as const,
+      note: "Ready for delivery",
+      actorId: "reviewer_1",
+    };
+    const status = await investigations.updateWorkStatus(statusInput);
+    expect(status).toMatchObject({ status: "ready", stateVersion: 1 });
+    await expect(investigations.updateWorkStatus(statusInput)).resolves.toEqual(
+      status,
+    );
+    await expect(
+      investigations.updateWorkStatus({
+        ...statusInput,
+        note: "Changed retry note",
+      }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(
+      investigations.updateWorkStatus({
+        ...statusInput,
+        actorId: "reviewer_2",
+      }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(
+      investigations.getWorkHistory("project_1", approval.id),
+    ).resolves.toEqual({
+      actionId: approval.id,
+      limit: 50,
+      events: [
+        expect.objectContaining({
+          version: 1,
+          eventType: "status_changed",
+          fromStatus: "approved",
+          toStatus: "ready",
+          note: "Ready for delivery",
+        }),
+        expect.objectContaining({
+          version: 0,
+          eventType: "created",
+          fromStatus: null,
+          toStatus: "approved",
+        }),
+      ],
+    });
     const work = await investigations.getWork("project_1");
-    expect(work.actions).toEqual([approval]);
+    expect(work.actions).toEqual([status]);
     expect((await investigations.getWork("foreign")).actions).toEqual([]);
     expect(mocks.getPerformance).toHaveBeenCalledTimes(3);
   });

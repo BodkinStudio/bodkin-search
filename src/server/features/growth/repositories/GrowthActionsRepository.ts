@@ -75,6 +75,27 @@ async function listActionEvents(projectId: string, actionId: string) {
     .orderBy(growthActionEvents.actionVersion);
 }
 
+async function listRecentActionEvents(projectId: string, actionId: string) {
+  return db
+    .select({
+      actionVersion: growthActionEvents.actionVersion,
+      eventType: growthActionEvents.eventType,
+      fromStatus: growthActionEvents.fromStatus,
+      toStatus: growthActionEvents.toStatus,
+      note: growthActionEvents.note,
+      createdAt: growthActionEvents.createdAt,
+    })
+    .from(growthActionEvents)
+    .where(
+      and(
+        eq(growthActionEvents.projectId, projectId),
+        eq(growthActionEvents.actionId, actionId),
+      ),
+    )
+    .orderBy(sql`${growthActionEvents.actionVersion} DESC`)
+    .limit(50);
+}
+
 async function getActionGraph(projectId: string, id: string) {
   const action = await getAction(projectId, id);
   if (!action) return null;
@@ -164,12 +185,17 @@ async function projectDomain(projectId: string) {
   return row?.domain ?? null;
 }
 
-async function listInvestigationWork(projectId: string, limit: number) {
+async function listInvestigationWork(
+  projectId: string,
+  limit: number,
+  actionId?: string,
+) {
   return db
     .select({
       id: growthActions.id,
       title: growthActions.title,
       status: growthActions.status,
+      stateVersion: growthActions.stateVersion,
       dueAt: growthActions.dueAt,
       createdAt: growthActions.createdAt,
       runId: growthRecommendations.runId,
@@ -228,6 +254,7 @@ async function listInvestigationWork(projectId: string, limit: number) {
     .where(
       and(
         eq(growthActions.projectId, projectId),
+        actionId === undefined ? undefined : eq(growthActions.id, actionId),
         eq(growthRuns.runType, "manual_analysis"),
         eq(growthRuns.detectorVersion, "priority-page-click-decline-v1"),
         sql`${growthRuns.cadenceSlot} LIKE 'priority-page-check:%'`,
@@ -244,6 +271,7 @@ async function listInvestigationWork(projectId: string, limit: number) {
       growthActions.id,
       growthActions.title,
       growthActions.status,
+      growthActions.stateVersion,
       growthActions.dueAt,
       growthActions.createdAt,
       growthRecommendations.runId,
@@ -282,6 +310,7 @@ export const GrowthActionsRepository = {
   getActionGraph,
   getActionEvent,
   listActionEvents,
+  listRecentActionEvents,
   getRecommendationSource,
   listRecommendationTargets,
   projectDomain,

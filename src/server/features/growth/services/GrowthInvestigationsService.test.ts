@@ -10,12 +10,14 @@ const repositories = vi.hoisted(() => ({
   getRecommendationSource: vi.fn(),
   listInvestigationWork: vi.fn(),
   listActionTargetsForActions: vi.fn(),
+  listRecentActionEvents: vi.fn(),
 }));
 const services = vi.hoisted(() => ({
   getRecommendation: vi.fn(),
   reviewRecommendation: vi.fn(),
   createAction: vi.fn(),
   approveProposedRecommendation: vi.fn(),
+  transitionAction: vi.fn(),
 }));
 
 vi.mock("../repositories/GrowthRunsRepository", () => ({
@@ -36,6 +38,7 @@ vi.mock("../repositories/GrowthActionsRepository", () => ({
     getRecommendationSource: repositories.getRecommendationSource,
     listInvestigationWork: repositories.listInvestigationWork,
     listActionTargetsForActions: repositories.listActionTargetsForActions,
+    listRecentActionEvents: repositories.listRecentActionEvents,
   },
 }));
 vi.mock("./GrowthInsightsService", () => ({
@@ -48,6 +51,7 @@ vi.mock("./GrowthActionsService", () => ({
   GrowthActionsService: {
     createAction: services.createAction,
     approveProposedRecommendation: services.approveProposedRecommendation,
+    transitionAction: services.transitionAction,
   },
 }));
 
@@ -89,6 +93,7 @@ const action = {
   status: "approved" as const,
   dueAt: "2026-09-01T00:00:00.000Z",
   createdAt: "2026-08-30T10:00:00.000Z",
+  stateVersion: 0,
 };
 
 beforeEach(() => {
@@ -115,6 +120,7 @@ beforeEach(() => {
     action,
     targets: graph.targets,
   });
+  services.transitionAction.mockResolvedValue({ action, event: {} });
 });
 
 describe("GrowthInvestigationsService", () => {
@@ -280,5 +286,109 @@ describe("GrowthInvestigationsService", () => {
       ["action_1"],
     );
     expect(repositories.getActionGraph).not.toHaveBeenCalled();
+  });
+
+  it("requires an exact qualified Action before changing its status", async () => {
+    repositories.listInvestigationWork.mockResolvedValue([]);
+    await expect(
+      GrowthInvestigationsService.updateWorkStatus({
+        projectId: "project_1",
+        actionId: "foreign_action",
+        expectedStatus: "approved",
+        expectedVersion: 0,
+        status: "ready",
+        actorId: "user_1",
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(repositories.listInvestigationWork).toHaveBeenCalledWith(
+      "project_1",
+      1,
+      "foreign_action",
+    );
+    expect(services.transitionAction).not.toHaveBeenCalled();
+  });
+
+  it("derives a user transition and projects the persisted winner", async () => {
+    repositories.listInvestigationWork.mockResolvedValue([action]);
+    repositories.listActionTargetsForActions.mockResolvedValue([
+      { actionId: "action_1", ...graph.targets[0] },
+    ]);
+    services.transitionAction.mockResolvedValue({
+      action: { ...action, status: "ready", stateVersion: 1 },
+      event: {},
+    });
+    await expect(
+      GrowthInvestigationsService.updateWorkStatus({
+        projectId: "project_1",
+        actionId: "action_1",
+        expectedStatus: "approved",
+        expectedVersion: 0,
+        status: "ready",
+        note: "  Ready to deliver  ",
+        actorId: "user_authorized",
+      }),
+    ).resolves.toMatchObject({ status: "ready", stateVersion: 1 });
+    expect(services.transitionAction).toHaveBeenCalledWith({
+      projectId: "project_1",
+      actionId: "action_1",
+      expectedStatus: "approved",
+      expectedVersion: 0,
+      status: "ready",
+      note: "  Ready to deliver  ",
+      actorId: "user_authorized",
+      actorType: "user",
+    });
+  });
+
+  it("returns only the latest safe history fields in descending order", async () => {
+    repositories.listInvestigationWork.mockResolvedValue([action]);
+    repositories.listRecentActionEvents.mockResolvedValue([
+      {
+        actionVersion: 2,
+        eventType: "status_changed",
+        fromStatus: "ready",
+        toStatus: "in_progress",
+        note: "Started",
+        createdAt: "2026-08-31T10:00:00.000Z",
+        actorId: "must_not_escape",
+        factHash: "must_not_escape",
+      },
+      {
+        actionVersion: 0,
+        eventType: "created",
+        fromStatus: null,
+        toStatus: "approved",
+        note: null,
+        createdAt: "2026-08-30T10:00:00.000Z",
+      },
+    ]);
+    await expect(
+      GrowthInvestigationsService.getWorkHistory("project_1", "action_1"),
+    ).resolves.toEqual({
+      actionId: "action_1",
+      limit: 50,
+      events: [
+        {
+          version: 2,
+          eventType: "status_changed",
+          fromStatus: "ready",
+          toStatus: "in_progress",
+          note: "Started",
+          recordedAt: "2026-08-31T10:00:00.000Z",
+        },
+        {
+          version: 0,
+          eventType: "created",
+          fromStatus: null,
+          toStatus: "approved",
+          note: null,
+          recordedAt: "2026-08-30T10:00:00.000Z",
+        },
+      ],
+    });
+    expect(repositories.listRecentActionEvents).toHaveBeenCalledWith(
+      "project_1",
+      "action_1",
+    );
   });
 });

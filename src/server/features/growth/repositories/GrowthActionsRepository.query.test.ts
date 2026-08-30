@@ -593,8 +593,24 @@ describe("GrowthActionsRepository D1 aggregate writes", () => {
       50,
     );
     expect(rows).toEqual([
-      expect.objectContaining({ id: "action_work", runId: "run_1" }),
+      expect.objectContaining({
+        id: "action_work",
+        runId: "run_1",
+        stateVersion: 0,
+      }),
     ]);
+    await expect(
+      GrowthActionsRepository.listInvestigationWork(
+        "project_1",
+        1,
+        "action_work",
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({ id: "action_work", stateVersion: 0 }),
+    ]);
+    await expect(
+      GrowthActionsRepository.listInvestigationWork("project_1", 1, "action_1"),
+    ).resolves.toEqual([]);
     expect(
       await GrowthActionsRepository.listActionTargetsForActions("project_1", [
         "action_work",
@@ -611,5 +627,34 @@ describe("GrowthActionsRepository D1 aggregate writes", () => {
         "action_work",
       ]),
     ).toEqual([]);
+
+    await client.executeMultiple(
+      Array.from(
+        { length: 51 },
+        (_, index) => `INSERT INTO growth_action_events (
+          id, project_id, action_id, action_version, fact_hash, event_type,
+          actor_type, actor_id, from_status, to_status, note, created_at
+        ) VALUES (
+          'event_work_${index + 1}', 'project_1', 'action_work', ${index + 1},
+          '${"f".repeat(64)}', 'status_changed', 'system', 'growth-system',
+          'ready', 'cancelled', NULL, '2026-08-30T10:${String(index).padStart(2, "0")}:00.000Z'
+        );`,
+      ).join("\n"),
+    );
+    const recent = await GrowthActionsRepository.listRecentActionEvents(
+      "project_1",
+      "action_work",
+    );
+    expect(recent).toHaveLength(50);
+    expect(recent.map(({ actionVersion }) => actionVersion)).toEqual(
+      Array.from({ length: 50 }, (_, index) => 51 - index),
+    );
+    expect(recent[0]).not.toHaveProperty("actorId");
+    expect(
+      await GrowthActionsRepository.listActionEvents(
+        "project_1",
+        "action_work",
+      ),
+    ).toHaveLength(52);
   });
 });
