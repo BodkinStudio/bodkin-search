@@ -10,6 +10,7 @@ const repository = vi.hoisted(() => ({
   listRecommendationTargets: vi.fn(),
   projectDomain: vi.fn(),
   createActionGraph: vi.fn(),
+  approveActionGraph: vi.fn(),
   transitionAction: vi.fn(),
 }));
 
@@ -42,6 +43,7 @@ const source = {
   projectId: "project_1",
   runId: "run_1",
   status: "accepted" as const,
+  reviewVersion: 1,
   category: "content",
   priorityScore: 9.5,
 };
@@ -133,13 +135,13 @@ function installCreationStore() {
           action.projectId === projectId && action.id === actionId,
       ) ?? null,
   );
-  repository.createActionGraph.mockImplementation(
-    async (write: CreateWrite) => {
-      writes.push(write);
-      const key = `${write.projectId}:${write.creationKey}`;
-      if (!graphs.has(key)) graphs.set(key, makeGraph(write));
-    },
-  );
+  const storeWrite = async (write: CreateWrite) => {
+    writes.push(write);
+    const key = `${write.projectId}:${write.creationKey}`;
+    if (!graphs.has(key)) graphs.set(key, makeGraph(write));
+  };
+  repository.createActionGraph.mockImplementation(storeWrite);
+  repository.approveActionGraph.mockImplementation(storeWrite);
   return { graphs, writes };
 }
 
@@ -151,6 +153,44 @@ beforeEach(() => {
 });
 
 describe("GrowthActionsService creation", () => {
+  it("uses the atomic approval writer for a matching proposed review version", async () => {
+    installCreationStore();
+    repository.getRecommendationSource.mockResolvedValue({
+      ...source,
+      status: "proposed",
+      reviewVersion: 2,
+    });
+    const graph = await GrowthActionsService.approveProposedRecommendation(
+      input,
+      2,
+    );
+    expect(graph.creationEvent).toMatchObject({ actorId: input.actorId });
+    expect(repository.approveActionGraph).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedReviewVersion: 2,
+        dueAt: "2026-10-01T12:00:00.000Z",
+      }),
+    );
+    expect(repository.createActionGraph).not.toHaveBeenCalled();
+  });
+
+  it("rejects stale approval versions and accepted sources without attempting a write", async () => {
+    installCreationStore();
+    await expect(
+      GrowthActionsService.approveProposedRecommendation(input, 0),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    repository.getRecommendationSource.mockResolvedValue({
+      ...source,
+      status: "proposed",
+      reviewVersion: 2,
+    });
+    await expect(
+      GrowthActionsService.approveProposedRecommendation(input, 0),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(repository.approveActionGraph).not.toHaveBeenCalled();
+    expect(repository.createActionGraph).not.toHaveBeenCalled();
+  });
+
   it("creates an approved Action from an accepted Recommendation with a canonical target subset", async () => {
     const { writes } = installCreationStore();
 

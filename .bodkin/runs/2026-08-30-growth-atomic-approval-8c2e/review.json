@@ -1,0 +1,14 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep server-derived scope, content, targets, action identity, and original creation-event actor/date immutable.",
+    "Keep reads provider-free, Work bounded and deduplicated, and saved targets normalized.",
+    "Keep legacy accepted-without-action records fail-closed and readonly, with no automatic retry or reload submission.",
+    "Preserve the unchanged Growth layout and native controls; the static-render evidence is sufficient for this text-only legacy recovery branch given the disclosed browser-policy limitation."
+  ]
+}

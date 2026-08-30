@@ -64,6 +64,10 @@ vi.mock("@/serverFunctions/growthChecks", () => ({
   getGrowthChecksOverview: vi.fn(),
   runGrowthCheck: vi.fn(),
 }));
+vi.mock("@/serverFunctions/growthInvestigations", () => ({
+  getGrowthInvestigation: vi.fn(),
+  approveGrowthInvestigation: vi.fn(),
+}));
 
 import { GrowthPriorityPageChecks } from "./GrowthPriorityPageChecks";
 
@@ -83,7 +87,11 @@ function findButton(
 
 function render(projectId = "project_1") {
   harness.cursor = 0;
-  return GrowthPriorityPageChecks({ projectId });
+  return GrowthPriorityPageChecks({
+    projectId,
+    selectedRunId: null,
+    onSelectRun: vi.fn(),
+  });
 }
 
 function click(tree: ReactNode, label: string) {
@@ -177,7 +185,7 @@ describe("Growth check retry identity", () => {
     harness.storageWriteFails = true;
     click(render(), "Run check");
     expect(harness.mutate).not.toHaveBeenCalled();
-    expect(harness.states[2]).toContain("Allow browser session storage");
+    expect(harness.states[1]).toContain("Allow browser session storage");
   });
 
   it("rejects malformed persisted request identities", () => {

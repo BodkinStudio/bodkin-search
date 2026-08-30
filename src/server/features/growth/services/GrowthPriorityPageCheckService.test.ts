@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { priorityPageInvestigationTemplate } from "./GrowthInvestigationTemplate";
+
+type TemplateInput = Parameters<typeof priorityPageInvestigationTemplate>[0];
 
 const mocks = vi.hoisted(() => ({
   connection: vi.fn(),
@@ -16,6 +19,10 @@ const mocks = vi.hoisted(() => ({
   getSignal: vi.fn(),
   getRunBySlot: vi.fn(),
   assemble: vi.fn(),
+  createInsight: vi.fn(),
+  createRecommendation: vi.fn(),
+  setAnalysisVersion: vi.fn(),
+  template: vi.fn(),
 }));
 vi.mock("@/server/features/gsc/repositories/GscConnectionRepository", () => ({
   GscConnectionRepository: { getByProjectId: mocks.connection },
@@ -38,6 +45,7 @@ vi.mock("./GrowthRunsService", () => ({
     completeRun: mocks.complete,
     completeRunWithErrors: mocks.completeErrors,
     failRun: mocks.fail,
+    setAnalysisVersion: mocks.setAnalysisVersion,
     getRun: mocks.getRun,
     listSignals: mocks.listSignals,
   },
@@ -52,6 +60,16 @@ vi.mock("./PriorityPageClickDeclineDetector", () => ({
 }));
 vi.mock("./GrowthEvidencePacketService", () => ({
   assembleGrowthEvidencePacket: mocks.assemble,
+}));
+vi.mock("./GrowthInsightsService", () => ({
+  GrowthInsightsService: {
+    createInsight: mocks.createInsight,
+    createRecommendation: mocks.createRecommendation,
+  },
+}));
+vi.mock("./GrowthInvestigationTemplate", () => ({
+  GROWTH_INVESTIGATION_TEMPLATE_VERSION: "priority-page-investigation-v1",
+  priorityPageInvestigationTemplate: mocks.template,
 }));
 
 import {
@@ -84,9 +102,53 @@ beforeEach(() => {
   mocks.getRun.mockResolvedValue(running);
   mocks.listSignals.mockResolvedValue([]);
   mocks.getRunBySlot.mockResolvedValue(null);
+  mocks.createInsight.mockResolvedValue({ insight: { id: "insight_1" } });
+  mocks.setAnalysisVersion.mockResolvedValue(running);
+  mocks.template.mockImplementation(({ keyPage }: TemplateInput) => ({
+    insight: { keyPage },
+    recommendation: { keyPage },
+  }));
 });
 
 describe("Growth priority-page checks", () => {
+  it("uses the collected snapshot key page for a new suggestion", async () => {
+    mocks.collect.mockResolvedValue({
+      keyPages: [
+        {
+          id: "key_1",
+          url: "https://example.com/snapshot-pricing",
+          commercialWeight: 3,
+        },
+      ],
+    });
+    mocks.detect.mockResolvedValue([
+      {
+        status: "signal",
+        signal: {
+          id: "signal_1",
+          entityRef: "key_1",
+          signalType: "priority_page_click_decline",
+        },
+      },
+    ]);
+    mocks.record.mockResolvedValue({
+      id: "signal_1",
+      entityRef: "key_1",
+    });
+    mocks.complete.mockResolvedValue({ ...running, status: "completed" });
+    await GrowthPriorityPageCheckService.runCheck({
+      projectId: "project_1",
+      requestKey: "snapshot_1",
+    });
+    expect(mocks.template).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // oxlint-disable-next-line typescript/no-unsafe-assignment -- Vitest asymmetric matcher is intentionally nested.
+        keyPage: expect.objectContaining({
+          url: "https://example.com/snapshot-pricing",
+        }),
+      }),
+    );
+  });
   it("labels saved count windows and uses the existing safe current-URL projection", async () => {
     mocks.listSignals.mockResolvedValue([
       {

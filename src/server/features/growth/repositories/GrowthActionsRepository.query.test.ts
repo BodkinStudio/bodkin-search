@@ -115,6 +115,162 @@ beforeAll(async () => {
 
 afterAll(() => client.close());
 
+async function seedProposal(id: string) {
+  await client.execute({
+    sql: `INSERT INTO growth_recommendations (
+      id, project_id, run_id, creation_key, fact_hash, title, rationale,
+      category, impact, commercial_relevance, effort, urgency, confidence,
+      priority_score, status, review_version
+    ) SELECT ?, project_id, run_id, ?, fact_hash, title, rationale,
+      category, impact, commercial_relevance, effort, urgency, confidence,
+      priority_score, 'proposed', 0
+      FROM growth_recommendations WHERE id = 'recommendation_1'`,
+    args: [id, `recommendation:${id}`],
+  });
+  await client.execute({
+    sql: `INSERT INTO growth_recommendation_targets
+      (project_id, run_id, recommendation_id, target_type, target_value)
+      SELECT project_id, run_id, ?, target_type, target_value
+      FROM growth_recommendation_targets WHERE recommendation_id = 'recommendation_1'`,
+    args: [id],
+  });
+  return {
+    ...actionInput,
+    id: `action:${id}`,
+    recommendationId: id,
+    creationKey: `approval:${id}`,
+    eventId: `event:${id}`,
+    expectedReviewVersion: 0,
+  };
+}
+
+describe("Growth atomic approval SQLite", () => {
+  it("saves acceptance, due date, targets and approving actor in one batch", async () => {
+    const input = await seedProposal("atomic_approval");
+    await GrowthActionsRepository.approveActionGraph(input);
+    const graph = await GrowthActionsRepository.getActionGraph(
+      input.projectId,
+      input.id,
+    );
+    expect(graph?.action).toMatchObject({
+      dueAt: input.dueAt,
+      status: "approved",
+    });
+    expect(graph?.targets).toEqual(input.targets);
+    expect(graph?.events).toHaveLength(1);
+    expect(graph?.creationEvent).toMatchObject({
+      actorId: input.actorId,
+      factHash: input.eventFactHash,
+    });
+    const review = await client.execute({
+      sql: "SELECT status, review_version, reviewed_at FROM growth_recommendations WHERE id = ?",
+      args: [input.recommendationId],
+    });
+    expect(review.rows).toEqual([
+      {
+        status: "accepted",
+        review_version: 1,
+        reviewed_at: graph?.action.approvedAt,
+      },
+    ]);
+    await GrowthActionsRepository.approveActionGraph({
+      ...input,
+      id: "atomic_retry",
+      eventId: "atomic_retry_event",
+      actorId: "retry_user",
+    });
+    expect(
+      await GrowthActionsRepository.getActionGraph(input.projectId, input.id),
+    ).toEqual(graph);
+  });
+
+  it("rolls back acceptance and every graph row when the event violates a constraint", async () => {
+    const input = await seedProposal("atomic_rollback");
+    await expect(
+      GrowthActionsRepository.approveActionGraph({
+        ...input,
+        eventFactHash: "invalid",
+      }),
+    ).rejects.toThrow();
+    expect(
+      await GrowthActionsRepository.getRecommendationSource(
+        input.projectId,
+        input.recommendationId,
+      ),
+    ).toMatchObject({ status: "proposed", reviewVersion: 0 });
+    expect(
+      await GrowthActionsRepository.getActionByKey(
+        input.projectId,
+        input.creationKey,
+      ),
+    ).toBeNull();
+    for (const table of ["growth_action_targets", "growth_action_events"]) {
+      const result = await client.execute({
+        sql: `SELECT count(*) AS count FROM ${table} WHERE action_id = ?`,
+        args: [input.id],
+      });
+      expect(result.rows).toEqual([{ count: 0 }]);
+    }
+  });
+
+  it("leaves stale, reviewed and occupied-key proposals unchanged", async () => {
+    const input = await seedProposal("atomic_conflict");
+    await GrowthActionsRepository.approveActionGraph({
+      ...input,
+      expectedReviewVersion: 1,
+    });
+    expect(
+      await GrowthActionsRepository.getActionByKey(
+        input.projectId,
+        input.creationKey,
+      ),
+    ).toBeNull();
+
+    await GrowthActionsRepository.createActionGraph({
+      ...actionInput,
+      id: "occupied_action",
+      creationKey: input.creationKey,
+      eventId: "occupied_event",
+    });
+    await GrowthActionsRepository.approveActionGraph(input);
+    expect(
+      await GrowthActionsRepository.getRecommendationSource(
+        input.projectId,
+        input.recommendationId,
+      ),
+    ).toMatchObject({ status: "proposed", reviewVersion: 0 });
+    expect(
+      await GrowthActionsRepository.getActionByKey(
+        input.projectId,
+        input.creationKey,
+      ),
+    ).toMatchObject({
+      id: "occupied_action",
+      recommendationId: "recommendation_1",
+    });
+
+    const dismissed = await seedProposal("atomic_dismissed");
+    await client.execute({
+      sql: "UPDATE growth_recommendations SET status = 'dismissed', review_version = 1, dismissal_reason = 'already_planned' WHERE id = ?",
+      args: [dismissed.recommendationId],
+    });
+    await GrowthActionsRepository.approveActionGraph(dismissed);
+    expect(
+      await GrowthActionsRepository.getActionByKey(
+        dismissed.projectId,
+        dismissed.creationKey,
+      ),
+    ).toBeNull();
+    expect(
+      await GrowthActionsRepository.getRecommendationSource(
+        dismissed.projectId,
+        dismissed.recommendationId,
+      ),
+    ).toMatchObject({ status: "dismissed", reviewVersion: 1 });
+  });
+});
+
+// oxlint-disable-next-line max-lines-per-function -- the shared SQLite aggregate fixture is intentionally sequential.
 describe("GrowthActionsRepository D1 aggregate writes", () => {
   it("keeps creation complete and isolates exact retries, drift, and projects", async () => {
     await GrowthActionsRepository.createActionGraph(actionInput);
@@ -172,6 +328,15 @@ describe("GrowthActionsRepository D1 aggregate writes", () => {
     expect(
       await GrowthActionsRepository.getAction("project_2", "action_1"),
     ).toBeNull();
+    await expect(
+      GrowthActionsRepository.listRecommendationTargets(
+        "project_1",
+        "recommendation_1",
+      ),
+    ).resolves.toEqual([
+      { targetType: "keyword", targetValue: "pricing software" },
+      { targetType: "url", targetValue: "https://example.com/pricing" },
+    ]);
 
     await GrowthActionsRepository.createActionGraph({
       ...actionInput,
@@ -380,5 +545,71 @@ describe("GrowthActionsRepository D1 aggregate writes", () => {
       await GrowthActionsRepository.getActionEvent("project_1", "action_1", 8),
     ).toBeNull();
     expect((await client.execute("PRAGMA foreign_key_check")).rows).toEqual([]);
+  });
+
+  it("projects only bounded supported investigation actions and bulk targets", async () => {
+    await client.execute(
+      "UPDATE growth_runs SET detector_version = 'priority-page-click-decline-v1', cadence_slot = 'priority-page-check:work' WHERE id = 'run_1'",
+    );
+    await client.executeMultiple(
+      [
+        `INSERT INTO growth_signals (id, project_id, run_id, signal_type, entity_type, entity_ref, metric, severity, confidence, period_start, period_end, baseline_value, current_value, delta_value, evidence_kind, evidence_ref, captured_at)
+         VALUES ('signal_work', 'project_1', 'run_1', 'priority_page_click_decline', 'key_page', 'page_1', 'gsc_clicks', 'warning', 0, '2026-08-01', '2026-08-29', 10, 5, -5, 'gsc_period', 'saved', '2026-08-30T10:00:00.000Z');`,
+        `INSERT INTO growth_insights (id, project_id, run_id, creation_key, fact_hash, title, explanation, hypothesis, confidence)
+         VALUES ('insight_work', 'project_1', 'run_1', 'priority-page-investigation-v1:insight:signal_work', '${"7".repeat(64)}', 'Observed decline', 'Observed facts.', 'Cause unknown.', 0);`,
+        `INSERT INTO growth_insight_signals (project_id, run_id, insight_id, signal_id)
+         VALUES ('project_1', 'run_1', 'insight_work', 'signal_work');`,
+        `INSERT INTO growth_recommendations (id, project_id, run_id, creation_key, fact_hash, title, rationale, category, impact, commercial_relevance, effort, urgency, confidence, priority_score, status, review_version)
+         VALUES ('recommendation_work', 'project_1', 'run_1', 'priority-page-investigation-v1:recommendation:signal_work', '${"8".repeat(64)}', 'Investigate decline', 'Cause unknown.', 'investigation', 1, 1, 1, 1, 0, 0, 'accepted', 1);`,
+        `INSERT INTO growth_recommendation_insights (project_id, run_id, recommendation_id, insight_id)
+         VALUES ('project_1', 'run_1', 'recommendation_work', 'insight_work');`,
+        `INSERT INTO growth_recommendation_targets (project_id, run_id, recommendation_id, target_type, target_value)
+         VALUES ('project_1', 'run_1', 'recommendation_work', 'url', 'https://example.com/pricing');`,
+      ].join("\n"),
+    );
+    await client.executeMultiple(
+      [
+        `INSERT INTO growth_insights (id, project_id, run_id, creation_key, fact_hash, title, explanation, hypothesis, confidence)
+         VALUES ('insight_work_duplicate', 'project_1', 'run_1', 'priority-page-investigation-v1:insight:signal_work_duplicate', '${"6".repeat(64)}', 'Observed decline', 'Observed facts.', 'Cause unknown.', 0);`,
+        `INSERT INTO growth_insight_signals (project_id, run_id, insight_id, signal_id)
+         VALUES ('project_1', 'run_1', 'insight_work_duplicate', 'signal_work');`,
+        `INSERT INTO growth_recommendation_insights (project_id, run_id, recommendation_id, insight_id)
+         VALUES ('project_1', 'run_1', 'recommendation_work', 'insight_work_duplicate');`,
+      ].join("\n"),
+    );
+    await GrowthActionsRepository.createActionGraph({
+      ...actionInput,
+      id: "action_work",
+      recommendationId: "recommendation_work",
+      creationKey: "priority-page-investigation-v1:action:signal_work",
+      factHash: "9".repeat(64),
+      category: "investigation",
+      priorityScore: 0,
+      eventId: "event_work",
+      eventFactHash: "0".repeat(64),
+    });
+    const rows = await GrowthActionsRepository.listInvestigationWork(
+      "project_1",
+      50,
+    );
+    expect(rows).toEqual([
+      expect.objectContaining({ id: "action_work", runId: "run_1" }),
+    ]);
+    expect(
+      await GrowthActionsRepository.listActionTargetsForActions("project_1", [
+        "action_work",
+      ]),
+    ).toEqual([
+      {
+        actionId: "action_work",
+        targetType: "url",
+        targetValue: "https://example.com/pricing",
+      },
+    ]);
+    expect(
+      await GrowthActionsRepository.listActionTargetsForActions("project_2", [
+        "action_work",
+      ]),
+    ).toEqual([]);
   });
 });

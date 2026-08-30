@@ -5,6 +5,7 @@ import {
   type getGrowthCheckRun,
 } from "@/serverFunctions/growthChecks";
 import { formatGrowthPreviewDate } from "./GrowthPreviewPresentation";
+import { GrowthInvestigation } from "./GrowthInvestigation";
 
 export function GrowthCheckDetail({
   query,
@@ -104,6 +105,7 @@ export function GrowthCheckDetail({
                 </div>
               </dl>
               <GrowthEvidence projectId={projectId} signalId={signal.id} />
+              <GrowthInvestigation projectId={projectId} signalId={signal.id} />
             </li>
           ))}
         </ul>

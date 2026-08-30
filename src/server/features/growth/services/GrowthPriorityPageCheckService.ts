@@ -12,6 +12,11 @@ import {
   PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION,
 } from "./PriorityPageClickDeclineDetector";
 import { GrowthRunsService } from "./GrowthRunsService";
+import { GrowthInsightsService } from "./GrowthInsightsService";
+import {
+  GROWTH_INVESTIGATION_TEMPLATE_VERSION,
+  priorityPageInvestigationTemplate,
+} from "./GrowthInvestigationTemplate";
 
 const RUN_TYPE = "manual_analysis" as const;
 const WINDOW_DAYS = 28;
@@ -148,8 +153,10 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
     }
     return { run: runSummary(claim.run), replayed: true };
   }
+  let outcomes: Awaited<ReturnType<typeof detectPriorityPageClickDeclines>>;
+  let snapshot: Awaited<ReturnType<typeof collectGrowthSearchPerformance>>;
   try {
-    const snapshot = await collectGrowthSearchPerformance({
+    snapshot = await collectGrowthSearchPerformance({
       projectId: input.projectId,
       startDate: baselineWindow.startDate,
       endDate: currentWindow.endDate,
@@ -157,18 +164,70 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
       includeSiteContext: true,
       maxPageRequests: MAX_PAGE_REQUESTS,
     });
-    const outcomes = await detectPriorityPageClickDeclines({
+    outcomes = await detectPriorityPageClickDeclines({
       projectId: input.projectId,
       runId: claim.run.id,
       snapshot,
       baselineWindow,
       currentWindow,
     });
-    for (const outcome of outcomes) {
-      if (outcome.status === "signal" && outcome.signal) {
-        await GrowthRunsService.recordSignal(outcome.signal);
+  } catch (error) {
+    const failure = safeProviderFailure(error);
+    const terminal = await GrowthRunsService.failRun({
+      projectId: input.projectId,
+      runId: claim.run.id,
+      failureCode: failure.code,
+      failureMessage: failure.message,
+    });
+    return { run: runSummary(terminal), replayed: false };
+  }
+
+  try {
+    const savedSignals = await Promise.all(
+      outcomes
+        .filter(
+          (
+            outcome,
+          ): outcome is typeof outcome & {
+            status: "signal";
+            signal: NonNullable<typeof outcome.signal>;
+          } => outcome.status === "signal" && outcome.signal !== undefined,
+        )
+        .map((outcome) => GrowthRunsService.recordSignal(outcome.signal)),
+    );
+    const keyPagesById = new Map(
+      savedSignals.length === 0
+        ? []
+        : snapshot.keyPages.map((page) => [page.id, page]),
+    );
+    for (const signal of savedSignals) {
+      const keyPage = keyPagesById.get(signal.entityRef);
+      if (!keyPage) {
+        throw new AppError(
+          "CONFLICT",
+          "Growth investigation source page is unavailable",
+        );
       }
+      const template = priorityPageInvestigationTemplate({
+        projectId: input.projectId,
+        runId: claim.run.id,
+        signal,
+        keyPage,
+      });
+      const insight = await GrowthInsightsService.createInsight(
+        template.insight,
+      );
+      await GrowthInsightsService.createRecommendation({
+        ...template.recommendation,
+        insightIds: [insight.insight.id],
+      });
     }
+    if (savedSignals.length > 0)
+      await GrowthRunsService.setAnalysisVersion({
+        projectId: input.projectId,
+        runId: claim.run.id,
+        analysisVersion: GROWTH_INVESTIGATION_TEMPLATE_VERSION,
+      });
     const hasIncompleteSource = outcomes.some((outcome) => {
       const reason = outcome.suppressionReason;
       return (
@@ -194,13 +253,13 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
           runId: claim.run.id,
         });
     return { run: runSummary(terminal), replayed: false };
-  } catch (error) {
-    const failure = safeProviderFailure(error);
+  } catch {
     const terminal = await GrowthRunsService.failRun({
       projectId: input.projectId,
       runId: claim.run.id,
-      failureCode: failure.code,
-      failureMessage: failure.message,
+      failureCode: "INVESTIGATION_GENERATION_FAILED",
+      failureMessage:
+        "The check data was collected, but its investigation suggestions could not be saved.",
     });
     return { run: runSummary(terminal), replayed: false };
   }

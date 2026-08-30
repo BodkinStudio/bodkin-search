@@ -142,6 +142,25 @@ async function transitionRunningRun(input: {
   return row ?? null;
 }
 
+async function setAnalysisVersionWhileRunning(input: {
+  projectId: string;
+  runId: string;
+  analysisVersion: string;
+}) {
+  const [row] = await db
+    .update(growthRuns)
+    .set({ analysisVersion: input.analysisVersion })
+    .where(
+      and(
+        eq(growthRuns.projectId, input.projectId),
+        eq(growthRuns.id, input.runId),
+        eq(growthRuns.status, "running"),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
 async function getSignal(projectId: string, signalId: string) {
   const [row] = await db
     .select()
@@ -233,6 +252,7 @@ export const GrowthRunsRepository = {
   getRunBySlot,
   tryCreateManualRun,
   transitionRunningRun,
+  setAnalysisVersionWhileRunning,
   getSignal,
   listSignals,
   tryRecordSignalWhileRunIsRunning,

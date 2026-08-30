@@ -43,9 +43,16 @@ function formatCheckStartedAt(value: string) {
   }).format(new Date(value))} UTC`;
 }
 
-export function GrowthPriorityPageChecks({ projectId }: { projectId: string }) {
+export function GrowthPriorityPageChecks({
+  projectId,
+  selectedRunId,
+  onSelectRun,
+}: {
+  projectId: string;
+  selectedRunId: string | null;
+  onSelectRun: (runId: string) => void;
+}) {
   const client = useQueryClient();
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [requestKey, setRequestKey] = useState(() =>
     readPendingCheck(projectId),
   );
@@ -74,7 +81,7 @@ export function GrowthPriorityPageChecks({ projectId }: { projectId: string }) {
         }
         setRequestKey(null);
       }
-      setSelectedRunId(result.run.id);
+      onSelectRun(result.run.id);
       void client.invalidateQueries({ queryKey: ["growthChecks", projectId] });
       void client.invalidateQueries({
         queryKey: ["growthCheckRun", projectId, result.run.id],
@@ -250,7 +257,7 @@ export function GrowthPriorityPageChecks({ projectId }: { projectId: string }) {
                   <button
                     type="button"
                     aria-pressed={selectedRunId === item.id}
-                    onClick={() => setSelectedRunId(item.id)}
+                    onClick={() => onSelectRun(item.id)}
                     className={`w-full rounded-md border p-3 text-left text-sm hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-primary ${
                       selectedRunId === item.id
                         ? "border-primary bg-base-200"

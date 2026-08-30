@@ -39,4 +39,20 @@ The authenticated **Growth** route also includes a project-local **Check priorit
 
 The disposable preview has no Google credentials, so it can only demonstrate the setup and saved-result UI with local state. A live Google collection remains an external verification step.
 
-This checkpoint saves runs and detected signals. It does not generate AI insights/recommendations, create actions, schedule collection or establish usefulness on a live site. BG-0205 onward and the full Phase 2 gate remain open.
+New checks also save rule-based investigation suggestions for detected declines. Growth does not generate AI diagnoses or schedule collection. Usefulness on a live site and the full Phase 2 gate remain unverified.
+
+## Review an investigation and approve work
+
+1. Select a completed saved check and open Review investigation beneath a decline. The suggestion contains the observed comparison and investigation steps. Its cause remains unknown.
+2. Check the existing Work list, choose a Due date (UTC), then select Approve investigation. Growth records an approved Action with a link to the saved recommendation and signal. It does not edit the website or mark the work implemented.
+3. Open View work to see the saved action. Open source check selects the check that produced it, including a check outside the latest-20 history list.
+
+The Work section shows up to 50 recent investigations. Approval saves the accepted suggestion, action, due date and approving user in one transaction. A failed transaction leaves the suggestion proposed with no action. Retries reuse one action identity per suggestion and preserve its original date and user. A different due date conflicts with an existing approval; separate checks can still suggest work for the same page. An uncertain save keeps its submitted date for Retry approval. Reloading reads saved state without submitting again.
+
+An older accepted suggestion with no action needs administrator review. Its original due date and approving user were not stored, so Growth does not offer a retry that could replace them. This release does not repair those older records automatically.
+
+Older completed checks without suggestions stay unchanged. Dismissal, assignment, delivery-status controls and measurement are separate milestones. The disposable preview has no Google credentials; synthetic checks used for verification come from a local fixture, and do not prove a live collection.
+
+## Record a page change
+
+View change log opens a manual record of work on configured priority pages. Choose a page, change type and UTC change date, then describe the work and save it. Saved entries are immutable; add a correction as another entry. The latest 50 entries distinguish the change date from the recording date. This workflow needs no Search Console connection and does not establish that a change caused a search result.

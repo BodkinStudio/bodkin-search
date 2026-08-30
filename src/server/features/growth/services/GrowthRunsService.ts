@@ -152,6 +152,17 @@ async function transition(
 function completeRun(input: CompleteGrowthRunInput) {
   return transition(input, "completed");
 }
+async function setAnalysisVersion(input: {
+  projectId: string;
+  runId: string;
+  analysisVersion: string;
+}) {
+  const row = await GrowthRunsRepository.setAnalysisVersionWhileRunning(input);
+  if (row) return row;
+  if (!(await GrowthRunsRepository.getRun(input.projectId, input.runId)))
+    throw new AppError("NOT_FOUND", "Growth run not found");
+  throw new AppError("CONFLICT", "Growth run is no longer running");
+}
 function completeRunWithErrors(input: CompleteGrowthRunWithErrorsInput) {
   return transition(input, "completed_with_errors");
 }
@@ -199,6 +210,7 @@ export const GrowthRunsService = {
   listRecentRuns,
   listRecentRunsForDetector,
   completeRun,
+  setAnalysisVersion,
   completeRunWithErrors,
   failRun,
   recordSignal,

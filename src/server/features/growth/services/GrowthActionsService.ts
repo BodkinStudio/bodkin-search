@@ -104,7 +104,10 @@ async function readCreationGraph(
   return graph;
 }
 
-async function createAction(input: CreateGrowthActionInput) {
+async function createActionGraph(
+  input: CreateGrowthActionInput,
+  expectedReviewVersion?: number,
+) {
   const [domain, source, sourceTargetRows] = await Promise.all([
     repo.projectDomain(input.projectId),
     repo.getRecommendationSource(input.projectId, input.recommendationId),
@@ -113,11 +116,17 @@ async function createAction(input: CreateGrowthActionInput) {
   if (!domain) throw new AppError("NOT_FOUND", "Growth project not found");
   if (!source)
     throw new AppError("NOT_FOUND", "Growth Recommendation not found");
-  if (source.status !== "accepted")
+  if (expectedReviewVersion === undefined && source.status !== "accepted")
     throw new AppError(
       "CONFLICT",
       "Growth Recommendation must be accepted before creating an Action",
     );
+  if (
+    expectedReviewVersion !== undefined &&
+    (source.status !== "proposed" ||
+      source.reviewVersion !== expectedReviewVersion)
+  )
+    throw new AppError("CONFLICT", "Growth Recommendation approval is stale");
   if (!Number.isFinite(source.priorityScore) || source.priorityScore < 0)
     throw new AppError("CONFLICT", "Growth Recommendation priority is invalid");
 
@@ -193,7 +202,7 @@ async function createAction(input: CreateGrowthActionInput) {
     actorId: input.actorId,
     note: input.note ?? null,
   });
-  await repo.createActionGraph({
+  const write = {
     id: actionId,
     projectId: input.projectId,
     runId: source.runId,
@@ -211,7 +220,12 @@ async function createAction(input: CreateGrowthActionInput) {
     actorType: input.actorType,
     actorId: input.actorId,
     note: input.note ?? null,
-  });
+  };
+  if (expectedReviewVersion === undefined) {
+    await repo.createActionGraph(write);
+  } else {
+    await repo.approveActionGraph({ ...write, expectedReviewVersion });
+  }
 
   const winner = await repo.getActionByKey(input.projectId, input.creationKey);
   if (!winner) throw new AppError("CONFLICT", "Growth Action was not created");
@@ -246,6 +260,17 @@ async function createAction(input: CreateGrowthActionInput) {
     note: input.note ?? null,
     eventFactHash: winnerEventFactHash,
   });
+}
+
+async function createAction(input: CreateGrowthActionInput) {
+  return createActionGraph(input);
+}
+
+async function approveProposedRecommendation(
+  input: CreateGrowthActionInput,
+  expectedReviewVersion: number,
+) {
+  return createActionGraph(input, expectedReviewVersion);
 }
 
 async function transitionAction(input: TransitionGrowthActionInput) {
@@ -329,6 +354,7 @@ async function transitionAction(input: TransitionGrowthActionInput) {
 
 export const GrowthActionsService = {
   createAction,
+  approveProposedRecommendation,
   transitionAction,
   getAction: repo.getActionGraph,
 } as const;

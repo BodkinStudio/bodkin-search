@@ -1,5 +1,6 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
+import type { BatchExecutor } from "@/db/runBatch";
 import {
   growthInsightSignals,
   growthInsights,
@@ -237,7 +238,56 @@ async function recommendationDestination(
     .limit(1);
   return row ?? null;
 }
-async function compareAndSetRecommendationReview(input: {
+async function findRecommendationForSignal(
+  projectId: string,
+  signalId: string,
+  creationKey: string,
+) {
+  const [row] = await db
+    .select({
+      id: growthRecommendations.id,
+      runId: growthRecommendations.runId,
+    })
+    .from(growthRecommendations)
+    .innerJoin(
+      growthRecommendationInsights,
+      and(
+        eq(
+          growthRecommendationInsights.projectId,
+          growthRecommendations.projectId,
+        ),
+        eq(growthRecommendationInsights.runId, growthRecommendations.runId),
+        eq(
+          growthRecommendationInsights.recommendationId,
+          growthRecommendations.id,
+        ),
+      ),
+    )
+    .innerJoin(
+      growthInsightSignals,
+      and(
+        eq(
+          growthInsightSignals.projectId,
+          growthRecommendationInsights.projectId,
+        ),
+        eq(growthInsightSignals.runId, growthRecommendationInsights.runId),
+        eq(
+          growthInsightSignals.insightId,
+          growthRecommendationInsights.insightId,
+        ),
+      ),
+    )
+    .where(
+      and(
+        eq(growthRecommendations.projectId, projectId),
+        eq(growthRecommendations.creationKey, creationKey),
+        eq(growthInsightSignals.signalId, signalId),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+type RecommendationReviewInput = {
   projectId: string;
   recommendationId: string;
   expectedStatus: GrowthRecommendationRow["status"];
@@ -247,8 +297,14 @@ async function compareAndSetRecommendationReview(input: {
   snoozedUntil: string | null;
   resolutionRecommendationId: string | null;
   reviewedAt: string | null;
-}) {
-  const [row] = await db
+};
+
+export function buildRecommendationReviewStatement(
+  tx: BatchExecutor,
+  input: RecommendationReviewInput,
+  guard?: SQL,
+) {
+  return tx
     .update(growthRecommendations)
     .set({
       status: input.status,
@@ -264,9 +320,15 @@ async function compareAndSetRecommendationReview(input: {
         eq(growthRecommendations.id, input.recommendationId),
         eq(growthRecommendations.status, input.expectedStatus),
         eq(growthRecommendations.reviewVersion, input.expectedVersion),
+        guard,
       ),
-    )
-    .returning();
+    );
+}
+
+async function compareAndSetRecommendationReview(
+  input: RecommendationReviewInput,
+) {
+  const [row] = await buildRecommendationReviewStatement(db, input).returning();
   return row ?? null;
 }
 
@@ -286,5 +348,6 @@ export const GrowthInsightsRepository = {
   createInsightGraph,
   createRecommendationGraph,
   recommendationDestination,
+  findRecommendationForSignal,
   compareAndSetRecommendationReview,
 } as const;

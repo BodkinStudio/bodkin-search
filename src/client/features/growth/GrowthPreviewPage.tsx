@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { getGrowthPreview } from "@/serverFunctions/growthPreview";
 import { GrowthPreviewWorkspace } from "./GrowthPreviewWorkspace";
 import { GrowthPriorityPageChecks } from "./GrowthPriorityPageChecks";
 import { GrowthChangeLog } from "./GrowthChangeLog";
+import { GrowthWork } from "./GrowthWork";
 
 export function GrowthPreviewPage({ projectId }: { projectId: string }) {
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const query = useQuery({
     queryKey: ["growthPreview", projectId],
     queryFn: () => getGrowthPreview({ data: { projectId } }),
@@ -24,15 +27,25 @@ export function GrowthPreviewPage({ projectId }: { projectId: string }) {
             Find priority pages that need attention, inspect the evidence, and
             keep a record of what changed.
           </p>
-          <a
-            href="#growth-change-log"
-            className="link mt-2 inline-block text-sm"
+          <nav
+            aria-label="Growth sections"
+            className="mt-2 flex flex-wrap gap-4 text-sm"
           >
-            View change log
-          </a>
+            <a href="#growth-work" className="link">
+              View work
+            </a>
+            <a href="#growth-change-log" className="link">
+              View change log
+            </a>
+          </nav>
         </header>
 
-        <GrowthPriorityPageChecks projectId={projectId} />
+        <GrowthPriorityPageChecks
+          projectId={projectId}
+          selectedRunId={selectedRunId}
+          onSelectRun={setSelectedRunId}
+        />
+        <GrowthWork projectId={projectId} onOpenCheck={setSelectedRunId} />
         <GrowthChangeLog projectId={projectId} />
 
         <details className="rounded-lg border border-base-300 bg-base-100 px-4 py-3">

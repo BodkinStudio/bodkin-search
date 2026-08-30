@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   growthActionEvents,
@@ -6,9 +6,17 @@ import {
   growthActionTargets,
   growthRecommendations,
   growthRecommendationTargets,
+  growthRecommendationInsights,
+  growthInsightSignals,
+  growthRuns,
+  growthSignals,
   projects,
 } from "@/db/schema";
-import { createActionGraph, transitionAction } from "./GrowthActionsWriter";
+import {
+  approveActionGraph,
+  createActionGraph,
+  transitionAction,
+} from "./GrowthActionsWriter";
 
 async function getAction(projectId: string, id: string) {
   const [row] = await db
@@ -96,6 +104,7 @@ async function getRecommendationSource(projectId: string, id: string) {
       projectId: growthRecommendations.projectId,
       runId: growthRecommendations.runId,
       status: growthRecommendations.status,
+      reviewVersion: growthRecommendations.reviewVersion,
       category: growthRecommendations.category,
       priorityScore: growthRecommendations.priorityScore,
     })
@@ -155,6 +164,118 @@ async function projectDomain(projectId: string) {
   return row?.domain ?? null;
 }
 
+async function listInvestigationWork(projectId: string, limit: number) {
+  return db
+    .select({
+      id: growthActions.id,
+      title: growthActions.title,
+      status: growthActions.status,
+      dueAt: growthActions.dueAt,
+      createdAt: growthActions.createdAt,
+      runId: growthRecommendations.runId,
+    })
+    .from(growthActions)
+    .innerJoin(
+      growthRecommendations,
+      and(
+        eq(growthRecommendations.projectId, growthActions.projectId),
+        eq(growthRecommendations.id, growthActions.recommendationId),
+      ),
+    )
+    .innerJoin(
+      growthRecommendationInsights,
+      and(
+        eq(
+          growthRecommendationInsights.projectId,
+          growthRecommendations.projectId,
+        ),
+        eq(growthRecommendationInsights.runId, growthRecommendations.runId),
+        eq(
+          growthRecommendationInsights.recommendationId,
+          growthRecommendations.id,
+        ),
+      ),
+    )
+    .innerJoin(
+      growthInsightSignals,
+      and(
+        eq(
+          growthInsightSignals.projectId,
+          growthRecommendationInsights.projectId,
+        ),
+        eq(growthInsightSignals.runId, growthRecommendationInsights.runId),
+        eq(
+          growthInsightSignals.insightId,
+          growthRecommendationInsights.insightId,
+        ),
+      ),
+    )
+    .innerJoin(
+      growthRuns,
+      and(
+        eq(growthRuns.projectId, growthRecommendations.projectId),
+        eq(growthRuns.id, growthRecommendations.runId),
+      ),
+    )
+    .innerJoin(
+      growthSignals,
+      and(
+        eq(growthSignals.projectId, growthInsightSignals.projectId),
+        eq(growthSignals.runId, growthInsightSignals.runId),
+        eq(growthSignals.id, growthInsightSignals.signalId),
+      ),
+    )
+    .where(
+      and(
+        eq(growthActions.projectId, projectId),
+        eq(growthRuns.runType, "manual_analysis"),
+        eq(growthRuns.detectorVersion, "priority-page-click-decline-v1"),
+        sql`${growthRuns.cadenceSlot} LIKE 'priority-page-check:%'`,
+        sql`${growthRuns.status} IN ('completed', 'completed_with_errors')`,
+        eq(growthSignals.signalType, "priority_page_click_decline"),
+        eq(growthSignals.entityType, "key_page"),
+        eq(growthSignals.metric, "gsc_clicks"),
+        eq(growthSignals.evidenceKind, "gsc_period"),
+        sql`${growthRecommendations.creationKey} = 'priority-page-investigation-v1:recommendation:' || ${growthInsightSignals.signalId}`,
+        sql`${growthActions.creationKey} = 'priority-page-investigation-v1:action:' || ${growthInsightSignals.signalId}`,
+      ),
+    )
+    .groupBy(
+      growthActions.id,
+      growthActions.title,
+      growthActions.status,
+      growthActions.dueAt,
+      growthActions.createdAt,
+      growthRecommendations.runId,
+    )
+    .orderBy(
+      sql`${growthActions.createdAt} DESC`,
+      sql`${growthActions.id} DESC`,
+    )
+    .limit(limit);
+}
+
+async function listActionTargetsForActions(
+  projectId: string,
+  actionIds: string[],
+) {
+  if (actionIds.length === 0) return [];
+  return db
+    .select({
+      actionId: growthActionTargets.actionId,
+      targetType: growthActionTargets.targetType,
+      targetValue: growthActionTargets.targetValue,
+    })
+    .from(growthActionTargets)
+    .where(
+      and(
+        eq(growthActionTargets.projectId, projectId),
+        inArray(growthActionTargets.actionId, actionIds),
+      ),
+    )
+    .orderBy(growthActionTargets.targetType, growthActionTargets.targetValue);
+}
+
 export const GrowthActionsRepository = {
   getAction,
   getActionByKey,
@@ -164,6 +285,9 @@ export const GrowthActionsRepository = {
   getRecommendationSource,
   listRecommendationTargets,
   projectDomain,
+  listInvestigationWork,
+  listActionTargetsForActions,
   createActionGraph,
+  approveActionGraph,
   transitionAction,
 } as const;
