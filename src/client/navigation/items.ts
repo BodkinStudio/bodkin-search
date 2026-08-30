@@ -17,7 +17,7 @@ import { GoogleGlyphMuted } from "@/client/features/gsc/GoogleGlyph";
 const projectNavItems = [
   {
     to: "/p/$projectId/growth" as const,
-    label: "Growth preview",
+    label: "Growth",
     icon: ScanSearch,
   },
   {

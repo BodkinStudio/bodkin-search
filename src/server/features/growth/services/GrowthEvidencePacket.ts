@@ -162,7 +162,7 @@ function text(
     truncated: safe.length > max,
   };
 }
-function displayUrl(value: string) {
+export function growthEvidenceDisplayUrl(value: string) {
   const valid = safeHttpUrl(value);
   if (!valid || value.length > 2048 || hasCredentialMaterial(value))
     return { value: null, omitted: false, withheld: true };
@@ -300,7 +300,7 @@ export async function buildGrowthEvidencePacket(
     invalid("Stored key page is invalid");
   const baseline = previousPeriod(signal.periodStart, signal.periodEnd);
   isoDate(baseline.startDate, "Derived baseline start");
-  const url = displayUrl(page.url);
+  const url = growthEvidenceDisplayUrl(page.url);
   const topic = text(page.topic, 200, 200);
   const notes = text(page.notes, 500, 400);
   const projectName = text(s.project.name, 120, 200)!;

@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, like, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { getDatabaseProvider } from "@/db/provider";
 import { growthRuns, growthSignals, projects } from "@/db/schema";
@@ -34,6 +34,38 @@ async function listRuns(projectId: string) {
     .from(growthRuns)
     .where(eq(growthRuns.projectId, projectId))
     .orderBy(growthRuns.startedAt, growthRuns.id);
+}
+
+/** A deliberately small history read for interactive Growth surfaces. */
+async function listRecentRuns(projectId: string, limit: number) {
+  return db
+    .select()
+    .from(growthRuns)
+    .where(eq(growthRuns.projectId, projectId))
+    .orderBy(desc(growthRuns.startedAt), desc(growthRuns.id))
+    .limit(limit);
+}
+
+async function listRecentRunsForDetector(
+  projectId: string,
+  runType: CreateManualGrowthRunInput["runType"],
+  detectorVersion: string,
+  cadenceSlotPrefix: string,
+  limit: number,
+) {
+  return db
+    .select()
+    .from(growthRuns)
+    .where(
+      and(
+        eq(growthRuns.projectId, projectId),
+        eq(growthRuns.runType, runType),
+        eq(growthRuns.detectorVersion, detectorVersion),
+        like(growthRuns.cadenceSlot, `${cadenceSlotPrefix}%`),
+      ),
+    )
+    .orderBy(desc(growthRuns.startedAt), desc(growthRuns.id))
+    .limit(limit);
 }
 
 async function getRunBySlot(
@@ -196,6 +228,8 @@ export const GrowthRunsRepository = {
   projectExists,
   getRun,
   listRuns,
+  listRecentRuns,
+  listRecentRunsForDetector,
   getRunBySlot,
   tryCreateManualRun,
   transitionRunningRun,

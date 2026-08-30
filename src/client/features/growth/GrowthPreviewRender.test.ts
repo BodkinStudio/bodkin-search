@@ -13,6 +13,12 @@ import { GrowthPreviewWorkspace } from "./GrowthPreviewWorkspace";
 vi.mock("@/serverFunctions/growthPreview", () => ({
   getGrowthPreview: vi.fn(),
 }));
+vi.mock("@/serverFunctions/growthChecks", () => ({
+  getGrowthChecksOverview: vi.fn(),
+  getGrowthCheckRun: vi.fn(),
+  getGrowthCheckEvidence: vi.fn(),
+  runGrowthCheck: vi.fn(),
+}));
 
 describe("GrowthPreview rendered contract", () => {
   it("labels the preview even before data is available", () => {
@@ -27,9 +33,12 @@ describe("GrowthPreview rendered contract", () => {
         }),
       ),
     );
-    expect(html).toContain("Sample preview");
+    expect(html).toContain("Check priority pages");
+    expect(html).toContain("View synthetic sample evidence");
     expect(html).toContain("sample data for example.com");
-    expect(html).toContain("same for every project");
+    expect(html).toContain(
+      "secondary demonstration is the same for every project",
+    );
     expect(html).toContain("Loading sample evidence");
     expect(html).toContain('aria-busy="true"');
   });

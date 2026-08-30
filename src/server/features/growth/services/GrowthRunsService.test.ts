@@ -5,6 +5,7 @@ const repository = vi.hoisted(() => ({
   getRun: vi.fn(),
   getRunBySlot: vi.fn(),
   listRuns: vi.fn(),
+  listRecentRuns: vi.fn(),
   tryCreateManualRun: vi.fn(),
   transitionRunningRun: vi.fn(),
   getSignal: vi.fn(),
@@ -51,6 +52,20 @@ describe("GrowthRunsService", () => {
     await expect(GrowthRunsService.createManualRun(creation)).resolves.toEqual(
       runningRun,
     );
+  });
+
+  it("replays a claimed request identity without recollecting across a later date boundary", async () => {
+    repository.projectExists.mockResolvedValue(true);
+    repository.tryCreateManualRun.mockResolvedValue(false);
+    repository.getRunBySlot.mockResolvedValue(runningRun);
+
+    await expect(
+      GrowthRunsService.claimManualRun({
+        ...creation,
+        periodStart: "2026-08-02",
+        periodEnd: "2026-08-30",
+      }),
+    ).resolves.toEqual({ run: runningRun, claimed: false });
   });
 
   it("rejects immutable cadence-slot drift", async () => {

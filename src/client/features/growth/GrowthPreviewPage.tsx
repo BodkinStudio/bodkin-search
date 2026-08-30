@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { FlaskConical, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { getGrowthPreview } from "@/serverFunctions/growthPreview";
 import { GrowthPreviewWorkspace } from "./GrowthPreviewWorkspace";
+import { GrowthPriorityPageChecks } from "./GrowthPriorityPageChecks";
 
 export function GrowthPreviewPage({ projectId }: { projectId: string }) {
   const query = useQuery({
@@ -17,10 +18,6 @@ export function GrowthPreviewPage({ projectId }: { projectId: string }) {
         <header>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold">Growth</h1>
-            <span className="badge badge-outline gap-1.5 text-xs">
-              <FlaskConical size={14} aria-hidden="true" />
-              Sample preview
-            </span>
           </div>
           <p className="mt-1 text-sm text-base-content/70">
             Find priority pages that need attention. Inspect the evidence before
@@ -28,30 +25,37 @@ export function GrowthPreviewPage({ projectId }: { projectId: string }) {
           </p>
         </header>
 
-        <aside
-          aria-label="Sample data disclosure"
-          className="rounded-lg border border-base-300 bg-base-100 px-4 py-3 text-sm"
-        >
-          <p className="font-medium">
-            You are viewing sample data for example.com.
-          </p>
-          <p className="mt-1 text-base-content/70">
-            This preview is the same for every project. It does not read your
-            connected data, generate AI recommendations or save any work. No API
-            key is needed for this sample.
-          </p>
-        </aside>
+        <GrowthPriorityPageChecks projectId={projectId} />
 
-        {query.isPending ? (
-          <GrowthPreviewRequestState status="pending" />
-        ) : query.isError ? (
-          <GrowthPreviewRequestState
-            status="error"
-            onRetry={() => void query.refetch()}
-          />
-        ) : (
-          <GrowthPreviewWorkspace data={query.data} />
-        )}
+        <details className="rounded-lg border border-base-300 bg-base-100 px-4 py-3">
+          <summary className="cursor-pointer font-medium">
+            View synthetic sample evidence
+          </summary>
+          <aside aria-label="Sample data disclosure" className="mt-3 text-sm">
+            <p className="font-medium">
+              You are viewing sample data for example.com.
+            </p>
+            <p className="mt-1 text-base-content/70">
+              This secondary demonstration is the same for every project. It
+              does not read your connected data, generate AI recommendations or
+              save any work.
+            </p>
+          </aside>
+          <div className="mt-4">
+            {query.isPending ? (
+              <GrowthPreviewRequestState status="pending" />
+            ) : null}
+            {query.isError ? (
+              <GrowthPreviewRequestState
+                status="error"
+                onRetry={() => void query.refetch()}
+              />
+            ) : null}
+            {query.isSuccess ? (
+              <GrowthPreviewWorkspace data={query.data} />
+            ) : null}
+          </div>
+        </details>
       </div>
     </div>
   );

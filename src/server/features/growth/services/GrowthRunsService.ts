@@ -73,6 +73,30 @@ async function createManualRun(input: CreateManualGrowthRunInput) {
   throw new AppError("CONFLICT", "Growth run cadence slot is already occupied");
 }
 
+/**
+ * Atomically claims a manual request identity. Only the caller receiving
+ * `claimed: true` may collect provider data; all other callers replay storage.
+ */
+async function claimManualRun(input: CreateManualGrowthRunInput) {
+  if (!(await GrowthRunsRepository.projectExists(input.projectId))) {
+    throw new AppError("NOT_FOUND", "Growth project not found");
+  }
+  const inserted = await GrowthRunsRepository.tryCreateManualRun(
+    input,
+    crypto.randomUUID(),
+  );
+  const run = await GrowthRunsRepository.getRunBySlot(
+    input.projectId,
+    input.runType,
+    input.cadenceSlot,
+  );
+  if (!run) throw new Error("Claimed Growth run could not be read");
+  // The slot is the caller's retry identity. A later retry can cross a source
+  // date boundary, so it must replay this immutable run rather than comparing
+  // newly-derived windows and accidentally recollecting.
+  return { run, claimed: inserted };
+}
+
 async function getRun(projectId: string, runId: string) {
   const row = await GrowthRunsRepository.getRun(projectId, runId);
   if (!row) throw new AppError("NOT_FOUND", "Growth run not found");
@@ -81,6 +105,26 @@ async function getRun(projectId: string, runId: string) {
 
 function listRuns(projectId: string) {
   return GrowthRunsRepository.listRuns(projectId);
+}
+
+function listRecentRuns(projectId: string, limit: number) {
+  return GrowthRunsRepository.listRecentRuns(projectId, limit);
+}
+
+function listRecentRunsForDetector(
+  projectId: string,
+  runType: CreateManualGrowthRunInput["runType"],
+  detectorVersion: string,
+  cadenceSlotPrefix: string,
+  limit: number,
+) {
+  return GrowthRunsRepository.listRecentRunsForDetector(
+    projectId,
+    runType,
+    detectorVersion,
+    cadenceSlotPrefix,
+    limit,
+  );
 }
 
 async function listSignals(projectId: string, runId: string) {
@@ -149,8 +193,11 @@ async function recordSignal(input: RecordGrowthSignalInput) {
 
 export const GrowthRunsService = {
   createManualRun,
+  claimManualRun,
   getRun,
   listRuns,
+  listRecentRuns,
+  listRecentRunsForDetector,
   completeRun,
   completeRunWithErrors,
   failRun,
