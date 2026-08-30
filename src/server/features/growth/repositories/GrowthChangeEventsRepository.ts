@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   growthActionChanges,
@@ -81,6 +81,46 @@ async function getChangeEventGraph(projectId: string, id: string) {
   return { event, urls, actionIds };
 }
 
+async function listManualChangeEventGraphs(projectId: string, limit: number) {
+  const events = await db
+    .select()
+    .from(growthChangeEvents)
+    .where(
+      and(
+        eq(growthChangeEvents.projectId, projectId),
+        eq(growthChangeEvents.source, "manual"),
+      ),
+    )
+    .orderBy(desc(growthChangeEvents.happenedAt), desc(growthChangeEvents.id))
+    .limit(limit);
+  if (events.length === 0) return [];
+  const ids = events.map((event) => event.id);
+  const urls = await db
+    .select({
+      changeEventId: growthChangeEventUrls.changeEventId,
+      url: growthChangeEventUrls.url,
+    })
+    .from(growthChangeEventUrls)
+    .where(
+      and(
+        eq(growthChangeEventUrls.projectId, projectId),
+        inArray(growthChangeEventUrls.changeEventId, ids),
+      ),
+    )
+    .orderBy(growthChangeEventUrls.changeEventId, growthChangeEventUrls.url);
+  const urlsByEvent = new Map<string, string[]>();
+  for (const row of urls) {
+    const list = urlsByEvent.get(row.changeEventId) ?? [];
+    list.push(row.url);
+    urlsByEvent.set(row.changeEventId, list);
+  }
+  return events.map((event) => ({
+    event,
+    urls: urlsByEvent.get(event.id) ?? [],
+    actionIds: [],
+  }));
+}
+
 async function getAction(projectId: string, id: string) {
   const [row] = await db
     .select()
@@ -124,6 +164,7 @@ export const GrowthChangeEventsRepository = {
   getChangeEvent,
   getChangeEventByKey,
   getChangeEventGraph,
+  listManualChangeEventGraphs,
   getAction,
   getActionChange,
   listChangeEventUrls,

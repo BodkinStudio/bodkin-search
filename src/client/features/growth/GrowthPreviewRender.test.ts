@@ -19,6 +19,10 @@ vi.mock("@/serverFunctions/growthChecks", () => ({
   getGrowthCheckEvidence: vi.fn(),
   runGrowthCheck: vi.fn(),
 }));
+vi.mock("@/serverFunctions/growthChangeLog", () => ({
+  getGrowthChangeLog: vi.fn(),
+  recordGrowthPageChange: vi.fn(),
+}));
 
 describe("GrowthPreview rendered contract", () => {
   it("labels the preview even before data is available", () => {
@@ -34,6 +38,8 @@ describe("GrowthPreview rendered contract", () => {
       ),
     );
     expect(html).toContain("Check priority pages");
+    expect(html).toContain("Change log");
+    expect(html).toContain("Loading saved changes");
     expect(html).toContain("View synthetic sample evidence");
     expect(html).toContain("sample data for example.com");
     expect(html).toContain(

@@ -126,6 +126,49 @@ beforeAll(async () => {
 afterAll(() => client.close());
 
 describe("GrowthChangeEventsRepository D1 aggregate writes", () => {
+  it("lists a project-scoped, bounded manual history with bulk-loaded URLs", async () => {
+    await GrowthChangeEventsRepository.createChangeEventGraph({
+      ...eventInput,
+      id: "change_event_list_older",
+      creationKey: "list-older",
+      factHash: "9".repeat(64),
+      happenedAt: "2026-09-01T00:00:00.000Z",
+      urls: ["https://example.com/older"],
+    });
+    await GrowthChangeEventsRepository.createChangeEventGraph({
+      ...eventInput,
+      id: "change_event_list_newer",
+      creationKey: "list-newer",
+      factHash: "8".repeat(64),
+      happenedAt: "2026-09-02T00:00:00.000Z",
+      urls: ["https://example.com/newer-a", "https://example.com/newer-b"],
+    });
+    await GrowthChangeEventsRepository.createChangeEventGraph({
+      ...eventInput,
+      id: "change_event_list_foreign",
+      projectId: "project_2",
+      creationKey: "list-foreign",
+      factHash: "7".repeat(64),
+      happenedAt: "2026-09-03T00:00:00.000Z",
+      urls: ["https://other.example/foreign"],
+      expectedDomain: "other.example",
+    });
+
+    const history =
+      await GrowthChangeEventsRepository.listManualChangeEventGraphs(
+        "project_1",
+        2,
+      );
+    expect(history.map(({ event }) => event.id)).toEqual([
+      "change_event_list_newer",
+      "change_event_list_older",
+    ]);
+    expect(history.map(({ urls }) => urls)).toEqual([
+      ["https://example.com/newer-a", "https://example.com/newer-b"],
+      ["https://example.com/older"],
+    ]);
+  });
+
   it("keeps exact retries complete and drifting URLs out of the winner", async () => {
     await GrowthChangeEventsRepository.createChangeEventGraph(eventInput);
     await GrowthChangeEventsRepository.createChangeEventGraph({

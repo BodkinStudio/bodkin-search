@@ -1,0 +1,7 @@
+{
+  "commands": {
+    "repository checks": "pnpm ci:check",
+    "production build": "WRANGLER_LOG_PATH=/private/tmp/bodkin-growth-build-c72a.log pnpm build",
+    "whitespace": "git diff --check"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep server-derived project and actor authority; client-supplied project IDs must remain overwritten by authenticated project context.",
+    "Keep the immutable, page-scoped request identity and replay saved targets before checking current key-page configuration.",
+    "Keep history project-scoped, deterministically ordered, capped at 50 manual events, and rendered through the safe URL-display boundary.",
+    "Keep UTC-date persistence/display and the explicit non-causality wording."
+  ]
+}

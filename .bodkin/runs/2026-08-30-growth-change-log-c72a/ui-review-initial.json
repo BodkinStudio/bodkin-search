@@ -1,0 +1,13 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [
+    "In change-log-form-narrow.png and change-log-validation-narrow.png, the required-field errors ('Choose a priority page.' and 'Describe what changed.') are pale red on white and noticeably fainter than adjacent helper text. Use a darker, theme-consistent error foreground so these messages are clearly legible; retain their inline placement."
+  ],
+  "system_drift": [],
+  "do_not_change": [
+    "Preserve the native Record a change disclosure, blue Save change action, and separator-based history.",
+    "Keep Changed and Manually recorded dates distinct, with UTC labels and the explicit non-causal/manual-history wording."
+  ]
+}

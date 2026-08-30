@@ -3,6 +3,7 @@ import { RefreshCw } from "lucide-react";
 import { getGrowthPreview } from "@/serverFunctions/growthPreview";
 import { GrowthPreviewWorkspace } from "./GrowthPreviewWorkspace";
 import { GrowthPriorityPageChecks } from "./GrowthPriorityPageChecks";
+import { GrowthChangeLog } from "./GrowthChangeLog";
 
 export function GrowthPreviewPage({ projectId }: { projectId: string }) {
   const query = useQuery({
@@ -20,12 +21,19 @@ export function GrowthPreviewPage({ projectId }: { projectId: string }) {
             <h1 className="text-2xl font-semibold">Growth</h1>
           </div>
           <p className="mt-1 text-sm text-base-content/70">
-            Find priority pages that need attention. Inspect the evidence before
-            deciding what to change.
+            Find priority pages that need attention, inspect the evidence, and
+            keep a record of what changed.
           </p>
+          <a
+            href="#growth-change-log"
+            className="link mt-2 inline-block text-sm"
+          >
+            View change log
+          </a>
         </header>
 
         <GrowthPriorityPageChecks projectId={projectId} />
+        <GrowthChangeLog projectId={projectId} />
 
         <details className="rounded-lg border border-base-300 bg-base-100 px-4 py-3">
           <summary className="cursor-pointer font-medium">

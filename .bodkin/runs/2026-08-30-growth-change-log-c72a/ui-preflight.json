@@ -1,0 +1,73 @@
+{
+  "status": "pass",
+  "checks": [
+    {
+      "name": "repository checks",
+      "command": "pnpm ci:check",
+      "status": "pass",
+      "exit_code": 0
+    },
+    {
+      "name": "production build",
+      "command": "WRANGLER_LOG_PATH=/private/tmp/bodkin-growth-build-c72a.log pnpm build",
+      "status": "pass",
+      "exit_code": 0
+    },
+    {
+      "name": "whitespace",
+      "command": "git diff --check",
+      "status": "pass",
+      "exit_code": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "run",
+      "path": ".bodkin-ui/current/run.json",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "shape",
+      "path": ".bodkin-ui/current/shape.md",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "screenshots manifest",
+      "path": ".bodkin-ui/current/screenshots/manifest.json",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "Real change form with a synthetic note and explicit 29 August UTC date, before successful save",
+      "path": ".bodkin-ui/current/screenshots/change-log-form-desktop.png",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "Real persisted manual history: change dates and recorded dates are distinct; the dated entry was saved through the API",
+      "path": ".bodkin-ui/current/screenshots/change-log-saved-desktop.png",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "Freshly loaded saved history at 390px app width, upper portion; real disposable DB data, no response overrides",
+      "path": ".bodkin-ui/current/screenshots/change-log-saved-narrow.png",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "Narrow form upper portion: stacked controls and inline required-page error after an empty submit",
+      "path": ".bodkin-ui/current/screenshots/change-log-form-narrow.png",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "Narrow form lower portion: description error, visible focused Save change button and naturally scrolling saved history",
+      "path": ".bodkin-ui/current/screenshots/change-log-validation-narrow.png",
+      "required": true,
+      "status": "pass"
+    }
+  ]
+}
