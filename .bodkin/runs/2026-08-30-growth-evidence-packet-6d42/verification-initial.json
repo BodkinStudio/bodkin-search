@@ -1,0 +1,79 @@
+{
+  "runId": "2026-08-30-growth-evidence-packet-6d42",
+  "status": "fail",
+  "generatedAt": "2026-08-30T01:39:28Z",
+  "checks": [
+    {
+      "name": "Existing service and detector baseline",
+      "command": "pnpm exec vitest run src/server/features/growth/services/PriorityPageClickDeclineDetector.test.ts src/server/features/growth/services/GrowthSearchPerformanceAcceptance.test.ts src/server/features/growth/services/GrowthRunsService.test.ts src/server/features/growth/services/GrowthChangeEventsService.test.ts src/server/features/project-context/services/ProjectContextService.test.ts src/server/features/gsc/searchPerformanceReport.test.ts src/server/features/ai-search/safeUrl.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 1880,
+      "output": "7 files / 83 tests pass. Director execution before the new packet implementation."
+    },
+    {
+      "name": "Initial packet and composition acceptance",
+      "command": "pnpm exec vitest run src/server/features/growth/services/GrowthEvidencePacketAcceptance.test.ts src/server/features/growth/services/GrowthEvidencePacket.test.ts --maxWorkers=1 --reporter=verbose",
+      "required": true,
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": 710,
+      "output": "2 failures / 27 passes. Returned project organisation mismatch is accepted; a valid long Change Event description is rejected by an incorrect 4000-character raw bound. Dummy fixtures only."
+    },
+    {
+      "name": "Initial independent boundary acceptance",
+      "command": "pnpm exec vitest run src/server/features/growth/services/GrowthEvidencePacketBoundaryAcceptance.test.ts --maxWorkers=1 --reporter=verbose",
+      "required": true,
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": 479,
+      "output": "13 failures / 7 passes. Reproduced source-lag, strict timestamp, non-decline, Unicode ordering, selected-graph completeness, closed-vocabulary, URL-path credential and raw-topic/notes bound failures. Calendar derivation, invalid/overlong periods and hard UTF-8 byte cap pass."
+    },
+    {
+      "name": "Composition acceptance type-aware lint",
+      "command": "pnpm exec oxlint --type-aware src/server/features/growth/services/GrowthEvidencePacketAcceptance.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 1300,
+      "output": "0 warnings / errors."
+    },
+    {
+      "name": "Boundary acceptance type-aware lint",
+      "command": "pnpm exec oxlint --type-aware src/server/features/growth/services/GrowthEvidencePacketBoundaryAcceptance.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 1300,
+      "output": "0 warnings / errors."
+    },
+    {
+      "name": "Initial repository tests",
+      "command": "time pnpm test:ci",
+      "required": true,
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": 13183,
+      "output": "169 files pass, 2 fail, 6 Postgres-gated files skip; 1556 tests pass, the same 15 new acceptance cases fail, and 11 Postgres-gated tests skip. No additional regression failures and no live provider calls."
+    },
+    {
+      "name": "Initial repository CI",
+      "command": "time pnpm ci:check",
+      "required": true,
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": 17410,
+      "output": "Prettier passes; Knip rejects the unused GrowthEvidencePacketService object export. Later CI stages do not run. The named assembleGrowthEvidencePacket function is covered by the composition tests."
+    },
+    {
+      "name": "Initial whitespace",
+      "command": "git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 0,
+      "output": "Pass; duration below timer resolution. New files are formatted separately."
+    }
+  ]
+}

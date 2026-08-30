@@ -465,3 +465,25 @@ This provides a testable source-to-Signal path without adding another data platf
 ### Deferred
 
 Persistent source snapshots, Run/Signal orchestration, evidence packets, AI interpretation, Recommendation generation, seasonality and causal diagnosis, automatic site-context collection, live usefulness validation, UI, scheduling and full Phase 2 acceptance remain separate work.
+
+## ADR-029 - Evidence packets preserve facts and disclose context limits
+
+**Status:** Accepted for the internal BG-0204 slice
+
+### Decision
+
+- Build a read-only packet for one persisted priority-page decline Signal. Reuse existing organisation/project, Run/Signal, project-context and Change Event reads. Do not add a source store, auth path or model call.
+- Canonical Signal numbers, identifiers and capture/current-period metadata remain separate from narrative context. Validate contradictions instead of changing facts. Strict offset timestamps, a real decline and the existing three-Pacific-day source lag are required. The supported detector version defines an equal preceding baseline; label those derived dates explicitly.
+- Include only selected commercial context and one curated page's metadata. Context is current, with source update times; it is not a historical reconstruction. Source rows, property, site totals and impressions cannot be recovered from a digest and must remain marked unavailable.
+- Explicitly selected known Change Events are partial coverage, limited to ten unique IDs. Require one same-project graph for each selected ID before relevance filtering; missing or duplicate graphs are not irrelevant events. Match their Pacific dates and existing Growth-normalised URLs, label them as possible normalised-URL candidates and disclose the query/trailing-slash identity limitation. An empty selection does not mean no confounders exist.
+- Preserve existing raw prose limits: project name 120, commercial section 4,000, key-page topic 200, notes 500 and Change Event description 5,000 characters. Output caps are respectively 200, 800, 200, 400 and 400, including text that expands during sanitisation. Canonical identifiers and numbers are never truncated.
+- Use an allowlisted projection, conservative field-level credential redaction before truncation, explicit redaction/truncation flags and a 32 KiB UTF-8 packet bound. Email and URL query/fragment omission is disclosed too. All narrative text is untrusted. Subject URLs are display-only, without query or fragment; withhold recognisable credential material anywhere in the URL, and keep the key-page ID as canonical identity.
+- Hash the final redacted projection, not the unfiltered inputs. Keep packet generation internal-review-only. Recognisable-secret filtering is defence in depth, not proof that arbitrary encoded text is safe for AI egress.
+
+### Why
+
+The existing URL safety helper validates HTTP(S) and rejects embedded credentials but preserves queries and fragments. Analytics sanitisation, error formatting and MCP display truncation have different purposes; none is a reusable prose privacy boundary. A narrow Growth-local projection avoids passing unrelated project memory or provider/account fields into future interpretation.
+
+### Deferred
+
+AI egress and prompt policy, arbitrary-secret/DLP guarantees, automatic confounder discovery, historical context snapshots, exact change-to-key-page matching, source replay, Action dedupe, Insight/Recommendation generation, UI and full Gate 2 acceptance remain separate work.

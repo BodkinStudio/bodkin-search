@@ -1,0 +1,70 @@
+{
+  "runId": "2026-08-30-growth-evidence-packet-6d42",
+  "status": "fail",
+  "generatedAt": "2026-08-30T01:58:44.962Z",
+  "checks": [
+    {
+      "name": "Round 1 original regression and upstream checks",
+      "command": "time pnpm exec vitest run src/server/features/growth/services/GrowthEvidencePacket.test.ts src/server/features/growth/services/GrowthEvidencePacketAcceptance.test.ts src/server/features/growth/services/GrowthEvidencePacketBoundaryAcceptance.test.ts src/server/features/growth/services/GrowthEvidencePacketProjectionAcceptance.test.ts src/server/features/growth/services/PriorityPageClickDeclineDetector.test.ts src/server/features/growth/services/GrowthSearchPerformanceAcceptance.test.ts src/server/features/growth/services/GrowthRunsService.test.ts src/server/features/growth/services/GrowthChangeEventsService.test.ts src/server/features/project-context/services/ProjectContextService.test.ts src/server/features/gsc/searchPerformanceReport.test.ts src/server/features/ai-search/safeUrl.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 4141,
+      "output": "11 files / 159 tests pass, including all original 15 failing cases. This execution preceded the final 27 additional projection cases; the expanded and full-suite results below are authoritative for the latest candidate."
+    },
+    {
+      "name": "Round 1 expanded projection acceptance",
+      "command": "time pnpm exec vitest run src/server/features/growth/services/GrowthEvidencePacketProjectionAcceptance.test.ts --maxWorkers=1 --reporter=verbose",
+      "required": true,
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": 1438,
+      "output": "51 pass / 3 fail. All 24 declared credential formats pass. Remaining failures: hour-24 rollover accepted, valid fractional timestamp rejected, ambiguous selected context section accepted. See verification-round1-notes.md."
+    },
+    {
+      "name": "Round 1 full repository tests",
+      "command": "time pnpm test:ci",
+      "required": true,
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": 14140,
+      "output": "171 files / 1622 tests pass; 1 file / the same 3 new tests fail; 6 Postgres-gated files / 11 tests skip. No pre-existing regression failures. No source schema/SQL/repository changes or live provider calls."
+    },
+    {
+      "name": "Round 1 repository CI",
+      "command": "time pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 47173,
+      "output": "Prettier, Knip, both TypeScript projects, type-aware lint and plugin skill sync pass. Oxlint 0 warnings/errors across 908 files. Plugin skill output is clean. Production build is deferred until the candidate passes acceptance."
+    },
+    {
+      "name": "Round 1 projection test lint",
+      "command": "pnpm exec oxlint --type-aware src/server/features/growth/services/GrowthEvidencePacketProjectionAcceptance.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 1400,
+      "output": "0 warnings/errors. The later expanded file is also covered by the passing repository CI above."
+    },
+    {
+      "name": "Round 1 whitespace",
+      "command": "git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 0,
+      "output": "Pass below timer resolution."
+    },
+    {
+      "name": "Pre-repair staged baseline whitespace",
+      "command": "git diff --cached --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 0,
+      "output": "Pass below timer resolution. The index remains the original candidate so repair-only changes are visible."
+    }
+  ]
+}

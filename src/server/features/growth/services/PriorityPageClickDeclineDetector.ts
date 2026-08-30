@@ -16,7 +16,8 @@ import {
 import { z } from "zod";
 
 const SOURCE_TIMEZONE = "America/Los_Angeles";
-const DETECTOR_VERSION = "priority-page-click-decline-v1";
+export const PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION =
+  "priority-page-click-decline-v1";
 
 const priorityPageClickDeclineDetectorInputSchema = z.strictObject({
   projectId: z.string().trim().min(1).max(100),
@@ -363,7 +364,7 @@ export async function detectPriorityPageClickDeclines(
     if (!Number.isSafeInteger(priority) || priority < 0)
       validation("Priority must be finite");
     const provenance = {
-      detectorVersion: DETECTOR_VERSION,
+      detectorVersion: PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION,
       projectId: snapshot.projectId,
       property: snapshot.property,
       keyPageId: page.id,

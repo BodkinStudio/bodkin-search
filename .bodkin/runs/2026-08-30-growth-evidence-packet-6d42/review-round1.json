@@ -1,0 +1,28 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "Timestamp validation still diverges from the existing source Zod contract.",
+      "location": "src/server/features/growth/services/GrowthEvidencePacket.ts:116-126",
+      "evidence": "The handwritten expression permits only exactly three fractional digits and JavaScript Date parsing accepts hour 24. Independent projection acceptance therefore fails for accepted source-valid `2026-07-03T12:00:00.1Z` and incorrectly accepts `2026-07-03T24:00:00.000Z`; `verification-round1-notes.md` records that the existing `z.string().datetime({ offset: true })` has the opposite intended behaviour.",
+      "impact": "Valid persisted source timestamps can be rejected, while an invalid source timestamp can silently roll into the following day, compromising packet temporal provenance and deterministic facts.",
+      "recommendation": "Replace or align the local timestamp guard with the established source Zod datetime contract, then canonicalise the parsed instant without accepting rollover values; retain offset support and fractional precision."
+    },
+    {
+      "summary": "Ambiguous allowed commercial-context rows are still selected by input order.",
+      "location": "src/server/features/growth/services/GrowthEvidencePacket.ts:312-320",
+      "evidence": "Each allowed context key is read with `.find(...)`, so two `business_overview` rows choose the first. The new independent `GrowthEvidencePacketProjectionAcceptance.test.ts` reproduces this and fails; `verification-round1-notes.md` confirms the behaviour violates deterministic-input-order safety.",
+      "impact": "Malformed or inconsistent current context can change the packet's included narrative and hash solely by source ordering, rather than failing at the trust boundary.",
+      "recommendation": "Before projection, reject duplicate rows for each allowlisted commercial-context key, while continuing to ignore non-allowlisted context fields."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep this slice read-only and internal-review-only: no AI egress, providers, scheduling, public endpoint, schema/query, or URL-normalizer behavior change.",
+    "Preserve the existing coarse Growth URL matching semantics and label included events only as `normalised_url_candidate`, not causal or exact matches.",
+    "Preserve canonical Signal facts separately from untrusted narrative context and hash only the final safe projection."
+  ]
+}
