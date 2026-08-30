@@ -9,11 +9,17 @@ import {
   Search,
   Sparkles,
   TrendingUp,
+  ScanSearch,
 } from "lucide-react";
 import { linkOptions } from "@tanstack/react-router";
 import { GoogleGlyphMuted } from "@/client/features/gsc/GoogleGlyph";
 
 const projectNavItems = [
+  {
+    to: "/p/$projectId/growth" as const,
+    label: "Growth preview",
+    icon: ScanSearch,
+  },
   {
     to: "/p/$projectId" as const,
     label: "Dashboard",
@@ -101,7 +107,7 @@ export function getProjectNavGroups(projectId: string) {
   return [
     {
       label: "Overview",
-      items: [byPath("/p/$projectId")],
+      items: [byPath("/p/$projectId"), byPath("/p/$projectId/growth")],
     },
     {
       label: "Research",
