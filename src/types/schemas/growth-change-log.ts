@@ -41,3 +41,12 @@ export type RecordGrowthPageChangeInput = z.infer<
   typeof recordGrowthPageChangeSchema
 >;
 export type GrowthPageChangeType = GrowthChangeEventType;
+
+export type GrowthChangeDto = {
+  id: string;
+  changeType: GrowthPageChangeType;
+  description: string;
+  happenedAt: string;
+  recordedAt: string;
+  displayUrls: Array<string | null>;
+};

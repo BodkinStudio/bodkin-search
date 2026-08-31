@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  getGrowthWorkChangesSchema,
   getGrowthWorkHistorySchema,
+  linkGrowthWorkChangeSchema,
   updateGrowthWorkStatusSchema,
 } from "./growth-work";
 
@@ -70,6 +72,24 @@ describe("Growth Work schemas", () => {
     });
     expect(() =>
       getGrowthWorkHistorySchema.parse({ projectId: "project_1" }),
+    ).toThrow();
+  });
+
+  it("accepts only strict scoped inputs for related manual changes", () => {
+    const scoped = { projectId: "project_1", actionId: "action_1" };
+    expect(getGrowthWorkChangesSchema.parse(scoped)).toEqual(scoped);
+    expect(
+      linkGrowthWorkChangeSchema.parse({
+        ...scoped,
+        changeEventId: "change_1",
+      }),
+    ).toMatchObject({ changeEventId: "change_1" });
+    expect(() =>
+      linkGrowthWorkChangeSchema.parse({
+        ...scoped,
+        changeEventId: "change_1",
+        actorId: "forged",
+      }),
     ).toThrow();
   });
 });

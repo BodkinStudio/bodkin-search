@@ -5,27 +5,35 @@ import { GROWTH_CHANGE_LABELS } from "./GrowthChangePresentation";
 export function GrowthChangeHistory({
   changes,
   limit,
-}: Pick<Awaited<ReturnType<typeof getGrowthChangeLog>>, "changes" | "limit">) {
+  title = "Saved changes",
+  emptyMessage = "No changes recorded yet. Record completed work so you can refer back to it when reviewing a check.",
+  headingLevel = 3,
+  caption,
+}: Pick<Awaited<ReturnType<typeof getGrowthChangeLog>>, "changes" | "limit"> & {
+  title?: string;
+  emptyMessage?: string;
+  headingLevel?: 3 | 4;
+  caption?: string;
+}) {
+  const Heading = headingLevel === 3 ? "h3" : "h4";
+  const EntryHeading = headingLevel === 3 ? "h4" : "h5";
   return (
     <div className="mt-5">
-      <h3 className="font-semibold">Saved changes</h3>
+      <Heading className="font-semibold">{title}</Heading>
       <p className="mt-1 text-xs text-base-content/70">
-        Up to {limit} most recent manual entries, ordered by date changed. This
-        history does not show that a change caused a result.
+        {caption ??
+          `Up to ${limit} most recent manual entries, ordered by date changed. This history does not show that a change caused a result.`}
       </p>
       {changes.length === 0 ? (
-        <p className="mt-3 text-sm text-base-content/70">
-          No changes recorded yet. Record completed work so you can refer back
-          to it when reviewing a check.
-        </p>
+        <p className="mt-3 text-sm text-base-content/70">{emptyMessage}</p>
       ) : (
         <ol className="mt-3 divide-y divide-base-300">
           {changes.map((change) => (
             <li key={change.id} className="py-4 first:pt-0">
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <h4 className="font-medium">
+                <EntryHeading className="font-medium">
                   {GROWTH_CHANGE_LABELS[change.changeType]}
-                </h4>
+                </EntryHeading>
                 <p className="text-sm tabular-nums text-base-content/70">
                   Changed {formatGrowthPreviewDate(change.happenedAt)} (UTC)
                 </p>

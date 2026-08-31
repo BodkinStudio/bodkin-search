@@ -121,6 +121,58 @@ async function listManualChangeEventGraphs(projectId: string, limit: number) {
   }));
 }
 
+async function listManualChangeEventGraphsForAction(
+  projectId: string,
+  actionId: string,
+  limit: number,
+) {
+  const events = await db
+    .select({ event: growthChangeEvents })
+    .from(growthActionChanges)
+    .innerJoin(
+      growthChangeEvents,
+      and(
+        eq(growthChangeEvents.projectId, growthActionChanges.projectId),
+        eq(growthChangeEvents.id, growthActionChanges.changeEventId),
+      ),
+    )
+    .where(
+      and(
+        eq(growthActionChanges.projectId, projectId),
+        eq(growthActionChanges.actionId, actionId),
+        eq(growthChangeEvents.source, "manual"),
+      ),
+    )
+    .orderBy(desc(growthChangeEvents.happenedAt), desc(growthChangeEvents.id))
+    .limit(limit);
+  if (events.length === 0) return [];
+  const ids = events.map(({ event }) => event.id);
+  const urls = await db
+    .select({
+      changeEventId: growthChangeEventUrls.changeEventId,
+      url: growthChangeEventUrls.url,
+    })
+    .from(growthChangeEventUrls)
+    .where(
+      and(
+        eq(growthChangeEventUrls.projectId, projectId),
+        inArray(growthChangeEventUrls.changeEventId, ids),
+      ),
+    )
+    .orderBy(growthChangeEventUrls.changeEventId, growthChangeEventUrls.url);
+  const urlsByEvent = new Map<string, string[]>();
+  for (const row of urls) {
+    const list = urlsByEvent.get(row.changeEventId) ?? [];
+    list.push(row.url);
+    urlsByEvent.set(row.changeEventId, list);
+  }
+  return events.map(({ event }) => ({
+    event,
+    urls: urlsByEvent.get(event.id) ?? [],
+    actionIds: [actionId],
+  }));
+}
+
 async function getAction(projectId: string, id: string) {
   const [row] = await db
     .select()
@@ -165,6 +217,7 @@ export const GrowthChangeEventsRepository = {
   getChangeEventByKey,
   getChangeEventGraph,
   listManualChangeEventGraphs,
+  listManualChangeEventGraphsForAction,
   getAction,
   getActionChange,
   listChangeEventUrls,

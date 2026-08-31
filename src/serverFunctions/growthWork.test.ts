@@ -14,6 +14,10 @@ const service = vi.hoisted(() => ({
   updateWorkStatus: vi.fn(),
   getWorkHistory: vi.fn(),
 }));
+const changesService = vi.hoisted(() => ({
+  getGrowthWorkChanges: vi.fn(),
+  linkGrowthWorkChange: vi.fn(),
+}));
 
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => ({
@@ -48,13 +52,23 @@ vi.mock(
   "@/server/features/growth/services/GrowthInvestigationsService",
   () => ({ GrowthInvestigationsService: service }),
 );
+vi.mock("@/server/features/growth/services/GrowthWorkChangesService", () => ({
+  GrowthWorkChangesService: changesService,
+}));
 
-import { getGrowthWorkHistory, updateGrowthWorkStatus } from "./growthWork";
+import {
+  getGrowthWorkChanges,
+  getGrowthWorkHistory,
+  linkGrowthWorkChange,
+  updateGrowthWorkStatus,
+} from "./growthWork";
 
 describe("Growth Work server functions", () => {
   it("derives project and actor identity from authorized context", async () => {
     expect(updateGrowthWorkStatus).toBeTypeOf("function");
     expect(getGrowthWorkHistory).toBeTypeOf("function");
+    expect(getGrowthWorkChanges).toBeTypeOf("function");
+    expect(linkGrowthWorkChange).toBeTypeOf("function");
     const context = {
       projectId: "project_authorized",
       userId: "user_authorized",
@@ -73,6 +87,18 @@ describe("Growth Work server functions", () => {
       data: { projectId: "project_forged", actionId: "action_1" },
       context,
     });
+    await registration.handlers[2]({
+      data: { projectId: "project_forged", actionId: "action_1" },
+      context,
+    });
+    await registration.handlers[3]({
+      data: {
+        projectId: "project_forged",
+        actionId: "action_1",
+        changeEventId: "change_1",
+      },
+      context,
+    });
     expect(service.updateWorkStatus).toHaveBeenCalledWith({
       projectId: "project_authorized",
       actionId: "action_1",
@@ -85,5 +111,14 @@ describe("Growth Work server functions", () => {
       "project_authorized",
       "action_1",
     );
+    expect(changesService.getGrowthWorkChanges).toHaveBeenCalledWith(
+      "project_authorized",
+      "action_1",
+    );
+    expect(changesService.linkGrowthWorkChange).toHaveBeenCalledWith({
+      projectId: "project_authorized",
+      actionId: "action_1",
+      changeEventId: "change_1",
+    });
   });
 });

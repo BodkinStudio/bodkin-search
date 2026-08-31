@@ -4,6 +4,7 @@ import {
   isDirectGrowthActionTransition,
   type GrowthActionStatus,
 } from "./growth-actions";
+import type { GrowthChangeDto } from "./growth-change-log";
 
 const id = z.string().trim().min(1).max(100);
 const note = z.string().trim().min(1).max(5000);
@@ -37,6 +38,17 @@ export const getGrowthWorkHistorySchema = z.strictObject({
   actionId: id,
 });
 
+export const getGrowthWorkChangesSchema = z.strictObject({
+  projectId: id,
+  actionId: id,
+});
+
+export const linkGrowthWorkChangeSchema = z.strictObject({
+  projectId: id,
+  actionId: id,
+  changeEventId: id,
+});
+
 export type UpdateGrowthWorkStatusInput = z.infer<
   typeof updateGrowthWorkStatusSchema
 >;
@@ -55,3 +67,21 @@ export type GrowthWorkHistory = {
   events: GrowthWorkHistoryEvent[];
   limit: number;
 };
+
+export type GrowthWorkChange = GrowthChangeDto;
+
+export type GrowthWorkChangesOverview = {
+  actionId: string;
+  linkedChanges: GrowthWorkChange[];
+  availableChanges: GrowthWorkChange[];
+  limit: number;
+};
+
+export type LinkGrowthWorkChangeInput = z.infer<
+  typeof linkGrowthWorkChangeSchema
+>;
+
+export type GrowthWorkChangeLink = Pick<
+  LinkGrowthWorkChangeInput,
+  "actionId" | "changeEventId"
+>;

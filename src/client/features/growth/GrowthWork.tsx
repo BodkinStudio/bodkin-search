@@ -4,6 +4,7 @@ import type { GrowthWorkOverview } from "@/types/schemas/growth-investigations";
 import { formatGrowthPreviewDate } from "./GrowthPreviewPresentation";
 import { GROWTH_WORK_STATUS_LABELS } from "./GrowthWorkPresentation";
 import { GrowthWorkDelivery } from "./GrowthWorkDelivery";
+import { GrowthWorkChanges } from "./GrowthWorkChanges";
 
 export function GrowthWork({
   projectId,
@@ -136,6 +137,11 @@ export function GrowthWorkList({
               key={`${projectId}:${action.id}`}
               projectId={projectId}
               action={action}
+            />
+            <GrowthWorkChanges
+              key={`changes:${projectId}:${action.id}`}
+              projectId={projectId}
+              actionId={action.id}
             />
           </li>
         ))}

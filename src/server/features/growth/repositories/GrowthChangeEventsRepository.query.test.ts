@@ -125,6 +125,7 @@ beforeAll(async () => {
 
 afterAll(() => client.close());
 
+// oxlint-disable-next-line eslint(max-lines-per-function) -- the self-contained D1 fixture verifies graph persistence sequentially.
 describe("GrowthChangeEventsRepository D1 aggregate writes", () => {
   it("lists a project-scoped, bounded manual history with bulk-loaded URLs", async () => {
     await GrowthChangeEventsRepository.createChangeEventGraph({
@@ -357,5 +358,112 @@ describe("GrowthChangeEventsRepository D1 aggregate writes", () => {
 
     const integrity = await client.execute("PRAGMA foreign_key_check");
     expect(integrity.rows).toEqual([]);
+  });
+
+  it("reads all linked manual change graphs with scoped bulk URL loading", async () => {
+    await GrowthChangeEventsRepository.createChangeEventGraph({
+      ...eventInput,
+      id: "change_event_linked_older",
+      creationKey: "linked-older",
+      factHash: "2".repeat(64),
+      happenedAt: "2026-08-01T00:00:00.000Z",
+      urls: ["https://example.com/older"],
+    });
+    await GrowthChangeEventsRepository.createChangeEventGraph({
+      ...eventInput,
+      id: "change_event_linked_newer",
+      creationKey: "linked-newer",
+      factHash: "3".repeat(64),
+      happenedAt: "2026-10-01T00:00:00.000Z",
+      urls: ["https://example.com/newer-a", "https://example.com/newer-b"],
+    });
+    await GrowthChangeEventsRepository.createChangeEventGraph({
+      ...eventInput,
+      id: "change_event_linked_non_manual",
+      creationKey: "linked-non-manual",
+      factHash: "4".repeat(64),
+      source: "deployment",
+      urls: ["https://example.com/deployment"],
+    });
+    await Promise.all([
+      GrowthChangeEventsRepository.linkActionChange({
+        projectId: "project_1",
+        actionId: "action_b",
+        changeEventId: "change_event_linked_older",
+      }),
+      GrowthChangeEventsRepository.linkActionChange({
+        projectId: "project_1",
+        actionId: "action_b",
+        changeEventId: "change_event_linked_newer",
+      }),
+      GrowthChangeEventsRepository.linkActionChange({
+        projectId: "project_1",
+        actionId: "action_b",
+        changeEventId: "change_event_linked_non_manual",
+      }),
+    ]);
+
+    const linked =
+      await GrowthChangeEventsRepository.listManualChangeEventGraphsForAction(
+        "project_1",
+        "action_b",
+        2,
+      );
+    expect(linked.map(({ event }) => event.id)).toEqual([
+      "change_event_linked_newer",
+      "change_event_linked_older",
+    ]);
+    expect(linked.map(({ urls }) => urls)).toEqual([
+      ["https://example.com/newer-a", "https://example.com/newer-b"],
+      ["https://example.com/older"],
+    ]);
+    await expect(
+      GrowthChangeEventsRepository.listManualChangeEventGraphsForAction(
+        "project_2",
+        "action_a",
+        2,
+      ),
+    ).resolves.toEqual([]);
+  });
+
+  it("bounds linked manual history and breaks timestamp ties by descending ID", async () => {
+    await client.execute({
+      sql: "DELETE FROM growth_action_changes WHERE project_id = ? AND action_id = ?",
+      args: ["project_1", "action_b"],
+    });
+    for (let index = 0; index <= 50; index += 1) {
+      const padded = index.toString().padStart(3, "0");
+      const changeEventId = `change_event_linked_limit_${padded}`;
+      await GrowthChangeEventsRepository.createChangeEventGraph({
+        ...eventInput,
+        id: changeEventId,
+        creationKey: `linked-limit-${padded}`,
+        factHash: `${index}`.padStart(64, "0"),
+        happenedAt:
+          index >= 49 ? "2027-01-02T00:00:00.000Z" : "2027-01-01T00:00:00.000Z",
+        urls: [`https://example.com/linked-limit-${padded}`],
+      });
+      await GrowthChangeEventsRepository.linkActionChange({
+        projectId: "project_1",
+        actionId: "action_b",
+        changeEventId,
+      });
+    }
+
+    const linked =
+      await GrowthChangeEventsRepository.listManualChangeEventGraphsForAction(
+        "project_1",
+        "action_b",
+        50,
+      );
+    expect(linked).toHaveLength(50);
+    expect(linked.slice(0, 2).map(({ event }) => event.id)).toEqual([
+      "change_event_linked_limit_050",
+      "change_event_linked_limit_049",
+    ]);
+    expect(linked.at(-1)?.event.id).toBe("change_event_linked_limit_001");
+    expect(linked.map(({ event }) => event.id)).not.toContain(
+      "change_event_linked_limit_000",
+    );
   });
 });

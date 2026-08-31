@@ -1,0 +1,24 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "Required fresh rendered UI evidence and independent visual review are unavailable.",
+      "location": ".bodkin/runs/2026-08-31-growth-work-changes-9c2e/verification.json; .bodkin-ui/current/shape.md",
+      "evidence": "The authoritative verification record marks “Fresh rendered UI acceptance” blocked because browser policy denied capture; its screenshot manifest is empty. The acceptance contract explicitly requires fresh desktop and narrow evidence plus independent rendered review, and source/static-render checks are explicitly not substitutes.",
+      "impact": "The focused implementation and its accessibility/layout behavior cannot be accepted with evidence at the required rendered-UI gate.",
+      "recommendation": "Obtain permitted fresh desktop and narrow screenshots, then have an independent UI reviewer assess those captures against the shaped states and narrow-layout requirements."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep project identity derived from requireProjectContext and retain strict server-function inputs.",
+    "Keep exact-ID Work qualification, including Work items beyond the recent-50 list.",
+    "Keep linked manual history and recent manual candidates as independent, project-scoped 50-item reads.",
+    "Keep the append-only, idempotent link primitive unchanged; do not add URL-overlap or Action-status restrictions.",
+    "Keep the safe change DTO limited to id, type, description, timestamps, and display URLs; do not expose actor IDs, hashes, external references, or raw URLs.",
+    "Keep uncertain-save retries frozen to the original Work/change pair and prevent automatic mutations."
+  ]
+}

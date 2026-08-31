@@ -91,6 +91,7 @@ async function seedAction(input: {
   `;
 }
 
+// oxlint-disable-next-line eslint(max-lines-per-function) -- the self-contained Postgres fixture verifies cascade and bounded-read behavior sequentially.
 describePostgres("GrowthChangeEventsRepository Postgres", () => {
   beforeAll(async () => {
     // TEST_POSTGRES_DATABASE_URL explicitly opts into a disposable migrated
@@ -317,6 +318,59 @@ describePostgres("GrowthChangeEventsRepository Postgres", () => {
           )
         )?.actionIds,
       ).toEqual([actionA, actionB].toSorted());
+      await withPgClient(async () => {
+        for (let index = 1; index <= 50; index += 1) {
+          const padded = index.toString().padStart(3, "0");
+          const linkedEventId = `growth_change_linked_limit_${padded}_${suffix}`;
+          await GrowthChangeEventsRepository.createChangeEventGraph({
+            id: linkedEventId,
+            projectId,
+            creationKey: `linked-limit-${padded}-${suffix}`,
+            factHash: `${index}`.padStart(64, "0"),
+            source: "manual",
+            changeType: "technical_fix",
+            actorType: "user",
+            actorId: "user-1",
+            description: "Recorded linked manual change.",
+            happenedAt:
+              index >= 49
+                ? "2027-01-02T00:00:00.000Z"
+                : "2027-01-01T00:00:00.000Z",
+            externalRef: null,
+            urls: [`https://example.com/linked-limit-${padded}`],
+            expectedDomain: "example.com",
+          });
+          await GrowthChangeEventsRepository.linkActionChange({
+            projectId,
+            changeEventId: linkedEventId,
+            actionId: actionA,
+          });
+        }
+      });
+      const linkedManualChanges = await withPgClient(() =>
+        GrowthChangeEventsRepository.listManualChangeEventGraphsForAction(
+          projectId,
+          actionA,
+          50,
+        ),
+      );
+      expect(linkedManualChanges).toHaveLength(50);
+      expect(
+        linkedManualChanges.slice(0, 2).map(({ event }) => event.id),
+      ).toEqual([
+        `growth_change_linked_limit_050_${suffix}`,
+        `growth_change_linked_limit_049_${suffix}`,
+      ]);
+      expect(linkedManualChanges.at(-1)?.event.id).toBe(
+        `growth_change_linked_limit_001_${suffix}`,
+      );
+      expect(linkedManualChanges.map(({ event }) => event.id)).not.toContain(
+        changeEventId,
+      );
+      expect(linkedManualChanges[0]?.event.source).toBe("manual");
+      expect(linkedManualChanges[0]?.urls).toEqual([
+        "https://example.com/linked-limit-050",
+      ]);
 
       const [actionRowsBefore, actionEventsBefore] = await Promise.all([
         sql`SELECT id, status, state_version FROM growth_actions

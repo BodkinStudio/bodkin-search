@@ -4,24 +4,15 @@ import { growthEvidenceDisplayUrl } from "./GrowthEvidencePacket";
 import { GrowthChangeEventsRepository as repo } from "../repositories/GrowthChangeEventsRepository";
 import { GrowthChangeEventsService } from "./GrowthChangeEventsService";
 import type {
-  GrowthPageChangeType,
+  GrowthChangeDto,
   RecordGrowthPageChangeInput,
 } from "@/types/schemas/growth-change-log";
 
 const LIMIT = 50;
 
-type ChangeDto = {
-  id: string;
-  changeType: GrowthPageChangeType;
-  description: string;
-  happenedAt: string;
-  recordedAt: string;
-  displayUrls: Array<string | null>;
-};
-
-function toDto(
+export function toChangeDto(
   graph: Awaited<ReturnType<typeof GrowthChangeEventsService.getChangeEvent>>,
-): ChangeDto {
+): GrowthChangeDto {
   return {
     id: graph.event.id,
     changeType: graph.event.changeType,
@@ -52,7 +43,7 @@ async function getGrowthChangeLog(projectId: string) {
       id: page.id,
       displayUrl: growthEvidenceDisplayUrl(page.url).value,
     })),
-    changes: graphs.map(toDto),
+    changes: graphs.map(toChangeDto),
     limit: LIMIT,
   };
 }
@@ -66,7 +57,7 @@ async function recordGrowthPageChange(
     const graph = await repo.getChangeEventGraph(input.projectId, existing.id);
     if (!graph)
       throw new AppError("NOT_FOUND", "Growth Change Event not found");
-    return toDto(
+    return toChangeDto(
       await GrowthChangeEventsService.recordManualEvent({
         projectId: input.projectId,
         creationKey: key,
@@ -86,7 +77,7 @@ async function recordGrowthPageChange(
   const page = context.keyPages.find((item) => item.id === input.keyPageId);
   if (!page)
     throw new AppError("VALIDATION_ERROR", "Select a configured key page");
-  return toDto(
+  return toChangeDto(
     await GrowthChangeEventsService.recordManualEvent({
       projectId: input.projectId,
       creationKey: key,

@@ -138,7 +138,7 @@ function projectedWorkItem(
   };
 }
 
-async function getQualifiedWork(projectId: string, actionId: string) {
+export async function getQualifiedWork(projectId: string, actionId: string) {
   const [action] = await GrowthActionsRepository.listInvestigationWork(
     projectId,
     1,
@@ -319,4 +319,5 @@ export const GrowthInvestigationsService = {
   getWork,
   updateWorkStatus,
   getWorkHistory,
+  getQualifiedWork,
 } as const;
