@@ -215,140 +215,178 @@ describePostgres("GrowthActionsRepository Postgres", () => {
     }
   }, 15_000);
 
-  it("keeps concurrent exact and changed transition retries on one event", async () => {
-    const suffix = crypto.randomUUID();
-    const organizationId = `growth_transition_org_${suffix}`;
-    const projectId = `growth_transition_project_${suffix}`;
-    const runId = `growth_transition_run_${suffix}`;
-    const recommendationId = `growth_transition_recommendation_${suffix}`;
-    const actionId = `growth_transition_action_${suffix}`;
+  it.each(["approved", "ready"] as const)(
+    "keeps direct %s completion and exact retries on one event",
+    async (expectedStatus) => {
+      const suffix = crypto.randomUUID();
+      const organizationId = `growth_transition_org_${suffix}`;
+      const projectId = `growth_transition_project_${suffix}`;
+      const runId = `growth_transition_run_${suffix}`;
+      const recommendationId = `growth_transition_recommendation_${suffix}`;
+      const actionId = `growth_transition_action_${suffix}`;
+      const expectedVersion = expectedStatus === "approved" ? 0 : 1;
+      const doneVersion = expectedVersion + 1;
 
-    const transition = {
-      projectId,
-      actionId,
-      expectedStatus: "approved" as const,
-      expectedVersion: 0,
-      status: "ready" as const,
-      eventFactHash: "7".repeat(64),
-      actorType: "system" as const,
-      actorId: "growth-system",
-      note: "Queued for delivery",
-    };
-
-    try {
-      await seedProject(projectId, organizationId, `transition-${suffix}`);
-      await seedAcceptedRecommendation({
+      const transition = {
         projectId,
-        runId,
-        recommendationId,
-        suffix: `transition-${suffix}`,
-      });
-      await withPgClient(() =>
-        GrowthActionsRepository.createActionGraph({
-          id: actionId,
+        actionId,
+        expectedStatus,
+        expectedVersion,
+        status: "implemented" as const,
+        eventFactHash: "7".repeat(64),
+        actorType: "system" as const,
+        actorId: "growth-system",
+        note: "Finished investigation work",
+      };
+
+      try {
+        await seedProject(projectId, organizationId, `transition-${suffix}`);
+        await seedAcceptedRecommendation({
           projectId,
           runId,
           recommendationId,
-          creationKey: `transition-${suffix}`,
-          factHash: "6".repeat(64),
-          title: "Transition test",
-          description: "Verify projection and event atomicity.",
-          dueAt: "2026-09-30T12:00:00.000Z",
-          category: "content",
-          priorityScore: 10,
-          targets: [
-            {
-              targetType: "url",
-              targetValue: "https://example.com/pricing",
-            },
-          ],
-          eventId: `growth_transition_created_${suffix}`,
-          eventFactHash: "5".repeat(64),
-          actorType: "system",
-          actorId: "growth-system",
-          note: null,
-        }),
-      );
-      await withPgClient(() =>
-        GrowthActionsRepository.transitionAction({
-          ...transition,
-          eventId: `growth_transition_ready_${suffix}`,
-        }),
-      );
-      await Promise.all([
-        withPgClient(() =>
-          GrowthActionsRepository.transitionAction({
-            ...transition,
-            eventId: `growth_transition_exact_retry_${suffix}`,
-          }),
-        ),
-        withPgClient(() =>
-          GrowthActionsRepository.transitionAction({
-            ...transition,
-            eventId: `growth_transition_drift_${suffix}`,
-            eventFactHash: "8".repeat(64),
-            actorId: "other-system",
-            note: "Changed retry metadata",
-          }),
-        ),
-      ]);
-
-      const [
-        action,
-        event,
-        events,
-        recentEvents,
-        foreignRecentEvents,
-        missingRecentEvents,
-        foreignEvents,
-      ] = await Promise.all([
-        withPgClient(() =>
-          GrowthActionsRepository.getAction(projectId, actionId),
-        ),
-        withPgClient(() =>
-          GrowthActionsRepository.getActionEvent(projectId, actionId, 1),
-        ),
-        withPgClient(() =>
-          GrowthActionsRepository.listActionEvents(projectId, actionId),
-        ),
-        withPgClient(() =>
-          GrowthActionsRepository.listRecentActionEvents(projectId, actionId),
-        ),
-        withPgClient(() =>
-          GrowthActionsRepository.listRecentActionEvents(
-            "foreign-project",
-            actionId,
-          ),
-        ),
-        withPgClient(() =>
-          GrowthActionsRepository.listRecentActionEvents(
+          suffix: `transition-${suffix}`,
+        });
+        await withPgClient(() =>
+          GrowthActionsRepository.createActionGraph({
+            id: actionId,
             projectId,
-            "missing-action",
+            runId,
+            recommendationId,
+            creationKey: `transition-${suffix}`,
+            factHash: "6".repeat(64),
+            title: "Transition test",
+            description: "Verify projection and event atomicity.",
+            dueAt: "2026-09-30T12:00:00.000Z",
+            category: "content",
+            priorityScore: 10,
+            targets: [
+              {
+                targetType: "url",
+                targetValue: "https://example.com/pricing",
+              },
+            ],
+            eventId: `growth_transition_created_${suffix}`,
+            eventFactHash: "5".repeat(64),
+            actorType: "system",
+            actorId: "growth-system",
+            note: null,
+          }),
+        );
+        if (expectedStatus === "ready") {
+          await withPgClient(() =>
+            GrowthActionsRepository.transitionAction({
+              ...transition,
+              expectedStatus: "approved",
+              expectedVersion: 0,
+              status: "ready",
+              eventId: `growth_transition_ready_${suffix}`,
+              eventFactHash: "4".repeat(64),
+            }),
+          );
+        }
+        await withPgClient(() =>
+          GrowthActionsRepository.transitionAction({
+            ...transition,
+            eventId: `growth_transition_done_${suffix}`,
+          }),
+        );
+        await Promise.all([
+          withPgClient(() =>
+            GrowthActionsRepository.transitionAction({
+              ...transition,
+              eventId: `growth_transition_exact_retry_${suffix}`,
+            }),
           ),
-        ),
-        withPgClient(() =>
-          GrowthActionsRepository.listActionEvents("foreign-project", actionId),
-        ),
-      ]);
-      expect(action).toMatchObject({ status: "ready", stateVersion: 1 });
-      expect(event).toMatchObject({
-        id: `growth_transition_ready_${suffix}`,
-        actionVersion: 1,
-        factHash: "7".repeat(64),
-        actorId: "growth-system",
-        note: "Queued for delivery",
-      });
-      expect(events.map(({ actionVersion }) => actionVersion)).toEqual([0, 1]);
-      expect(recentEvents.map(({ actionVersion }) => actionVersion)).toEqual([
-        1, 0,
-      ]);
-      expect(recentEvents[0]).not.toHaveProperty("actorId");
-      expect(foreignRecentEvents).toEqual([]);
-      expect(missingRecentEvents).toEqual([]);
-      expect(foreignEvents).toEqual([]);
-    } finally {
-      await sql`DELETE FROM projects WHERE id = ${projectId}`;
-      await sql`DELETE FROM organization WHERE id = ${organizationId}`;
-    }
-  }, 15_000);
+          withPgClient(() =>
+            GrowthActionsRepository.transitionAction({
+              ...transition,
+              eventId: `growth_transition_drift_${suffix}`,
+              eventFactHash: "8".repeat(64),
+              actorId: "other-system",
+              note: "Changed retry metadata",
+            }),
+          ),
+        ]);
+
+        const [
+          action,
+          event,
+          events,
+          recentEvents,
+          foreignRecentEvents,
+          missingRecentEvents,
+          foreignEvents,
+        ] = await Promise.all([
+          withPgClient(() =>
+            GrowthActionsRepository.getAction(projectId, actionId),
+          ),
+          withPgClient(() =>
+            GrowthActionsRepository.getActionEvent(
+              projectId,
+              actionId,
+              doneVersion,
+            ),
+          ),
+          withPgClient(() =>
+            GrowthActionsRepository.listActionEvents(projectId, actionId),
+          ),
+          withPgClient(() =>
+            GrowthActionsRepository.listRecentActionEvents(projectId, actionId),
+          ),
+          withPgClient(() =>
+            GrowthActionsRepository.listRecentActionEvents(
+              "foreign-project",
+              actionId,
+            ),
+          ),
+          withPgClient(() =>
+            GrowthActionsRepository.listRecentActionEvents(
+              projectId,
+              "missing-action",
+            ),
+          ),
+          withPgClient(() =>
+            GrowthActionsRepository.listActionEvents(
+              "foreign-project",
+              actionId,
+            ),
+          ),
+        ]);
+        expect(action).toMatchObject({
+          status: "implemented",
+          stateVersion: doneVersion,
+          startedAt: null,
+        });
+        expect(action?.implementedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+        expect(event).toMatchObject({
+          id: `growth_transition_done_${suffix}`,
+          actionVersion: doneVersion,
+          fromStatus: expectedStatus,
+          toStatus: "implemented",
+          factHash: "7".repeat(64),
+          actorId: "growth-system",
+          note: "Finished investigation work",
+        });
+        const versions = Array.from(
+          { length: doneVersion + 1 },
+          (_, index) => index,
+        );
+        expect(events.map(({ actionVersion }) => actionVersion)).toEqual(
+          versions,
+        );
+        expect(recentEvents.map(({ actionVersion }) => actionVersion)).toEqual(
+          versions.toReversed(),
+        );
+        expect(recentEvents[0]).not.toHaveProperty("actorId");
+        expect(foreignRecentEvents).toEqual([]);
+        expect(missingRecentEvents).toEqual([]);
+        expect(foreignEvents).toEqual([]);
+      } finally {
+        await sql`DELETE FROM projects WHERE id = ${projectId}`;
+        await sql`DELETE FROM organization WHERE id = ${organizationId}`;
+      }
+    },
+    15_000,
+  );
 });

@@ -487,3 +487,22 @@ The existing URL safety helper validates HTTP(S) and rejects embedded credential
 ### Deferred
 
 AI egress and prompt policy, arbitrary-secret/DLP guarantees, automatic confounder discovery, historical context snapshots, exact change-to-key-page matching, source replay, Action dedupe, Insight/Recommendation generation, UI and full Gate 2 acceptance remain separate work.
+
+## ADR-030 - Done records completed investigation work, not an evaluated SEO outcome
+
+**Status:** Accepted
+
+### Decision
+
+- `approved → implemented` and `ready → implemented` are legal Action edges alongside the existing in-progress and blocked completion edges. A direct completion records one ordinary transition event and one state-version increment; it does not invent Ready or in-progress events.
+- `startedAt` remains nullable for `implemented`, `measuring` and `evaluated` because an investigation may be completed without a recorded start. `implementedAt` remains required for those states, and `in_progress` and `blocked` still require a real recorded start.
+- Work presents `implemented` as Done. Done means the approved investigation work is finished; it is neither a website execution claim nor a measured SEO outcome. Measurement and evaluation remain the existing separate `implemented → measuring → evaluated` lifecycle.
+- The forward D1 migration preserves the entire Action descendant graph in transaction-local backup tables before rebuilding the two changed tables, then restores exact rows and removes the backups. It does not disable foreign keys or edit SQLite's catalog: D1 does not support `writable_schema`, and deferred foreign-key checks do not prevent cascade deletes. Postgres replaces only the two CHECK constraints. See [Cloudflare's migration constraints](https://github.com/cloudflare/workerd/issues/2471).
+
+### Why
+
+Users need to record finished investigation work directly when intermediate progress was not captured. Preserving the unknown start is more truthful than fabricating a timestamp, while the separate measurement lifecycle retains the distinction between completed work and observed impact.
+
+### Supersedes
+
+This supersedes only the prior Action-graph restriction that required Ready or in-progress before implementation. Earlier ADR history remains otherwise unchanged.

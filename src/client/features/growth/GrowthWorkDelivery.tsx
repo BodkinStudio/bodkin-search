@@ -35,7 +35,7 @@ export function GrowthWorkDelivery({
     >
       <summary className="cursor-pointer font-medium">
         {growthWorkNextStatuses(action.status).length
-          ? "Update status and view history"
+          ? "Mark done or update status"
           : "View status history"}
       </summary>
       {opened ? (
@@ -159,7 +159,7 @@ export function GrowthWorkDeliveryPanel({
       ) : (
         <p className="text-base-content/70">
           {action.status === "implemented"
-            ? "This work is recorded as implemented. Measurement and evaluation are separate steps; they cannot be started here."
+            ? "This investigation is marked done. Measuring its SEO impact is a separate step."
             : action.status === "measuring"
               ? "This work is being measured. Its delivery status cannot be changed here."
               : "This work cannot be reopened here. Its saved history remains available below."}

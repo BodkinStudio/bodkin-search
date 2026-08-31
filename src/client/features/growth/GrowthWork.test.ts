@@ -93,7 +93,7 @@ describe("Growth work list", () => {
     expect(html).toContain("4 Sept 2026");
     expect(html).toContain("30 Aug 2026");
     expect(html).toContain('href="#growth-live-check-title"');
-    expect(html).toContain("Update status and view history");
+    expect(html).toContain("Mark done or update status");
     expect(html).not.toContain("Save status");
   });
 
@@ -106,6 +106,25 @@ describe("Growth work list", () => {
     });
     findSourceLink(tree)?.props.onClick?.();
     expect(open).toHaveBeenCalledExactlyOnceWith("source_run_1");
+  });
+
+  it("keeps finished work visible as Done without labelling its impact evaluated", () => {
+    const html = renderToStaticMarkup(
+      createElement(GrowthWorkList, {
+        projectId: "project_1",
+        data: {
+          ...overview,
+          actions: [
+            { ...overview.actions[0], status: "implemented", stateVersion: 1 },
+          ],
+        },
+        onOpenCheck: vi.fn(),
+      }),
+    );
+    expect(html).toContain("Done");
+    expect(html).toContain("View status history");
+    expect(html).toContain(overview.actions[0].title);
+    expect(html).not.toContain("Evaluated");
   });
 
   it("does not display another project's saved work", () => {

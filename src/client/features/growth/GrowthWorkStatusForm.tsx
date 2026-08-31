@@ -40,7 +40,12 @@ export function GrowthWorkStatusForm({
     note: z.string().trim().max(5000, "Use 5,000 characters or fewer"),
   });
   const form = useForm({
-    defaultValues: { status: "" as GrowthActionStatus | "", note: "" },
+    defaultValues: {
+      status: (isDirectGrowthActionTransition(currentStatus, "implemented")
+        ? "implemented"
+        : "") as GrowthActionStatus | "",
+      note: "",
+    },
     validators: { onSubmit: schema },
     onSubmit: ({ value }) => {
       if (!disabled) onSubmit(schema.parse(value));
@@ -58,8 +63,8 @@ export function GrowthWorkStatusForm({
       }}
     >
       <p id={`${id}-hint`} className="text-sm text-base-content/70">
-        Record the status of this investigation. Implemented does not mean the
-        website has changed or the results have been evaluated.
+        Done means you have finished this investigation. It does not change the
+        website or measure its SEO impact.
       </p>
       <fieldset disabled={disabled} className="mt-3 min-w-0 space-y-3">
         <form.Field name="status">
@@ -68,7 +73,7 @@ export function GrowthWorkStatusForm({
             return (
               <div>
                 <label htmlFor={`${id}-status`} className="font-medium">
-                  Next status
+                  Work status
                 </label>
                 <select
                   id={`${id}-status`}
@@ -147,9 +152,17 @@ export function GrowthWorkStatusForm({
             );
           }}
         </form.Field>
-        <button type="submit" className="btn btn-primary">
-          {pending ? "Saving status…" : "Save status"}
-        </button>
+        <form.Subscribe selector={(state) => state.values.status}>
+          {(status) => (
+            <button type="submit" className="btn btn-primary">
+              {pending
+                ? "Saving status…"
+                : status === "implemented"
+                  ? "Mark done"
+                  : "Save status"}
+            </button>
+          )}
+        </form.Subscribe>
       </fieldset>
     </form>
   );

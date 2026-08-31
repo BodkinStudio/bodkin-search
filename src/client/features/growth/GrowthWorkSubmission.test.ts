@@ -165,6 +165,32 @@ beforeEach(() => {
 });
 
 describe("Work status submission", () => {
+  it("dispatches one direct completion from approved without intermediate updates", () => {
+    const onSubmit = find(render(), "form")?.props.onSubmit;
+    onSubmit?.({ status: "implemented", note: "  Investigation finished  " });
+    onSubmit?.({ status: "implemented", note: "Investigation finished" });
+    expect(harness.mutate).toHaveBeenCalledExactlyOnceWith({
+      ...request,
+      status: "implemented",
+      note: "Investigation finished",
+    });
+    expect(harness.options?.retry).toBe(false);
+  });
+
+  it("retains the exact completion intent after an uncertain response", () => {
+    const done = { ...request, status: "implemented", note: "Finished" };
+    find(render(), "form")?.props.onSubmit?.({
+      status: "implemented",
+      note: "Finished",
+    });
+    fail();
+    const tree = render({ ...action, status: "ready", stateVersion: 1 });
+    expect(find(tree, "form")?.props.disabled).toBe(true);
+    find(tree, "retry")?.props.onClick?.();
+    expect(harness.mutate).toHaveBeenNthCalledWith(1, done);
+    expect(harness.mutate).toHaveBeenNthCalledWith(2, done);
+  });
+
   it("dispatches once even before React renders pending state", () => {
     const onSubmit = find(render(), "form")?.props.onSubmit;
     onSubmit?.({ status: "ready", note: "  Evidence reviewed  " });

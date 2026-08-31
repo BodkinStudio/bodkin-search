@@ -193,8 +193,10 @@ beforeEach(() => vi.clearAllMocks());
 
 const legalCases = [
   ["approved", 0, "ready"],
+  ["approved", 0, "implemented"],
   ["approved", 0, "cancelled"],
   ["ready", 1, "in_progress"],
+  ["ready", 1, "implemented"],
   ["ready", 1, "cancelled"],
   ["in_progress", 2, "blocked"],
   ["in_progress", 2, "implemented"],

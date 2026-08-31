@@ -9,7 +9,7 @@ export const GROWTH_WORK_STATUS_LABELS: Record<GrowthActionStatus, string> = {
   ready: "Ready",
   in_progress: "In progress",
   blocked: "Blocked",
-  implemented: "Implemented",
+  implemented: "Done",
   measuring: "Measuring",
   evaluated: "Evaluated",
   cancelled: "Cancelled",

@@ -22,6 +22,27 @@ describe("Growth Work schemas", () => {
     );
   });
 
+  it.each([
+    ["approved", 0],
+    ["ready", 1],
+  ] as const)(
+    "accepts direct Done from %s",
+    (expectedStatus, expectedVersion) => {
+      expect(
+        updateGrowthWorkStatusSchema.parse({
+          ...input,
+          expectedStatus,
+          expectedVersion,
+          status: "implemented",
+        }),
+      ).toMatchObject({
+        expectedStatus,
+        expectedVersion,
+        status: "implemented",
+      });
+    },
+  );
+
   it("rejects caller actor metadata, illegal transitions and malformed notes", () => {
     expect(() =>
       updateGrowthWorkStatusSchema.parse({ ...input, actorId: "forged" }),

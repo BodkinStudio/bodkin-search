@@ -91,8 +91,10 @@ describe("Growth Action schemas", () => {
 
   const legalTransitions = [
     ["approved", "ready"],
+    ["approved", "implemented"],
     ["approved", "cancelled"],
     ["ready", "in_progress"],
+    ["ready", "implemented"],
     ["ready", "cancelled"],
     ["in_progress", "blocked"],
     ["in_progress", "implemented"],

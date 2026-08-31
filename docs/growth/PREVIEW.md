@@ -51,7 +51,13 @@ The Work section shows up to 50 recent investigations. Approval saves the accept
 
 An older accepted suggestion with no action needs administrator review. Its original due date and approving user were not stored, so Growth does not offer a retry that could replace them. This release does not repair those older records automatically.
 
-Older completed checks without suggestions stay unchanged. Dismissal, assignment, delivery-status controls and measurement are separate milestones. The disposable preview has no Google credentials; synthetic checks used for verification come from a local fixture, and do not prove a live collection.
+Older completed checks without suggestions stay unchanged. Dismissal, assignment and measurement controls remain separate milestones. The disposable preview has no Google credentials; synthetic checks used for verification come from a local fixture, and do not prove a live collection.
+
+## Finish an investigation
+
+Open View work, then Mark done or update status on an investigation. Done is selected by default. Add an optional note and choose Mark done to record completion in one save, including when the work is still Approved or Ready. Use the status menu to record progress, a blocker or cancellation instead.
+
+Done means the investigation work is finished; it does not edit the website or prove an SEO improvement. The Action keeps its internal implemented state and remains visible for later measurement. History records the actual transition once, without invented intermediate steps or an unrecorded start time. An uncertain response keeps the original status/version/note locked for an exact retry; refreshing or reloading does not submit work.
 
 ## Record a page change
 

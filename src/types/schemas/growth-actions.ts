@@ -18,8 +18,8 @@ const LEGAL_GROWTH_ACTION_TRANSITIONS: Record<
   GrowthActionStatus,
   readonly GrowthActionStatus[]
 > = {
-  approved: ["ready", "cancelled"],
-  ready: ["in_progress", "cancelled"],
+  approved: ["ready", "implemented", "cancelled"],
+  ready: ["in_progress", "implemented", "cancelled"],
   in_progress: ["blocked", "implemented", "cancelled"],
   blocked: ["in_progress", "implemented", "cancelled"],
   implemented: ["measuring"],

@@ -73,40 +73,46 @@ describe("Work delivery rendered contract", () => {
       createElement(GrowthWorkDelivery, { projectId: "project_1", action }),
     );
     expect(html).toContain("<details");
-    expect(html).toContain("Update status and view history");
+    expect(html).toContain("Mark done or update status");
     expect(html).not.toContain("Save status");
     expect(html).not.toContain("Loading status history");
   });
 
-  it("labels the form, starts with no selected status and keeps notes optional", () => {
+  it("defaults to Done with an explicit submit action and optional notes", () => {
+    const onSubmit = vi.fn();
     const html = renderToStaticMarkup(
       createElement(GrowthWorkStatusForm, {
         currentStatus: "in_progress",
         disabled: false,
         pending: false,
-        onSubmit: vi.fn(),
+        onSubmit,
       }),
     );
     expect(html).toContain('aria-label="Update work status"');
-    expect(html).toContain('value="" selected=""');
-    expect(html).toContain("Next status");
+    expect(html).toContain('value="implemented" selected=""');
+    expect(html).toContain("Mark done");
+    expect(html).toContain("Work status");
     expect(html).toContain("Note (optional)");
     expect(html).toContain('maxLength="5000"');
     expect(html).toContain("aria-describedby=");
-    expect(html).toContain(
-      "website has changed or the results have been evaluated",
-    );
+    expect(html).toContain("website or measure its SEO impact");
     expect(html).toContain('value="blocked"');
     expect(html).toContain('value="implemented"');
     expect(html).toContain('value="cancelled"');
     expect(html).not.toContain('value="measuring"');
     expect(html).not.toContain('value="evaluated"');
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("uses the existing state machine without skipping ready or reopening work", () => {
-    expect(growthWorkNextStatuses("approved")).toEqual(["ready", "cancelled"]);
+  it("allows finishing from approved or ready without reopening finished work", () => {
+    expect(growthWorkNextStatuses("approved")).toEqual([
+      "ready",
+      "implemented",
+      "cancelled",
+    ]);
     expect(growthWorkNextStatuses("ready")).toEqual([
       "in_progress",
+      "implemented",
       "cancelled",
     ]);
     expect(growthWorkNextStatuses("blocked")).toEqual([
@@ -123,8 +129,41 @@ describe("Work delivery rendered contract", () => {
       expect(growthWorkNextStatuses(status)).toEqual([]);
       const html = render(client(), { ...action, status, stateVersion: 4 });
       expect(html).not.toContain("Save status");
+      expect(html).not.toContain("Mark done");
       expect(html).toContain("Recent status history");
     }
+  });
+
+  it.each(["approved", "ready"] as const)(
+    "offers Done immediately from %s without submitting on render",
+    (currentStatus) => {
+      const onSubmit = vi.fn();
+      const html = renderToStaticMarkup(
+        createElement(GrowthWorkStatusForm, {
+          currentStatus,
+          disabled: false,
+          pending: false,
+          onSubmit,
+        }),
+      );
+      expect(html).toContain('value="implemented" selected=""');
+      expect(html).toContain("Mark done");
+      expect(onSubmit).not.toHaveBeenCalled();
+    },
+  );
+
+  it("labels completed delivery as Done in history, retaining its original source state", () => {
+    const html = renderToStaticMarkup(
+      createElement(GrowthWorkHistoryList, {
+        data: {
+          ...history,
+          events: [{ ...history.events[0], toStatus: "implemented" }],
+        },
+      }),
+    );
+    expect(html).toContain("Approved to Done");
+    expect(html).not.toContain("Evaluated");
+    expect(html).not.toContain("In progress");
   });
 
   it("locks pending fields and gives a named loading state", () => {

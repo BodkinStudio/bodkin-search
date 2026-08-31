@@ -571,6 +571,27 @@ beforeEach(() => {
 });
 
 describe("GrowthMeasurementsService start", () => {
+  it("measures directly completed work using implementation time, with no invented start", async () => {
+    const store = installStore();
+    store.setAction(makeAction({ stateVersion: 1, startedAt: null }));
+
+    const result = await GrowthMeasurementsService.startMeasurement(
+      startInput({ expectedActionVersion: 1 }),
+    );
+
+    expect(result.plan).toMatchObject({
+      anchorAt: implementedAt,
+      actionVersion: 2,
+      status: "active",
+    });
+    expect(await repository.getAction(projectId, actionId)).toMatchObject({
+      status: "measuring",
+      stateVersion: 2,
+      startedAt: null,
+      implementedAt,
+    });
+  });
+
   it("freezes the implementation anchor in the report timezone near UTC midnight", async () => {
     const { startWrites } = installStore();
 

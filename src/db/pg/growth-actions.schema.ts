@@ -80,7 +80,7 @@ export const growthActions = pgTable(
     ),
     check(
       "growth_actions_milestones_check",
-      sql`${table.approvedAt} IS NOT NULL AND ((${table.status} = 'approved' AND ${table.startedAt} IS NULL AND ${table.implementedAt} IS NULL AND ${table.evaluatedAt} IS NULL AND ${table.cancelledAt} IS NULL) OR (${table.status} = 'ready' AND ${table.startedAt} IS NULL AND ${table.implementedAt} IS NULL AND ${table.evaluatedAt} IS NULL AND ${table.cancelledAt} IS NULL) OR (${table.status} IN ('in_progress','blocked') AND ${table.startedAt} IS NOT NULL AND ${table.implementedAt} IS NULL AND ${table.evaluatedAt} IS NULL AND ${table.cancelledAt} IS NULL) OR (${table.status} IN ('implemented','measuring') AND ${table.startedAt} IS NOT NULL AND ${table.implementedAt} IS NOT NULL AND ${table.evaluatedAt} IS NULL AND ${table.cancelledAt} IS NULL) OR (${table.status} = 'evaluated' AND ${table.startedAt} IS NOT NULL AND ${table.implementedAt} IS NOT NULL AND ${table.evaluatedAt} IS NOT NULL AND ${table.cancelledAt} IS NULL) OR (${table.status} = 'cancelled' AND ${table.implementedAt} IS NULL AND ${table.evaluatedAt} IS NULL AND ${table.cancelledAt} IS NOT NULL))`,
+      sql`${table.approvedAt} IS NOT NULL AND ((${table.status} = 'approved' AND ${table.startedAt} IS NULL AND ${table.implementedAt} IS NULL AND ${table.evaluatedAt} IS NULL AND ${table.cancelledAt} IS NULL) OR (${table.status} = 'ready' AND ${table.startedAt} IS NULL AND ${table.implementedAt} IS NULL AND ${table.evaluatedAt} IS NULL AND ${table.cancelledAt} IS NULL) OR (${table.status} IN ('in_progress','blocked') AND ${table.startedAt} IS NOT NULL AND ${table.implementedAt} IS NULL AND ${table.evaluatedAt} IS NULL AND ${table.cancelledAt} IS NULL) OR (${table.status} IN ('implemented','measuring') AND ${table.implementedAt} IS NOT NULL AND ${table.evaluatedAt} IS NULL AND ${table.cancelledAt} IS NULL) OR (${table.status} = 'evaluated' AND ${table.implementedAt} IS NOT NULL AND ${table.evaluatedAt} IS NOT NULL AND ${table.cancelledAt} IS NULL) OR (${table.status} = 'cancelled' AND ${table.implementedAt} IS NULL AND ${table.evaluatedAt} IS NULL AND ${table.cancelledAt} IS NOT NULL))`,
     ),
   ],
 );
@@ -177,7 +177,7 @@ export const growthActionEvents = pgTable(
     ),
     check(
       "growth_action_events_transition_check",
-      sql`${table.eventType} = 'created' OR (${table.fromStatus} = 'approved' AND ${table.toStatus} IN ('ready','cancelled')) OR (${table.fromStatus} = 'ready' AND ${table.toStatus} IN ('in_progress','cancelled')) OR (${table.fromStatus} = 'in_progress' AND ${table.toStatus} IN ('blocked','implemented','cancelled')) OR (${table.fromStatus} = 'blocked' AND ${table.toStatus} IN ('in_progress','implemented','cancelled')) OR (${table.fromStatus} = 'implemented' AND ${table.toStatus} = 'measuring') OR (${table.fromStatus} = 'measuring' AND ${table.toStatus} = 'evaluated')`,
+      sql`${table.eventType} = 'created' OR (${table.fromStatus} = 'approved' AND ${table.toStatus} IN ('ready','implemented','cancelled')) OR (${table.fromStatus} = 'ready' AND ${table.toStatus} IN ('in_progress','implemented','cancelled')) OR (${table.fromStatus} = 'in_progress' AND ${table.toStatus} IN ('blocked','implemented','cancelled')) OR (${table.fromStatus} = 'blocked' AND ${table.toStatus} IN ('in_progress','implemented','cancelled')) OR (${table.fromStatus} = 'implemented' AND ${table.toStatus} = 'measuring') OR (${table.fromStatus} = 'measuring' AND ${table.toStatus} = 'evaluated')`,
     ),
   ],
 );
