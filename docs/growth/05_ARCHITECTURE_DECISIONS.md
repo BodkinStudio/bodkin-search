@@ -894,3 +894,25 @@ The initial read reuses existing indexes; if project histories make the
 priority ordering or Action-existence check slow, add matching SQLite/Postgres
 indexes as a separately reviewed migration rather than silently changing the
 schema for this read-only boundary.
+
+---
+
+## ADR-042 - Saved manual Change Event list
+
+**Status:** Accepted
+
+### Decision
+
+`growth_get_recent_changes` is a project-authorized, read-only view of saved
+manual Change Event records only. It deliberately excludes Sherpa, CMS
+webhook, deployment and every future ingestion source. The keyset is immutable
+supplied `happenedAt` descending and provider-equivalent code-unit ID descending.
+Supplied timestamps are not independently verified occurrences. Roots are read before bounded URL children; public cards project descriptions
+and URLs through the existing privacy boundary.
+
+### Consequence
+
+The tool makes no provider calls, uses zero credits, and writes nothing. It is
+not a total, snapshot, discovery, collection, or Change Event creation/linking
+surface. One shared MCP definition is adapted into project-bound SAM, where the
+session project is injected server-side.

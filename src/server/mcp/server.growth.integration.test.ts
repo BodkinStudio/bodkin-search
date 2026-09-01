@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   getProjectSummary: vi.fn(),
   listActions: vi.fn(),
   listPriorityRecommendations: vi.fn(),
+  listRecentChanges: vi.fn(),
   getActionDetail: vi.fn(),
   waitUntil: vi.fn(),
   incrementSelfHostMcpToolCallCount: vi.fn(),
@@ -62,6 +63,15 @@ vi.mock(
   () => ({
     GrowthPriorityRecommendationsReadService: {
       listPriorityRecommendations: mocks.listPriorityRecommendations,
+    },
+  }),
+);
+
+vi.mock(
+  "@/server/features/growth/services/GrowthRecentChangesReadService",
+  () => ({
+    GrowthRecentChangesReadService: {
+      listRecentChanges: mocks.listRecentChanges,
     },
   }),
 );
@@ -149,6 +159,12 @@ beforeEach(() => {
   mocks.listPriorityRecommendations.mockResolvedValue({
     recommendations: [],
     limit: 2,
+    hasMore: false,
+    nextCursor: null,
+  });
+  mocks.listRecentChanges.mockResolvedValue({
+    changes: [],
+    limit: 20,
     hasMore: false,
     nextCursor: null,
   });
@@ -633,6 +649,67 @@ describe("Growth Action detail MCP registration", () => {
       expect(mocks.getActionDetail).toHaveBeenCalledWith({
         projectId: "project_123",
         actionId: "action_123",
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+});
+
+describe("Growth recent-change MCP registration", () => {
+  it("advertises and invokes the shared manual-log tool through the real in-process protocol", async () => {
+    const authProps = createWorkersOAuthMcpProps({
+      userId: "user_123",
+      userEmail: "team@example.com",
+      organizationId: "org_123",
+      baseUrl: "https://app.example.com",
+      clientId: null,
+      scopes: ["mcp"],
+    });
+    const server = createOpenSeoMcpServer(authProps);
+    const client = new Client({ name: "growth-test", version: "1.0.0" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    try {
+      await client.connect(clientTransport);
+      const listing = await client.listTools();
+      const tool = listing.tools.find(
+        (candidate) => candidate.name === "growth_get_recent_changes",
+      );
+      expect(tool).toMatchObject({
+        name: "growth_get_recent_changes",
+        inputSchema: { type: "object", required: ["projectId"] },
+        outputSchema: { type: "object", required: ["page"] },
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          openWorldHint: false,
+        },
+      });
+      expect(tool?.inputSchema.properties).toHaveProperty("cursor");
+
+      const cursor = {
+        happenedAt: "2026-08-31T12:00:00+01:00",
+        id: "event_cursor",
+      };
+      const result = await client.callTool({
+        name: "growth_get_recent_changes",
+        arguments: { projectId: "project_123", limit: 2, cursor },
+      });
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        page: { changes: [], limit: 20, hasMore: false, nextCursor: null },
+        meta: {
+          projectId: "project_123",
+          url: "https://app.example.com/p/project_123/growth#growth-change-log",
+        },
+      });
+      expect(mocks.listRecentChanges).toHaveBeenCalledWith({
+        projectId: "project_123",
+        limit: 2,
+        cursor,
       });
     } finally {
       await client.close();

@@ -8,9 +8,12 @@ import {
   inArray,
   lt,
   ne,
+  or,
   sql,
 } from "drizzle-orm";
+import type { SQLWrapper } from "drizzle-orm";
 import { db } from "@/db";
+import { getDatabaseProvider } from "@/db/provider";
 import {
   growthActionChanges,
   growthActions,
@@ -22,6 +25,13 @@ import {
   createChangeEventGraph,
   linkActionChange,
 } from "./GrowthChangeEventsWriter";
+import type { GrowthRecentChangesRequest } from "@/types/schemas/growth-recent-changes";
+
+function codeUnitId(column: SQLWrapper) {
+  return getDatabaseProvider() === "postgres"
+    ? sql`${column} COLLATE "C"`
+    : sql`${column} COLLATE BINARY`;
+}
 
 async function getChangeEvent(projectId: string, id: string) {
   const [row] = await db
@@ -130,6 +140,69 @@ async function listManualChangeEventGraphs(projectId: string, limit: number) {
     urls: urlsByEvent.get(event.id) ?? [],
     actionIds: [],
   }));
+}
+
+async function listRecentManualChangeEventsPage(
+  input: GrowthRecentChangesRequest,
+) {
+  const eventId = codeUnitId(growthChangeEvents.id);
+  const afterCursor = input.cursor
+    ? or(
+        lt(growthChangeEvents.happenedAt, input.cursor.happenedAt),
+        and(
+          eq(growthChangeEvents.happenedAt, input.cursor.happenedAt),
+          lt(eventId, input.cursor.id),
+        ),
+      )
+    : undefined;
+  return db
+    .select({
+      id: growthChangeEvents.id,
+      source: growthChangeEvents.source,
+      changeType: growthChangeEvents.changeType,
+      description: growthChangeEvents.description,
+      happenedAt: growthChangeEvents.happenedAt,
+      createdAt: growthChangeEvents.createdAt,
+    })
+    .from(growthChangeEvents)
+    .where(
+      and(
+        eq(growthChangeEvents.projectId, input.projectId),
+        eq(growthChangeEvents.source, "manual"),
+        afterCursor,
+      ),
+    )
+    .orderBy(desc(growthChangeEvents.happenedAt), desc(eventId))
+    .limit(input.limit + 1);
+}
+
+async function listUrlsForRecentChangeEvents(
+  projectId: string,
+  changeEventIds: string[],
+) {
+  if (!changeEventIds.length) return [];
+  const url = codeUnitId(growthChangeEventUrls.url);
+  const ranked = db
+    .select({
+      changeEventId: growthChangeEventUrls.changeEventId,
+      url: growthChangeEventUrls.url,
+      rank: sql<number>`ROW_NUMBER() OVER (PARTITION BY ${growthChangeEventUrls.changeEventId} ORDER BY ${url})`.as(
+        "rank",
+      ),
+    })
+    .from(growthChangeEventUrls)
+    .where(
+      and(
+        eq(growthChangeEventUrls.projectId, projectId),
+        inArray(growthChangeEventUrls.changeEventId, changeEventIds),
+      ),
+    )
+    .as("ranked_change_event_urls");
+  return db
+    .select()
+    .from(ranked)
+    .where(sql`${ranked.rank} <= 101`)
+    .orderBy(ranked.changeEventId, sql`${ranked.rank}`);
 }
 
 async function listManualChangeEventGraphsForAction(
@@ -316,6 +389,8 @@ export const GrowthChangeEventsRepository = {
   getChangeEventByKey,
   getChangeEventGraph,
   listManualChangeEventGraphs,
+  listRecentManualChangeEventsPage,
+  listUrlsForRecentChangeEvents,
   listManualChangeEventGraphsForAction,
   listMeasurementConfounderCandidates,
   getAction,
