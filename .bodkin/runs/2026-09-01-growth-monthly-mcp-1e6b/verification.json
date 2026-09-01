@@ -1,0 +1,61 @@
+{
+  "runId": "2026-09-01-growth-monthly-mcp-1e6b",
+  "status": "pass",
+  "generatedAt": "2026-09-01T17:01:17Z",
+  "checks": [
+    {
+      "name": "Focused monthly-summary MCP, SAM, authorization and report regressions",
+      "command": "pnpm vitest run src/server/mcp/tools/growth-tools.test.ts src/server/mcp/server.growth.integration.test.ts src/server/mcp/project-auth.test.ts src/server/features/sam/samChatTools.test.ts src/server/features/sam/samChatGrowthTools.test.ts src/server/features/growth/services/GrowthMonthlyReportsService.test.ts src/server/features/growth/services/GrowthMonthlyReportsPublicationService.test.ts src/types/schemas/growth-monthly-reports.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 3500,
+      "output": "8 test files passed; 35 tests passed. This includes the real createOpenSeoMcpServer connected to an MCP Client over linked InMemoryTransport, tools/list schema discovery, tools/call invocation, handler authorization/output states, SAM bound-project injection and existing monthly service/publication/schema regressions. The protocol test was rerun after its final lint-only edit and passed 1/1."
+    },
+    {
+      "name": "Full repository tests",
+      "command": "pnpm test:ci",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 25171,
+      "output": "224 test files passed and 7 provider-gated files skipped; 1,975 tests passed and 21 skipped. Expected negative-path OAuth, MCP, workflow and provider diagnostics were emitted without failures."
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 49779,
+      "output": "Prettier, Knip, root and badseo TypeScript, type-aware Oxlint, plugin skill sync and generated-skill cleanliness passed. Oxlint reported 0 warnings and 0 errors across 1,025 files; 9 plugin skills were synced and remained clean."
+    },
+    {
+      "name": "Production build",
+      "command": "pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 90100,
+      "output": "Client and SSR production bundles built and the trailing TypeScript check passed. The existing non-fatal large-chunk advisory remained. Wrangler also emitted a non-fatal sandbox log-file EPERM diagnostic while the build itself returned zero."
+    },
+    {
+      "name": "Diff whitespace",
+      "command": "git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 100,
+      "output": "No whitespace errors."
+    },
+    {
+      "name": "External HTTP transport and headless MCP consumer probes",
+      "command": "Not run",
+      "required": false,
+      "status": "waived",
+      "exitCode": null,
+      "durationMs": 0,
+      "output": "The repository verify-local-mcp skill normally also runs raw HTTP and an external headless consumer. The user's standing constraint prohibits HTTP, browser, CDP, Playwright and screenshot activity. Those layers are not claimed as passed; the no-network real MCP client/server protocol test is the executed replacement evidence."
+    }
+  ]
+}

@@ -730,3 +730,22 @@ This produces a readable monthly snapshot from existing Growth facts without add
 ### Deferred
 
 Historical source reconstruction, regenerating or correcting v1, scheduling, sharing, provider collection, AI narrative and custom/weekly reports remain separate decisions.
+
+## ADR-036 - Monthly-summary MCP is a current read adapter
+
+**Status:** Accepted
+
+### Decision
+
+- `growth_get_monthly_summary` is a project-scoped, read-only adapter over the existing monthly-summary service and strict client DTO. Its only semantic input is the project ID, and it always reads the currently eligible previous completed calendar month in the project's pinned report timezone.
+- The tool uses the established MCP project authorization gate, returns the existing `ready`, `no_activity`, draft or published state without changing it, and includes a project Growth deep link. It neither builds nor publishes a report, makes provider calls, reads arbitrary history, or consumes credits.
+- Structured content is the canonical bounded DTO inside a `summary` wrapper. Human-readable text is derived from that same DTO and includes each persisted section, item and fact, so agents can act on the result without a second report reader.
+- The external MCP server and the project-bound SAM agent share the same definition. SAM strips the model-visible project ID and injects its server-bound session project ID before the shared authorization gate runs.
+
+### Why
+
+The monthly-report service, DTO, authorization boundary and Growth page already exist. Reusing them gives agents the current approved reporting surface without introducing a report builder, provider boundary, scheduler, share mechanism or second MCP server.
+
+### Deferred
+
+Historical or custom-period reads, build and publication actions, scheduled delivery, external sharing, provider collection, narrative generation and cross-project agent access remain separate reviewed work.

@@ -21,6 +21,7 @@ import {
   getAuditStatusTool,
   runSiteAuditTool,
 } from "@/server/mcp/tools/site-audit-tools";
+import { growthGetMonthlySummaryTool } from "@/server/mcp/tools/growth-tools";
 import { listSavedKeywordsTool } from "@/server/mcp/tools/list-saved-keywords";
 import { buildUpdateProjectContextTool } from "@/server/mcp/tools/project-context";
 import {
@@ -403,5 +404,6 @@ export function buildSamMcpTools(
     get_audit_status: waitingAuditStatusTool(adaptTool),
     get_audit_issues: adaptTool(getAuditIssuesTool),
     get_audit_pages: adaptTool(getAuditPagesTool),
+    growth_get_monthly_summary: adaptTool(growthGetMonthlySummaryTool),
   };
 }
