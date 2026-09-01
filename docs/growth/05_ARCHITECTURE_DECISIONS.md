@@ -591,3 +591,54 @@ deferred collection/UI portion only for user-triggered GSC scalar collection.
 Automatic scheduling, GA4 and other providers, raw snapshot replay, site/cluster
 context, confounder discovery, outcome/confidence policy, AI interpretation and
 terminal result orchestration remain deferred.
+
+## ADR-033 - Measurement confounder discovery is bounded exact-match context
+
+**Status:** Accepted for the internal BG-0307A slice
+
+### Decision
+
+- Active Work Measurement reads inspect recorded Change Events as possible
+  confounding context. Discovery is read-only: it does not call a provider,
+  select or persist a confounder, assign confidence, create a Result or advance
+  the Action lifecycle.
+- Version 1 inspects the Plan's full frozen comparison interval, from baseline
+  start at UTC midnight through the last configured measurement date inclusive.
+  The selected implementation Change Event is excluded by ID; another Event at
+  the same timestamp remains eligible. A legacy Plan without that selected
+  anchor reports discovery as unavailable rather than guessing.
+- Candidate scope comes only from the verified Plan graph. Every Change Event
+  source is considered, but an Event is a candidate only when at least one of its
+  exact stored URLs equals a frozen URL Metric target. Query, trailing-slash and
+  other variants do not substitute for the saved identity. Root URLs, event
+  descriptions, change types and template or migration labels do not imply a
+  hidden site-wide match.
+- Discovery requests at most 51 deterministically ordered candidate Events in
+  one database statement, returning only their exact matching URLs. Zero
+  matches reports `none`; one through 50 reports the complete candidate set; 51
+  reports `overflow` and withholds the partial list. Project-leading predicates
+  and relationships remain the tenancy boundary.
+- Candidate details use a narrow allowlisted Event projection and safe URL
+  display. Query/fragment omission or credential withholding is presentation
+  behaviour only and is disclosed; matching happens first against exact stored
+  identities. Event descriptions pass through the existing credential-safe
+  narrative projection before entering the client DTO.
+- The candidate set is current recorded context, not a historical snapshot and
+  not proof that an Event affected performance. No candidates means only that no
+  exact recorded match was found within this bounded rule. Site-wide effects,
+  missing Events and semantic URL relationships remain unassessed.
+
+### Why
+
+The Change Event and Measurement aggregates already contain the normalized
+relationships needed to show review context. A narrow, bounded read closes the
+discovery half of BG-0307 without inventing a confidence penalty or causal
+classification. Explicit overflow and identity limitations are more truthful
+than a recent-50 list or fuzzy matching that appears complete.
+
+### Deferred
+
+Human selection and Result finalization, confidence semantics, outcome policy,
+AI interpretation, site-wide/template scope, normalized or semantic URL
+matching, persisted discovery snapshots, automatic scheduling and terminal Gate
+3 UI remain separate reviewed work.

@@ -115,6 +115,13 @@ export const activeMeasurementPlan: GrowthWorkMeasurementPlan = {
       },
     ],
   },
+  confounders: {
+    state: "none",
+    intervalStart: "2026-07-04",
+    intervalEnd: "2026-10-30",
+    candidates: [],
+    limit: 50,
+  },
   dueDate: "2026-10-30",
   result: null,
 };

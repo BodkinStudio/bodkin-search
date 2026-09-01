@@ -162,6 +162,11 @@ function text(
     truncated: safe.length > max,
   };
 }
+
+export function growthEvidenceDisplayChangeDescription(value: string) {
+  return text(value, 5000, 5000)!;
+}
+
 export function growthEvidenceDisplayUrl(value: string) {
   const valid = safeHttpUrl(value);
   if (!valid || value.length > 2048 || hasCredentialMaterial(value))

@@ -1,4 +1,15 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  gte,
+  inArray,
+  lt,
+  ne,
+  sql,
+} from "drizzle-orm";
 import { db } from "@/db";
 import {
   growthActionChanges,
@@ -173,6 +184,94 @@ async function listManualChangeEventGraphsForAction(
   }));
 }
 
+type MeasurementConfounderQuery = {
+  projectId: string;
+  urls: string[];
+  startAt: string;
+  endAt: string;
+  excludedChangeEventId: string;
+  limit: number;
+};
+
+async function listMeasurementConfounderCandidates(
+  input: MeasurementConfounderQuery,
+) {
+  if (input.urls.length === 0) return [];
+  const candidateEvents = db.$with("candidate_events").as(
+    db
+      .select()
+      .from(growthChangeEvents)
+      .where(
+        and(
+          eq(growthChangeEvents.projectId, input.projectId),
+          ne(growthChangeEvents.id, input.excludedChangeEventId),
+          gte(growthChangeEvents.happenedAt, input.startAt),
+          lt(growthChangeEvents.happenedAt, input.endAt),
+          exists(
+            db
+              .select({ value: sql<number>`1` })
+              .from(growthChangeEventUrls)
+              .where(
+                and(
+                  eq(growthChangeEventUrls.projectId, input.projectId),
+                  eq(
+                    growthChangeEventUrls.changeEventId,
+                    growthChangeEvents.id,
+                  ),
+                  inArray(growthChangeEventUrls.url, input.urls),
+                ),
+              ),
+          ),
+        ),
+      )
+      .orderBy(asc(growthChangeEvents.happenedAt), asc(growthChangeEvents.id))
+      .limit(input.limit),
+  );
+  const rows = await db
+    .with(candidateEvents)
+    .select({
+      event: {
+        id: candidateEvents.id,
+        projectId: candidateEvents.projectId,
+        creationKey: candidateEvents.creationKey,
+        factHash: candidateEvents.factHash,
+        source: candidateEvents.source,
+        changeType: candidateEvents.changeType,
+        actorType: candidateEvents.actorType,
+        actorId: candidateEvents.actorId,
+        description: candidateEvents.description,
+        happenedAt: candidateEvents.happenedAt,
+        externalRef: candidateEvents.externalRef,
+        createdAt: candidateEvents.createdAt,
+      },
+      url: growthChangeEventUrls.url,
+    })
+    .from(candidateEvents)
+    .innerJoin(
+      growthChangeEventUrls,
+      and(
+        eq(growthChangeEventUrls.projectId, input.projectId),
+        eq(growthChangeEventUrls.changeEventId, candidateEvents.id),
+        inArray(growthChangeEventUrls.url, input.urls),
+      ),
+    )
+    .orderBy(
+      asc(candidateEvents.happenedAt),
+      asc(candidateEvents.id),
+      asc(growthChangeEventUrls.url),
+    );
+  const candidates = new Map<
+    string,
+    { event: (typeof rows)[number]["event"]; matchedUrls: string[] }
+  >();
+  for (const { event, url } of rows) {
+    const candidate = candidates.get(event.id) ?? { event, matchedUrls: [] };
+    candidate.matchedUrls.push(url);
+    candidates.set(event.id, candidate);
+  }
+  return [...candidates.values()];
+}
+
 async function getAction(projectId: string, id: string) {
   const [row] = await db
     .select()
@@ -218,6 +317,7 @@ export const GrowthChangeEventsRepository = {
   getChangeEventGraph,
   listManualChangeEventGraphs,
   listManualChangeEventGraphsForAction,
+  listMeasurementConfounderCandidates,
   getAction,
   getActionChange,
   listChangeEventUrls,

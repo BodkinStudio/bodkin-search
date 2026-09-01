@@ -6,6 +6,7 @@ import type {
 } from "@/types/schemas/growth-work";
 import { GrowthChangeHistory } from "./GrowthChangeHistory";
 import { formatGrowthPreviewDate } from "./GrowthPreviewPresentation";
+import { GrowthWorkMeasurementConfounders } from "./GrowthWorkMeasurementConfounders";
 import {
   GROWTH_MEASUREMENT_METRIC_LABELS,
   GrowthWorkMeasurementForm,
@@ -122,6 +123,7 @@ function GrowthWorkMeasurementPlanView({
       <GrowthWorkMeasurementCollectionProgress plan={plan} />
       {collectionControl}
       <GrowthWorkMeasurementComparisons plan={plan} />
+      <GrowthWorkMeasurementConfounders confounders={plan.confounders} />
       {plan.result ? (
         <GrowthWorkMeasurementResult result={plan.result} />
       ) : null}

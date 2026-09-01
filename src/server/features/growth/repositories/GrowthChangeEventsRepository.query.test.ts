@@ -127,6 +127,82 @@ afterAll(() => client.close());
 
 // oxlint-disable-next-line eslint(max-lines-per-function) -- the self-contained D1 fixture verifies graph persistence sequentially.
 describe("GrowthChangeEventsRepository D1 aggregate writes", () => {
+  it("finds bounded exact-URL confounder candidates across sources and UTC boundaries", async () => {
+    const create = (
+      id: string,
+      source: "manual" | "sherpa" | "cms_webhook" | "deployment",
+      eventTime: string,
+      urls: string[],
+    ) =>
+      GrowthChangeEventsRepository.createChangeEventGraph({
+        ...eventInput,
+        id,
+        creationKey: id,
+        factHash: id.padEnd(64, "a").slice(0, 64),
+        source,
+        happenedAt: eventTime,
+        urls,
+      });
+    await create("conf_anchor", "manual", "2026-08-01T00:00:00.000Z", [
+      "https://example.com/pricing",
+    ]);
+    await create("conf_same_time", "deployment", "2026-08-01T00:00:00.000Z", [
+      "https://example.com/pricing",
+    ]);
+    await create("conf_manual", "manual", "2026-08-02T11:00:00.000Z", [
+      "https://example.com/pricing",
+      "https://example.com/about",
+    ]);
+    await create("conf_cms", "cms_webhook", "2026-08-02T12:00:00.000Z", [
+      "https://example.com/pricing",
+    ]);
+    await create("conf_sherpa", "sherpa", "2026-08-02T13:00:00.000Z", [
+      "https://example.com/pricing",
+    ]);
+    await create("conf_variant", "deployment", "2026-08-02T14:00:00.000Z", [
+      "https://example.com/pricing/",
+    ]);
+    await create("conf_last", "deployment", "2026-08-02T23:59:59.999Z", [
+      "https://example.com/pricing",
+    ]);
+    await create("conf_end", "manual", "2026-08-03T00:00:00.000Z", [
+      "https://example.com/pricing",
+    ]);
+    await GrowthChangeEventsRepository.createChangeEventGraph({
+      ...eventInput,
+      id: "conf_foreign",
+      projectId: "project_2",
+      creationKey: "conf_foreign",
+      factHash: "f".repeat(64),
+      source: "deployment",
+      happenedAt: "2026-08-02T12:30:00.000Z",
+      urls: ["https://other.example/pricing"],
+      expectedDomain: "other.example",
+    });
+    const candidates =
+      await GrowthChangeEventsRepository.listMeasurementConfounderCandidates({
+        projectId: "project_1",
+        urls: ["https://example.com/pricing", "https://other.example/pricing"],
+        startAt: "2026-08-01T00:00:00.000Z",
+        endAt: "2026-08-03T00:00:00.000Z",
+        excludedChangeEventId: "conf_anchor",
+        limit: 51,
+      });
+    expect(candidates.map(({ event }) => event.id)).toEqual([
+      "conf_same_time",
+      "conf_manual",
+      "conf_cms",
+      "conf_sherpa",
+      "conf_last",
+    ]);
+    expect(candidates.map(({ matchedUrls }) => matchedUrls)).toEqual([
+      ["https://example.com/pricing"],
+      ["https://example.com/pricing"],
+      ["https://example.com/pricing"],
+      ["https://example.com/pricing"],
+      ["https://example.com/pricing"],
+    ]);
+  });
   it("lists a project-scoped, bounded manual history with bulk-loaded URLs", async () => {
     await GrowthChangeEventsRepository.createChangeEventGraph({
       ...eventInput,

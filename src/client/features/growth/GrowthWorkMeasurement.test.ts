@@ -238,6 +238,8 @@ describe("Work measurement rendered contract", () => {
     expect(html).toContain("Google available");
     expect(html).toContain("Waiting for Google data");
     expect(html).toContain("3 Aug 2026");
+    expect(html).toContain("Possible confounding changes");
+    expect(html).toContain("does not show that the comparison was unaffected");
     expect(html).not.toContain("Choose a linked change");
   });
 

@@ -183,6 +183,22 @@ export type GrowthWorkMeasurementCollection = {
   periods: GrowthWorkMeasurementCollectionPeriod[];
 };
 
+export type GrowthWorkMeasurementConfounderCandidate = {
+  id: string;
+  changeType: GrowthChangeDto["changeType"];
+  description: string;
+  happenedAt: string;
+  matchedDisplayUrls: Array<string | null>;
+};
+
+export type GrowthWorkMeasurementConfounders = {
+  state: "none" | "complete" | "overflow" | "unavailable" | "closed";
+  intervalStart: string;
+  intervalEnd: string;
+  candidates: GrowthWorkMeasurementConfounderCandidate[];
+  limit: number;
+};
+
 export type GrowthWorkMeasurementPlan = {
   id: string;
   status: "active" | "completed";
@@ -191,6 +207,7 @@ export type GrowthWorkMeasurementPlan = {
   schedule: GrowthWorkMeasurementSchedule;
   metrics: GrowthWorkMeasurementPlanMetric[];
   collection: GrowthWorkMeasurementCollection;
+  confounders: GrowthWorkMeasurementConfounders;
   dueDate: string;
   result: {
     outcome:

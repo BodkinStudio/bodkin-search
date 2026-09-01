@@ -1,0 +1,25 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "Confounder candidate descriptions can disclose credential material to the client.",
+      "location": "src/server/features/growth/services/GrowthWorkMeasurementProjection.ts:201; src/server/features/growth/services/GrowthChangeEventsService.ts:68",
+      "evidence": "The projection copies event.description directly into the Work DTO. Manual Change Event creation persists the user-supplied bounded description unchanged, and the description schema has no secret-redaction rule. A recorded description containing an API key, bearer token, password, or similar credential would therefore render in the confounder disclosure. The existing URL redaction helper is applied only to matchedUrls.",
+      "impact": "This violates the acceptance requirement that candidate descriptions and matched pages are safely projected with credential material withheld, and can expose secrets from recorded event context.",
+      "recommendation": "Apply the repository's credential-safe text projection or withhold/redact unsafe descriptions before constructing the Work DTO, and add a server-render/read-model test covering a credential-like description."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve the single-statement candidate CTE and its event-level 51-item limit.",
+      "location": "src/server/features/growth/repositories/GrowthChangeEventsRepository.ts:198",
+      "evidence": "The candidate event selection, exact URL qualification, deterministic ordering, and matching-URL projection occur in one SQL statement; the CTE limits events before URL expansion.",
+      "impact": "This preserves correct overflow detection and avoids a partial candidate set under concurrent record deletion.",
+      "recommendation": "Keep this query shape while repairing safe description projection."
+    }
+  ]
+}

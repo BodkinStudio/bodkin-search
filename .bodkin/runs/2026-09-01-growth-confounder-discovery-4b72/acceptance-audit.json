@@ -1,0 +1,14 @@
+{
+  "verdict": "PASS",
+  "unmet": [],
+  "evidence": [
+    "All acceptance behaviours are present in the complete diff: server-derived frozen URL/date scope, project filtering, identity-only anchor exclusion, exact URL matching across sources, inclusive UTC end handling, deterministic ordering, 51-Event overflow withholding, all required read-model states, safe URL/description projection, and unchanged Result/Action semantics.",
+    "The original completeness repair remains: GrowthChangeEventsRepository uses a single ordered candidate-Events CTE with the 51-Event limit applied before matching-URL expansion.",
+    "The credential-description repair remains: GrowthWorkMeasurementProjection applies growthEvidenceDisplayChangeDescription before placing descriptions in the Work DTO; its text projection redacts recognised credentials, with focused server/read-model/render coverage.",
+    "The disclosure retains semantic heading/list structure, non-causal wording, explicit none/overflow/unavailable behaviour, exact URL/time and no-candidate limitations, and safe wrapping. Completed Plans stay closed without invoking discovery.",
+    "verification.json records the final repair evidence: 43 focused tests, 1,851 full tests, ci:check, build, git diff --check, and the explicit browser/HTTP/CDP/Playwright waiver."
+  ],
+  "notes": [
+    "No browser, HTTP, CDP, Playwright, or screenshot tooling was used, per the stated waiver."
+  ]
+}

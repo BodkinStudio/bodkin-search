@@ -19,6 +19,7 @@ const gscConnections = vi.hoisted(() => ({ getByProjectId: vi.fn() }));
 const collection = vi.hoisted(() => ({
   collectGrowthWorkMeasurementEvidence: vi.fn(),
 }));
+const confounderDiscovery = vi.hoisted(() => ({ discover: vi.fn() }));
 
 vi.mock("../repositories/GrowthActionsRepository", () => ({
   GrowthActionsRepository: actions,
@@ -79,6 +80,10 @@ vi.mock("./GrowthWorkMeasurementCollectionService", () => ({
       : []),
   ],
 }));
+vi.mock("./GrowthMeasurementConfounders", () => ({
+  GROWTH_MEASUREMENT_CONFOUNDER_LIMIT: 50,
+  discoverGrowthMeasurementConfounders: confounderDiscovery.discover,
+}));
 vi.mock("./GrowthChangeLogService", () => ({
   toChangeDto: (graph: typeof change) => ({
     id: graph.event.id,
@@ -89,10 +94,6 @@ vi.mock("./GrowthChangeLogService", () => ({
     displayUrls: graph.urls,
   }),
 }));
-vi.mock("./GrowthEvidencePacket", () => ({
-  growthEvidenceDisplayUrl: (value: string) => ({ value }),
-}));
-
 import {
   growthWorkMeasurementSchedule,
   GrowthWorkMeasurementService,
@@ -211,6 +212,10 @@ describe("GrowthWorkMeasurementService", () => {
     collection.collectGrowthWorkMeasurementEvidence.mockResolvedValue(
       activeMeasurement,
     );
+    confounderDiscovery.discover.mockResolvedValue({
+      state: "none",
+      candidates: [],
+    });
   });
 
   it("derives the fixed windows from the selected change's UTC day", () => {
@@ -546,8 +551,135 @@ describe("GrowthWorkMeasurementService", () => {
         id: "plan_1",
         implementationChange: { id: "change_1" },
         schedule: { anchorDate: "2026-08-01" },
+        confounders: {
+          state: "none",
+          intervalStart: "2026-07-04",
+          intervalEnd: "2026-10-30",
+          candidates: [],
+          limit: 50,
+        },
       },
     });
+    expect(confounderDiscovery.discover).toHaveBeenCalledWith(
+      activeMeasurement,
+    );
+  });
+
+  it("projects exact confounder candidates and closes discovery with the Result", async () => {
+    measurementRepository.getMeasurementPlanByAction.mockResolvedValue(
+      activePlan,
+    );
+    investigations.getQualifiedWork.mockResolvedValue({
+      ...implementedWork,
+      status: "measuring",
+      stateVersion: 5,
+    });
+    confounderDiscovery.discover.mockResolvedValue({
+      state: "complete",
+      candidates: [
+        {
+          event: {
+            ...change.event,
+            id: "change_context",
+            description: "Published another pricing change.",
+          },
+          matchedUrls: ["https://example.com/a"],
+        },
+      ],
+    });
+
+    await expect(
+      GrowthWorkMeasurementService.getGrowthWorkMeasurement(
+        projectId,
+        actionId,
+      ),
+    ).resolves.toMatchObject({
+      plan: {
+        confounders: {
+          state: "complete",
+          intervalStart: "2026-07-04",
+          intervalEnd: "2026-10-30",
+          candidates: [
+            {
+              id: "change_context",
+              description: "Published another pricing change.",
+              matchedDisplayUrls: ["https://example.com/a"],
+            },
+          ],
+        },
+      },
+    });
+
+    const completedPlan = {
+      ...activePlan,
+      status: "completed" as const,
+      completedAt: "2026-11-03T12:00:00.000Z",
+    };
+    measurementRepository.getMeasurementPlanByAction.mockResolvedValue(
+      completedPlan,
+    );
+    investigations.getQualifiedWork.mockResolvedValue({
+      ...implementedWork,
+      status: "evaluated",
+      stateVersion: 6,
+    });
+    measurements.getMeasurement.mockResolvedValue({
+      ...activeMeasurement,
+      plan: completedPlan,
+      result: {
+        outcome: "positive",
+        confidence: 0.7,
+        summary: "Clicks were higher after the recorded change.",
+        evaluatedAt: "2026-11-03T12:00:00.000Z",
+      },
+    });
+    confounderDiscovery.discover.mockClear();
+
+    await expect(
+      GrowthWorkMeasurementService.getGrowthWorkMeasurement(
+        projectId,
+        actionId,
+      ),
+    ).resolves.toMatchObject({
+      state: "completed",
+      plan: { confounders: { state: "closed", candidates: [] } },
+    });
+    expect(confounderDiscovery.discover).not.toHaveBeenCalled();
+  });
+
+  it("redacts credential-like confounder descriptions before projecting Work", async () => {
+    const credential = "CONFOUNDER_DESCRIPTION_CANARY_701";
+    measurementRepository.getMeasurementPlanByAction.mockResolvedValue(
+      activePlan,
+    );
+    investigations.getQualifiedWork.mockResolvedValue({
+      ...implementedWork,
+      status: "measuring",
+      stateVersion: 5,
+    });
+    confounderDiscovery.discover.mockResolvedValue({
+      state: "complete",
+      candidates: [
+        {
+          event: {
+            ...change.event,
+            id: "change_sensitive_context",
+            description: `api_key=${credential}`,
+          },
+          matchedUrls: ["https://example.com/a"],
+        },
+      ],
+    });
+
+    const projected =
+      await GrowthWorkMeasurementService.getGrowthWorkMeasurement(
+        projectId,
+        actionId,
+      );
+    expect(projected.plan?.confounders.candidates[0]?.description).toBe(
+      "[redacted: recognised credential material]",
+    );
+    expect(JSON.stringify(projected)).not.toContain(credential);
   });
 
   it("projects source availability at the exact Pacific end-plus-three-day boundary without collecting", async () => {
