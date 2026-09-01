@@ -838,3 +838,17 @@ Live provider refresh and connection health, historical snapshots, exhaustive
 large-project Measurement scheduling, full Recommendation or Action evidence
 chains, page context, monthly report bodies, writes, notifications and
 cross-project summaries remain separate reviewed work.
+
+## ADR-039: Page context uses explicit plural URL identities and suppresses incoherent live GSC
+
+**Status:** Accepted
+
+`growth_get_page_context` is a read-only, project-authorized orientation for a
+single page. Exact key-page curation retains its normalized query-aware URL;
+Growth workflow relations use the existing host-and-path normalization; GSC
+receives the credential-free requested URL; rank matching considers only its
+private HTTP/HTTPS, www and slash variants. Only a URL-safe display projection
+is public. Saved rows are current reads coordinated by one `asOf`, not a
+historical snapshot. Two final GSC reads supply an ungrouped aggregate and top
+queries; any failed, malformed, or property-drift pair suppresses the whole
+live section rather than mixing partial or private provider context.

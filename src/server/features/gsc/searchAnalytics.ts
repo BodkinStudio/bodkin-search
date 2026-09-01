@@ -145,10 +145,6 @@ export function buildSearchAnalyticsRequest(
   const request: GscSearchAnalyticsRequest = {
     startDate,
     endDate,
-    dimensions:
-      input.dimensions && input.dimensions.length > 0
-        ? input.dimensions
-        : ["query"],
     rowLimit: clamp(
       input.rowLimit ?? GSC_DEFAULT_ROW_LIMIT,
       1,
@@ -157,6 +153,10 @@ export function buildSearchAnalyticsRequest(
     type: input.type ?? "web",
     dataState: input.dataState ?? "all",
   };
+  // Omitting dimensions retains the long-standing query grouping.  An explicit
+  // empty array is meaningful to GSC: it requests the ungrouped aggregate.
+  if (input.dimensions === undefined) request.dimensions = ["query"];
+  else if (input.dimensions.length > 0) request.dimensions = input.dimensions;
   if (input.startRow && input.startRow > 0) {
     request.startRow = input.startRow;
   }

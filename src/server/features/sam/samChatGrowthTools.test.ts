@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import type { ToolAuthContext } from "@/server/mcp/context";
 import { growthGetActionsTool } from "@/server/mcp/tools/growth-action-tools";
+import { makeGrowthPageContextFixture } from "@/server/mcp/tools/growth-page-context-test-fixture";
+import { growthGetPageContextTool } from "@/server/mcp/tools/growth-page-context-tool";
 import { makeGrowthProjectSummaryFixture } from "@/server/mcp/tools/growth-project-summary-test-fixture";
 import { growthGetProjectSummaryTool } from "@/server/mcp/tools/growth-project-summary-tool";
 import type { GrowthMonthlyReportDto } from "@/types/schemas/growth-monthly-reports";
@@ -11,6 +13,7 @@ import { buildSamMcpTools } from "./samChatTools";
 const mocks = vi.hoisted(() => ({
   getProjectForOrganization: vi.fn(),
   listActions: vi.fn(),
+  getPageContext: vi.fn(),
   getProjectSummary: vi.fn(),
   getGrowthMonthlyReport: vi.fn(),
   withPgClient: vi.fn((callback: () => unknown) => callback()),
@@ -44,6 +47,10 @@ vi.mock("@/server/features/projects/services/ProjectService", () => ({
 
 vi.mock("@/server/features/growth/services/GrowthActionsReadService", () => ({
   GrowthActionsReadService: { listActions: mocks.listActions },
+}));
+
+vi.mock("@/server/features/growth/services/GrowthPageContextService", () => ({
+  GrowthPageContextService: { getPageContext: mocks.getPageContext },
 }));
 
 vi.mock(
@@ -100,6 +107,7 @@ beforeEach(() => {
     nextCursor: null,
   });
   mocks.getGrowthMonthlyReport.mockResolvedValue(summary);
+  mocks.getPageContext.mockResolvedValue(makeGrowthPageContextFixture());
   mocks.getProjectSummary.mockResolvedValue({
     ...makeGrowthProjectSummaryFixture(),
     project: {
@@ -115,6 +123,54 @@ beforeEach(() => {
 });
 
 describe("SAM Growth MCP tools", () => {
+  it("binds page context to the session project and preserves the model URL", async () => {
+    const tools = buildSamMcpTools(authContext, {
+      id: "bound_project",
+      domain: "example.com",
+    });
+    const pageContext = tools.growth_get_page_context;
+
+    expect(pageContext).toBeDefined();
+    expect(pageContext.description).toBe(
+      growthGetPageContextTool.config.description,
+    );
+    expect(pageContext.inputSchema).toBeInstanceOf(z.ZodObject);
+    if (!(pageContext.inputSchema instanceof z.ZodObject)) {
+      throw new Error("Expected SAM to expose a Zod object input schema");
+    }
+    expect(Object.keys(pageContext.inputSchema.shape)).toEqual(["url"]);
+    expect(pageContext.inputSchema.shape).not.toHaveProperty("projectId");
+
+    const url = "https://example.com/pricing?plan=agency#private";
+    const modelInput = pageContext.inputSchema.parse({ url });
+    if (!pageContext.execute)
+      throw new Error("Expected an executable SAM tool");
+    const result: unknown = await pageContext.execute(modelInput, callOptions);
+
+    expect(mocks.withPgClient).toHaveBeenCalledTimes(1);
+    expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
+      authContext.organizationId,
+      "bound_project",
+    );
+    expect(mocks.getPageContext).toHaveBeenCalledTimes(1);
+    expect(mocks.getPageContext).toHaveBeenCalledWith(
+      { id: "bound_project", domain: "example.com" },
+      url,
+    );
+    expect(result).toMatchObject({
+      data: {
+        context: {
+          consistency: "current_not_snapshot",
+          curation: { state: "curated", protected: true },
+        },
+        meta: {
+          projectId: "bound_project",
+          url: "https://open-seo.test/p/bound_project/growth",
+        },
+      },
+    });
+  });
+
   it("binds the shared project summary to the session project", async () => {
     const tools = buildSamMcpTools(authContext, {
       id: "bound_project",

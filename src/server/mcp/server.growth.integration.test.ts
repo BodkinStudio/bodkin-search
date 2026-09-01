@@ -1,12 +1,15 @@
+/* eslint-disable max-lines -- one real-protocol suite covers all shared Growth registrations */
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createWorkersOAuthMcpProps } from "@/server/mcp/context";
 import { createOpenSeoMcpServer } from "@/server/mcp/server";
+import { makeGrowthPageContextFixture } from "@/server/mcp/tools/growth-page-context-test-fixture";
 import { makeGrowthProjectSummaryFixture } from "@/server/mcp/tools/growth-project-summary-test-fixture";
 
 const mocks = vi.hoisted(() => ({
   getProjectForOrganization: vi.fn(),
   getGrowthMonthlyReport: vi.fn(),
+  getPageContext: vi.fn(),
   getProjectSummary: vi.fn(),
   listActions: vi.fn(),
   waitUntil: vi.fn(),
@@ -27,6 +30,12 @@ vi.mock("cloudflare:workers", () => ({
 vi.mock("@/server/features/projects/services/ProjectService", () => ({
   ProjectService: {
     getProjectForOrganization: mocks.getProjectForOrganization,
+  },
+}));
+
+vi.mock("@/server/features/growth/services/GrowthPageContextService", () => ({
+  GrowthPageContextService: {
+    getPageContext: mocks.getPageContext,
   },
 }));
 
@@ -122,10 +131,95 @@ beforeEach(() => {
     },
   });
   mocks.getProjectSummary.mockResolvedValue(makeGrowthProjectSummaryFixture());
+  mocks.getPageContext.mockResolvedValue(makeGrowthPageContextFixture());
   mocks.incrementSelfHostMcpToolCallCount.mockResolvedValue(undefined);
   mocks.captureServerEvent.mockResolvedValue(undefined);
   mocks.captureServerError.mockResolvedValue(undefined);
   mocks.recordExternalMcpToolCall.mockResolvedValue(undefined);
+});
+
+describe("Growth page-context MCP registration", () => {
+  it("advertises and invokes the shared tool through the real in-process protocol", async () => {
+    const authProps = createWorkersOAuthMcpProps({
+      userId: "user_123",
+      userEmail: "team@example.com",
+      organizationId: "org_123",
+      baseUrl: "https://app.example.com",
+      clientId: null,
+      scopes: ["mcp"],
+    });
+    const server = createOpenSeoMcpServer(authProps);
+    const client = new Client({ name: "growth-test", version: "1.0.0" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+
+    await server.connect(serverTransport);
+    try {
+      await client.connect(clientTransport);
+      const listing = await client.listTools();
+      const tool = listing.tools.find(
+        (candidate) => candidate.name === "growth_get_page_context",
+      );
+
+      expect(tool).toMatchObject({
+        name: "growth_get_page_context",
+        inputSchema: {
+          type: "object",
+          required: ["projectId", "url"],
+        },
+        outputSchema: {
+          type: "object",
+          required: ["context"],
+        },
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          openWorldHint: false,
+        },
+      });
+      expect(tool?.inputSchema.properties).toHaveProperty("projectId");
+      expect(tool?.inputSchema.properties).toHaveProperty("url");
+      expect(tool?.outputSchema?.properties).toHaveProperty("context");
+      expect(tool?.outputSchema?.properties).toHaveProperty("meta");
+
+      const requestedUrl = "https://example.com/pricing?plan=agency";
+      const result = await client.callTool({
+        name: "growth_get_page_context",
+        arguments: { projectId: "project_123", url: requestedUrl },
+      });
+
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        context: {
+          consistency: "current_not_snapshot",
+          page: {
+            identityScopes: [
+              "key_page_exact",
+              "growth_workflow_host_path",
+              "gsc_parsed_requested_url",
+              "rank_common_host_path_variants",
+            ],
+          },
+          searchPerformance: { state: "available" },
+        },
+        meta: {
+          projectId: "project_123",
+          url: "https://app.example.com/p/project_123/growth",
+        },
+      });
+      expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
+        "org_123",
+        "project_123",
+      );
+      expect(mocks.getPageContext).toHaveBeenCalledWith(
+        { id: "project_123", domain: "example.com" },
+        requestedUrl,
+      );
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
 });
 
 describe("Growth project-summary MCP registration", () => {

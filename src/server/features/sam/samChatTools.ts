@@ -23,6 +23,7 @@ import {
 } from "@/server/mcp/tools/site-audit-tools";
 import { growthGetActionsTool } from "@/server/mcp/tools/growth-action-tools";
 import { growthGetProjectSummaryTool } from "@/server/mcp/tools/growth-project-summary-tool";
+import { growthGetPageContextTool } from "@/server/mcp/tools/growth-page-context-tool";
 import { growthGetMonthlySummaryTool } from "@/server/mcp/tools/growth-tools";
 import { listSavedKeywordsTool } from "@/server/mcp/tools/list-saved-keywords";
 import { buildUpdateProjectContextTool } from "@/server/mcp/tools/project-context";
@@ -407,6 +408,7 @@ export function buildSamMcpTools(
     get_audit_issues: adaptTool(getAuditIssuesTool),
     get_audit_pages: adaptTool(getAuditPagesTool),
     growth_get_project_summary: adaptTool(growthGetProjectSummaryTool),
+    growth_get_page_context: adaptTool(growthGetPageContextTool),
     growth_get_actions: adaptTool(growthGetActionsTool),
     growth_get_monthly_summary: adaptTool(growthGetMonthlySummaryTool),
   };
