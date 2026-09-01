@@ -1,10 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { GrowthInvestigationsService } from "@/server/features/growth/services/GrowthInvestigationsService";
 import { GrowthWorkChangesService } from "@/server/features/growth/services/GrowthWorkChangesService";
+import { GrowthWorkMeasurementService } from "@/server/features/growth/services/GrowthWorkMeasurementService";
 import {
   getGrowthWorkChangesSchema,
   getGrowthWorkHistorySchema,
+  getGrowthWorkMeasurementSchema,
   linkGrowthWorkChangeSchema,
+  startGrowthWorkMeasurementSchema,
   updateGrowthWorkStatusSchema,
 } from "@/types/schemas/growth-work";
 import { requireProjectContext } from "./middleware";
@@ -47,5 +50,26 @@ export const linkGrowthWorkChange = createServerFn({ method: "POST" })
     GrowthWorkChangesService.linkGrowthWorkChange({
       ...data,
       projectId: context.projectId,
+    }),
+  );
+
+export const getGrowthWorkMeasurement = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(getGrowthWorkMeasurementSchema)
+  .handler(({ data, context }) =>
+    GrowthWorkMeasurementService.getGrowthWorkMeasurement(
+      context.projectId,
+      data.actionId,
+    ),
+  );
+
+export const startGrowthWorkMeasurement = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(startGrowthWorkMeasurementSchema)
+  .handler(({ data, context }) =>
+    GrowthWorkMeasurementService.startGrowthWorkMeasurement({
+      ...data,
+      projectId: context.projectId,
+      actorId: context.userId,
     }),
   );

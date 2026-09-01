@@ -26,6 +26,7 @@ export type CanonicalMetric = {
 export type PlanFact = {
   projectId: string;
   actionId: string;
+  implementationChangeEventId?: string;
   actionVersion: number;
   anchorAt: string;
   anchorDate: string;
@@ -174,6 +175,9 @@ export function storedPlanFact(graph: MeasurementGraph): PlanFact {
   return {
     projectId: plan.projectId,
     actionId: plan.actionId,
+    ...(graph.implementationChangeEventId == null
+      ? {}
+      : { implementationChangeEventId: graph.implementationChangeEventId }),
     actionVersion: plan.actionVersion,
     anchorAt: plan.anchorAt,
     anchorDate: plan.anchorDate,

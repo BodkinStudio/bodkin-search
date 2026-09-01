@@ -9,7 +9,11 @@ vi.mock("@/serverFunctions/growthInvestigations", () => ({
   getGrowthWork: vi.fn(),
 }));
 vi.mock("@/serverFunctions/growthWork", () => ({
+  getGrowthWorkChanges: vi.fn(),
+  getGrowthWorkMeasurement: vi.fn(),
   getGrowthWorkHistory: vi.fn(),
+  linkGrowthWorkChange: vi.fn(),
+  startGrowthWorkMeasurement: vi.fn(),
   updateGrowthWorkStatus: vi.fn(),
 }));
 
@@ -123,6 +127,8 @@ describe("Growth work list", () => {
     );
     expect(html).toContain("Done");
     expect(html).toContain("View status history");
+    expect(html).toContain("Start measurement");
+    expect(html).not.toContain("Choose a linked change");
     expect(html).toContain(overview.actions[0].title);
     expect(html).not.toContain("Evaluated");
   });
@@ -168,6 +174,7 @@ describe("Growth work list", () => {
       }),
     );
     expect(html).toContain("Measuring");
+    expect(html).toContain("View measurement");
     expect(html).toContain("Not set");
     expect(html).toContain("Saved page URL withheld");
     expect(html).toContain("overflow-wrap:anywhere");

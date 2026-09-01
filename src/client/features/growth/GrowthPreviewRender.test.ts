@@ -29,7 +29,11 @@ vi.mock("@/serverFunctions/growthInvestigations", () => ({
   getGrowthWork: vi.fn(),
 }));
 vi.mock("@/serverFunctions/growthWork", () => ({
+  getGrowthWorkChanges: vi.fn(),
   getGrowthWorkHistory: vi.fn(),
+  getGrowthWorkMeasurement: vi.fn(),
+  linkGrowthWorkChange: vi.fn(),
+  startGrowthWorkMeasurement: vi.fn(),
   updateGrowthWorkStatus: vi.fn(),
 }));
 

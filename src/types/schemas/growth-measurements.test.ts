@@ -21,6 +21,7 @@ const metric = {
 const start = {
   projectId: "project_1",
   actionId: "action_1",
+  implementationChangeEventId: "change_1",
   expectedActionVersion: 4,
   baselineStart: "2026-07-01",
   baselineEnd: "2026-07-28",

@@ -480,7 +480,8 @@ The strategist approves it.
 
 Sherpa can now retrieve the Action while designing the page.
 
-When a deployment is recorded, Growth starts a measurement window.
+When a deployment is recorded, Growth can propose a measurement window. The
+strategist starts it by selecting that recorded change as the timeline anchor.
 
 At the next report:
 

@@ -19,6 +19,7 @@ import type {
 const repository = vi.hoisted(() => ({
   projectDomain: vi.fn(),
   getAction: vi.fn(),
+  getLinkedManualChangeEvent: vi.fn(),
   getMeasurementPlan: vi.fn(),
   getMeasurementPlanByAction: vi.fn(),
   getMeasurementMetric: vi.fn(),
@@ -133,6 +134,9 @@ type ActionEventRow = {
 
 type StoredGraph = {
   plan: PlanRow;
+  implementationChangeEventId: string | null;
+  implementationChangeEventHappenedAt: string | null;
+  implementationChangeEventSource: "manual" | null;
   metrics: MetricRow[];
   observations: ObservationRow[];
   result: ResultRow | null;
@@ -186,6 +190,7 @@ function startInput(
   return {
     projectId,
     actionId,
+    implementationChangeEventId: "change_a",
     expectedActionVersion: implementedVersion,
     baselineStart: "2026-08-01",
     baselineEnd: "2026-08-30",
@@ -389,6 +394,19 @@ function installStore() {
   repository.getAction.mockImplementation(
     async (scope: string, id: string) => actions.get(`${scope}:${id}`) ?? null,
   );
+  repository.getLinkedManualChangeEvent.mockImplementation(
+    async (scope: string, targetActionId: string, eventId: string) =>
+      scope === projectId &&
+      targetActionId === actionId &&
+      eventId === "change_a"
+        ? {
+            id: eventId,
+            projectId: scope,
+            source: "manual",
+            happenedAt: implementedAt,
+          }
+        : null,
+  );
   repository.getMeasurementPlan.mockImplementation(
     async (scope: string, id: string) => getGraph(scope, id)?.plan ?? null,
   );
@@ -432,7 +450,7 @@ function installStore() {
         !action ||
         action.status !== "implemented" ||
         action.stateVersion !== write.expectedActionVersion ||
-        action.implementedAt !== write.anchorAt
+        write.implementationChangeEventId !== "change_a"
       ) {
         return;
       }
@@ -464,6 +482,9 @@ function installStore() {
       };
       const graph: StoredGraph = {
         plan,
+        implementationChangeEventId: write.implementationChangeEventId,
+        implementationChangeEventHappenedAt: write.anchorAt,
+        implementationChangeEventSource: "manual",
         metrics: write.metrics.map((metric) => ({
           ...metric,
           projectId: write.projectId,
@@ -592,7 +613,7 @@ describe("GrowthMeasurementsService start", () => {
     });
   });
 
-  it("freezes the implementation anchor in the report timezone near UTC midnight", async () => {
+  it("freezes the manual UTC implementation date near report-timezone midnight", async () => {
     const { startWrites } = installStore();
 
     const result =
@@ -600,14 +621,14 @@ describe("GrowthMeasurementsService start", () => {
 
     expect(result.plan).toMatchObject({
       anchorAt: "2026-09-01T00:30:00.000Z",
-      anchorDate: "2026-08-31",
+      anchorDate: "2026-09-01",
       reportTimezone: "America/Los_Angeles",
       actionVersion: 5,
       status: "active",
     });
     expect(startWrites[0]).toMatchObject({
       anchorAt: "2026-09-01T00:30:00.000Z",
-      anchorDate: "2026-08-31",
+      anchorDate: "2026-09-01",
       reportTimezone: "America/Los_Angeles",
       expectedActionVersion: 4,
     });
@@ -712,6 +733,46 @@ describe("GrowthMeasurementsService start", () => {
       ),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect(store.startWrites).toHaveLength(0);
+  });
+
+  it.each(["missing", "unlinked", "non-manual"])(
+    "rejects a %s implementation Change Event without writing",
+    async () => {
+      const store = installStore();
+      repository.getLinkedManualChangeEvent.mockResolvedValueOnce(null);
+
+      await expect(
+        GrowthMeasurementsService.startMeasurement(startInput()),
+      ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+      expect(store.startWrites).toHaveLength(0);
+    },
+  );
+
+  it("rejects a future implementation Change Event without writing", async () => {
+    const store = installStore();
+    repository.getLinkedManualChangeEvent.mockResolvedValueOnce({
+      id: "change_a",
+      projectId,
+      source: "manual",
+      happenedAt: "2099-01-01T00:00:00.000Z",
+    });
+
+    await expect(
+      GrowthMeasurementsService.startMeasurement(startInput()),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(store.startWrites).toHaveLength(0);
+  });
+
+  it("conflicts when an exact retry selects a different event at the same time", async () => {
+    const store = installStore();
+    await startPlan(store);
+
+    await expect(
+      GrowthMeasurementsService.startMeasurement(
+        startInput({ implementationChangeEventId: "change_same_time" }),
+      ),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(store.startWrites).toHaveLength(1);
   });
 
   it("accepts exact reordered retries after the Action advances and rejects immutable drift", async () => {
@@ -1021,14 +1082,13 @@ describe("GrowthMeasurementsService finalize", () => {
 
     const result = await GrowthMeasurementsService.finalizeMeasurement(
       finalizeInput(graph, {
-        confoundingChangeEventIds: ["change_b", "change_a", "change_b"],
+        confoundingChangeEventIds: ["change_b", "change_b"],
       }),
       { now: new Date("2026-11-02T12:00:00.000Z") },
     );
 
-    expect(result.confoundingChangeEventIds).toEqual(["change_a", "change_b"]);
+    expect(result.confoundingChangeEventIds).toEqual(["change_b"]);
     expect(store.finalizeWrites[0]?.confoundingChangeEventIds).toEqual([
-      "change_a",
       "change_b",
     ]);
 
@@ -1046,12 +1106,26 @@ describe("GrowthMeasurementsService finalize", () => {
     expect(foreignStore.finalizeWrites).toHaveLength(0);
   });
 
+  it("rejects the implementation Change Event as its own confounder", async () => {
+    const store = installStore();
+    const graph = await startPlan(store);
+    await recordPrimaryEvidence(graph);
+
+    await expect(
+      GrowthMeasurementsService.finalizeMeasurement(
+        finalizeInput(graph, { confoundingChangeEventIds: ["change_a"] }),
+        { now: new Date("2026-11-02T12:00:00.000Z") },
+      ),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(store.finalizeWrites).toHaveLength(0);
+  });
+
   it("accepts an exact historical Result retry and rejects fact, actor, confounder, or version drift", async () => {
     const store = installStore();
     const graph = await startPlan(store);
     await recordPrimaryEvidence(graph);
     const input = finalizeInput(graph, {
-      confoundingChangeEventIds: ["change_b", "change_a"],
+      confoundingChangeEventIds: ["change_b"],
     });
     const first = await GrowthMeasurementsService.finalizeMeasurement(input, {
       now: new Date("2026-11-02T12:00:00.000Z"),
@@ -1072,7 +1146,7 @@ describe("GrowthMeasurementsService finalize", () => {
       { summary: "A different immutable interpretation." },
       { actorId: "another-agent" },
       { note: "Different finish note" },
-      { confoundingChangeEventIds: ["change_a"] },
+      { confoundingChangeEventIds: [] },
       { expectedActionVersion: graph.plan.actionVersion + 1 },
     ];
     for (const drift of drifts) {

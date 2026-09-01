@@ -506,3 +506,33 @@ Users need to record finished investigation work directly when intermediate prog
 ### Supersedes
 
 This supersedes only the prior Action-graph restriction that required Ready or in-progress before implementation. Earlier ADR history remains otherwise unchanged.
+
+## ADR-031 - Measurement starts from an explicitly selected linked website change
+
+**Status:** Accepted
+
+### Decision
+
+- `growth_actions.implemented_at` remains the server-stamped time when the user marked investigation work Done. It is an operational milestone, not website evidence, and measurement does not backdate or rewrite it.
+- Starting a new Measurement Plan requires the user to select one manual Change Event already linked to the same Action. The selection is an audit coordinate, not a claim that the event caused later performance.
+- The Plan freezes the selected Event's immutable `happened_at` as `anchor_at`, its recorded UTC calendar date as `anchor_date`, and the current report timezone. A project-scoped one-to-one Plan-anchor relation preserves the exact Change Event identity. The Event ID, timestamp, schedule and Metrics are part of the new Plan's immutable fact.
+- Starting measurement remains the only ordinary `implemented → measuring` transition. One atomic provider-aware write verifies the Action version, exact Action/Event link, manual source and Event timestamp before creating the Plan, anchor relation and Metrics and appending the transition event.
+- The website change may precede or follow Done, but it cannot be future-dated when measurement starts. Other Action-linked Change Events remain visible context and possible later confounders; the system does not automatically classify them or impose URL overlap.
+- Existing Plans without an anchor relation keep their original fact shape and remain readable and finalizable. The system does not invent a Change Event for historical data. A new-format Plan without its required anchor relation is invalid.
+- Project settings resolve the default inclusive windows from the recorded change date. A 28-day baseline ends the day before the change; a 7-day cooldown ends on day 7; the 28-day primary window covers days 8–35; the optional 55-day long window ends on day 90.
+
+### Why
+
+ADR-030 separated investigation completion from website execution. Using the
+Done timestamp for a before/after comparison could place post-change data in
+the baseline or measure work that never changed the site. An explicit immutable
+Change Event keeps the timeline inspectable without asserting causation.
+
+### Supersedes
+
+This supersedes ADR-026 only where it derives a new Plan anchor from
+`growth_actions.implemented_at` and defers explicit Change Event anchors. It
+resolves ADR-025's deferred primary-change decision for measurement Plans while
+preserving independent append-only Action links. Plan editing, cancellation,
+automatic collection, confounder classification, interpretation and result UI
+remain deferred.

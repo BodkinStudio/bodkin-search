@@ -49,6 +49,7 @@ async function startMeasurement(input: StartGrowthMeasurementInput) {
       {
         projectId: input.projectId,
         actionId: input.actionId,
+        implementationChangeEventId: input.implementationChangeEventId,
         actionVersion: input.expectedActionVersion + 1,
         anchorAt: existing.anchorAt,
         anchorDate: existing.anchorDate,
@@ -66,9 +67,14 @@ async function startMeasurement(input: StartGrowthMeasurementInput) {
     );
   }
 
-  const [action, settings] = await Promise.all([
+  const [action, settings, changeEvent] = await Promise.all([
     repo.getAction(input.projectId, input.actionId),
     GrowthSettingsService.getSettings(input.projectId),
+    repo.getLinkedManualChangeEvent(
+      input.projectId,
+      input.actionId,
+      input.implementationChangeEventId,
+    ),
   ]);
   if (!action) throw new AppError("NOT_FOUND", "Growth Action not found");
   if (
@@ -78,14 +84,21 @@ async function startMeasurement(input: StartGrowthMeasurementInput) {
   ) {
     conflict("Growth Action is not at the expected implemented version");
   }
+  if (!changeEvent)
+    validation(
+      "Implementation Change Event must be a manual event linked to this Growth Action",
+    );
   const anchorAt = canonicalTimestamp(
-    action.implementedAt,
-    "Action implementation time",
+    changeEvent.happenedAt,
+    "Implementation Change Event time",
   );
-  const anchorDate = calendarDateInTimezone(anchorAt, settings.reportTimezone);
+  if (anchorAt > new Date().toISOString())
+    validation("Implementation Change Event time cannot be in the future");
+  const anchorDate = anchorAt.slice(0, 10);
   const fact: PlanFact = {
     projectId: input.projectId,
     actionId: input.actionId,
+    implementationChangeEventId: input.implementationChangeEventId,
     actionVersion: input.expectedActionVersion + 1,
     anchorAt,
     anchorDate,
@@ -118,6 +131,7 @@ async function startMeasurement(input: StartGrowthMeasurementInput) {
     id: crypto.randomUUID(),
     projectId: input.projectId,
     actionId: input.actionId,
+    implementationChangeEventId: input.implementationChangeEventId,
     factHash,
     expectedActionVersion: input.expectedActionVersion,
     anchorAt,
@@ -297,6 +311,14 @@ async function finalizeMeasurement(
   const confounders = [...new Set(input.confoundingChangeEventIds)].toSorted(
     (left, right) => left.localeCompare(right),
   );
+  if (
+    first.implementationChangeEventId != null &&
+    confounders.includes(first.implementationChangeEventId)
+  ) {
+    validation(
+      "Implementation Change Event cannot also be a Measurement confounder",
+    );
+  }
   const firstFact = resultFact(
     input,
     await observationsHash(first),

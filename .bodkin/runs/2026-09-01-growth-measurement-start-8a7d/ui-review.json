@@ -1,0 +1,10 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    "The screenshots manifest is empty and preflight fails, so there is no rendered evidence to verify the required selection, immutable date and server-calculated preview, explicit start action, read-only active/completed plans, pending/uncertain lock states, incumbent disclosure pattern, or narrow responsive behavior. Supply fresh desktop and narrow captures that cover the selected proposal, active/completed read-only plans, pending or uncertain recovery, and the relevant empty/error guidance states, then rerun review."
+  ],
+  "minor": [],
+  "system_drift": [],
+  "do_not_change": []
+}

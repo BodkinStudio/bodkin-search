@@ -442,11 +442,15 @@ A Change Event can exist without an Action because unrelated changes may affect 
 
 # 12. Measurement plan
 
-When an Action is implemented, the system should create or propose a Measurement Plan.
+When investigation work is Done and has a linked website Change Event, the
+system should propose a Measurement Plan. A user must explicitly select the
+recorded change whose date anchors the plan before measurement starts.
 
 ## Measurement plan fields
 
 - action;
+- selected anchor Change Event;
+- anchor timestamp and calendar date;
 - target entities;
 - primary metrics;
 - secondary metrics;
@@ -463,9 +467,9 @@ When an Action is implemented, the system should create or propose a Measurement
 For a content/page optimisation:
 
 ```text
-baseline: previous 28 complete days
+baseline: previous 28 complete days before the selected change
 cooldown: 7 days
-primary window: days 8-35 after implementation
+primary window: days 8-35 after the selected change
 long window: days 36-90
 ```
 

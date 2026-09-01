@@ -5,6 +5,7 @@ import { formatGrowthPreviewDate } from "./GrowthPreviewPresentation";
 import { GROWTH_WORK_STATUS_LABELS } from "./GrowthWorkPresentation";
 import { GrowthWorkDelivery } from "./GrowthWorkDelivery";
 import { GrowthWorkChanges } from "./GrowthWorkChanges";
+import { GrowthWorkMeasurement } from "./GrowthWorkMeasurement";
 
 export function GrowthWork({
   projectId,
@@ -142,6 +143,11 @@ export function GrowthWorkList({
               key={`changes:${projectId}:${action.id}`}
               projectId={projectId}
               actionId={action.id}
+            />
+            <GrowthWorkMeasurement
+              key={`measurement:${projectId}:${action.id}`}
+              projectId={projectId}
+              action={action}
             />
           </li>
         ))}

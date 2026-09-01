@@ -147,6 +147,7 @@ export const {
   growthChangeEventUrls,
   growthActionChanges,
   growthMeasurementPlans,
+  growthMeasurementPlanAnchors,
   growthMeasurementMetrics,
   growthMeasurementObservations,
   growthMeasurementResults,

@@ -32,6 +32,7 @@ export type StartMeasurementGraphInput = {
   id: string;
   projectId: string;
   actionId: string;
+  implementationChangeEventId: string;
   factHash: string;
   expectedActionVersion: number;
   anchorAt: string;

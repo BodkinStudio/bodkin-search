@@ -80,6 +80,7 @@ export const startGrowthMeasurementSchema = z
   .object({
     projectId: boundedText(100),
     actionId: boundedText(100),
+    implementationChangeEventId: boundedText(100),
     expectedActionVersion: z.number().int().positive(),
     baselineStart: isoDate,
     baselineEnd: isoDate,

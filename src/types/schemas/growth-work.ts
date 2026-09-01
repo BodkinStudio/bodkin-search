@@ -5,6 +5,7 @@ import {
   type GrowthActionStatus,
 } from "./growth-actions";
 import type { GrowthChangeDto } from "./growth-change-log";
+import type { GrowthMeasurementMetricType } from "./growth-measurements";
 
 const id = z.string().trim().min(1).max(100);
 const note = z.string().trim().min(1).max(5000);
@@ -49,6 +50,18 @@ export const linkGrowthWorkChangeSchema = z.strictObject({
   changeEventId: id,
 });
 
+export const getGrowthWorkMeasurementSchema = z.strictObject({
+  projectId: id,
+  actionId: id,
+});
+
+export const startGrowthWorkMeasurementSchema = z.strictObject({
+  projectId: id,
+  actionId: id,
+  expectedActionVersion: z.number().int().positive(),
+  implementationChangeEventId: id,
+});
+
 export type UpdateGrowthWorkStatusInput = z.infer<
   typeof updateGrowthWorkStatusSchema
 >;
@@ -85,3 +98,75 @@ export type GrowthWorkChangeLink = Pick<
   LinkGrowthWorkChangeInput,
   "actionId" | "changeEventId"
 >;
+
+export type StartGrowthWorkMeasurementInput = z.infer<
+  typeof startGrowthWorkMeasurementSchema
+>;
+
+export type GrowthWorkMeasurementSchedule = {
+  anchorAt: string;
+  anchorDate: string;
+  reportTimezone: string;
+  baselineStart: string;
+  baselineEnd: string;
+  cooldownEnd: string;
+  measurementStart: string;
+  measurementEnd: string;
+  longMeasurementEnd: string | null;
+};
+
+export type GrowthWorkMeasurementCandidate = {
+  change: GrowthChangeDto;
+  schedule: GrowthWorkMeasurementSchedule | null;
+  unavailableReason: "future_change" | null;
+};
+
+export type GrowthWorkMeasurementMetric = {
+  metricType: GrowthMeasurementMetricType;
+  displayTarget: string | null;
+  isPrimary: boolean;
+};
+
+export type GrowthWorkMeasurementPlan = {
+  id: string;
+  status: "active" | "completed";
+  actionVersion: number;
+  implementationChange: GrowthChangeDto | null;
+  schedule: GrowthWorkMeasurementSchedule;
+  metrics: GrowthWorkMeasurementMetric[];
+  dueDate: string;
+  result: {
+    outcome:
+      | "strong_positive"
+      | "positive"
+      | "inconclusive"
+      | "neutral"
+      | "negative"
+      | "strong_negative"
+      | "not_measurable";
+    confidence: number;
+    summary: string;
+    evaluatedAt: string;
+  } | null;
+};
+
+export type GrowthWorkMeasurementState =
+  | "not_ready"
+  | "needs_change"
+  | "unmeasurable_targets"
+  | "eligible"
+  | "active"
+  | "completed"
+  | "inconsistent";
+
+export type GrowthWorkMeasurementOverview = {
+  actionId: string;
+  actionStatus: GrowthActionStatus;
+  stateVersion: number;
+  state: GrowthWorkMeasurementState;
+  targetCount: number;
+  candidates: GrowthWorkMeasurementCandidate[];
+  proposedMetrics: GrowthWorkMeasurementMetric[];
+  plan: GrowthWorkMeasurementPlan | null;
+  limit: number;
+};

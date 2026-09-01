@@ -32,21 +32,6 @@ function addDays(value: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
-function dateInLondon(timestamp: string) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date(timestamp));
-  const values = Object.fromEntries(
-    parts
-      .filter(({ type }) => ["year", "month", "day"].includes(type))
-      .map(({ type, value }) => [type, value]),
-  );
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
 function reportSections(
   actionId: string,
   measurementResultId: string,
@@ -170,6 +155,7 @@ beforeAll(async () => {
       migration("drizzle/0047_flaky_felicia_hardy.sql"),
       migration("drizzle/0048_dry_kate_bishop.sql"),
       migration("drizzle/0049_gray_hedge_knight.sql"),
+      migration("drizzle/0051_noisy_agent_zero.sql"),
       `INSERT INTO growth_project_settings
        (project_id, growth_enabled, report_timezone, report_cadence, report_day)
        VALUES ('phase1_project', 1, 'Europe/London', 'monthly', 1);`,
@@ -312,7 +298,7 @@ describe.sequential("Growth Phase 1 Signal-to-Report gate", () => {
       actionId: action.action.id,
     });
 
-    const anchorDate = dateInLondon(implemented.action.implementedAt!);
+    const anchorDate = change.event.happenedAt.slice(0, 10);
     const baselineStart = addDays(anchorDate, -7);
     const baselineEnd = addDays(anchorDate, -1);
     const measurementStart = addDays(anchorDate, 1);
@@ -320,6 +306,7 @@ describe.sequential("Growth Phase 1 Signal-to-Report gate", () => {
     const plan = await measurements.startMeasurement({
       projectId: "phase1_project",
       actionId: action.action.id,
+      implementationChangeEventId: change.event.id,
       expectedActionVersion: 3,
       baselineStart,
       baselineEnd,
@@ -375,7 +362,7 @@ describe.sequential("Growth Phase 1 Signal-to-Report gate", () => {
         outcome: "positive",
         confidence: 0.85,
         summary: "Clicks increased after the pricing-page update.",
-        confoundingChangeEventIds: [change.event.id],
+        confoundingChangeEventIds: [],
         actorType: "agent",
         actorId: "growth-agent",
         note: "Complete the measured outcome",

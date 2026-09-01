@@ -11,7 +11,10 @@ import {
 } from "drizzle-orm/sqlite-core";
 import { projects } from "./app.schema";
 import { growthActions } from "./growth-actions.schema";
-import { growthChangeEvents } from "./growth-change-events.schema";
+import {
+  growthActionChanges,
+  growthChangeEvents,
+} from "./growth-change-events.schema";
 
 export const growthMeasurementPlans = sqliteTable(
   "growth_measurement_plans",
@@ -52,6 +55,11 @@ export const growthMeasurementPlans = sqliteTable(
       table.projectId,
       table.actionId,
     ),
+    unique("growth_measurement_plans_project_id_action_key").on(
+      table.projectId,
+      table.id,
+      table.actionId,
+    ),
     index("growth_measurement_plans_project_status_due_idx").on(
       table.projectId,
       table.status,
@@ -82,6 +90,48 @@ export const growthMeasurementPlans = sqliteTable(
     check(
       "growth_measurement_plans_lifecycle_check",
       sql`(${table.status} = 'active' AND ${table.completedAt} IS NULL) OR (${table.status} = 'completed' AND ${table.completedAt} IS NOT NULL AND ${table.completedAt} >= ${table.anchorAt})`,
+    ),
+  ],
+);
+
+export const growthMeasurementPlanAnchors = sqliteTable(
+  "growth_measurement_plan_anchors",
+  {
+    projectId: text("project_id").notNull(),
+    measurementPlanId: text("measurement_plan_id").notNull(),
+    actionId: text("action_id").notNull(),
+    changeEventId: text("change_event_id").notNull(),
+  },
+  (table) => [
+    unique("growth_measurement_plan_anchors_project_plan_key").on(
+      table.projectId,
+      table.measurementPlanId,
+    ),
+    index("growth_measurement_plan_anchors_project_change_idx").on(
+      table.projectId,
+      table.changeEventId,
+    ),
+    foreignKey({
+      columns: [table.projectId, table.measurementPlanId, table.actionId],
+      foreignColumns: [
+        growthMeasurementPlans.projectId,
+        growthMeasurementPlans.id,
+        growthMeasurementPlans.actionId,
+      ],
+      name: "growth_measurement_plan_anchors_project_plan_action_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.projectId, table.actionId, table.changeEventId],
+      foreignColumns: [
+        growthActionChanges.projectId,
+        growthActionChanges.actionId,
+        growthActionChanges.changeEventId,
+      ],
+      name: "growth_measurement_plan_anchors_project_action_change_fk",
+    }).onDelete("no action"),
+    check(
+      "growth_measurement_plan_anchors_text_bounds_check",
+      sql`length(${table.measurementPlanId}) BETWEEN 1 AND 100 AND length(${table.actionId}) BETWEEN 1 AND 100 AND length(${table.changeEventId}) BETWEEN 1 AND 100`,
     ),
   ],
 );

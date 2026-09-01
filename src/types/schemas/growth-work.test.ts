@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   getGrowthWorkChangesSchema,
   getGrowthWorkHistorySchema,
+  getGrowthWorkMeasurementSchema,
   linkGrowthWorkChangeSchema,
+  startGrowthWorkMeasurementSchema,
   updateGrowthWorkStatusSchema,
 } from "./growth-work";
 
@@ -88,6 +90,36 @@ describe("Growth Work schemas", () => {
       linkGrowthWorkChangeSchema.parse({
         ...scoped,
         changeEventId: "change_1",
+        actorId: "forged",
+      }),
+    ).toThrow();
+  });
+
+  it("accepts only strict scoped measurement reads and starts", () => {
+    const scoped = { projectId: "project_1", actionId: "action_1" };
+    expect(getGrowthWorkMeasurementSchema.parse(scoped)).toEqual(scoped);
+    expect(
+      startGrowthWorkMeasurementSchema.parse({
+        ...scoped,
+        expectedActionVersion: 3,
+        implementationChangeEventId: "change_1",
+      }),
+    ).toMatchObject({
+      expectedActionVersion: 3,
+      implementationChangeEventId: "change_1",
+    });
+    expect(() =>
+      startGrowthWorkMeasurementSchema.parse({
+        ...scoped,
+        expectedActionVersion: 0,
+        implementationChangeEventId: "change_1",
+      }),
+    ).toThrow();
+    expect(() =>
+      startGrowthWorkMeasurementSchema.parse({
+        ...scoped,
+        expectedActionVersion: 3,
+        implementationChangeEventId: "change_1",
         actorId: "forged",
       }),
     ).toThrow();

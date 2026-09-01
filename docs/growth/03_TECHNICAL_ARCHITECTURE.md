@@ -406,7 +406,12 @@ change_event_id
 id
 project_id
 action_id
+fact_hash
 status
+action_version
+anchor_at
+anchor_date
+report_timezone
 baseline_start
 baseline_end
 cooldown_end
@@ -414,8 +419,22 @@ measurement_start
 measurement_end
 long_measurement_end nullable
 comparison_mode
+completed_at nullable
 created_at
 ```
+
+## 6.15a growth_measurement_plan_anchors
+
+```text
+project_id
+measurement_plan_id
+action_id
+change_event_id
+```
+
+This one-to-one relation freezes the explicitly selected Action-linked Change
+Event for new plans. Legacy plans created before this relation remain valid
+without a fabricated anchor row.
 
 ## 6.16 growth_measurement_metrics
 

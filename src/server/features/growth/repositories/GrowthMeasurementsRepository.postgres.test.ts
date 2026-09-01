@@ -86,6 +86,15 @@ async function seedSource(suffix: string, actionNames: string[]) {
       )
     `;
   }
+  for (const actionName of actionNames) {
+    await sql`
+      INSERT INTO growth_action_changes (project_id, action_id, change_event_id)
+      VALUES (
+        ${projectId}, ${`gm_action_${actionName}_${suffix}`},
+        ${`gm_change_a_${suffix}`}
+      )
+    `;
+  }
   return { organizationId, projectId, runId };
 }
 
@@ -101,6 +110,7 @@ function startInput(input: {
     id: `gm_plan_${input.planName}_${input.suffix}`,
     projectId: input.projectId,
     actionId: `gm_action_${input.actionName}_${input.suffix}`,
+    implementationChangeEventId: `gm_change_a_${input.suffix}`,
     factHash: input.hashDigit.repeat(64),
     expectedActionVersion: 5,
     anchorAt: "2026-08-29T12:00:00.000Z",
@@ -234,6 +244,9 @@ describePostgres("GrowthMeasurementsRepository Postgres", () => {
           metricType: winningStart.metrics[0].metricType,
         }),
       ]);
+      expect(graph?.implementationChangeEventId).toBe(
+        winningStart.implementationChangeEventId,
+      );
       expect(graph?.actionEvents).toHaveLength(1);
 
       const baseline = observationInput({
@@ -261,7 +274,7 @@ describePostgres("GrowthMeasurementsRepository Postgres", () => {
           id: `gm_result_a_${suffix}`,
           factHash: "7".repeat(64),
           outcome: "positive" as const,
-          changeId: `gm_change_a_${suffix}`,
+          changeId: `gm_change_b_${suffix}`,
           eventFactHash: "8".repeat(64),
         },
         {

@@ -103,14 +103,31 @@ export async function assertStoredMeasurementGraph(graph: MeasurementGraph) {
   const factHash = await sha256Hex(JSON.stringify(storedPlanFact(graph)));
   if (graph.plan.factHash !== factHash)
     conflict("Stored Measurement Plan graph does not match its immutable fact");
+  if (graph.implementationChangeEventId != null) {
+    if (
+      graph.implementationChangeEventSource !== "manual" ||
+      graph.implementationChangeEventHappenedAt == null ||
+      canonicalTimestamp(
+        graph.implementationChangeEventHappenedAt,
+        "Implementation Change Event time",
+      ) !== graph.plan.anchorAt ||
+      graph.implementationChangeEventHappenedAt.slice(0, 10) !==
+        graph.plan.anchorDate
+    ) {
+      conflict(
+        "Stored Measurement Plan anchor does not match its Change Event",
+      );
+    }
+  }
   if (
     canonicalTimestamp(graph.plan.anchorAt, "Measurement anchor") !==
     graph.plan.anchorAt
   )
     conflict("Stored Measurement anchor is not canonical");
   if (
+    graph.implementationChangeEventId == null &&
     calendarDateInTimezone(graph.plan.anchorAt, graph.plan.reportTimezone) !==
-    graph.plan.anchorDate
+      graph.plan.anchorDate
   )
     conflict("Stored Measurement anchor date does not match its timezone");
   await assertLifecycleEvent(

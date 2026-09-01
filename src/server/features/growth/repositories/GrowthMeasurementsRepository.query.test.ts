@@ -22,6 +22,7 @@ const startInput = {
   id: "plan_1",
   projectId: "project_1",
   actionId: "action_1",
+  implementationChangeEventId: "change_1",
   factHash: hashes.plan,
   expectedActionVersion: 5,
   anchorAt: "2026-08-29T12:00:00.000Z",
@@ -154,10 +155,17 @@ beforeAll(async () => {
         ('change_1', 'project_1', 'change_1', '${"9".repeat(64)}', 'manual',
           'content_updated', 'user', 'user_1', 'Changed pricing',
           '2026-08-29T12:00:00.000Z'),
+        ('change_context', 'project_1', 'change_context', '${"7".repeat(64)}',
+          'manual', 'content_updated', 'user', 'user_1', 'Changed context',
+          '2026-08-30T12:00:00.000Z'),
         ('change_foreign', 'project_2', 'change_foreign', '${"8".repeat(64)}',
           'manual', 'content_updated', 'user', 'user_1', 'Changed other',
           '2026-08-29T12:00:00.000Z');`,
       migration("drizzle/0048_dry_kate_bishop.sql"),
+      `INSERT INTO growth_action_changes (project_id, action_id, change_event_id)
+       VALUES ('project_1', 'action_1', 'change_1'),
+              ('project_1', 'action_rollback', 'change_1');`,
+      migration("drizzle/0051_noisy_agent_zero.sql"),
     ].join("\n"),
   );
   ({ GrowthMeasurementsRepository: repo } =
@@ -365,7 +373,7 @@ describe.sequential("GrowthMeasurementsRepository D1 lifecycle", () => {
       evaluatedAt: "2026-10-15T12:00:00.000Z",
       model: null,
       promptVersion: null,
-      confoundingChangeEventIds: ["change_1"],
+      confoundingChangeEventIds: ["change_context"],
       eventId: "action_event_7",
       eventFactHash: hashes.finalEvent,
       actorType: "agent" as const,
@@ -400,7 +408,7 @@ describe.sequential("GrowthMeasurementsRepository D1 lifecycle", () => {
       outcome: "positive",
       confidence: 0.8,
     });
-    expect(graph?.confoundingChangeEventIds).toEqual(["change_1"]);
+    expect(graph?.confoundingChangeEventIds).toEqual(["change_context"]);
     expect(graph?.actionEvents.at(-1)).toMatchObject({
       id: "action_event_7",
       actionVersion: 7,
@@ -421,19 +429,27 @@ describe.sequential("GrowthMeasurementsRepository D1 lifecycle", () => {
     });
     expect(await repo.listObservations("project_1", "plan_1")).toHaveLength(3);
 
-    await client.execute(
-      "DELETE FROM growth_change_events WHERE id = 'change_1'",
-    );
+    await expect(
+      client.execute("DELETE FROM growth_change_events WHERE id = 'change_1'"),
+    ).rejects.toThrow();
     expect(await repo.getResultByPlan("project_1", "plan_1")).toMatchObject({
       id: "result_1",
     });
-    expect(await repo.listResultChangeIds("project_1", "result_1")).toEqual([]);
+    expect(await repo.listResultChangeIds("project_1", "result_1")).toEqual([
+      "change_context",
+    ]);
+    expect(
+      await countRows("growth_change_events", "id = 'change_context'"),
+    ).toBe(1);
 
     await client.execute("DELETE FROM growth_runs WHERE id = 'run_1'");
     expect(await repo.getPlan("project_1", "plan_1")).toBeNull();
     expect(await countRows("growth_measurement_results")).toBe(0);
     expect(
       await countRows("growth_change_events", "id = 'change_foreign'"),
+    ).toBe(1);
+    expect(
+      await countRows("growth_change_events", "id = 'change_context'"),
     ).toBe(1);
     expect((await client.execute("PRAGMA foreign_key_check")).rows).toEqual([]);
   });

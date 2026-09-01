@@ -299,15 +299,17 @@ Show:
 
 User can:
 
-- mark implemented;
-- create/link Change Event;
-- record implementation note;
-- set implementation timestamp.
+- mark investigation work Done;
+- create or link the website Change Event separately;
+- record a completion note;
+- preserve separate Done and website-change timestamps.
 
 ### BG-0304 Measurement defaults
 
 For page optimisation:
 
+- explicitly select one linked website Change Event as the timeline anchor;
+- preview the recorded change and resolved plan before starting;
 - baseline;
 - cooldown;
 - primary window;

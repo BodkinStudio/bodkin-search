@@ -2,6 +2,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { getDatabaseProvider } from "@/db/provider";
 import {
   growthChangeEvents,
+  growthMeasurementPlanAnchors,
   growthMeasurementMetrics,
   growthMeasurementObservations,
   growthMeasurementPlans,
@@ -141,8 +142,24 @@ export function allConfoundersExistSql(
   input: FinalizeMeasurementGraphInput,
 ): SQL {
   const ids = JSON.stringify(input.confoundingChangeEventIds);
+  const excludesImplementationChange =
+    getDatabaseProvider() === "postgres"
+      ? sql`NOT EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(${ids}::jsonb) AS expected(id)
+          INNER JOIN ${growthMeasurementPlanAnchors} anchor
+            ON anchor.project_id = ${input.projectId}
+           AND anchor.measurement_plan_id = ${input.measurementPlanId}
+           AND anchor.change_event_id = expected.id
+        )`
+      : sql`NOT EXISTS (
+          SELECT 1 FROM json_each(${ids}) AS expected
+          INNER JOIN ${growthMeasurementPlanAnchors} anchor
+            ON anchor.project_id = ${input.projectId}
+           AND anchor.measurement_plan_id = ${input.measurementPlanId}
+           AND anchor.change_event_id = expected.value
+        )`;
   if (getDatabaseProvider() === "postgres") {
-    return sql`(
+    return sql`${excludesImplementationChange} AND (
       SELECT count(*) = count(DISTINCT expected.id)
       FROM jsonb_array_elements_text(${ids}::jsonb) AS expected(id)
     ) AND NOT EXISTS (
@@ -154,7 +171,7 @@ export function allConfoundersExistSql(
       )
     )`;
   }
-  return sql`(
+  return sql`${excludesImplementationChange} AND (
     SELECT count(*) = count(DISTINCT expected.value)
     FROM json_each(${ids}) AS expected
   ) AND NOT EXISTS (

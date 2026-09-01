@@ -3,7 +3,9 @@ import { db } from "@/db";
 import {
   growthActionEvents,
   growthActions,
+  growthActionChanges,
   growthChangeEvents,
+  growthMeasurementPlanAnchors,
   growthMeasurementMetrics,
   growthMeasurementObservations,
   growthMeasurementPlans,
@@ -54,6 +56,64 @@ async function getMeasurementPlanByAction(projectId: string, actionId: string) {
     )
     .limit(1);
   return row ?? null;
+}
+
+async function getMeasurementPlanAnchor(
+  projectId: string,
+  measurementPlanId: string,
+) {
+  const [row] = await db
+    .select({
+      implementationChangeEventId: growthMeasurementPlanAnchors.changeEventId,
+      happenedAt: growthChangeEvents.happenedAt,
+      source: growthChangeEvents.source,
+    })
+    .from(growthMeasurementPlanAnchors)
+    .innerJoin(
+      growthChangeEvents,
+      and(
+        eq(
+          growthChangeEvents.projectId,
+          growthMeasurementPlanAnchors.projectId,
+        ),
+        eq(growthChangeEvents.id, growthMeasurementPlanAnchors.changeEventId),
+      ),
+    )
+    .where(
+      and(
+        eq(growthMeasurementPlanAnchors.projectId, projectId),
+        eq(growthMeasurementPlanAnchors.measurementPlanId, measurementPlanId),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
+async function getLinkedManualChangeEvent(
+  projectId: string,
+  actionId: string,
+  changeEventId: string,
+) {
+  const [row] = await db
+    .select({ event: growthChangeEvents })
+    .from(growthActionChanges)
+    .innerJoin(
+      growthChangeEvents,
+      and(
+        eq(growthChangeEvents.projectId, growthActionChanges.projectId),
+        eq(growthChangeEvents.id, growthActionChanges.changeEventId),
+      ),
+    )
+    .where(
+      and(
+        eq(growthActionChanges.projectId, projectId),
+        eq(growthActionChanges.actionId, actionId),
+        eq(growthActionChanges.changeEventId, changeEventId),
+        eq(growthChangeEvents.source, "manual"),
+      ),
+    )
+    .limit(1);
+  return row?.event ?? null;
 }
 
 async function getMeasurementMetric(
@@ -194,17 +254,22 @@ async function listMeasurementActionEvents(
 async function getMeasurementGraph(projectId: string, id: string) {
   const plan = await getMeasurementPlan(projectId, id);
   if (!plan) return null;
-  const [metrics, observations, result, actionEvents] = await Promise.all([
-    listMeasurementMetrics(projectId, id),
-    listMeasurementObservations(projectId, id),
-    getMeasurementResult(projectId, id),
-    listMeasurementActionEvents(projectId, plan.actionId),
-  ]);
+  const [metrics, observations, result, actionEvents, anchor] =
+    await Promise.all([
+      listMeasurementMetrics(projectId, id),
+      listMeasurementObservations(projectId, id),
+      getMeasurementResult(projectId, id),
+      listMeasurementActionEvents(projectId, plan.actionId),
+      getMeasurementPlanAnchor(projectId, id),
+    ]);
   const confoundingChangeEventIds = result
     ? await listMeasurementResultChangeEventIds(projectId, result.id)
     : [];
   return {
     plan,
+    implementationChangeEventId: anchor?.implementationChangeEventId ?? null,
+    implementationChangeEventHappenedAt: anchor?.happenedAt ?? null,
+    implementationChangeEventSource: anchor?.source ?? null,
     metrics,
     observations,
     result,
@@ -246,6 +311,8 @@ export const GrowthMeasurementsRepository = {
   getAction,
   getMeasurementPlan,
   getMeasurementPlanByAction,
+  getMeasurementPlanAnchor,
+  getLinkedManualChangeEvent,
   getMeasurementMetric,
   listMeasurementMetrics,
   getMeasurementObservation,

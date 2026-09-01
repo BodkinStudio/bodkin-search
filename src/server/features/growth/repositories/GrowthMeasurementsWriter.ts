@@ -3,6 +3,9 @@ import { getDatabaseProvider } from "@/db/provider";
 import { runBatch } from "@/db/runBatch";
 import {
   growthActions,
+  growthActionChanges,
+  growthChangeEvents,
+  growthMeasurementPlanAnchors,
   growthMeasurementMetrics,
   growthMeasurementObservations,
   growthMeasurementPlans,
@@ -51,7 +54,7 @@ export async function startMeasurementGraph(input: StartMeasurementGraphInput) {
         factHash: sql<string>`${input.factHash}`.as("fact_hash"),
         status: sql<"active">`'active'`.as("status"),
         actionVersion: sql<number>`${actionVersion}`.as("action_version"),
-        anchorAt: sql<string>`${growthActions.implementedAt}`.as("anchor_at"),
+        anchorAt: growthChangeEvents.happenedAt,
         anchorDate: sql<string>`${input.anchorDate}`.as("anchor_date"),
         reportTimezone: sql<string>`${input.reportTimezone}`.as(
           "report_timezone",
@@ -76,13 +79,32 @@ export async function startMeasurementGraph(input: StartMeasurementGraphInput) {
         createdAt: sql<string>`${occurredAt}`.as("created_at"),
       })
       .from(growthActions)
+      .innerJoin(
+        growthActionChanges,
+        and(
+          eq(growthActionChanges.projectId, growthActions.projectId),
+          eq(growthActionChanges.actionId, growthActions.id),
+          eq(
+            growthActionChanges.changeEventId,
+            input.implementationChangeEventId,
+          ),
+        ),
+      )
+      .innerJoin(
+        growthChangeEvents,
+        and(
+          eq(growthChangeEvents.projectId, growthActionChanges.projectId),
+          eq(growthChangeEvents.id, growthActionChanges.changeEventId),
+        ),
+      )
       .where(
         and(
           eq(growthActions.projectId, input.projectId),
           eq(growthActions.id, input.actionId),
           eq(growthActions.status, "implemented"),
           eq(growthActions.stateVersion, input.expectedActionVersion),
-          eq(growthActions.implementedAt, input.anchorAt),
+          eq(growthChangeEvents.source, "manual"),
+          eq(growthChangeEvents.happenedAt, input.anchorAt),
           sql`${validMetricGraph}`,
         ),
       );
@@ -102,6 +124,52 @@ export async function startMeasurementGraph(input: StartMeasurementGraphInput) {
       eq(growthMeasurementPlans.actionVersion, actionVersion),
       eq(growthMeasurementPlans.anchorAt, input.anchorAt),
     );
+    const anchor = tx
+      .insert(growthMeasurementPlanAnchors)
+      .select(
+        tx
+          .select({
+            projectId: growthMeasurementPlans.projectId,
+            measurementPlanId: growthMeasurementPlans.id,
+            actionId: growthMeasurementPlans.actionId,
+            changeEventId: growthActionChanges.changeEventId,
+          })
+          .from(growthMeasurementPlans)
+          .innerJoin(
+            growthActionChanges,
+            and(
+              eq(
+                growthActionChanges.projectId,
+                growthMeasurementPlans.projectId,
+              ),
+              eq(growthActionChanges.actionId, growthMeasurementPlans.actionId),
+              eq(
+                growthActionChanges.changeEventId,
+                input.implementationChangeEventId,
+              ),
+            ),
+          )
+          .innerJoin(
+            growthChangeEvents,
+            and(
+              eq(growthChangeEvents.projectId, growthActionChanges.projectId),
+              eq(growthChangeEvents.id, growthActionChanges.changeEventId),
+            ),
+          )
+          .where(
+            and(
+              winnerWhere,
+              eq(growthChangeEvents.source, "manual"),
+              eq(growthChangeEvents.happenedAt, input.anchorAt),
+            ),
+          ),
+      )
+      .onConflictDoNothing({
+        target: [
+          growthMeasurementPlanAnchors.projectId,
+          growthMeasurementPlanAnchors.measurementPlanId,
+        ],
+      });
     const metrics = input.metrics.map((metric) =>
       tx
         .insert(growthMeasurementMetrics)
@@ -138,6 +206,27 @@ export async function startMeasurementGraph(input: StartMeasurementGraphInput) {
       tx
         .select({ value: sql<number>`1` })
         .from(growthMeasurementPlans)
+        .innerJoin(
+          growthMeasurementPlanAnchors,
+          and(
+            eq(
+              growthMeasurementPlanAnchors.projectId,
+              growthMeasurementPlans.projectId,
+            ),
+            eq(
+              growthMeasurementPlanAnchors.measurementPlanId,
+              growthMeasurementPlans.id,
+            ),
+            eq(
+              growthMeasurementPlanAnchors.actionId,
+              growthMeasurementPlans.actionId,
+            ),
+            eq(
+              growthMeasurementPlanAnchors.changeEventId,
+              input.implementationChangeEventId,
+            ),
+          ),
+        )
         .where(and(winnerWhere, exactMetricSetSql(input))),
     );
     const transition = buildActionTransitionStatements(
@@ -157,7 +246,7 @@ export async function startMeasurementGraph(input: StartMeasurementGraphInput) {
       occurredAt,
       transitionGuard,
     );
-    return [plan, ...metrics, ...transition];
+    return [plan, anchor, ...metrics, ...transition];
   });
 }
 
