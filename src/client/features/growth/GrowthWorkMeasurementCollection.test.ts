@@ -105,12 +105,18 @@ function textFor(node: ReactNode): string {
   return Children.toArray(node.props.children).map(textFor).join("");
 }
 
-function render(collection = ready) {
+function render(
+  collection = ready,
+  disabled = false,
+  operationRef?: { current: "collection" | "finalization" | null },
+) {
   return GrowthWorkMeasurementCollection({
     projectId: "project_1",
     actionId: "action_1",
     stateVersion: 5,
     collection,
+    disabled,
+    operationRef,
   });
 }
 
@@ -191,5 +197,38 @@ describe("Work measurement collection submission", () => {
     const failed = render(ready);
     expect(textFor(failed)).toContain("could not be confirmed");
     expect(textFor(failed)).not.toContain("private SQL details");
+  });
+
+  it("cannot dispatch while finalization owns the measurement controls", () => {
+    const tree = render(ready, true);
+    const button = findButton(tree, "Collect available data");
+
+    expect(button?.disabled).toBe(true);
+    button?.onClick?.();
+    expect(harness.collect).not.toHaveBeenCalled();
+    expect(textFor(tree)).toContain("Collection is paused");
+  });
+
+  it("cannot collect when finalization wins the same synchronous interaction", () => {
+    const tree = render(ready, false, { current: "finalization" });
+
+    findButton(tree, "Collect available data")?.onClick?.();
+    expect(harness.collect).not.toHaveBeenCalled();
+  });
+
+  it("preserves equal-version evidence until the active-query refetch", async () => {
+    harness.cache = {
+      ...saved,
+      stateVersion: saved.stateVersion,
+      targetCount: 4,
+    };
+    render();
+    await harness.options?.onSuccess({ ...saved, candidates: [] });
+
+    expect(harness.cache).toEqual({
+      ...saved,
+      stateVersion: saved.stateVersion,
+      targetCount: 4,
+    });
   });
 });

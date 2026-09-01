@@ -2,7 +2,6 @@ import { sha256Hex } from "@/server/lib/audit/ids";
 import { AppError } from "@/server/lib/errors";
 import type {
   FinalizeGrowthMeasurementInput,
-  GrowthMeasurementPeriodType,
   StartGrowthMeasurementInput,
 } from "@/types/schemas/growth-measurements";
 import { GrowthMeasurementsRepository as repo } from "../repositories/GrowthMeasurementsRepository";
@@ -17,6 +16,7 @@ import {
   observationFacts,
   observationsHash,
   type PlanFact,
+  primaryEvidenceCoverage,
   resultFact,
   validation,
 } from "./GrowthMeasurementFacts";
@@ -161,17 +161,8 @@ async function startMeasurement(input: StartGrowthMeasurementInput) {
 }
 
 function assertPrimaryCoverage(graph: MeasurementGraph) {
-  const present = new Set(
-    graph.observations
-      .filter(({ completeness }) => completeness === 1)
-      .map(({ metricId, periodType }) => `${metricId}:${periodType}`),
-  );
-  for (const metric of graph.metrics.filter(({ isPrimary }) => isPrimary)) {
-    const periods: GrowthMeasurementPeriodType[] = ["baseline", "measurement"];
-    if (graph.plan.longMeasurementEnd) periods.push("long_term");
-    if (periods.some((period) => !present.has(`${metric.id}:${period}`)))
-      validation("Every primary Metric needs complete Measurement evidence");
-  }
+  if (!primaryEvidenceCoverage(graph).complete)
+    validation("Every primary Metric needs complete Measurement evidence");
 }
 
 async function writeResult(
@@ -179,8 +170,8 @@ async function writeResult(
   input: FinalizeGrowthMeasurementInput,
   evaluatedAt: string,
   confoundingChangeEventIds: string[],
+  frozenObservationsHash: string,
 ) {
-  const frozenObservationsHash = await observationsHash(graph);
   const fact = resultFact(
     input,
     frozenObservationsHash,
@@ -227,7 +218,7 @@ async function writeResult(
 
 async function finalizeMeasurement(
   input: FinalizeGrowthMeasurementInput,
-  options: { now?: Date } = {},
+  options: { now?: Date; expectedObservationsHash?: string } = {},
 ) {
   const first = await repo.getMeasurementGraph(
     input.projectId,
@@ -236,6 +227,13 @@ async function finalizeMeasurement(
   if (!first) throw new AppError("NOT_FOUND", "Measurement Plan not found");
   if (input.expectedActionVersion !== first.plan.actionVersion)
     conflict("Measurement Action version is stale");
+  const firstObservationsHash = await observationsHash(first);
+  if (
+    options.expectedObservationsHash !== undefined &&
+    options.expectedObservationsHash !== firstObservationsHash
+  ) {
+    conflict("Measurement evidence changed since review");
+  }
   const confounders = [...new Set(input.confoundingChangeEventIds)].toSorted(
     (left, right) => left.localeCompare(right),
   );
@@ -247,11 +245,7 @@ async function finalizeMeasurement(
       "Implementation Change Event cannot also be a Measurement confounder",
     );
   }
-  const firstFact = resultFact(
-    input,
-    await observationsHash(first),
-    confounders,
-  );
+  const firstFact = resultFact(input, firstObservationsHash, confounders);
   if (first.result)
     return assertExactMeasurementResult(first, firstFact, input);
 
@@ -276,27 +270,44 @@ async function finalizeMeasurement(
   if (changes.length !== confounders.length)
     throw new AppError("NOT_FOUND", "Growth Change Event not found");
 
-  await writeResult(first, input, evaluatedAt, confounders);
+  await writeResult(
+    first,
+    input,
+    evaluatedAt,
+    confounders,
+    firstObservationsHash,
+  );
   let winner = await repo.getMeasurementGraph(
     input.projectId,
     input.measurementPlanId,
   );
   if (!winner) conflict("Stored Measurement Result graph is incomplete");
+  const winnerObservationsHash = await observationsHash(winner);
+  if (
+    options.expectedObservationsHash !== undefined &&
+    options.expectedObservationsHash !== winnerObservationsHash
+  ) {
+    conflict("Measurement evidence changed during finalization");
+  }
   if (winner.result) {
-    const winnerFact = resultFact(
-      input,
-      await observationsHash(winner),
-      confounders,
-    );
+    const winnerFact = resultFact(input, winnerObservationsHash, confounders);
     return assertExactMeasurementResult(winner, winnerFact, input);
   }
 
   // A committed Observation may win the Plan lock after the service snapshot.
   // Retry once with that complete set; any later race becomes a clean conflict.
+  if (options.expectedObservationsHash !== undefined)
+    conflict("Measurement finalization did not preserve reviewed evidence");
   if (winner.plan.status !== "active")
     conflict("Stored Measurement Result graph is incomplete");
   if (input.outcome !== "not_measurable") assertPrimaryCoverage(winner);
-  await writeResult(winner, input, evaluatedAt, confounders);
+  await writeResult(
+    winner,
+    input,
+    evaluatedAt,
+    confounders,
+    winnerObservationsHash,
+  );
   winner = await repo.getMeasurementGraph(
     input.projectId,
     input.measurementPlanId,

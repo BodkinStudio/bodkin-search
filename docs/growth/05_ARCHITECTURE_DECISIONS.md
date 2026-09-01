@@ -642,3 +642,67 @@ Human selection and Result finalization, confidence semantics, outcome policy,
 AI interpretation, site-wide/template scope, normalized or semantic URL
 matching, persisted discovery snapshots, automatic scheduling and terminal Gate
 3 UI remain separate reviewed work.
+
+## ADR-034 - Human Measurement review freezes explicit interpretation against reviewed evidence
+
+**Status:** Accepted for the internal BG-0308/BG-0309 human-review slice
+
+### Decision
+
+- Finalization remains an explicit authenticated user action. The Work mutation
+  accepts only the Action/version, a server-issued review revision, outcome,
+  confidence, narrative and selected confounder IDs. Project, Plan, actor,
+  lifecycle note, evaluation time and model provenance are derived or fixed on
+  the server before delegating to the existing Measurement finalizer.
+- Review availability is server-derived from the first calendar day after the
+  final inclusive Plan window in its frozen report timezone. Ordinary outcomes
+  require complete baseline, primary and configured long-term evidence for
+  every primary Metric. Missing secondary evidence does not block.
+  `not_measurable` remains an explicit human choice for incomplete primary
+  evidence after the window closes; it does not bypass date, version, tenancy or
+  confounder validation.
+- A deterministic SHA-256 review revision coordinates the displayed state with
+  mutation preflight. The server independently recomputes a canonical digest of
+  project, Plan, Action version, exact Observation hash, discovery state and the
+  deterministically ordered complete candidate IDs. The revision is untrusted
+  input, not a secret, signed capability or authorization token, and is never
+  parsed for browser claims.
+- Human finalization supplies the exact reviewed Observation hash to the core.
+  The existing writer remains the serialization boundary; an Observation change
+  before or during its write conflicts instead of invoking the generic
+  finalizer's single evidence-race retry. Callers without the human expected
+  evidence option keep their existing retry behaviour.
+- Candidate discovery remains advisory and preflight-only. A changed complete
+  candidate set invalidates the review revision before the mutation is accepted,
+  but unselected Events are not locked or claimed to be snapshotted through
+  commit. The core validates explicitly selected Events as same-project and
+  excludes the implementation anchor; discovery is not converted into an
+  allowlist or automatic confidence rule.
+- Outcome and confidence are selected by the human with no default or automatic
+  threshold. Confidence describes how strongly the reviewed evidence and
+  context support that interpretation. It is not probability of causation,
+  statistical significance or an evidence-completeness score.
+- The inline Work UI freezes the exact request through ambiguous failure and
+  permits only exact retry or an authoritative saved-result reread. Successful
+  finalization atomically creates the immutable Result, completes the Plan and
+  moves Work from Measuring to Evaluated through the existing writer.
+- Completed Work shows the safe Result narrative and currently surviving
+  selected confounder Event links. Independent Event deletion can remove a link
+  while preserving the Result; version 1 does not promise Event tombstones or a
+  permanent candidate snapshot.
+
+### Why
+
+The existing aggregate and writer already implement the secure lifecycle and
+cross-dialect transaction. A narrow human boundary closes Gate 3 without a new
+service, database or causal scoring system. Binding the Observation set prevents
+an irreversible interpretation from silently absorbing evidence that appeared
+after review, while the narrower preflight claim for candidate discovery stays
+truthful about its live advisory nature.
+
+### Deferred
+
+AI interpretation, automatic outcome/confidence rules, statistical thresholds,
+site-wide or semantic candidate inference, persisted review snapshots, Event
+tombstones, Result correction/supersession, scheduled finalization, reports and
+MCP remain separate reviewed work.

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- the start and finalization lock harness is intentionally kept together */
 import { Children, isValidElement, type ReactNode } from "react";
 import type * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +13,7 @@ import type {
 } from "@/types/schemas/growth-work";
 import { GrowthWorkMeasurementPanel } from "./GrowthWorkMeasurement";
 import { GrowthWorkMeasurementContent } from "./GrowthWorkMeasurementPresentation";
+import { activeMeasurementPlan } from "./GrowthWorkMeasurement.testFixtures";
 
 type Frozen = {
   request: StartGrowthWorkMeasurementInput;
@@ -32,7 +34,11 @@ type MutationOptions = {
 type QueryOptions = {
   queryKey: string[];
   queryFn: () => Promise<GrowthWorkMeasurementOverview>;
+  enabled: boolean;
+  gcTime: number;
   retry: boolean;
+  refetchOnMount: boolean;
+  refetchOnReconnect: boolean;
   refetchOnWindowFocus: boolean;
 };
 
@@ -56,6 +62,7 @@ const harness = vi.hoisted(() => ({
   refetch: vi.fn(),
   read: vi.fn(),
   start: vi.fn(),
+  finalizationRecovery: null as unknown,
 }));
 
 vi.mock("react", async (original) => ({
@@ -76,6 +83,9 @@ vi.mock("react", async (original) => ({
 vi.mock("@tanstack/react-query", () => ({
   useIsMutating: () => harness.collecting,
   useQuery: (options: QueryOptions) => {
+    if (options.queryKey[0] === "growthWorkMeasurementFinalizeRecovery") {
+      return { data: harness.finalizationRecovery };
+    }
     harness.queryOptions = options;
     return {
       data: harness.data,
@@ -180,11 +190,14 @@ const request: StartGrowthWorkMeasurementInput = {
 
 type ControlProps = {
   children?: ReactNode;
+  data?: GrowthWorkMeasurementOverview;
   onSubmit?: (id: string) => void;
   onClick?: () => void;
   disabled?: boolean;
   frozenCandidate?: GrowthWorkMeasurementCandidate;
   selectedId?: string;
+  collectionControl?: ReactNode;
+  finalizationControl?: ReactNode;
 };
 
 function find(node: ReactNode, target: string): ControlProps | null {
@@ -225,6 +238,7 @@ beforeEach(() => {
   harness.mutationError = false;
   harness.mutationPending = false;
   harness.collecting = 0;
+  harness.finalizationRecovery = null;
   harness.fetchQuery.mockResolvedValue(eligible);
 });
 
@@ -252,6 +266,91 @@ describe("Start Work measurement submission", () => {
 
     expect(find(tree, "Refresh measurement")?.disabled).toBe(true);
     expect(harness.queryOptions?.refetchOnWindowFocus).toBe(false);
+  });
+
+  it("lets finalization lock normal refresh and collection together", () => {
+    harness.data = {
+      ...eligible,
+      actionStatus: "measuring",
+      stateVersion: 3,
+      state: "active",
+      candidates: [],
+      proposedMetrics: [],
+      plan: {
+        ...activeMeasurementPlan,
+        actionVersion: 3,
+        review: {
+          state: "ready",
+          availableOn: "2026-10-31",
+          primaryEvidenceComplete: true,
+          missingPrimaryEvidenceCount: 0,
+          revision: "a".repeat(64),
+        },
+      },
+    };
+    const initialContent = find(render(), "content");
+    expect(isValidElement(initialContent?.finalizationControl)).toBe(true);
+    if (
+      !isValidElement<{ onLockChange: (locked: boolean) => void }>(
+        initialContent?.finalizationControl,
+      )
+    )
+      throw new Error("Expected finalization control");
+
+    initialContent.finalizationControl.props.onLockChange(true);
+    const lockedTree = render();
+    const lockedContent = find(lockedTree, "content");
+    expect(find(lockedTree, "Refresh measurement")?.disabled).toBe(true);
+    find(lockedTree, "Refresh measurement")?.onClick?.();
+    expect(harness.refetch).not.toHaveBeenCalled();
+    expect(harness.queryOptions?.refetchOnWindowFocus).toBe(false);
+    expect(isValidElement(lockedContent?.collectionControl)).toBe(true);
+    if (
+      !isValidElement<{ disabled?: boolean }>(lockedContent?.collectionControl)
+    )
+      throw new Error("Expected collection control");
+    expect(lockedContent.collectionControl.props.disabled).toBe(true);
+  });
+
+  it("does not automatically reread stale measurement state after recovery remount", () => {
+    const measurement = {
+      ...eligible,
+      actionStatus: "measuring" as const,
+      stateVersion: 3,
+      state: "active" as const,
+      candidates: [],
+      proposedMetrics: [],
+      plan: {
+        ...activeMeasurementPlan,
+        actionVersion: 3,
+        review: {
+          state: "ready" as const,
+          availableOn: "2026-10-31",
+          primaryEvidenceComplete: true,
+          missingPrimaryEvidenceCount: 0,
+          revision: "a".repeat(64),
+        },
+      },
+    };
+    harness.data = undefined;
+    harness.finalizationRecovery = { measurement };
+    harness.states = [];
+
+    const tree = render();
+
+    expect(harness.queryOptions).toMatchObject({
+      enabled: false,
+      gcTime: Infinity,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+    });
+    expect(find(tree, "content")).toMatchObject({
+      data: measurement,
+      disabled: true,
+    });
+    expect(harness.read).not.toHaveBeenCalled();
+    expect(harness.refetch).not.toHaveBeenCalled();
   });
 
   it("dispatches one explicit linked change and rejects arbitrary IDs", () => {
@@ -354,5 +453,17 @@ describe("Start Work measurement submission", () => {
       status: "evaluated",
       stateVersion: 5,
     });
+  });
+
+  it("preserves equal-version measurement evidence until its authoritative refetch", () => {
+    harness.data = {
+      ...eligible,
+      stateVersion: action.stateVersion,
+      candidates: [],
+    };
+    render();
+    harness.mutationOptions?.onSuccess(eligible);
+
+    expect(harness.data?.candidates).toEqual([]);
   });
 });

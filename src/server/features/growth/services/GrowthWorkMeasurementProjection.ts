@@ -4,16 +4,19 @@ import type {
   GrowthWorkMeasurementSchedule,
 } from "@/types/schemas/growth-work";
 import { GrowthChangeEventsRepository } from "../repositories/GrowthChangeEventsRepository";
+import { GrowthMeasurementsRepository } from "../repositories/GrowthMeasurementsRepository";
 import { toChangeDto } from "./GrowthChangeLogService";
 import {
   growthEvidenceDisplayChangeDescription,
+  growthEvidenceDisplayMeasurementSummary,
   growthEvidenceDisplayUrl,
 } from "./GrowthEvidencePacket";
 import { calendarDateInTimezone } from "./GrowthMeasurementFacts";
+import { GROWTH_MEASUREMENT_CONFOUNDER_LIMIT } from "./GrowthMeasurementConfounders";
 import {
-  discoverGrowthMeasurementConfounders,
-  GROWTH_MEASUREMENT_CONFOUNDER_LIMIT,
-} from "./GrowthMeasurementConfounders";
+  type GrowthMeasurementReviewDiscovery,
+  prepareGrowthMeasurementReview,
+} from "./GrowthMeasurementReview";
 import {
   growthMeasurementCollectionPeriods,
   growthMeasurementGscPropertyHash,
@@ -184,10 +187,11 @@ function collectionDto(
   };
 }
 
-async function confounderDto(
+function confounderDto(
   verified: Awaited<
     ReturnType<typeof GrowthMeasurementsService.getMeasurement>
   >,
+  discovery: GrowthMeasurementReviewDiscovery,
 ) {
   const base = {
     intervalStart: verified.plan.baselineStart,
@@ -195,9 +199,6 @@ async function confounderDto(
       verified.plan.longMeasurementEnd ?? verified.plan.measurementEnd,
     limit: GROWTH_MEASUREMENT_CONFOUNDER_LIMIT,
   };
-  if (verified.plan.status === "completed")
-    return { ...base, state: "closed" as const, candidates: [] };
-  const discovery = await discoverGrowthMeasurementConfounders(verified);
   return {
     ...base,
     state: discovery.state,
@@ -221,15 +222,22 @@ export async function growthWorkMeasurementPlanDto(
   connected: boolean,
   now = new Date(),
 ): Promise<GrowthWorkMeasurementPlan> {
-  const [implementationChange, confounders] = await Promise.all([
-    verified.implementationChangeEventId
-      ? GrowthChangeEventsRepository.getChangeEventGraph(
-          verified.plan.projectId,
-          verified.implementationChangeEventId,
-        )
-      : null,
-    confounderDto(verified),
-  ]);
+  const [implementationChange, preparedReview, selectedConfoundingChanges] =
+    await Promise.all([
+      verified.implementationChangeEventId
+        ? GrowthChangeEventsRepository.getChangeEventGraph(
+            verified.plan.projectId,
+            verified.implementationChangeEventId,
+          )
+        : null,
+      prepareGrowthMeasurementReview(verified, now),
+      verified.result && verified.confoundingChangeEventIds.length > 0
+        ? GrowthMeasurementsRepository.listChangeEventsByIds(
+            verified.plan.projectId,
+            verified.confoundingChangeEventIds,
+          )
+        : [],
+    ]);
   return {
     id: verified.plan.id,
     status: verified.plan.status,
@@ -284,14 +292,25 @@ export async function growthWorkMeasurementPlanDto(
       };
     }),
     collection: collectionDto(verified, connected, now),
-    confounders,
+    confounders: confounderDto(verified, preparedReview.discovery),
+    review: preparedReview.review,
     dueDate: verified.dueDate,
     result: verified.result
       ? {
           outcome: verified.result.outcome,
           confidence: verified.result.confidence,
-          summary: verified.result.summary,
+          summary: growthEvidenceDisplayMeasurementSummary(
+            verified.result.summary,
+          ).content,
           evaluatedAt: verified.result.evaluatedAt,
+          confoundingChanges: selectedConfoundingChanges.map((event) => ({
+            id: event.id,
+            changeType: event.changeType,
+            description: growthEvidenceDisplayChangeDescription(
+              event.description,
+            ).content,
+            happenedAt: event.happenedAt,
+          })),
         }
       : null,
   };

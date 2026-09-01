@@ -5,7 +5,11 @@ import {
   type GrowthActionStatus,
 } from "./growth-actions";
 import type { GrowthChangeDto } from "./growth-change-log";
-import type { GrowthMeasurementMetricType } from "./growth-measurements";
+import {
+  GROWTH_MEASUREMENT_OUTCOMES,
+  MAX_GROWTH_MEASUREMENT_CONFOUNDERS,
+  type GrowthMeasurementMetricType,
+} from "./growth-measurements";
 
 const id = z.string().trim().min(1).max(100);
 const note = z.string().trim().min(1).max(5000);
@@ -68,6 +72,20 @@ export const collectGrowthWorkMeasurementSchema = z.strictObject({
   expectedActionVersion: z.number().int().positive(),
 });
 
+export const finalizeGrowthWorkMeasurementSchema = z.strictObject({
+  projectId: id,
+  actionId: id,
+  expectedActionVersion: z.number().int().positive(),
+  reviewRevision: z.string().regex(/^[a-f0-9]{64}$/),
+  outcome: z.enum(GROWTH_MEASUREMENT_OUTCOMES),
+  confidence: z.number().finite().min(0).max(1),
+  summary: note,
+  confoundingChangeEventIds: z
+    .array(id)
+    .max(MAX_GROWTH_MEASUREMENT_CONFOUNDERS)
+    .transform((ids) => [...new Set(ids)].toSorted()),
+});
+
 export type UpdateGrowthWorkStatusInput = z.infer<
   typeof updateGrowthWorkStatusSchema
 >;
@@ -111,6 +129,10 @@ export type StartGrowthWorkMeasurementInput = z.infer<
 
 export type CollectGrowthWorkMeasurementInput = z.infer<
   typeof collectGrowthWorkMeasurementSchema
+>;
+
+export type FinalizeGrowthWorkMeasurementInput = z.infer<
+  typeof finalizeGrowthWorkMeasurementSchema
 >;
 
 export type GrowthWorkMeasurementSchedule = {
@@ -208,6 +230,13 @@ export type GrowthWorkMeasurementPlan = {
   metrics: GrowthWorkMeasurementPlanMetric[];
   collection: GrowthWorkMeasurementCollection;
   confounders: GrowthWorkMeasurementConfounders;
+  review: {
+    state: "waiting" | "ready" | "not_measurable_only" | "closed";
+    availableOn: string;
+    primaryEvidenceComplete: boolean;
+    missingPrimaryEvidenceCount: number;
+    revision: string | null;
+  };
   dueDate: string;
   result: {
     outcome:
@@ -221,6 +250,12 @@ export type GrowthWorkMeasurementPlan = {
     confidence: number;
     summary: string;
     evaluatedAt: string;
+    confoundingChanges: Array<{
+      id: string;
+      changeType: GrowthChangeDto["changeType"];
+      description: string;
+      happenedAt: string;
+    }>;
   } | null;
 };
 

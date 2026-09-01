@@ -2,6 +2,7 @@ import { AppError } from "@/server/lib/errors";
 import type { StartGrowthMeasurementInput } from "@/types/schemas/growth-measurements";
 import type {
   CollectGrowthWorkMeasurementInput,
+  FinalizeGrowthWorkMeasurementInput,
   GrowthWorkMeasurementOverview,
   StartGrowthWorkMeasurementInput,
 } from "@/types/schemas/growth-work";
@@ -13,6 +14,7 @@ import { toChangeDto } from "./GrowthChangeLogService";
 import { growthEvidenceDisplayUrl } from "./GrowthEvidencePacket";
 import { getQualifiedWork } from "./GrowthInvestigationsService";
 import { GrowthMeasurementsService } from "./GrowthMeasurementsService";
+import { prepareGrowthMeasurementReview } from "./GrowthMeasurementReview";
 import { collectGrowthWorkMeasurementEvidence } from "./GrowthWorkMeasurementCollectionService";
 import {
   growthWorkMeasurementPlanDto,
@@ -250,8 +252,77 @@ async function collectGrowthWorkMeasurement(
   return getGrowthWorkMeasurement(input.projectId, input.actionId);
 }
 
+async function finalizeGrowthWorkMeasurement(
+  input: FinalizeGrowthWorkMeasurementInput & { actorId: string },
+): Promise<GrowthWorkMeasurementOverview> {
+  await getQualifiedWork(input.projectId, input.actionId);
+  const storedPlan =
+    await GrowthMeasurementsRepository.getMeasurementPlanByAction(
+      input.projectId,
+      input.actionId,
+    );
+  if (!storedPlan)
+    throw new AppError("NOT_FOUND", "Growth Measurement Plan not found");
+  const verified = await GrowthMeasurementsService.getMeasurement(
+    input.projectId,
+    storedPlan.id,
+  );
+  const finalizeInput = {
+    projectId: input.projectId,
+    measurementPlanId: storedPlan.id,
+    expectedActionVersion: input.expectedActionVersion,
+    outcome: input.outcome,
+    confidence: input.confidence,
+    summary: input.summary,
+    model: null,
+    promptVersion: null,
+    confoundingChangeEventIds: input.confoundingChangeEventIds,
+    actorType: "user" as const,
+    actorId: input.actorId,
+    note: "Finalized measurement after human review.",
+  };
+
+  if (verified.plan.status === "active") {
+    const prepared = await prepareGrowthMeasurementReview(verified);
+    if (
+      prepared.review.revision === null ||
+      input.reviewRevision !== prepared.review.revision
+    )
+      throw new AppError(
+        "CONFLICT",
+        "Growth Measurement review has changed; refresh before finalizing",
+      );
+    if (
+      prepared.review.state !== "ready" &&
+      prepared.review.state !== "not_measurable_only"
+    )
+      throw new AppError(
+        "CONFLICT",
+        "Growth Measurement is not ready for review",
+      );
+    if (
+      prepared.review.state === "not_measurable_only" &&
+      input.outcome !== "not_measurable"
+    )
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "Incomplete primary evidence can only be finalized as not measurable",
+      );
+    await GrowthMeasurementsService.finalizeMeasurement(finalizeInput, {
+      expectedObservationsHash: prepared.expectedObservationsHash,
+    });
+  } else {
+    // A completed Result owns retry identity. The review revision was only the
+    // active-Plan preflight coordinate and is deliberately not recomputed here.
+    await GrowthMeasurementsService.finalizeMeasurement(finalizeInput);
+  }
+
+  return getGrowthWorkMeasurement(input.projectId, input.actionId);
+}
+
 export const GrowthWorkMeasurementService = {
   getGrowthWorkMeasurement,
   startGrowthWorkMeasurement,
   collectGrowthWorkMeasurement,
+  finalizeGrowthWorkMeasurement,
 } as const;

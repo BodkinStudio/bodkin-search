@@ -5,6 +5,7 @@ import type {
   GrowthWorkMeasurementPlan,
 } from "@/types/schemas/growth-work";
 import { GrowthChangeHistory } from "./GrowthChangeHistory";
+import { GROWTH_CHANGE_LABELS } from "./GrowthChangePresentation";
 import { formatGrowthPreviewDate } from "./GrowthPreviewPresentation";
 import { GrowthWorkMeasurementConfounders } from "./GrowthWorkMeasurementConfounders";
 import {
@@ -21,6 +22,7 @@ export function GrowthWorkMeasurementContent({
   pending,
   onSubmit,
   collectionControl,
+  finalizationControl,
 }: {
   data: GrowthWorkMeasurementOverview;
   frozenCandidate?: GrowthWorkMeasurementCandidate;
@@ -29,6 +31,7 @@ export function GrowthWorkMeasurementContent({
   pending: boolean;
   onSubmit: (implementationChangeEventId: string) => void;
   collectionControl?: ReactNode;
+  finalizationControl?: ReactNode;
 }) {
   if (data.state === "inconsistent")
     return (
@@ -42,6 +45,7 @@ export function GrowthWorkMeasurementContent({
       <GrowthWorkMeasurementPlanView
         plan={data.plan}
         collectionControl={collectionControl}
+        finalizationControl={finalizationControl}
       />
     );
   if (data.state === "not_ready")
@@ -81,9 +85,11 @@ export function GrowthWorkMeasurementContent({
 function GrowthWorkMeasurementPlanView({
   plan,
   collectionControl,
+  finalizationControl,
 }: {
   plan: GrowthWorkMeasurementPlan;
   collectionControl?: ReactNode;
+  finalizationControl?: ReactNode;
 }) {
   return (
     <div className="border-t border-base-300 pt-4">
@@ -124,6 +130,7 @@ function GrowthWorkMeasurementPlanView({
       {collectionControl}
       <GrowthWorkMeasurementComparisons plan={plan} />
       <GrowthWorkMeasurementConfounders confounders={plan.confounders} />
+      {finalizationControl}
       {plan.result ? (
         <GrowthWorkMeasurementResult result={plan.result} />
       ) : null}
@@ -316,6 +323,11 @@ function GrowthWorkMeasurementResult({
   return (
     <div className="mt-5 border-t border-base-300 pt-4">
       <h4 className="font-semibold">Measured result</h4>
+      <p className="mt-1 text-xs text-base-content/70">
+        This is a saved human interpretation of observational evidence. Its
+        outcome and confidence do not establish causation or statistical
+        significance.
+      </p>
       <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
         <div>
           <dt className="text-xs text-base-content/70">Outcome</dt>
@@ -337,6 +349,35 @@ function GrowthWorkMeasurementResult({
       <p className="mt-3 max-w-prose whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
         {result.summary}
       </p>
+      <div className="mt-4">
+        <h5 className="font-medium">
+          Confounding changes included in this result
+        </h5>
+        {result.confoundingChanges.length > 0 ? (
+          <ol className="mt-2 divide-y divide-base-300">
+            {result.confoundingChanges.map((change) => (
+              <li key={change.id} className="py-3 first:pt-0">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <span className="font-medium">
+                    {GROWTH_CHANGE_LABELS[change.changeType]}
+                  </span>
+                  <span className="text-sm tabular-nums text-base-content/70">
+                    Changed {formatGrowthPreviewDate(change.happenedAt)} (UTC)
+                  </span>
+                </div>
+                <p className="mt-1 max-w-prose whitespace-pre-wrap break-words text-sm text-base-content/70 [overflow-wrap:anywhere]">
+                  {change.description}
+                </p>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="mt-2 text-sm text-base-content/70">
+            No linked confounding change record is currently available for this
+            result.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

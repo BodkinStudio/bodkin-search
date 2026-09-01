@@ -40,7 +40,8 @@ function GrowthWorkMeasurementConfounderState({
     return (
       <p role="alert" className="mt-3">
         This older plan has no selected website-change anchor, so possible
-        confounding changes cannot be separated safely.
+        confounding changes cannot be separated safely. You can still review and
+        finalize using the evidence shown.
       </p>
     );
   if (confounders.state === "overflow")
@@ -48,7 +49,8 @@ function GrowthWorkMeasurementConfounderState({
       <p role="alert" className="mt-3">
         More than {confounders.limit} exact recorded changes overlap this
         comparison. The partial list is withheld so it is not mistaken for a
-        complete review.
+        complete review. You can still review and finalize using the evidence
+        shown.
       </p>
     );
   if (confounders.state === "none")

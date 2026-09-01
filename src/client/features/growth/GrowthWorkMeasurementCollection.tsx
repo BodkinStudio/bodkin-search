@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type MutableRefObject } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { collectGrowthWorkMeasurement } from "@/serverFunctions/growthWork";
@@ -13,11 +13,15 @@ export function GrowthWorkMeasurementCollection({
   actionId,
   stateVersion,
   collection,
+  disabled = false,
+  operationRef,
 }: {
   projectId: string;
   actionId: string;
   stateVersion: number;
   collection: GrowthWorkMeasurementPlan["collection"];
+  disabled?: boolean;
+  operationRef?: MutableRefObject<"collection" | "finalization" | null>;
 }) {
   const client = useQueryClient();
   const dispatching = useRef(false);
@@ -40,7 +44,7 @@ export function GrowthWorkMeasurementCollection({
     },
     onSuccess: async (saved) => {
       client.setQueryData<GrowthWorkMeasurementOverview>(queryKey, (current) =>
-        current && current.stateVersion > saved.stateVersion ? current : saved,
+        current && current.stateVersion >= saved.stateVersion ? current : saved,
       );
       setNotice(
         "Available Search Console evidence was saved. The comparison is observational and does not prove what caused the movement.",
@@ -55,12 +59,22 @@ export function GrowthWorkMeasurementCollection({
     },
     onSettled: () => {
       dispatching.current = false;
+      if (operationRef?.current === "collection") {
+        operationRef.current = null;
+      }
     },
   });
   const submit = () => {
-    if (dispatching.current || collect.isPending || !collection.canCollect)
+    if (
+      dispatching.current ||
+      operationRef?.current != null ||
+      collect.isPending ||
+      disabled ||
+      !collection.canCollect
+    )
       return;
     dispatching.current = true;
+    if (operationRef) operationRef.current = "collection";
     collect.mutate();
   };
 
@@ -114,7 +128,7 @@ export function GrowthWorkMeasurementCollection({
           <button
             type="button"
             className="btn btn-primary btn-sm"
-            disabled={collect.isPending}
+            disabled={collect.isPending || disabled}
             onClick={submit}
           >
             {collect.isPending
@@ -125,6 +139,12 @@ export function GrowthWorkMeasurementCollection({
             This reads the connected Search Console property and saves only
             complete final-data periods. It does not calculate a verdict.
           </p>
+          {disabled ? (
+            <p className="mt-2 text-xs text-base-content/70">
+              Collection is paused while the measured result is being saved or
+              checked.
+            </p>
+          ) : null}
         </div>
       ) : null}
       {collect.isPending ? (

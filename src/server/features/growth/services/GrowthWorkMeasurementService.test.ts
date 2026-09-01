@@ -1,5 +1,6 @@
 /* eslint-disable max-lines, max-lines-per-function -- the complete Work measurement contract is easiest to audit as one mocked-service suite */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppError } from "@/server/lib/errors";
 
 const actions = vi.hoisted(() => ({ getActionGraph: vi.fn() }));
 const changes = vi.hoisted(() => ({
@@ -8,18 +9,26 @@ const changes = vi.hoisted(() => ({
 }));
 const measurementRepository = vi.hoisted(() => ({
   getMeasurementPlanByAction: vi.fn(),
+  listChangeEventsByIds: vi.fn(),
 }));
 const investigations = vi.hoisted(() => ({ getQualifiedWork: vi.fn() }));
 const measurements = vi.hoisted(() => ({
   getMeasurement: vi.fn(),
   startMeasurement: vi.fn(),
+  finalizeMeasurement: vi.fn(),
 }));
 const settings = vi.hoisted(() => ({ getSettings: vi.fn() }));
 const gscConnections = vi.hoisted(() => ({ getByProjectId: vi.fn() }));
 const collection = vi.hoisted(() => ({
   collectGrowthWorkMeasurementEvidence: vi.fn(),
 }));
-const confounderDiscovery = vi.hoisted(() => ({ discover: vi.fn() }));
+const confounderDiscovery = vi.hoisted(() => ({
+  discover:
+    vi.fn<
+      (graph: unknown) => Promise<{ state: string; candidates: unknown[] }>
+    >(),
+}));
+const reviewPreparation = vi.hoisted(() => ({ prepare: vi.fn() }));
 
 vi.mock("../repositories/GrowthActionsRepository", () => ({
   GrowthActionsRepository: actions,
@@ -84,6 +93,9 @@ vi.mock("./GrowthMeasurementConfounders", () => ({
   GROWTH_MEASUREMENT_CONFOUNDER_LIMIT: 50,
   discoverGrowthMeasurementConfounders: confounderDiscovery.discover,
 }));
+vi.mock("./GrowthMeasurementReview", () => ({
+  prepareGrowthMeasurementReview: reviewPreparation.prepare,
+}));
 vi.mock("./GrowthChangeLogService", () => ({
   toChangeDto: (graph: typeof change) => ({
     id: graph.event.id,
@@ -101,6 +113,8 @@ import {
 
 const projectId = "project_1";
 const actionId = "action_1";
+const reviewRevision = "d".repeat(64);
+const observationsHash = "e".repeat(64);
 const change = {
   event: {
     id: "change_1",
@@ -207,6 +221,7 @@ describe("GrowthWorkMeasurementService", () => {
     changes.getChangeEventGraph.mockResolvedValue(change);
     settings.getSettings.mockResolvedValue(defaultSettings);
     measurementRepository.getMeasurementPlanByAction.mockResolvedValue(null);
+    measurementRepository.listChangeEventsByIds.mockResolvedValue([]);
     measurements.getMeasurement.mockResolvedValue(activeMeasurement);
     gscConnections.getByProjectId.mockResolvedValue(null);
     collection.collectGrowthWorkMeasurementEvidence.mockResolvedValue(
@@ -216,6 +231,25 @@ describe("GrowthWorkMeasurementService", () => {
       state: "none",
       candidates: [],
     });
+    reviewPreparation.prepare.mockImplementation(
+      async (graph: { plan: { status: "active" | "completed" } }) => {
+        const discovery =
+          graph.plan.status === "completed"
+            ? { state: "closed", candidates: [] }
+            : await confounderDiscovery.discover(graph);
+        return {
+          discovery,
+          review: {
+            state: graph.plan.status === "completed" ? "closed" : "ready",
+            availableOn: "2026-10-31",
+            primaryEvidenceComplete: true,
+            missingPrimaryEvidenceCount: 0,
+            revision: graph.plan.status === "completed" ? null : reviewRevision,
+          },
+          expectedObservationsHash: observationsHash,
+        };
+      },
+    );
   });
 
   it("derives the fixed windows from the selected change's UTC day", () => {
@@ -925,6 +959,208 @@ describe("GrowthWorkMeasurementService", () => {
       actionId,
       expectedActionVersion: 5,
     });
+  });
+
+  it("finalizes through the derived Plan with fixed human provenance and reviewed evidence", async () => {
+    measurementRepository.getMeasurementPlanByAction.mockResolvedValue(
+      activePlan,
+    );
+    investigations.getQualifiedWork.mockResolvedValue({
+      ...implementedWork,
+      status: "measuring",
+      stateVersion: activePlan.actionVersion,
+    });
+
+    await GrowthWorkMeasurementService.finalizeGrowthWorkMeasurement({
+      projectId,
+      actionId,
+      expectedActionVersion: activePlan.actionVersion,
+      reviewRevision,
+      outcome: "positive",
+      confidence: 0.79,
+      summary: "Clicks increased after the recorded change.",
+      confoundingChangeEventIds: ["change_context"],
+      actorId: "user_authorized",
+    });
+
+    expect(reviewPreparation.prepare).toHaveBeenCalledWith(activeMeasurement);
+    expect(measurements.finalizeMeasurement).toHaveBeenCalledWith(
+      {
+        projectId,
+        measurementPlanId: activePlan.id,
+        expectedActionVersion: activePlan.actionVersion,
+        outcome: "positive",
+        confidence: 0.79,
+        summary: "Clicks increased after the recorded change.",
+        model: null,
+        promptVersion: null,
+        confoundingChangeEventIds: ["change_context"],
+        actorType: "user",
+        actorId: "user_authorized",
+        note: "Finalized measurement after human review.",
+      },
+      { expectedObservationsHash: observationsHash },
+    );
+    expect(
+      collection.collectGrowthWorkMeasurementEvidence,
+    ).not.toHaveBeenCalled();
+  });
+
+  it.each(["a".repeat(64), "f".repeat(64)])(
+    "rejects a stale or cross-coordinate review revision",
+    async (submittedRevision) => {
+      measurementRepository.getMeasurementPlanByAction.mockResolvedValue(
+        activePlan,
+      );
+
+      await expect(
+        GrowthWorkMeasurementService.finalizeGrowthWorkMeasurement({
+          projectId,
+          actionId,
+          expectedActionVersion: activePlan.actionVersion,
+          reviewRevision: submittedRevision,
+          outcome: "positive",
+          confidence: 0.5,
+          summary: "Reviewed result.",
+          confoundingChangeEventIds: [],
+          actorId: "user_authorized",
+        }),
+      ).rejects.toMatchObject({ code: "CONFLICT" });
+      expect(measurements.finalizeMeasurement).not.toHaveBeenCalled();
+      expect(
+        collection.collectGrowthWorkMeasurementEvidence,
+      ).not.toHaveBeenCalled();
+    },
+  );
+
+  it("allows only not measurable when primary evidence is incomplete", async () => {
+    measurementRepository.getMeasurementPlanByAction.mockResolvedValue(
+      activePlan,
+    );
+    reviewPreparation.prepare.mockResolvedValue({
+      discovery: { state: "none", candidates: [] },
+      review: {
+        state: "not_measurable_only",
+        availableOn: "2026-10-31",
+        primaryEvidenceComplete: false,
+        missingPrimaryEvidenceCount: 1,
+        revision: reviewRevision,
+      },
+      expectedObservationsHash: observationsHash,
+    });
+    const request = {
+      projectId,
+      actionId,
+      expectedActionVersion: activePlan.actionVersion,
+      reviewRevision,
+      confidence: 0,
+      summary: "Primary evidence remained incomplete.",
+      confoundingChangeEventIds: [] as string[],
+      actorId: "user_authorized",
+    };
+
+    await expect(
+      GrowthWorkMeasurementService.finalizeGrowthWorkMeasurement({
+        ...request,
+        outcome: "inconclusive",
+      }),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(measurements.finalizeMeasurement).not.toHaveBeenCalled();
+
+    await GrowthWorkMeasurementService.finalizeGrowthWorkMeasurement({
+      ...request,
+      outcome: "not_measurable",
+    });
+    expect(measurements.finalizeMeasurement).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "not_measurable" }),
+      { expectedObservationsHash: observationsHash },
+    );
+  });
+
+  it("delegates a completed exact retry with the original Plan version without recomputing review", async () => {
+    const completedPlan = {
+      ...activePlan,
+      status: "completed" as const,
+      completedAt: "2026-11-03T12:00:00.000Z",
+    };
+    const completedMeasurement = {
+      ...activeMeasurement,
+      plan: completedPlan,
+      result: {
+        outcome: "positive" as const,
+        confidence: 0.79,
+        summary: "Clicks increased after the recorded change.",
+        evaluatedAt: "2026-11-03T12:00:00.000Z",
+      },
+    };
+    measurementRepository.getMeasurementPlanByAction.mockResolvedValue(
+      completedPlan,
+    );
+    investigations.getQualifiedWork.mockResolvedValue({
+      ...implementedWork,
+      status: "evaluated",
+      stateVersion: completedPlan.actionVersion + 1,
+    });
+    measurements.getMeasurement.mockResolvedValue(completedMeasurement);
+
+    await GrowthWorkMeasurementService.finalizeGrowthWorkMeasurement({
+      projectId,
+      actionId,
+      expectedActionVersion: completedPlan.actionVersion,
+      reviewRevision: "a".repeat(64),
+      outcome: "positive",
+      confidence: 0.79,
+      summary: "Clicks increased after the recorded change.",
+      confoundingChangeEventIds: [],
+      actorId: "user_authorized",
+    });
+
+    expect(measurements.finalizeMeasurement).toHaveBeenCalledWith({
+      projectId,
+      measurementPlanId: completedPlan.id,
+      expectedActionVersion: completedPlan.actionVersion,
+      outcome: "positive",
+      confidence: 0.79,
+      summary: "Clicks increased after the recorded change.",
+      model: null,
+      promptVersion: null,
+      confoundingChangeEventIds: [],
+      actorType: "user",
+      actorId: "user_authorized",
+      note: "Finalized measurement after human review.",
+    });
+    expect(
+      measurements.finalizeMeasurement.mock.invocationCallOrder[0],
+    ).toBeLessThan(reviewPreparation.prepare.mock.invocationCallOrder[0]);
+    expect(confounderDiscovery.discover).not.toHaveBeenCalled();
+  });
+
+  it("propagates core finalization conflicts without collecting or calling a provider", async () => {
+    measurementRepository.getMeasurementPlanByAction.mockResolvedValue(
+      activePlan,
+    );
+    const conflict = new AppError(
+      "CONFLICT",
+      "Measurement observations changed during review",
+    );
+    measurements.finalizeMeasurement.mockRejectedValue(conflict);
+
+    await expect(
+      GrowthWorkMeasurementService.finalizeGrowthWorkMeasurement({
+        projectId,
+        actionId,
+        expectedActionVersion: activePlan.actionVersion,
+        reviewRevision,
+        outcome: "positive",
+        confidence: 0.5,
+        summary: "Reviewed result.",
+        confoundingChangeEventIds: [],
+        actorId: "user_authorized",
+      }),
+    ).rejects.toBe(conflict);
+    expect(
+      collection.collectGrowthWorkMeasurementEvidence,
+    ).not.toHaveBeenCalled();
   });
 
   it("rejects an unlinked anchor before starting", async () => {

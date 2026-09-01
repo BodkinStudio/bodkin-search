@@ -1,4 +1,4 @@
-/* eslint-disable max-lines -- the complete measurement lifecycle is easiest to audit as one mocked-service suite */
+/* eslint-disable max-lines, max-lines-per-function -- the complete measurement lifecycle is easiest to audit as one mocked-service suite */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sha256Hex } from "@/server/lib/audit/ids";
 import type { GrowthActionStatus } from "@/types/schemas/growth-actions";
@@ -615,6 +615,16 @@ async function recordPrimaryEvidence(graph: StoredGraph) {
   }
 }
 
+async function storedObservationsHash(graph: StoredGraph) {
+  return sha256Hex(
+    JSON.stringify(
+      graph.observations
+        .map(({ id, factHash }) => ({ id, factHash }))
+        .toSorted((left, right) => left.id.localeCompare(right.id)),
+    ),
+  );
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   settings.getSettings.mockResolvedValue({
@@ -1163,6 +1173,108 @@ describe("GrowthMeasurementsService finalize", () => {
 
     expect(result.result).toMatchObject({ outcome: "not_measurable" });
     expect(store.finalizeWrites[0]?.observations).toEqual([]);
+  });
+
+  it("rejects reviewed evidence that changed before the writer", async () => {
+    const store = installStore();
+    const graph = await startPlan(
+      store,
+      startInput({
+        longMeasurementEnd: null,
+        metrics: [
+          defaultMetric,
+          {
+            metricType: "search_impressions",
+            entityType: "url",
+            entityKey: defaultMetric.entityKey,
+            isPrimary: false,
+          },
+        ],
+      }),
+    );
+    await recordPrimaryEvidence(graph);
+    const reviewedHash = await storedObservationsHash(graph);
+    const secondary = findMetric(graph, "search_impressions");
+    await GrowthMeasurementsService.recordObservation(
+      observationInput(graph, secondary.id, "baseline", { value: 100 }),
+    );
+
+    await expect(
+      GrowthMeasurementsService.finalizeMeasurement(finalizeInput(graph), {
+        now: new Date("2026-10-02T12:00:00.000Z"),
+        expectedObservationsHash: reviewedHash,
+      }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(store.finalizeWrites).toHaveLength(0);
+  });
+
+  it("does not retry the human path when evidence changes during the writer", async () => {
+    const store = installStore();
+    const graph = await startPlan(
+      store,
+      startInput({
+        longMeasurementEnd: null,
+        metrics: [
+          defaultMetric,
+          {
+            metricType: "search_impressions",
+            entityType: "url",
+            entityKey: defaultMetric.entityKey,
+            isPrimary: false,
+          },
+        ],
+      }),
+    );
+    await recordPrimaryEvidence(graph);
+    const reviewedHash = await storedObservationsHash(graph);
+    const secondary = findMetric(graph, "search_impressions");
+    repository.finalizeMeasurementGraph.mockImplementation(
+      async (write: FinalizeMeasurementGraphInput) => {
+        store.finalizeWrites.push(write);
+        await store.insertObservation(
+          graph,
+          observationInput(graph, secondary.id, "baseline", { value: 100 }),
+          "concurrent_observation",
+        );
+        store.commitFinalization(write);
+      },
+    );
+
+    await expect(
+      GrowthMeasurementsService.finalizeMeasurement(finalizeInput(graph), {
+        now: new Date("2026-10-02T12:00:00.000Z"),
+        expectedObservationsHash: reviewedHash,
+      }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(store.finalizeWrites).toHaveLength(1);
+  });
+
+  it("accepts an exact concurrent human Result when reviewed evidence is unchanged", async () => {
+    const store = installStore();
+    const graph = await startPlan(store);
+    await recordPrimaryEvidence(graph);
+    const reviewedHash = await storedObservationsHash(graph);
+    repository.finalizeMeasurementGraph.mockImplementation(
+      async (write: FinalizeMeasurementGraphInput) => {
+        store.finalizeWrites.push(write);
+        store.commitFinalization({
+          ...write,
+          id: "concurrent_result",
+          eventId: "concurrent_event",
+        });
+      },
+    );
+
+    const result = await GrowthMeasurementsService.finalizeMeasurement(
+      finalizeInput(graph),
+      {
+        now: new Date("2026-11-02T12:00:00.000Z"),
+        expectedObservationsHash: reviewedHash,
+      },
+    );
+
+    expect(result.result?.id).toBe("concurrent_result");
+    expect(store.finalizeWrites).toHaveLength(1);
   });
 
   it("deduplicates and sorts same-project confounders and hides foreign references", async () => {

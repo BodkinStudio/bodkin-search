@@ -110,12 +110,55 @@ export function calendarDateInTimezone(timestamp: string, timezone: string) {
   return `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
 }
 
-function nextCalendarDate(value: string) {
+export function nextCalendarDate(value: string) {
   const date = new Date(`${value}T00:00:00.000Z`);
   if (Number.isNaN(date.valueOf()))
     conflict("Stored Measurement date is invalid");
   date.setUTCDate(date.getUTCDate() + 1);
   return date.toISOString().slice(0, 10);
+}
+
+type MissingPrimaryEvidenceCoordinate = {
+  metricId: string;
+  periodType: GrowthMeasurementPeriodType;
+};
+
+export function primaryEvidenceCoverage(graph: {
+  plan: Pick<MeasurementGraph["plan"], "longMeasurementEnd">;
+  metrics: Array<Pick<MeasurementGraph["metrics"][number], "id" | "isPrimary">>;
+  observations: Array<
+    Pick<
+      MeasurementGraph["observations"][number],
+      "metricId" | "periodType" | "completeness"
+    >
+  >;
+}) {
+  const present = new Set(
+    graph.observations
+      .filter(({ completeness }) => completeness === 1)
+      .map(({ metricId, periodType }) => `${metricId}:${periodType}`),
+  );
+  const periods: GrowthMeasurementPeriodType[] = ["baseline", "measurement"];
+  if (graph.plan.longMeasurementEnd) periods.push("long_term");
+  const missingCoordinates = graph.metrics
+    .filter(({ isPrimary }) => isPrimary)
+    .toSorted((left, right) => left.id.localeCompare(right.id))
+    .flatMap(({ id: metricId }) =>
+      periods.flatMap((periodType) =>
+        present.has(`${metricId}:${periodType}`)
+          ? []
+          : [
+              {
+                metricId,
+                periodType,
+              } satisfies MissingPrimaryEvidenceCoordinate,
+            ],
+      ),
+    );
+  return {
+    complete: missingCoordinates.length === 0,
+    missingCoordinates,
+  };
 }
 
 export function assertPlanWindows(fact: PlanFact) {
@@ -239,13 +282,21 @@ export function storedObservationFact(
   };
 }
 
-export function observationFacts(graph: MeasurementGraph) {
+export function observationFacts(graph: {
+  observations: Array<
+    Pick<MeasurementGraph["observations"][number], "id" | "factHash">
+  >;
+}) {
   return graph.observations
     .map(({ id, factHash }) => ({ id, factHash }))
     .toSorted((left, right) => left.id.localeCompare(right.id));
 }
 
-export async function observationsHash(graph: MeasurementGraph) {
+export async function observationsHash(graph: {
+  observations: Array<
+    Pick<MeasurementGraph["observations"][number], "id" | "factHash">
+  >;
+}) {
   return sha256Hex(JSON.stringify(observationFacts(graph)));
 }
 

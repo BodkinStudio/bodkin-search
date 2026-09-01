@@ -122,6 +122,13 @@ export const activeMeasurementPlan: GrowthWorkMeasurementPlan = {
     candidates: [],
     limit: 50,
   },
+  review: {
+    state: "waiting",
+    availableOn: "2026-10-31",
+    primaryEvidenceComplete: false,
+    missingPrimaryEvidenceCount: 2,
+    revision: null,
+  },
   dueDate: "2026-10-30",
   result: null,
 };

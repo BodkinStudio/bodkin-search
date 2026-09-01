@@ -20,6 +20,10 @@ import type {
 } from "@/types/schemas/growth-work";
 import { GrowthWorkMeasurementContent } from "./GrowthWorkMeasurementPresentation";
 import { GrowthWorkMeasurementCollection } from "./GrowthWorkMeasurementCollection";
+import {
+  GrowthWorkMeasurementFinalization,
+  useGrowthWorkMeasurementFinalizationRecovery,
+} from "./GrowthWorkMeasurementFinalization";
 
 type SubmittedMeasurement = {
   request: StartGrowthWorkMeasurementInput;
@@ -75,15 +79,25 @@ export function GrowthWorkMeasurementPanel({
 }) {
   const client = useQueryClient();
   const dispatching = useRef(false);
+  const operationRef = useRef<"collection" | "finalization" | null>(null);
   const [submitted, setSubmitted] = useState<SubmittedMeasurement | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
+  const [finalizationLocked, setFinalizationLocked] = useState(false);
   const queryKey = ["growthWorkMeasurement", projectId, action.id];
   const collecting = useIsMutating({
     mutationKey: ["growthWorkMeasurementCollect", projectId, action.id],
   });
+  const finalizing = useIsMutating({
+    mutationKey: ["growthWorkMeasurementFinalize", projectId, action.id],
+  });
+  const finalizationRecovery = useGrowthWorkMeasurementFinalizationRecovery(
+    projectId,
+    action.id,
+  );
+  const recoveredMeasurement = finalizationRecovery.data?.measurement;
   const workKey = ["growthWork", projectId];
   const historyKey = ["growthWorkHistory", projectId, action.id];
   const read = () =>
@@ -91,12 +105,21 @@ export function GrowthWorkMeasurementPanel({
   const query = useQuery({
     queryKey,
     queryFn: read,
+    enabled: !recoveredMeasurement,
+    gcTime: recoveredMeasurement ? Infinity : 5 * 60 * 1000,
     retry: false,
-    refetchOnWindowFocus: collecting === 0,
+    refetchOnMount: !recoveredMeasurement,
+    refetchOnReconnect: !recoveredMeasurement,
+    refetchOnWindowFocus:
+      collecting === 0 &&
+      finalizing === 0 &&
+      !finalizationLocked &&
+      !recoveredMeasurement,
   });
+  const presentedMeasurement = recoveredMeasurement ?? query.data;
   const applySavedState = (saved: GrowthWorkMeasurementOverview) => {
     client.setQueryData<GrowthWorkMeasurementOverview>(queryKey, (current) =>
-      current && current.stateVersion > saved.stateVersion ? current : saved,
+      current && current.stateVersion >= saved.stateVersion ? current : saved,
     );
     client.setQueryData<GrowthWorkOverview>(workKey, (current) =>
       current
@@ -199,6 +222,15 @@ export function GrowthWorkMeasurementPanel({
       dispatching.current = false;
     }
   };
+  const refreshDisabled =
+    query.isFetching ||
+    Boolean(submitted) ||
+    save.isPending ||
+    checking ||
+    collecting > 0 ||
+    finalizing > 0 ||
+    finalizationLocked ||
+    Boolean(finalizationRecovery.data);
 
   return (
     <div className="mt-3 max-w-2xl space-y-4 text-sm">
@@ -210,23 +242,19 @@ export function GrowthWorkMeasurementPanel({
       <button
         type="button"
         className="btn btn-ghost btn-sm"
-        disabled={
-          query.isFetching ||
-          Boolean(submitted) ||
-          save.isPending ||
-          checking ||
-          collecting > 0
-        }
-        onClick={() => void query.refetch()}
+        disabled={refreshDisabled}
+        onClick={() => {
+          if (!refreshDisabled) void query.refetch();
+        }}
       >
         {query.isFetching ? "Refreshing measurement…" : "Refresh measurement"}
       </button>
-      {query.isPending ? (
+      {query.isPending && !presentedMeasurement ? (
         <p role="status" aria-busy="true">
           Loading measurement…
         </p>
       ) : null}
-      {query.isError ? (
+      {query.isError && !presentedMeasurement ? (
         <p role="alert">
           Measurement could not be refreshed. Use Refresh measurement to try
           again.
@@ -277,22 +305,44 @@ export function GrowthWorkMeasurementPanel({
           still locked; try Check saved measurement again.
         </p>
       ) : null}
-      {query.data ? (
+      {presentedMeasurement ? (
         <GrowthWorkMeasurementContent
           key={formVersion}
-          data={query.data}
+          data={presentedMeasurement}
           frozenCandidate={submitted?.candidate}
           selectedId={submitted?.request.implementationChangeEventId}
-          disabled={Boolean(submitted) || save.isPending || checking}
+          disabled={
+            Boolean(submitted) ||
+            save.isPending ||
+            checking ||
+            finalizationLocked ||
+            Boolean(recoveredMeasurement)
+          }
           pending={save.isPending}
           onSubmit={submit}
           collectionControl={
-            query.data.plan ? (
+            presentedMeasurement.plan ? (
               <GrowthWorkMeasurementCollection
                 projectId={projectId}
                 actionId={action.id}
-                stateVersion={query.data.stateVersion}
-                collection={query.data.plan.collection}
+                stateVersion={presentedMeasurement.stateVersion}
+                collection={presentedMeasurement.plan.collection}
+                disabled={
+                  finalizationLocked ||
+                  finalizing > 0 ||
+                  Boolean(finalizationRecovery.data)
+                }
+                operationRef={operationRef}
+              />
+            ) : null
+          }
+          finalizationControl={
+            presentedMeasurement.plan ? (
+              <GrowthWorkMeasurementFinalization
+                projectId={projectId}
+                measurement={presentedMeasurement}
+                onLockChange={setFinalizationLocked}
+                operationRef={operationRef}
               />
             ) : null
           }

@@ -28,6 +28,7 @@ const measurementService = vi.hoisted(() => ({
   getGrowthWorkMeasurement: vi.fn(),
   startGrowthWorkMeasurement: vi.fn(),
   collectGrowthWorkMeasurement: vi.fn(),
+  finalizeGrowthWorkMeasurement: vi.fn(),
 }));
 
 vi.mock("@tanstack/react-start", () => ({
@@ -78,6 +79,7 @@ import {
   getGrowthWorkHistory,
   getGrowthWorkMeasurement,
   collectGrowthWorkMeasurement,
+  finalizeGrowthWorkMeasurement,
   linkGrowthWorkChange,
   startGrowthWorkMeasurement,
   updateGrowthWorkStatus,
@@ -96,6 +98,7 @@ describe("Growth Work server functions", () => {
     expect(getGrowthWorkMeasurement).toBeTypeOf("function");
     expect(startGrowthWorkMeasurement).toBeTypeOf("function");
     expect(collectGrowthWorkMeasurement).toBeTypeOf("function");
+    expect(finalizeGrowthWorkMeasurement).toBeTypeOf("function");
     const context = {
       projectId: "project_authorized",
       userId: "user_authorized",
@@ -147,6 +150,24 @@ describe("Growth Work server functions", () => {
       },
       context,
     });
+    await registration.handlers[7]({
+      data: {
+        projectId: "project_forged",
+        actionId: "action_1",
+        expectedActionVersion: 5,
+        reviewRevision: "a".repeat(64),
+        outcome: "positive",
+        confidence: 0.79,
+        summary: "Clicks increased after the recorded change.",
+        confoundingChangeEventIds: ["change_context"],
+        measurementPlanId: "plan_forged",
+        actorId: "user_forged",
+        note: "Forged provenance",
+        expectedObservationsHash: "b".repeat(64),
+        evaluatedAt: "2026-11-03T12:00:00.000Z",
+      },
+      context,
+    });
     expect(service.updateWorkStatus).toHaveBeenCalledWith({
       projectId: "project_authorized",
       actionId: "action_1",
@@ -185,6 +206,19 @@ describe("Growth Work server functions", () => {
       projectId: "project_authorized",
       actionId: "action_1",
       expectedActionVersion: 5,
+    });
+    expect(
+      measurementService.finalizeGrowthWorkMeasurement,
+    ).toHaveBeenCalledWith({
+      projectId: "project_authorized",
+      actionId: "action_1",
+      expectedActionVersion: 5,
+      reviewRevision: "a".repeat(64),
+      outcome: "positive",
+      confidence: 0.79,
+      summary: "Clicks increased after the recorded change.",
+      confoundingChangeEventIds: ["change_context"],
+      actorId: "user_authorized",
     });
   });
 
@@ -246,6 +280,38 @@ describe("Growth Work server functions", () => {
     );
     expect(
       measurementService.collectGrowthWorkMeasurement,
+    ).not.toHaveBeenCalled();
+
+    for (const extra of [
+      { measurementPlanId: "plan_forged" },
+      { actorId: "user_forged" },
+      { actorType: "system" },
+      { note: "Forged provenance" },
+      { model: "forged-model" },
+      { promptVersion: "forged-prompt" },
+      { expectedObservationsHash: "b".repeat(64) },
+      { observations: [] },
+      { evaluatedAt: "2026-11-03T12:00:00.000Z" },
+    ]) {
+      await expect(
+        registration.callers[7]({
+          data: {
+            projectId: "project_forged",
+            actionId: "action_1",
+            expectedActionVersion: 5,
+            reviewRevision: "a".repeat(64),
+            outcome: "positive",
+            confidence: 0.79,
+            summary: "Clicks increased after the recorded change.",
+            confoundingChangeEventIds: [],
+            ...extra,
+          },
+          context,
+        }),
+      ).rejects.toThrow();
+    }
+    expect(
+      measurementService.finalizeGrowthWorkMeasurement,
     ).not.toHaveBeenCalled();
   });
 });

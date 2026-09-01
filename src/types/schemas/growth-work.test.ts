@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  finalizeGrowthWorkMeasurementSchema,
   getGrowthWorkChangesSchema,
   getGrowthWorkHistorySchema,
   getGrowthWorkMeasurementSchema,
@@ -24,6 +25,73 @@ describe("Growth Work schemas", () => {
     expect(updateGrowthWorkStatusSchema.parse(input)).not.toHaveProperty(
       "note",
     );
+  });
+
+  it("normalizes the strict human Measurement finalization request", () => {
+    expect(
+      finalizeGrowthWorkMeasurementSchema.parse({
+        projectId: " project_1 ",
+        actionId: " action_1 ",
+        expectedActionVersion: 5,
+        reviewRevision: "a".repeat(64),
+        outcome: "positive",
+        confidence: 0.79,
+        summary: "  Search clicks increased after the change.  ",
+        confoundingChangeEventIds: [" change_z ", "change_a", "change_z"],
+      }),
+    ).toEqual({
+      projectId: "project_1",
+      actionId: "action_1",
+      expectedActionVersion: 5,
+      reviewRevision: "a".repeat(64),
+      outcome: "positive",
+      confidence: 0.79,
+      summary: "Search clicks increased after the change.",
+      confoundingChangeEventIds: ["change_a", "change_z"],
+    });
+  });
+
+  it("rejects malformed or browser-supplied Measurement finalization authority", () => {
+    const valid = {
+      projectId: "project_1",
+      actionId: "action_1",
+      expectedActionVersion: 5,
+      reviewRevision: "a".repeat(64),
+      outcome: "not_measurable" as const,
+      confidence: 0,
+      summary: "Primary evidence was incomplete.",
+      confoundingChangeEventIds: [],
+    };
+    for (const changed of [
+      { reviewRevision: "A".repeat(64) },
+      { reviewRevision: "a".repeat(63) },
+      { reviewRevision: `${"a".repeat(63)}g` },
+      { confidence: Number.NaN },
+      { confidence: -0.01 },
+      { confidence: 1.01 },
+      { expectedActionVersion: 0 },
+      { summary: "   " },
+      { summary: "x".repeat(5001) },
+      {
+        confoundingChangeEventIds: Array.from(
+          { length: 51 },
+          (_, index) => `change_${index}`,
+        ),
+      },
+      { measurementPlanId: "plan_forged" },
+      { actorId: "user_forged" },
+      { actorType: "system" },
+      { note: "Forged provenance" },
+      { model: "forged-model" },
+      { promptVersion: "forged-prompt" },
+      { expectedObservationsHash: "b".repeat(64) },
+      { observations: [] },
+      { evaluatedAt: "2026-11-03T12:00:00.000Z" },
+    ]) {
+      expect(() =>
+        finalizeGrowthWorkMeasurementSchema.parse({ ...valid, ...changed }),
+      ).toThrow();
+    }
   });
 
   it.each([
