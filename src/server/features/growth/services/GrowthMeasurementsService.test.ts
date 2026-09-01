@@ -28,6 +28,7 @@ const repository = vi.hoisted(() => ({
   listChangeEventsByIds: vi.fn(),
   startMeasurementGraph: vi.fn(),
   recordMeasurementObservation: vi.fn(),
+  recordMeasurementObservations: vi.fn(),
   finalizeMeasurementGraph: vi.fn(),
 }));
 
@@ -539,6 +540,38 @@ function installStore() {
       graph.observations.push({ ...write, createdAt });
     },
   );
+  repository.recordMeasurementObservations.mockImplementation(
+    async ({
+      observations,
+    }: {
+      observations: RecordMeasurementObservationInput[];
+    }) => {
+      const graph = observations[0]
+        ? getGraph(observations[0].projectId, observations[0].measurementPlanId)
+        : null;
+      if (
+        !graph ||
+        graph.plan.status !== "active" ||
+        observations.some(
+          (write) =>
+            write.projectId !== graph.plan.projectId ||
+            write.measurementPlanId !== graph.plan.id ||
+            !graph.metrics.some(({ id }) => id === write.metricId) ||
+            graph.observations.some(
+              (row) =>
+                row.metricId === write.metricId &&
+                row.periodType === write.periodType,
+            ),
+        )
+      ) {
+        return;
+      }
+      observationWrites.push(...observations);
+      graph.observations.push(
+        ...observations.map((write) => ({ ...write, createdAt })),
+      );
+    },
+  );
   repository.finalizeMeasurementGraph.mockImplementation(
     async (write: FinalizeMeasurementGraphInput) => {
       finalizeWrites.push(write);
@@ -915,6 +948,46 @@ describe("GrowthMeasurementsService observations", () => {
     expect(store.observationWrites).toHaveLength(0);
   });
 
+  it("validates an observation batch before its single atomic write and accepts exact retries", async () => {
+    const store = installStore();
+    const graph = await startPlan(store);
+    const metric = graph.metrics[0];
+    if (!metric) throw new Error("Expected primary Metric");
+    const baseline = observationInput(graph, metric.id, "baseline");
+    const measurement = observationInput(graph, metric.id, "measurement");
+
+    await expect(
+      GrowthMeasurementsService.recordObservations([
+        baseline,
+        { ...measurement, effectiveEnd: "2026-09-29" },
+      ]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(store.observationWrites).toHaveLength(0);
+
+    const winners = await GrowthMeasurementsService.recordObservations([
+      baseline,
+      measurement,
+    ]);
+    expect(winners).toHaveLength(2);
+    expect(store.observationWrites).toHaveLength(2);
+    expect(repository.recordMeasurementObservations).toHaveBeenCalledTimes(1);
+    expect(store.observationWrites.map(({ periodType }) => periodType)).toEqual(
+      ["baseline", "measurement"],
+    );
+
+    await GrowthMeasurementsService.recordObservations([
+      { ...baseline, capturedAt: "2026-11-01T11:30:00.000Z" },
+      { ...measurement, capturedAt: "2026-11-01T11:30:00.000Z" },
+    ]);
+    expect(store.observationWrites).toHaveLength(2);
+    await expect(
+      GrowthMeasurementsService.recordObservations([
+        baseline,
+        { ...measurement, value: 11 },
+      ]),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+  });
+
   it("enforces count, ratio, and average-position scalar rules and normalizes negative zero", async () => {
     const store = installStore();
     const graph = await startPlan(
@@ -1057,6 +1130,23 @@ describe("GrowthMeasurementsService finalize", () => {
         now: new Date("2026-11-02T12:00:00.000Z"),
       }),
     ).resolves.toMatchObject({ plan: { status: "completed" } });
+  });
+
+  it("requires complete primary evidence outside the not_measurable escape hatch", async () => {
+    const store = installStore();
+    const graph = await startPlan(store);
+    const metric = graph.metrics[0];
+    if (!metric) throw new Error("Expected primary Metric");
+    await GrowthMeasurementsService.recordObservations(
+      (["baseline", "measurement", "long_term"] as const).map((periodType) =>
+        observationInput(graph, metric.id, periodType, { completeness: 0.5 }),
+      ),
+    );
+    await expect(
+      GrowthMeasurementsService.finalizeMeasurement(finalizeInput(graph), {
+        now: new Date("2026-11-02T12:00:00.000Z"),
+      }),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
   });
 
   it("allows not_measurable to close an incomplete Plan", async () => {

@@ -1,4 +1,4 @@
-import { and, eq, exists, sql } from "drizzle-orm";
+import { and, eq, exists, ne, sql } from "drizzle-orm";
 import { getDatabaseProvider } from "@/db/provider";
 import { runBatch } from "@/db/runBatch";
 import {
@@ -19,10 +19,9 @@ import {
 import type {
   MeasurementComparisonMode,
   MeasurementEntityType,
-  MeasurementEvidenceKind,
   MeasurementMetricType,
-  MeasurementPeriodType,
   RecordMeasurementObservationInput,
+  RecordMeasurementObservationsInput,
   StartMeasurementGraphInput,
 } from "./GrowthMeasurementsWriterTypes";
 
@@ -253,80 +252,155 @@ export async function startMeasurementGraph(input: StartMeasurementGraphInput) {
 export async function recordMeasurementObservation(
   input: RecordMeasurementObservationInput,
 ) {
+  await recordMeasurementObservations({ observations: [input] });
+}
+
+export async function recordMeasurementObservations(
+  input: RecordMeasurementObservationsInput,
+) {
+  if (input.observations.length === 0) return;
   const createdAt = new Date().toISOString();
   await runBatch((tx) => {
-    const periodStart =
-      input.periodType === "baseline"
-        ? sql<string>`${growthMeasurementPlans.baselineStart}`
-        : input.periodType === "measurement"
-          ? sql<string>`${growthMeasurementPlans.measurementStart}`
-          : getDatabaseProvider() === "postgres"
-            ? sql<string>`to_char(to_date(${growthMeasurementPlans.measurementEnd}, 'YYYY-MM-DD') + 1, 'YYYY-MM-DD')`
-            : sql<string>`date(${growthMeasurementPlans.measurementEnd}, '+1 day')`;
-    const periodEnd =
-      input.periodType === "baseline"
-        ? sql<string>`${growthMeasurementPlans.baselineEnd}`
-        : input.periodType === "measurement"
-          ? sql<string>`${growthMeasurementPlans.measurementEnd}`
-          : sql<string>`${growthMeasurementPlans.longMeasurementEnd}`;
-    const source = tx
-      .select({
-        id: sql<string>`${input.id}`.as("id"),
-        projectId: growthMeasurementMetrics.projectId,
-        measurementPlanId: growthMeasurementMetrics.measurementPlanId,
-        metricId: growthMeasurementMetrics.id,
-        periodType: sql<MeasurementPeriodType>`${input.periodType}`.as(
-          "period_type",
-        ),
-        factHash: sql<string>`${input.factHash}`.as("fact_hash"),
-        effectiveStart: sql<string>`${input.effectiveStart}`.as(
-          "effective_start",
-        ),
-        effectiveEnd: sql<string>`${input.effectiveEnd}`.as("effective_end"),
-        value: sql<number>`${input.value}`.as("value"),
-        completeness: sql<number>`${input.completeness}`.as("completeness"),
-        evidenceKind: sql<MeasurementEvidenceKind>`${input.evidenceKind}`.as(
-          "evidence_kind",
-        ),
-        evidenceRef: sql<string>`${input.evidenceRef}`.as("evidence_ref"),
-        capturedAt: sql<string>`${input.capturedAt}`.as("captured_at"),
-        createdAt: sql<string>`${createdAt}`.as("created_at"),
-      })
-      .from(growthMeasurementMetrics)
-      .innerJoin(
-        growthMeasurementPlans,
-        and(
-          eq(
-            growthMeasurementPlans.projectId,
-            growthMeasurementMetrics.projectId,
-          ),
-          eq(
-            growthMeasurementPlans.id,
-            growthMeasurementMetrics.measurementPlanId,
-          ),
-        ),
-      )
+    const [first] = input.observations;
+    if (!first) return [];
+    // The no-op update is a deliberate per-plan serialization point. On
+    // Postgres it holds an UPDATE lock for the complete transaction; on D1 it
+    // is the first ordered statement in the atomic batch.
+    const lockPlan = tx
+      .update(growthMeasurementPlans)
+      .set({ status: sql`${growthMeasurementPlans.status}` })
       .where(
         and(
-          eq(growthMeasurementPlans.projectId, input.projectId),
-          eq(growthMeasurementPlans.id, input.measurementPlanId),
+          eq(growthMeasurementPlans.projectId, first.projectId),
+          eq(growthMeasurementPlans.id, first.measurementPlanId),
           eq(growthMeasurementPlans.status, "active"),
-          eq(growthMeasurementMetrics.id, input.metricId),
-          eq(periodStart, input.effectiveStart),
-          eq(periodEnd, input.effectiveEnd),
         ),
       );
-    const observation = tx
-      .insert(growthMeasurementObservations)
-      .select(lockForPostgres(source, "share"))
-      .onConflictDoNothing({
-        target: [
-          growthMeasurementObservations.projectId,
-          growthMeasurementObservations.measurementPlanId,
-          growthMeasurementObservations.metricId,
-          growthMeasurementObservations.periodType,
-        ],
-      });
-    return [observation];
+    const payload = JSON.stringify(input.observations);
+    const expected =
+      getDatabaseProvider() === "postgres"
+        ? sql`jsonb_array_elements(${payload}::jsonb) AS expected(value)`
+        : sql`json_each(${payload}) AS expected`;
+    const field = (name: string) =>
+      getDatabaseProvider() === "postgres"
+        ? sql<string>`expected.value->>${name}`
+        : sql<string>`json_extract(expected.value, ${`$.${name}`})`;
+    const numberField = (name: string) =>
+      getDatabaseProvider() === "postgres"
+        ? sql<number>`(${field(name)})::double precision`
+        : sql<number>`json_extract(expected.value, ${`$.${name}`})`;
+    const conflictGuard =
+      // If a coordinate exists with a different fact hash, selecting that row
+      // back into its own primary key deliberately fails before any insert.
+      // This turns the provider attempt into one all-or-nothing batch on both
+      // dialects. Exact existing facts select no rows and remain idempotent.
+      tx.insert(growthMeasurementObservations).select(
+        tx
+          .select({
+            id: growthMeasurementObservations.id,
+            projectId: growthMeasurementObservations.projectId,
+            measurementPlanId: growthMeasurementObservations.measurementPlanId,
+            metricId: growthMeasurementObservations.metricId,
+            periodType: growthMeasurementObservations.periodType,
+            factHash: growthMeasurementObservations.factHash,
+            effectiveStart: growthMeasurementObservations.effectiveStart,
+            effectiveEnd: growthMeasurementObservations.effectiveEnd,
+            value: growthMeasurementObservations.value,
+            completeness: growthMeasurementObservations.completeness,
+            evidenceKind: growthMeasurementObservations.evidenceKind,
+            evidenceRef: growthMeasurementObservations.evidenceRef,
+            capturedAt: growthMeasurementObservations.capturedAt,
+            createdAt: growthMeasurementObservations.createdAt,
+          })
+          .from(growthMeasurementObservations)
+          .innerJoin(expected, sql`true`)
+          .where(
+            and(
+              eq(growthMeasurementObservations.projectId, field("projectId")),
+              eq(
+                growthMeasurementObservations.measurementPlanId,
+                field("measurementPlanId"),
+              ),
+              eq(growthMeasurementObservations.metricId, field("metricId")),
+              eq(growthMeasurementObservations.periodType, field("periodType")),
+              ne(growthMeasurementObservations.factHash, field("factHash")),
+            ),
+          ),
+      );
+    const insert = (() => {
+      const source = tx
+        .select({
+          id: field("id").as("id"),
+          projectId: field("projectId").as("project_id"),
+          measurementPlanId: field("measurementPlanId").as(
+            "measurement_plan_id",
+          ),
+          metricId: field("metricId").as("metric_id"),
+          periodType: field("periodType").as("period_type"),
+          factHash: field("factHash").as("fact_hash"),
+          effectiveStart: field("effectiveStart").as("effective_start"),
+          effectiveEnd: field("effectiveEnd").as("effective_end"),
+          value: numberField("value").as("value"),
+          completeness: numberField("completeness").as("completeness"),
+          evidenceKind: field("evidenceKind").as("evidence_kind"),
+          evidenceRef: field("evidenceRef").as("evidence_ref"),
+          capturedAt: field("capturedAt").as("captured_at"),
+          createdAt: sql<string>`${createdAt}`.as("created_at"),
+        })
+        .from(expected)
+        .innerJoin(
+          growthMeasurementMetrics,
+          and(
+            eq(growthMeasurementMetrics.projectId, field("projectId")),
+            eq(
+              growthMeasurementMetrics.measurementPlanId,
+              field("measurementPlanId"),
+            ),
+            eq(growthMeasurementMetrics.id, field("metricId")),
+          ),
+        )
+        .innerJoin(
+          growthMeasurementPlans,
+          and(
+            eq(
+              growthMeasurementPlans.projectId,
+              growthMeasurementMetrics.projectId,
+            ),
+            eq(
+              growthMeasurementPlans.id,
+              growthMeasurementMetrics.measurementPlanId,
+            ),
+          ),
+        )
+        .where(
+          and(
+            eq(growthMeasurementPlans.projectId, field("projectId")),
+            eq(growthMeasurementPlans.id, field("measurementPlanId")),
+            eq(growthMeasurementPlans.status, "active"),
+            sql`CASE ${field("periodType")}
+              WHEN 'baseline' THEN ${growthMeasurementPlans.baselineStart}
+              WHEN 'measurement' THEN ${growthMeasurementPlans.measurementStart}
+              ELSE ${getDatabaseProvider() === "postgres" ? sql`to_char(to_date(${growthMeasurementPlans.measurementEnd}, 'YYYY-MM-DD') + 1, 'YYYY-MM-DD')` : sql`date(${growthMeasurementPlans.measurementEnd}, '+1 day')`}
+            END = ${field("effectiveStart")}`,
+            sql`CASE ${field("periodType")}
+              WHEN 'baseline' THEN ${growthMeasurementPlans.baselineEnd}
+              WHEN 'measurement' THEN ${growthMeasurementPlans.measurementEnd}
+              ELSE ${growthMeasurementPlans.longMeasurementEnd}
+            END = ${field("effectiveEnd")}`,
+          ),
+        );
+      return tx
+        .insert(growthMeasurementObservations)
+        .select(lockForPostgres(source, "share"))
+        .onConflictDoNothing({
+          target: [
+            growthMeasurementObservations.projectId,
+            growthMeasurementObservations.measurementPlanId,
+            growthMeasurementObservations.metricId,
+            growthMeasurementObservations.periodType,
+          ],
+        });
+    })();
+    return [lockPlan, conflictGuard, insert];
   });
 }

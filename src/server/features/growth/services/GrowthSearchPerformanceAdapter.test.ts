@@ -15,7 +15,10 @@ vi.mock(
   }),
 );
 
-import { collectGrowthSearchPerformance } from "./GrowthSearchPerformanceAdapter";
+import {
+  collectFrozenGrowthSearchPerformance,
+  collectGrowthSearchPerformance,
+} from "./GrowthSearchPerformanceAdapter";
 
 type Request = {
   startDate: string;
@@ -113,5 +116,136 @@ describe("collectGrowthSearchPerformance", () => {
     await expect(collectGrowthSearchPerformance(input)).rejects.toThrow(
       "outside the collection window",
     );
+  });
+});
+
+describe("collectFrozenGrowthSearchPerformance", () => {
+  beforeEach(() => {
+    mocks.getPerformance.mockReset();
+    mocks.listKeyPages.mockReset();
+  });
+
+  it("uses exact frozen URL identity without reading mutable key pages", async () => {
+    mocks.getPerformance
+      .mockImplementationOnce((request: Request) =>
+        response(request)([
+          {
+            keys: ["https://example.test/pricing/", "2026-05-01"],
+            clicks: 4,
+            impressions: 8,
+          },
+          {
+            keys: ["https://example.test/pricing", "2026-05-01"],
+            clicks: 3,
+            impressions: 6,
+          },
+        ]),
+      )
+      .mockImplementationOnce((request: Request) => response(request)([]));
+
+    const snapshot = await collectFrozenGrowthSearchPerformance({
+      ...input,
+      targetUrls: ["https://example.test/pricing"],
+    });
+
+    expect(snapshot.observations).toEqual([
+      {
+        rawUrl: "https://example.test/pricing",
+        date: "2026-05-01",
+        clicks: 3,
+        impressions: 6,
+      },
+    ]);
+    expect(snapshot.requestsUsed).toBe(2);
+    expect(mocks.listKeyPages).not.toHaveBeenCalled();
+  });
+
+  it("collects a frozen window longer than 90 days through bounded requests", async () => {
+    const windows: Array<{ startDate: string; endDate: string }> = [];
+    mocks.getPerformance.mockImplementation((request: Request) => {
+      windows.push({
+        startDate: request.startDate,
+        endDate: request.endDate,
+      });
+      return response(request)([]);
+    });
+
+    await expect(
+      collectFrozenGrowthSearchPerformance({
+        ...input,
+        startDate: "2026-01-01",
+        endDate: "2026-04-01",
+        capturedAt: "2026-04-04T12:00:00.000Z",
+        targetUrls: ["https://example.test/pricing"],
+      }),
+    ).resolves.toMatchObject({
+      retrievalStatus: "exhausted",
+      requestsUsed: 2,
+      sourceWindow: { startDate: "2026-01-01", endDate: "2026-04-01" },
+    });
+    expect(windows).toEqual([
+      { startDate: "2026-01-01", endDate: "2026-03-31" },
+      { startDate: "2026-04-01", endDate: "2026-04-01" },
+    ]);
+  });
+
+  it("rejects a property change between frozen request windows", async () => {
+    mocks.getPerformance
+      .mockImplementationOnce((request: Request) => response(request)([]))
+      .mockImplementationOnce((request: Request) => ({
+        ...response(request)([]),
+        siteUrl: "sc-domain:other.test",
+      }));
+
+    await expect(
+      collectFrozenGrowthSearchPerformance({
+        ...input,
+        startDate: "2026-01-01",
+        endDate: "2026-04-01",
+        capturedAt: "2026-04-04T12:00:00.000Z",
+        targetUrls: ["https://example.test/pricing"],
+      }),
+    ).rejects.toThrow("property changed during collection");
+  });
+
+  it("shares one page-request cap across frozen request windows", async () => {
+    mocks.getPerformance.mockImplementation((request: Request) =>
+      response(request)([]),
+    );
+
+    await expect(
+      collectFrozenGrowthSearchPerformance({
+        ...input,
+        startDate: "2026-01-01",
+        endDate: "2026-04-01",
+        capturedAt: "2026-04-04T12:00:00.000Z",
+        maxPageRequests: 1,
+        targetUrls: ["https://example.test/pricing"],
+      }),
+    ).resolves.toMatchObject({ retrievalStatus: "capped", requestsUsed: 1 });
+    expect(mocks.getPerformance).toHaveBeenCalledOnce();
+  });
+
+  it("rejects frozen request drift and preserves provider failures", async () => {
+    mocks.getPerformance.mockImplementationOnce((request: Request) => ({
+      ...response(request)([]),
+      request: { ...request, dimensions: ["date", "page"] },
+    }));
+    await expect(
+      collectFrozenGrowthSearchPerformance({
+        ...input,
+        targetUrls: ["https://example.test/pricing"],
+      }),
+    ).rejects.toThrow("differs from collection");
+
+    mocks.getPerformance.mockReset();
+    const providerError = new Error("Google grant revoked");
+    mocks.getPerformance.mockRejectedValueOnce(providerError);
+    await expect(
+      collectFrozenGrowthSearchPerformance({
+        ...input,
+        targetUrls: ["https://example.test/pricing"],
+      }),
+    ).rejects.toBe(providerError);
   });
 });

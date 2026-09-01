@@ -27,6 +27,7 @@ const changesService = vi.hoisted(() => ({
 const measurementService = vi.hoisted(() => ({
   getGrowthWorkMeasurement: vi.fn(),
   startGrowthWorkMeasurement: vi.fn(),
+  collectGrowthWorkMeasurement: vi.fn(),
 }));
 
 vi.mock("@tanstack/react-start", () => ({
@@ -76,6 +77,7 @@ import {
   getGrowthWorkChanges,
   getGrowthWorkHistory,
   getGrowthWorkMeasurement,
+  collectGrowthWorkMeasurement,
   linkGrowthWorkChange,
   startGrowthWorkMeasurement,
   updateGrowthWorkStatus,
@@ -93,6 +95,7 @@ describe("Growth Work server functions", () => {
     expect(linkGrowthWorkChange).toBeTypeOf("function");
     expect(getGrowthWorkMeasurement).toBeTypeOf("function");
     expect(startGrowthWorkMeasurement).toBeTypeOf("function");
+    expect(collectGrowthWorkMeasurement).toBeTypeOf("function");
     const context = {
       projectId: "project_authorized",
       userId: "user_authorized",
@@ -136,6 +139,14 @@ describe("Growth Work server functions", () => {
       },
       context,
     });
+    await registration.handlers[6]({
+      data: {
+        projectId: "project_forged",
+        actionId: "action_1",
+        expectedActionVersion: 5,
+      },
+      context,
+    });
     expect(service.updateWorkStatus).toHaveBeenCalledWith({
       projectId: "project_authorized",
       actionId: "action_1",
@@ -167,6 +178,13 @@ describe("Growth Work server functions", () => {
       expectedActionVersion: 4,
       implementationChangeEventId: "change_1",
       actorId: "user_authorized",
+    });
+    expect(
+      measurementService.collectGrowthWorkMeasurement,
+    ).toHaveBeenCalledWith({
+      projectId: "project_authorized",
+      actionId: "action_1",
+      expectedActionVersion: 5,
     });
   });
 
@@ -204,9 +222,30 @@ describe("Growth Work server functions", () => {
         }),
       ).rejects.toThrow();
     }
+    for (const extra of [
+      { actorId: "user_forged" },
+      { measurementPlanId: "plan_forged" },
+      { startDate: "2026-01-01", endDate: "2026-01-31" },
+      { metricIds: ["metric_forged"] },
+    ]) {
+      await expect(
+        registration.callers[6]({
+          data: {
+            projectId: "project_forged",
+            actionId: "action_1",
+            expectedActionVersion: 5,
+            ...extra,
+          },
+          context,
+        }),
+      ).rejects.toThrow();
+    }
     expect(measurementService.getGrowthWorkMeasurement).not.toHaveBeenCalled();
     expect(measurementService.startGrowthWorkMeasurement).toHaveBeenCalledTimes(
       0,
     );
+    expect(
+      measurementService.collectGrowthWorkMeasurement,
+    ).not.toHaveBeenCalled();
   });
 });

@@ -2,18 +2,19 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
-import type { GrowthWorkItem } from "@/types/schemas/growth-investigations";
-import type {
-  GrowthWorkMeasurementCandidate,
-  GrowthWorkMeasurementOverview,
-  GrowthWorkMeasurementPlan,
-} from "@/types/schemas/growth-work";
+import type { GrowthWorkMeasurementOverview } from "@/types/schemas/growth-work";
 import {
   GrowthWorkMeasurement,
   GrowthWorkMeasurementPanel,
 } from "./GrowthWorkMeasurement";
 import { GrowthWorkMeasurementForm } from "./GrowthWorkMeasurementForm";
 import { GrowthWorkMeasurementContent } from "./GrowthWorkMeasurementPresentation";
+import {
+  activeMeasurementPlan as activePlan,
+  measurementAction as action,
+  measurementCandidate as candidate,
+  measurementOverview as overview,
+} from "./GrowthWorkMeasurement.testFixtures";
 
 vi.mock("@/serverFunctions/growthInvestigations", () => ({
   getGrowthWork: vi.fn(),
@@ -21,72 +22,8 @@ vi.mock("@/serverFunctions/growthInvestigations", () => ({
 vi.mock("@/serverFunctions/growthWork", () => ({
   getGrowthWorkMeasurement: vi.fn(),
   startGrowthWorkMeasurement: vi.fn(),
+  collectGrowthWorkMeasurement: vi.fn(),
 }));
-
-const action: GrowthWorkItem = {
-  id: "action_1",
-  title: "Investigate pricing-page clicks",
-  status: "implemented",
-  stateVersion: 2,
-  dueOn: "2026-09-04",
-  createdAt: "2026-08-30T10:00:00.000Z",
-  runId: "run_1",
-  displayUrls: ["https://example.com/pricing"],
-};
-const candidate: GrowthWorkMeasurementCandidate = {
-  change: {
-    id: "change_1",
-    changeType: "content_updated",
-    description: "Updated pricing copy.",
-    happenedAt: "2026-08-01T00:00:00.000Z",
-    recordedAt: "2026-08-02T00:00:00.000Z",
-    displayUrls: ["https://example.com/pricing"],
-  },
-  schedule: {
-    anchorAt: "2026-08-01T00:00:00.000Z",
-    anchorDate: "2026-08-01",
-    reportTimezone: "Europe/London",
-    baselineStart: "2026-07-04",
-    baselineEnd: "2026-07-31",
-    cooldownEnd: "2026-08-08",
-    measurementStart: "2026-08-09",
-    measurementEnd: "2026-09-05",
-    longMeasurementEnd: "2026-10-30",
-  },
-  unavailableReason: null,
-};
-const overview: GrowthWorkMeasurementOverview = {
-  actionId: action.id,
-  actionStatus: "implemented",
-  stateVersion: action.stateVersion,
-  state: "eligible",
-  targetCount: 1,
-  candidates: [candidate],
-  proposedMetrics: [
-    {
-      metricType: "search_clicks",
-      displayTarget: "https://example.com/pricing",
-      isPrimary: true,
-    },
-    {
-      metricType: "search_impressions",
-      displayTarget: "https://example.com/pricing",
-      isPrimary: false,
-    },
-  ],
-  plan: null,
-  limit: 50,
-};
-const activePlan: GrowthWorkMeasurementPlan = {
-  id: "plan_1",
-  status: "active",
-  actionVersion: 3,
-  implementationChange: candidate.change,
-  schedule: candidate.schedule!,
-  metrics: overview.proposedMetrics,
-  dueDate: "2026-10-30",
-  result: null,
-};
 
 function client() {
   return new QueryClient({
@@ -294,11 +231,93 @@ describe("Work measurement rendered contract", () => {
     expect(html).toContain("Measurement anchor");
     expect(html).toContain("does not show that the change caused");
     expect(html).toContain(
-      "Google data collection and result calculation are later steps",
+      "Search Console is read only when you choose to collect",
     );
     expect(html).toContain("Review due");
     expect(html).toContain("30 Oct 2026");
+    expect(html).toContain("Google available");
+    expect(html).toContain("Waiting for Google data");
+    expect(html).toContain("3 Aug 2026");
     expect(html).not.toContain("Choose a linked change");
+  });
+
+  it("renders accessible collection and observed-comparison tables without fabricating missing values", () => {
+    const html = renderToStaticMarkup(
+      createElement(GrowthWorkMeasurementContent, {
+        data: {
+          ...overview,
+          actionStatus: "measuring",
+          stateVersion: 3,
+          state: "active",
+          candidates: [],
+          proposedMetrics: [],
+          plan: {
+            ...activePlan,
+            collection: {
+              ...activePlan.collection,
+              state: "ready",
+              canCollect: true,
+              periods: activePlan.collection.periods.map((period, index) => ({
+                ...period,
+                status: index < 2 ? ("collected" as const) : ("ready" as const),
+                collectedMetricCount: index < 2 ? 2 : 0,
+              })),
+            },
+            metrics: activePlan.metrics.map((metric, index) => ({
+              ...metric,
+              observations: [
+                {
+                  periodType: "baseline" as const,
+                  value: index === 0 ? 0 : 100,
+                  completeness: 1,
+                  capturedAt: "2026-08-03T07:00:00.000Z",
+                },
+                {
+                  periodType: "measurement" as const,
+                  value: index === 0 ? 5 : 120,
+                  completeness: 1,
+                  capturedAt: "2026-09-08T07:00:00.000Z",
+                },
+              ],
+              comparison: {
+                baselineValue: index === 0 ? 0 : 100,
+                measurementValue: index === 0 ? 5 : 120,
+                absoluteDelta: index === 0 ? 5 : 20,
+                percentDelta: index === 0 ? null : 20,
+                longTermValue: null,
+                longTermAbsoluteDelta: null,
+                longTermPercentDelta: null,
+              },
+            })),
+          },
+        },
+        disabled: false,
+        pending: false,
+        onSubmit: vi.fn(),
+        collectionControl: createElement(
+          "button",
+          { type: "button" },
+          "Collect available data",
+        ),
+      }),
+    );
+    expect(html).toContain("Collection status for each measurement period");
+    expect(html).toContain(
+      "Baseline, primary and long-term measurement values",
+    );
+    expect(html).toContain('scope="col"');
+    expect(html).toContain('scope="row"');
+    expect(html).toContain("Google available");
+    expect(html).toContain("3 Aug 2026");
+    expect(html).toContain("8 Sept 2026");
+    expect(html).toContain("2 Nov 2026");
+    expect(html).toContain("Collected (2/2 metrics)");
+    expect(html).toContain("Ready to collect");
+    expect(html).toContain("Not collected");
+    expect(html).toContain("+5");
+    expect(html).not.toContain("+5 (");
+    expect(html).toContain("+20 (+20%)");
+    expect(html).toContain("observations, not proof");
   });
 
   it("explains a legacy plan without treating its missing anchor as an error", () => {

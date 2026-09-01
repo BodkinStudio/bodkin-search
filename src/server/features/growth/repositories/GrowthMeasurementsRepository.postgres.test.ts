@@ -463,4 +463,73 @@ describePostgres("GrowthMeasurementsRepository Postgres", () => {
       await sql`DELETE FROM organization WHERE id = ${source.organizationId}`;
     }
   }, 25_000);
+
+  it("rolls back a conflicting observation batch and accepts an exact retry", async () => {
+    const suffix = crypto.randomUUID();
+    const source = await seedSource(suffix, ["batch"]);
+    const start = startInput({
+      suffix,
+      projectId: source.projectId,
+      actionName: "batch",
+      planName: "batch",
+      hashDigit: "1",
+    });
+    try {
+      await withPgClient(() => repo.startMeasurementGraph(start));
+      const baseline = observationInput({
+        suffix,
+        projectId: source.projectId,
+        planId: start.id,
+        metricId: start.metrics[0].id,
+        name: "batch_baseline",
+        periodType: "baseline",
+        hashDigit: "3",
+      });
+      const measurement = observationInput({
+        suffix,
+        projectId: source.projectId,
+        planId: start.id,
+        metricId: start.metrics[0].id,
+        name: "batch_measurement",
+        periodType: "measurement",
+        hashDigit: "4",
+      });
+      await withPgClient(() => repo.recordMeasurementObservation(baseline));
+
+      await expect(
+        withPgClient(() =>
+          repo.recordMeasurementObservations({
+            observations: [
+              {
+                ...baseline,
+                id: `${baseline.id}_drift`,
+                factHash: "9".repeat(64),
+              },
+              measurement,
+            ],
+          }),
+        ),
+      ).rejects.toThrow();
+      await expect(
+        withPgClient(() => repo.getGraph(source.projectId, start.id)),
+      ).resolves.toMatchObject({
+        observations: [expect.objectContaining({ id: baseline.id })],
+      });
+
+      await withPgClient(() =>
+        repo.recordMeasurementObservations({
+          observations: [baseline, measurement],
+        }),
+      );
+      const graph = await withPgClient(() =>
+        repo.getGraph(source.projectId, start.id),
+      );
+      expect(graph?.observations.map(({ id }) => id).toSorted()).toEqual(
+        [baseline.id, measurement.id].toSorted(),
+      );
+    } finally {
+      await sql`DELETE FROM projects WHERE id = ${source.projectId}`;
+      await sql`DELETE FROM organization WHERE id = ${source.organizationId}`;
+    }
+  }, 25_000);
 });

@@ -15,6 +15,10 @@ const measurements = vi.hoisted(() => ({
   startMeasurement: vi.fn(),
 }));
 const settings = vi.hoisted(() => ({ getSettings: vi.fn() }));
+const gscConnections = vi.hoisted(() => ({ getByProjectId: vi.fn() }));
+const collection = vi.hoisted(() => ({
+  collectGrowthWorkMeasurementEvidence: vi.fn(),
+}));
 
 vi.mock("../repositories/GrowthActionsRepository", () => ({
   GrowthActionsRepository: actions,
@@ -30,6 +34,51 @@ vi.mock("./GrowthMeasurementsService", () => ({
   GrowthMeasurementsService: measurements,
 }));
 vi.mock("./GrowthSettingsService", () => ({ GrowthSettingsService: settings }));
+vi.mock("@/server/features/gsc/repositories/GscConnectionRepository", () => ({
+  GscConnectionRepository: gscConnections,
+}));
+vi.mock("./GrowthWorkMeasurementCollectionService", () => ({
+  collectGrowthWorkMeasurementEvidence:
+    collection.collectGrowthWorkMeasurementEvidence,
+  growthMeasurementSourceAvailableOn: (endDate: string) =>
+    new Date(Date.parse(`${endDate}T00:00:00.000Z`) + 3 * 86_400_000)
+      .toISOString()
+      .slice(0, 10),
+  growthMeasurementGscPropertyHash: (evidenceRef: string) =>
+    /^gsc:measurement:v1:([a-f0-9]{64}):[a-f0-9]{64}$/.exec(evidenceRef)?.[1] ??
+    null,
+  growthMeasurementCollectionPeriods: (plan: {
+    baselineStart: string;
+    baselineEnd: string;
+    measurementStart: string;
+    measurementEnd: string;
+    longMeasurementEnd: string | null;
+  }) => [
+    {
+      periodType: "baseline" as const,
+      startDate: plan.baselineStart,
+      endDate: plan.baselineEnd,
+    },
+    {
+      periodType: "measurement" as const,
+      startDate: plan.measurementStart,
+      endDate: plan.measurementEnd,
+    },
+    ...(plan.longMeasurementEnd
+      ? [
+          {
+            periodType: "long_term" as const,
+            startDate: new Date(
+              Date.parse(`${plan.measurementEnd}T00:00:00.000Z`) + 86_400_000,
+            )
+              .toISOString()
+              .slice(0, 10),
+            endDate: plan.longMeasurementEnd,
+          },
+        ]
+      : []),
+  ],
+}));
 vi.mock("./GrowthChangeLogService", () => ({
   toChangeDto: (graph: typeof change) => ({
     id: graph.event.id,
@@ -130,6 +179,18 @@ const activeMeasurement = {
     },
   ],
   observations: [],
+  comparisons: [
+    {
+      metricId: "metric_1",
+      baselineValue: null,
+      currentValue: null,
+      absoluteDelta: null,
+      percentDelta: null,
+      longTermValue: null,
+      longTermAbsoluteDelta: null,
+      longTermPercentDelta: null,
+    },
+  ],
   result: null,
   confoundingChangeEventIds: [],
   actionEvents: [],
@@ -146,6 +207,10 @@ describe("GrowthWorkMeasurementService", () => {
     settings.getSettings.mockResolvedValue(defaultSettings);
     measurementRepository.getMeasurementPlanByAction.mockResolvedValue(null);
     measurements.getMeasurement.mockResolvedValue(activeMeasurement);
+    gscConnections.getByProjectId.mockResolvedValue(null);
+    collection.collectGrowthWorkMeasurementEvidence.mockResolvedValue(
+      activeMeasurement,
+    );
   });
 
   it("derives the fixed windows from the selected change's UTC day", () => {
@@ -249,6 +314,24 @@ describe("GrowthWorkMeasurementService", () => {
       limit: 50,
     });
     expect(measurements.startMeasurement).not.toHaveBeenCalled();
+  });
+
+  it("marks an active plan inconsistent when its Work version has drifted", async () => {
+    measurementRepository.getMeasurementPlanByAction.mockResolvedValue(
+      activePlan,
+    );
+    investigations.getQualifiedWork.mockResolvedValue({
+      ...implementedWork,
+      status: "measuring",
+      stateVersion: activePlan.actionVersion + 1,
+    });
+
+    await expect(
+      GrowthWorkMeasurementService.getGrowthWorkMeasurement(
+        projectId,
+        actionId,
+      ),
+    ).resolves.toMatchObject({ state: "inconsistent" });
   });
 
   it.each([
@@ -464,6 +547,251 @@ describe("GrowthWorkMeasurementService", () => {
         implementationChange: { id: "change_1" },
         schedule: { anchorDate: "2026-08-01" },
       },
+    });
+  });
+
+  it("projects source availability at the exact Pacific end-plus-three-day boundary without collecting", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-09T06:59:59.000Z"));
+    const octoberPlan = {
+      ...activePlan,
+      baselineStart: "2026-09-01",
+      baselineEnd: "2026-09-30",
+      measurementStart: "2026-10-01",
+      measurementEnd: "2026-10-06",
+      longMeasurementEnd: null,
+    };
+    measurementRepository.getMeasurementPlanByAction.mockResolvedValue(
+      octoberPlan,
+    );
+    gscConnections.getByProjectId.mockResolvedValue({ id: "connection_1" });
+    investigations.getQualifiedWork.mockResolvedValue({
+      ...implementedWork,
+      status: "measuring",
+      stateVersion: 5,
+    });
+    measurements.getMeasurement.mockResolvedValue({
+      ...activeMeasurement,
+      plan: octoberPlan,
+    });
+
+    await expect(
+      GrowthWorkMeasurementService.getGrowthWorkMeasurement(
+        projectId,
+        actionId,
+      ),
+    ).resolves.toMatchObject({
+      plan: {
+        collection: {
+          state: "ready",
+          canCollect: true,
+          nextAvailableOn: "2026-10-09",
+          periods: [
+            { periodType: "baseline", status: "ready" },
+            {
+              periodType: "measurement",
+              status: "waiting",
+              sourceAvailableOn: "2026-10-09",
+            },
+          ],
+        },
+      },
+    });
+    vi.setSystemTime(new Date("2026-10-09T07:00:00.000Z"));
+    await expect(
+      GrowthWorkMeasurementService.getGrowthWorkMeasurement(
+        projectId,
+        actionId,
+      ),
+    ).resolves.toMatchObject({
+      plan: {
+        collection: {
+          state: "ready",
+          canCollect: true,
+          periods: [
+            { periodType: "baseline", status: "ready" },
+            { periodType: "measurement", status: "ready" },
+          ],
+        },
+      },
+    });
+    expect(
+      collection.collectGrowthWorkMeasurementEvidence,
+    ).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it.each([
+    ["missing_connection", null, [], "missing_connection"],
+    [
+      "collected",
+      { id: "connection_1" },
+      [
+        {
+          metricId: "metric_1",
+          periodType: "baseline",
+          value: 12,
+          completeness: 1,
+          capturedAt: "2026-10-09T07:00:00.000Z",
+        },
+        {
+          metricId: "metric_1",
+          periodType: "measurement",
+          value: 18,
+          completeness: 1,
+          capturedAt: "2026-10-09T07:00:00.000Z",
+        },
+      ],
+      "collected",
+    ],
+    [
+      "inconsistent",
+      { id: "connection_1" },
+      [
+        {
+          metricId: "metric_1",
+          periodType: "baseline",
+          value: 12,
+          completeness: 0,
+          capturedAt: "2026-10-09T07:00:00.000Z",
+        },
+      ],
+      "inconsistent",
+    ],
+  ] as const)(
+    "projects %s collection state from stored observations and connection only",
+    async (_name, connection, observations, expectedState) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-10T07:00:00.000Z"));
+      const noLongPlan = { ...activePlan, longMeasurementEnd: null };
+      measurementRepository.getMeasurementPlanByAction.mockResolvedValue(
+        noLongPlan,
+      );
+      investigations.getQualifiedWork.mockResolvedValue({
+        ...implementedWork,
+        status: "measuring",
+        stateVersion: 5,
+      });
+      gscConnections.getByProjectId.mockResolvedValue(connection);
+      measurements.getMeasurement.mockResolvedValue({
+        ...activeMeasurement,
+        plan: noLongPlan,
+        observations: observations.map((observation) => ({
+          ...observation,
+          evidenceKind: "gsc_period",
+          evidenceRef: `gsc:measurement:v1:${"a".repeat(64)}:${"b".repeat(64)}`,
+        })),
+        comparisons: [
+          {
+            metricId: "metric_1",
+            baselineValue: 12,
+            currentValue: 18,
+            absoluteDelta: 6,
+            percentDelta: 50,
+            longTermValue: null,
+            longTermAbsoluteDelta: null,
+            longTermPercentDelta: null,
+          },
+        ],
+      });
+      await expect(
+        GrowthWorkMeasurementService.getGrowthWorkMeasurement(
+          projectId,
+          actionId,
+        ),
+      ).resolves.toMatchObject({
+        plan: { collection: { state: expectedState } },
+      });
+      expect(
+        collection.collectGrowthWorkMeasurementEvidence,
+      ).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    },
+  );
+
+  it("marks a full period with mixed provenance as needing attention", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-10T07:00:00.000Z"));
+    const noLongPlan = { ...activePlan, longMeasurementEnd: null };
+    const secondMetric = {
+      ...activeMeasurement.metrics[0],
+      id: "metric_2",
+      metricType: "search_impressions" as const,
+      isPrimary: false,
+    };
+    measurementRepository.getMeasurementPlanByAction.mockResolvedValue(
+      noLongPlan,
+    );
+    investigations.getQualifiedWork.mockResolvedValue({
+      ...implementedWork,
+      status: "measuring",
+      stateVersion: 5,
+    });
+    gscConnections.getByProjectId.mockResolvedValue({ id: "connection_1" });
+    measurements.getMeasurement.mockResolvedValue({
+      ...activeMeasurement,
+      plan: noLongPlan,
+      metrics: [activeMeasurement.metrics[0], secondMetric],
+      observations: [
+        {
+          metricId: "metric_1",
+          periodType: "baseline",
+          value: 12,
+          completeness: 1,
+          capturedAt: "2026-10-09T07:00:00.000Z",
+          evidenceKind: "gsc_period",
+          evidenceRef: `gsc:measurement:v1:${"a".repeat(64)}:${"b".repeat(64)}`,
+        },
+        {
+          metricId: "metric_2",
+          periodType: "baseline",
+          value: 120,
+          completeness: 1,
+          capturedAt: "2026-10-09T08:00:00.000Z",
+          evidenceKind: "gsc_period",
+          evidenceRef: `gsc:measurement:v1:${"a".repeat(64)}:${"c".repeat(64)}`,
+        },
+      ],
+      comparisons: [
+        activeMeasurement.comparisons[0],
+        { ...activeMeasurement.comparisons[0], metricId: "metric_2" },
+      ],
+    });
+
+    await expect(
+      GrowthWorkMeasurementService.getGrowthWorkMeasurement(
+        projectId,
+        actionId,
+      ),
+    ).resolves.toMatchObject({
+      plan: {
+        collection: {
+          state: "inconsistent",
+          periods: [
+            { periodType: "baseline", status: "inconsistent" },
+            { periodType: "measurement", status: "ready" },
+          ],
+        },
+      },
+    });
+    vi.useRealTimers();
+  });
+
+  it("dispatches collection only through the server-side collection service", async () => {
+    collection.collectGrowthWorkMeasurementEvidence.mockResolvedValue(
+      activeMeasurement,
+    );
+    await GrowthWorkMeasurementService.collectGrowthWorkMeasurement({
+      projectId,
+      actionId,
+      expectedActionVersion: 5,
+    });
+    expect(
+      collection.collectGrowthWorkMeasurementEvidence,
+    ).toHaveBeenCalledWith({
+      projectId,
+      actionId,
+      expectedActionVersion: 5,
     });
   });
 

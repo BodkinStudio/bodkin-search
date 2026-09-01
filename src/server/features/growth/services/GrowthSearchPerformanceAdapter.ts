@@ -9,19 +9,17 @@ import {
   type GrowthSearchPerformanceSnapshot,
 } from "@/types/schemas/growth-search-performance";
 import { z } from "zod";
+import type {
+  FrozenGrowthSearchPerformanceSnapshot,
+  FrozenTargetCollectionInput,
+  GrowthSearchPerformanceCollectionInput,
+} from "./GrowthSearchPerformanceAdapterTypes";
+import { growthSearchPerformanceRequestWindows } from "./GrowthSearchPerformanceWindows";
 
 const ROW_LIMIT = 1000;
-const MAX_PAGE_REQUESTS = 25;
+export const GROWTH_SEARCH_PERFORMANCE_MAX_PAGE_REQUESTS = 25;
+const MAX_FROZEN_WINDOW_DAYS = 365;
 const SOURCE_TIMEZONE = "America/Los_Angeles";
-
-type CollectionInput = {
-  projectId: string;
-  startDate: string;
-  endDate: string;
-  capturedAt: string;
-  includeSiteContext?: boolean;
-  maxPageRequests?: number;
-};
 
 const collectionInputSchema = z.strictObject({
   projectId: z.string().trim().min(1).max(100),
@@ -29,13 +27,26 @@ const collectionInputSchema = z.strictObject({
   endDate: z.string().trim().min(1).max(10),
   capturedAt: z.string().datetime({ offset: true }),
   includeSiteContext: z.boolean().optional(),
-  maxPageRequests: z.number().int().min(1).max(MAX_PAGE_REQUESTS).optional(),
+  maxPageRequests: z
+    .number()
+    .int()
+    .min(1)
+    .max(GROWTH_SEARCH_PERFORMANCE_MAX_PAGE_REQUESTS)
+    .optional(),
 });
 const gscRowSchema = z.object({
   keys: z.array(z.string().min(1)),
   clicks: z.number().int().nonnegative().safe(),
   impressions: z.number().int().nonnegative().safe(),
 });
+const frozenTargetCollectionInputSchema = collectionInputSchema
+  .omit({ includeSiteContext: true })
+  .extend({
+    targetUrls: z
+      .array(growthSearchPerformanceObservationSchema.shape.rawUrl)
+      .min(1)
+      .max(50),
+  });
 
 function validation(message: string): never {
   throw new AppError("VALIDATION_ERROR", message);
@@ -135,55 +146,25 @@ function parseRows(rows: unknown[], dimensions: "page_date" | "date") {
   });
 }
 
-/** Collects bounded, observed GSC facts; it intentionally does not infer absent rows. */
-export async function collectGrowthSearchPerformance(
-  input: CollectionInput,
-): Promise<GrowthSearchPerformanceSnapshot> {
-  input = collectionInputSchema.parse(input);
-  const count = daysInclusive(input.startDate, input.endDate);
-  if (count > 90) validation("Collection window cannot exceed 90 days");
-  const capturedAt = new Date(input.capturedAt);
-  if (Number.isNaN(capturedAt.valueOf())) validation("Capture time is invalid");
-  const latestSourceDate = subtractDays(
-    calendarDateInTimezone(capturedAt.toISOString(), SOURCE_TIMEZONE),
-    3,
-  );
-  if (input.endDate > latestSourceDate) {
-    validation(
-      "Collection end must be at least three Pacific calendar days before capture",
-    );
-  }
-  const maxCalls = input.maxPageRequests ?? MAX_PAGE_REQUESTS;
-  if (
-    !Number.isSafeInteger(maxCalls) ||
-    maxCalls < 1 ||
-    maxCalls > MAX_PAGE_REQUESTS
-  ) {
-    validation(`Page request cap must be between 1 and ${MAX_PAGE_REQUESTS}`);
-  }
-
-  const storedKeyPages = await ProjectContextRepository.listKeyPages(
-    input.projectId,
-  );
-  if (storedKeyPages.length > 100) validation("Project has too many key pages");
-  const keyPages = storedKeyPages.map((page) => {
-    if (page.projectId !== input.projectId)
-      validation("Key page belongs to another project");
-    return {
-      id: page.id,
-      projectId: page.projectId,
-      url: normalizeKeyPageUrl(page.url),
-      commercialWeight: page.commercialWeight,
-    };
-  });
-  const curatedUrls = new Set(keyPages.map((page) => page.url));
-
-  const observations: GrowthSearchPerformanceSnapshot["observations"] = [];
+async function collectPageRows(
+  input: GrowthSearchPerformanceCollectionInput,
+  matchesUrl: (url: string) => boolean,
+) {
+  const observations: Array<{
+    rawUrl: string;
+    date: string;
+    clicks: number;
+    impressions: number;
+  }> = [];
   const coordinates = new Set<string>();
   let property: string | null = null;
   let retrievalStatus: "exhausted" | "capped" = "capped";
   let startRow = 0;
+  let requestsUsed = 0;
+  const maxCalls =
+    input.maxPageRequests ?? GROWTH_SEARCH_PERFORMANCE_MAX_PAGE_REQUESTS;
   for (let call = 0; call < maxCalls; call += 1) {
+    requestsUsed += 1;
     const result = await GscService.getPerformance({
       projectId: input.projectId,
       startDate: input.startDate,
@@ -213,16 +194,15 @@ export async function collectGrowthSearchPerformance(
     for (const row of rows) {
       const rawUrl = row.rawUrl!;
       normalizeKeyPageUrl(rawUrl);
-      if (row.date < input.startDate || row.date > input.endDate) {
+      if (row.date < input.startDate || row.date > input.endDate)
         validation(
           "Search Console returned a row outside the collection window",
         );
-      }
       const coordinate = `${rawUrl}\u0000${row.date}`;
       if (coordinates.has(coordinate))
         validation("Search Console returned duplicate raw URL/day rows");
       coordinates.add(coordinate);
-      if (curatedUrls.has(normalizeKeyPageUrl(rawUrl))) {
+      if (matchesUrl(rawUrl)) {
         observations.push({
           rawUrl,
           date: row.date,
@@ -234,6 +214,59 @@ export async function collectGrowthSearchPerformance(
     startRow += rows.length;
   }
   if (!property) validation("Search Console did not return a property");
+  return { property, retrievalStatus, observations, requestsUsed };
+}
+
+/** Collects bounded, observed GSC facts; it intentionally does not infer absent rows. */
+export async function collectGrowthSearchPerformance(
+  input: GrowthSearchPerformanceCollectionInput,
+): Promise<GrowthSearchPerformanceSnapshot> {
+  input = collectionInputSchema.parse(input);
+  const count = daysInclusive(input.startDate, input.endDate);
+  if (count > 90) validation("Collection window cannot exceed 90 days");
+  const capturedAt = new Date(input.capturedAt);
+  if (Number.isNaN(capturedAt.valueOf())) validation("Capture time is invalid");
+  const latestSourceDate = subtractDays(
+    calendarDateInTimezone(capturedAt.toISOString(), SOURCE_TIMEZONE),
+    3,
+  );
+  if (input.endDate > latestSourceDate) {
+    validation(
+      "Collection end must be at least three Pacific calendar days before capture",
+    );
+  }
+  const maxCalls =
+    input.maxPageRequests ?? GROWTH_SEARCH_PERFORMANCE_MAX_PAGE_REQUESTS;
+  if (
+    !Number.isSafeInteger(maxCalls) ||
+    maxCalls < 1 ||
+    maxCalls > GROWTH_SEARCH_PERFORMANCE_MAX_PAGE_REQUESTS
+  ) {
+    validation(
+      `Page request cap must be between 1 and ${GROWTH_SEARCH_PERFORMANCE_MAX_PAGE_REQUESTS}`,
+    );
+  }
+
+  const storedKeyPages = await ProjectContextRepository.listKeyPages(
+    input.projectId,
+  );
+  if (storedKeyPages.length > 100) validation("Project has too many key pages");
+  const keyPages = storedKeyPages.map((page) => {
+    if (page.projectId !== input.projectId)
+      validation("Key page belongs to another project");
+    return {
+      id: page.id,
+      projectId: page.projectId,
+      url: normalizeKeyPageUrl(page.url),
+      commercialWeight: page.commercialWeight,
+    };
+  });
+  const curatedUrls = new Set(keyPages.map((page) => page.url));
+
+  const { property, retrievalStatus, observations } = await collectPageRows(
+    input,
+    (rawUrl) => curatedUrls.has(normalizeKeyPageUrl(rawUrl)),
+  );
 
   let siteContext: GrowthSearchPerformanceSnapshot["siteContext"] = {
     status: "absent",
@@ -300,4 +333,82 @@ export async function collectGrowthSearchPerformance(
     keyPages,
     siteContext,
   });
+}
+
+/**
+ * Collects page/date rows for immutable measurement targets. Target matching is
+ * deliberately raw and exact: normalized or trailing-slash variants do not
+ * stand in for a frozen URL.
+ */
+export async function collectFrozenGrowthSearchPerformance(
+  input: FrozenTargetCollectionInput,
+): Promise<FrozenGrowthSearchPerformanceSnapshot> {
+  input = frozenTargetCollectionInputSchema.parse(input);
+  const count = daysInclusive(input.startDate, input.endDate);
+  if (count > MAX_FROZEN_WINDOW_DAYS)
+    validation(
+      `Frozen measurement window cannot exceed ${MAX_FROZEN_WINDOW_DAYS} days`,
+    );
+  const capturedAt = new Date(input.capturedAt);
+  if (Number.isNaN(capturedAt.valueOf())) validation("Capture time is invalid");
+  const latestSourceDate = subtractDays(
+    calendarDateInTimezone(capturedAt.toISOString(), SOURCE_TIMEZONE),
+    3,
+  );
+  if (input.endDate > latestSourceDate)
+    validation(
+      "Collection end must be at least three Pacific calendar days before capture",
+    );
+  const maxCalls =
+    input.maxPageRequests ?? GROWTH_SEARCH_PERFORMANCE_MAX_PAGE_REQUESTS;
+  if (
+    !Number.isSafeInteger(maxCalls) ||
+    maxCalls < 1 ||
+    maxCalls > GROWTH_SEARCH_PERFORMANCE_MAX_PAGE_REQUESTS
+  )
+    validation(
+      `Page request cap must be between 1 and ${GROWTH_SEARCH_PERFORMANCE_MAX_PAGE_REQUESTS}`,
+    );
+  const targetUrls = new Set(input.targetUrls);
+  if (targetUrls.size !== input.targetUrls.length)
+    validation("Frozen measurement targets must be unique");
+  let property: string | null = null;
+  let retrievalStatus: "exhausted" | "capped" = "exhausted";
+  let remainingRequests = maxCalls;
+  let requestsUsed = 0;
+  const observations: FrozenGrowthSearchPerformanceSnapshot["observations"] =
+    [];
+  const requestWindows = growthSearchPerformanceRequestWindows(
+    input.startDate,
+    input.endDate,
+  );
+  for (const [index, window] of requestWindows.entries()) {
+    const collected = await collectPageRows(
+      { ...input, ...window, maxPageRequests: remainingRequests },
+      (rawUrl) => targetUrls.has(rawUrl),
+    );
+    remainingRequests -= collected.requestsUsed;
+    requestsUsed += collected.requestsUsed;
+    if (property !== null && collected.property !== property)
+      validation("Search Console property changed during collection");
+    property = collected.property;
+    observations.push(...collected.observations);
+    if (
+      collected.retrievalStatus === "capped" ||
+      (remainingRequests === 0 && index < requestWindows.length - 1)
+    ) {
+      retrievalStatus = "capped";
+      break;
+    }
+  }
+  if (!property) validation("Search Console did not return a property");
+  return {
+    projectId: input.projectId,
+    property,
+    capturedAt: capturedAt.toISOString(),
+    sourceWindow: { startDate: input.startDate, endDate: input.endDate },
+    retrievalStatus,
+    requestsUsed,
+    observations,
+  };
 }

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getFieldError } from "@/client/lib/forms";
 import type {
   GrowthWorkMeasurementCandidate,
+  GrowthWorkMeasurementMetric,
   GrowthWorkMeasurementPlan,
   GrowthWorkMeasurementSchedule,
 } from "@/types/schemas/growth-work";
@@ -11,7 +12,7 @@ import { GrowthChangeHistory } from "./GrowthChangeHistory";
 import { GROWTH_CHANGE_LABELS } from "./GrowthChangePresentation";
 import { formatGrowthPreviewDate } from "./GrowthPreviewPresentation";
 
-const METRIC_LABELS: Record<
+export const GROWTH_MEASUREMENT_METRIC_LABELS: Record<
   GrowthWorkMeasurementPlan["metrics"][number]["metricType"],
   string
 > = {
@@ -40,7 +41,7 @@ export function GrowthWorkMeasurementForm({
   candidates: GrowthWorkMeasurementCandidate[];
   selectedId?: string;
   targetCount: number;
-  metrics: GrowthWorkMeasurementPlan["metrics"];
+  metrics: GrowthWorkMeasurementMetric[];
   disabled: boolean;
   pending: boolean;
   onSubmit: (implementationChangeEventId: string) => void;
@@ -174,7 +175,7 @@ export function GrowthWorkMeasurementScheduleDetails({
 }: {
   schedule: GrowthWorkMeasurementSchedule;
   targetCount: number;
-  metrics?: GrowthWorkMeasurementPlan["metrics"];
+  metrics?: GrowthWorkMeasurementMetric[];
   dueDate?: string;
 }) {
   return (
@@ -224,7 +225,7 @@ export function GrowthWorkMeasurementScheduleDetails({
               key={`${metric.metricType}:${index}:${metric.displayTarget}`}
               className="break-all"
             >
-              {METRIC_LABELS[metric.metricType]}
+              {GROWTH_MEASUREMENT_METRIC_LABELS[metric.metricType]}
               {metric.isPrimary ? " (primary)" : " (context)"} —{" "}
               {metric.displayTarget ?? "Target withheld"}
             </li>

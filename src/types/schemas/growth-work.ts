@@ -62,6 +62,12 @@ export const startGrowthWorkMeasurementSchema = z.strictObject({
   implementationChangeEventId: id,
 });
 
+export const collectGrowthWorkMeasurementSchema = z.strictObject({
+  projectId: id,
+  actionId: id,
+  expectedActionVersion: z.number().int().positive(),
+});
+
 export type UpdateGrowthWorkStatusInput = z.infer<
   typeof updateGrowthWorkStatusSchema
 >;
@@ -103,6 +109,10 @@ export type StartGrowthWorkMeasurementInput = z.infer<
   typeof startGrowthWorkMeasurementSchema
 >;
 
+export type CollectGrowthWorkMeasurementInput = z.infer<
+  typeof collectGrowthWorkMeasurementSchema
+>;
+
 export type GrowthWorkMeasurementSchedule = {
   anchorAt: string;
   anchorDate: string;
@@ -127,13 +137,60 @@ export type GrowthWorkMeasurementMetric = {
   isPrimary: boolean;
 };
 
+export type GrowthWorkMeasurementPlanMetric = GrowthWorkMeasurementMetric & {
+  observations: GrowthWorkMeasurementObservation[];
+  comparison: GrowthWorkMeasurementComparison;
+};
+
+type GrowthWorkMeasurementObservation = {
+  periodType: "baseline" | "measurement" | "long_term";
+  value: number;
+  completeness: number;
+  capturedAt: string;
+};
+
+type GrowthWorkMeasurementComparison = {
+  baselineValue: number | null;
+  measurementValue: number | null;
+  absoluteDelta: number | null;
+  percentDelta: number | null;
+  longTermValue: number | null;
+  longTermAbsoluteDelta: number | null;
+  longTermPercentDelta: number | null;
+};
+
+export type GrowthWorkMeasurementCollectionPeriod = {
+  periodType: "baseline" | "measurement" | "long_term";
+  startDate: string;
+  endDate: string;
+  sourceAvailableOn: string;
+  status: "waiting" | "ready" | "collected" | "not_collected" | "inconsistent";
+  collectedMetricCount: number;
+  expectedMetricCount: number;
+};
+
+export type GrowthWorkMeasurementCollection = {
+  state:
+    | "missing_connection"
+    | "unsupported"
+    | "inconsistent"
+    | "waiting"
+    | "ready"
+    | "collected"
+    | "closed";
+  canCollect: boolean;
+  nextAvailableOn: string | null;
+  periods: GrowthWorkMeasurementCollectionPeriod[];
+};
+
 export type GrowthWorkMeasurementPlan = {
   id: string;
   status: "active" | "completed";
   actionVersion: number;
   implementationChange: GrowthChangeDto | null;
   schedule: GrowthWorkMeasurementSchedule;
-  metrics: GrowthWorkMeasurementMetric[];
+  metrics: GrowthWorkMeasurementPlanMetric[];
+  collection: GrowthWorkMeasurementCollection;
   dueDate: string;
   result: {
     outcome:

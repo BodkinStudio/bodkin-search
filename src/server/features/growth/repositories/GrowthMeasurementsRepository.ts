@@ -16,6 +16,7 @@ import {
 import {
   finalizeMeasurementGraph,
   recordMeasurementObservation,
+  recordMeasurementObservations,
   startMeasurementGraph,
 } from "./GrowthMeasurementsWriter";
 
@@ -324,6 +325,7 @@ export const GrowthMeasurementsRepository = {
   projectDomain,
   startMeasurementGraph,
   recordMeasurementObservation,
+  recordMeasurementObservations,
   finalizeMeasurementGraph,
   getPlan: getMeasurementPlan,
   getPlanByAction: getMeasurementPlanByAction,

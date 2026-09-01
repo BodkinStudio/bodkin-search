@@ -1,11 +1,11 @@
 import { AppError } from "@/server/lib/errors";
 import type { StartGrowthMeasurementInput } from "@/types/schemas/growth-measurements";
 import type {
+  CollectGrowthWorkMeasurementInput,
   GrowthWorkMeasurementOverview,
-  GrowthWorkMeasurementPlan,
-  GrowthWorkMeasurementSchedule,
   StartGrowthWorkMeasurementInput,
 } from "@/types/schemas/growth-work";
+import { GscConnectionRepository } from "@/server/features/gsc/repositories/GscConnectionRepository";
 import { GrowthActionsRepository } from "../repositories/GrowthActionsRepository";
 import { GrowthChangeEventsRepository } from "../repositories/GrowthChangeEventsRepository";
 import { GrowthMeasurementsRepository } from "../repositories/GrowthMeasurementsRepository";
@@ -13,73 +13,49 @@ import { toChangeDto } from "./GrowthChangeLogService";
 import { growthEvidenceDisplayUrl } from "./GrowthEvidencePacket";
 import { getQualifiedWork } from "./GrowthInvestigationsService";
 import { GrowthMeasurementsService } from "./GrowthMeasurementsService";
+import { collectGrowthWorkMeasurementEvidence } from "./GrowthWorkMeasurementCollectionService";
+import {
+  growthWorkMeasurementPlanDto,
+  growthWorkMeasurementSchedule,
+} from "./GrowthWorkMeasurementProjection";
 import { GrowthSettingsService } from "./GrowthSettingsService";
 
 const CHANGE_LIMIT = 50;
 const MAX_URL_TARGETS = 25;
-const DAY_MS = 86_400_000;
 
-function shiftUtcDate(date: string, days: number) {
-  return new Date(Date.parse(`${date}T00:00:00.000Z`) + days * DAY_MS)
-    .toISOString()
-    .slice(0, 10);
-}
-
-export function growthWorkMeasurementSchedule(
-  anchorAt: string,
-  settings: {
-    reportTimezone: string;
-    defaultBaselineDays: number;
-    defaultCooldownDays: number;
-    defaultPrimaryWindowDays: number;
-    defaultLongWindowDays: number | null;
-  },
-): GrowthWorkMeasurementSchedule {
-  const anchorDate = anchorAt.slice(0, 10);
-  const baselineEnd = shiftUtcDate(anchorDate, -1);
-  const cooldownEnd = shiftUtcDate(anchorDate, settings.defaultCooldownDays);
-  const measurementStart = shiftUtcDate(cooldownEnd, 1);
-  const measurementEnd = shiftUtcDate(
-    measurementStart,
-    settings.defaultPrimaryWindowDays - 1,
-  );
-  return {
-    anchorAt,
-    anchorDate,
-    reportTimezone: settings.reportTimezone,
-    baselineStart: shiftUtcDate(anchorDate, -settings.defaultBaselineDays),
-    baselineEnd,
-    cooldownEnd,
-    measurementStart,
-    measurementEnd,
-    longMeasurementEnd:
-      settings.defaultLongWindowDays == null
-        ? null
-        : shiftUtcDate(measurementEnd, settings.defaultLongWindowDays),
-  };
-}
+export { growthWorkMeasurementSchedule } from "./GrowthWorkMeasurementProjection";
 
 async function loadSources(projectId: string, actionId: string) {
   const action = await getQualifiedWork(projectId, actionId);
-  const [graph, linkedChanges, settings, existingPlan] = await Promise.all([
-    GrowthActionsRepository.getActionGraph(projectId, actionId),
-    GrowthChangeEventsRepository.listManualChangeEventGraphsForAction(
-      projectId,
-      actionId,
-      CHANGE_LIMIT,
-    ),
-    GrowthSettingsService.getSettings(projectId),
-    GrowthMeasurementsRepository.getMeasurementPlanByAction(
-      projectId,
-      actionId,
-    ),
-  ]);
+  const [graph, linkedChanges, settings, existingPlan, gscConnection] =
+    await Promise.all([
+      GrowthActionsRepository.getActionGraph(projectId, actionId),
+      GrowthChangeEventsRepository.listManualChangeEventGraphsForAction(
+        projectId,
+        actionId,
+        CHANGE_LIMIT,
+      ),
+      GrowthSettingsService.getSettings(projectId),
+      GrowthMeasurementsRepository.getMeasurementPlanByAction(
+        projectId,
+        actionId,
+      ),
+      GscConnectionRepository.getByProjectId(projectId),
+    ]);
   if (!graph) throw new AppError("NOT_FOUND", "Growth Work item not found");
   const urlTargets = graph.targets
     .filter(({ targetType }) => targetType === "url")
     .map(({ targetValue }) => targetValue)
     .toSorted((left, right) => left.localeCompare(right));
-  return { action, graph, linkedChanges, settings, existingPlan, urlTargets };
+  return {
+    action,
+    graph,
+    linkedChanges,
+    settings,
+    existingPlan,
+    gscConnection,
+    urlTargets,
+  };
 }
 
 function proposalMetrics(urlTargets: string[]) {
@@ -99,55 +75,6 @@ function proposalMetrics(urlTargets: string[]) {
   ]);
 }
 
-async function planDto(
-  verified: Awaited<
-    ReturnType<typeof GrowthMeasurementsService.getMeasurement>
-  >,
-): Promise<GrowthWorkMeasurementPlan> {
-  const implementationChange = verified.implementationChangeEventId
-    ? await GrowthChangeEventsRepository.getChangeEventGraph(
-        verified.plan.projectId,
-        verified.implementationChangeEventId,
-      )
-    : null;
-  return {
-    id: verified.plan.id,
-    status: verified.plan.status,
-    actionVersion: verified.plan.actionVersion,
-    implementationChange: implementationChange
-      ? toChangeDto(implementationChange)
-      : null,
-    schedule: {
-      anchorAt: verified.plan.anchorAt,
-      anchorDate: verified.plan.anchorDate,
-      reportTimezone: verified.plan.reportTimezone,
-      baselineStart: verified.plan.baselineStart,
-      baselineEnd: verified.plan.baselineEnd,
-      cooldownEnd: verified.plan.cooldownEnd,
-      measurementStart: verified.plan.measurementStart,
-      measurementEnd: verified.plan.measurementEnd,
-      longMeasurementEnd: verified.plan.longMeasurementEnd,
-    },
-    metrics: verified.metrics.map((metric) => ({
-      metricType: metric.metricType,
-      displayTarget:
-        metric.entityType === "url"
-          ? growthEvidenceDisplayUrl(metric.entityKey).value
-          : null,
-      isPrimary: metric.isPrimary,
-    })),
-    dueDate: verified.dueDate,
-    result: verified.result
-      ? {
-          outcome: verified.result.outcome,
-          confidence: verified.result.confidence,
-          summary: verified.result.summary,
-          evaluatedAt: verified.result.evaluatedAt,
-        }
-      : null,
-  };
-}
-
 async function getGrowthWorkMeasurement(
   projectId: string,
   actionId: string,
@@ -160,9 +87,11 @@ async function getGrowthWorkMeasurement(
     );
     const validProjection =
       (sources.action.status === "measuring" &&
-        verified.plan.status === "active") ||
+        verified.plan.status === "active" &&
+        sources.action.stateVersion === verified.plan.actionVersion) ||
       (sources.action.status === "evaluated" &&
-        verified.plan.status === "completed");
+        verified.plan.status === "completed" &&
+        sources.action.stateVersion === verified.plan.actionVersion + 1);
     return {
       actionId,
       actionStatus: sources.action.status,
@@ -175,7 +104,10 @@ async function getGrowthWorkMeasurement(
       targetCount: sources.urlTargets.length,
       proposedMetrics: [],
       candidates: [],
-      plan: await planDto(verified),
+      plan: await growthWorkMeasurementPlanDto(
+        verified,
+        sources.gscConnection !== null,
+      ),
       limit: CHANGE_LIMIT,
     };
   }
@@ -311,7 +243,15 @@ async function startGrowthWorkMeasurement(
   return getGrowthWorkMeasurement(input.projectId, input.actionId);
 }
 
+async function collectGrowthWorkMeasurement(
+  input: CollectGrowthWorkMeasurementInput,
+): Promise<GrowthWorkMeasurementOverview> {
+  await collectGrowthWorkMeasurementEvidence(input);
+  return getGrowthWorkMeasurement(input.projectId, input.actionId);
+}
+
 export const GrowthWorkMeasurementService = {
   getGrowthWorkMeasurement,
   startGrowthWorkMeasurement,
+  collectGrowthWorkMeasurement,
 } as const;

@@ -33,6 +33,7 @@ type QueryOptions = {
   queryKey: string[];
   queryFn: () => Promise<GrowthWorkMeasurementOverview>;
   retry: boolean;
+  refetchOnWindowFocus: boolean;
 };
 
 const harness = vi.hoisted(() => ({
@@ -44,6 +45,7 @@ const harness = vi.hoisted(() => ({
   queryError: false,
   mutationError: false,
   mutationPending: false,
+  collecting: 0,
   queryOptions: undefined as QueryOptions | undefined,
   mutationOptions: undefined as MutationOptions | undefined,
   mutate: vi.fn(),
@@ -72,6 +74,7 @@ vi.mock("react", async (original) => ({
   useRef: () => harness.ref,
 }));
 vi.mock("@tanstack/react-query", () => ({
+  useIsMutating: () => harness.collecting,
   useQuery: (options: QueryOptions) => {
     harness.queryOptions = options;
     return {
@@ -221,6 +224,7 @@ beforeEach(() => {
   harness.queryError = false;
   harness.mutationError = false;
   harness.mutationPending = false;
+  harness.collecting = 0;
   harness.fetchQuery.mockResolvedValue(eligible);
 });
 
@@ -240,6 +244,14 @@ describe("Start Work measurement submission", () => {
     expect(harness.refetch).toHaveBeenCalledOnce();
     expect(harness.mutate).not.toHaveBeenCalled();
     expect(harness.queryOptions?.retry).toBe(false);
+  });
+
+  it("holds refreshes while measurement evidence is being collected", () => {
+    harness.collecting = 1;
+    const tree = render();
+
+    expect(find(tree, "Refresh measurement")?.disabled).toBe(true);
+    expect(harness.queryOptions?.refetchOnWindowFocus).toBe(false);
   });
 
   it("dispatches one explicit linked change and rejects arbitrary IDs", () => {

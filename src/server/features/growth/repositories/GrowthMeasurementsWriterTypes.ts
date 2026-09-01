@@ -69,6 +69,11 @@ export type RecordMeasurementObservationInput = {
   capturedAt: string;
 };
 
+/** A non-empty, already domain-validated set of observations to insert together. */
+export type RecordMeasurementObservationsInput = {
+  observations: RecordMeasurementObservationInput[];
+};
+
 export type MeasurementObservationFact = {
   id: string;
   factHash: string;

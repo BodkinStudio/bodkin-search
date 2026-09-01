@@ -536,3 +536,58 @@ resolves ADR-025's deferred primary-change decision for measurement Plans while
 preserving independent append-only Action links. Plan editing, cancellation,
 automatic collection, confounder classification, interpretation and result UI
 remain deferred.
+
+## ADR-032 - Measurement collection freezes complete GSC period facts before interpretation
+
+**Status:** Accepted for the internal BG-0305/0306 slice
+
+### Decision
+
+- Collection is an explicit user action on an active Measurement Plan. Reading,
+  refreshing or rendering Work never calls Google. The existing project-scoped
+  Search Console grant, selected property, `GscService` and Growth adapter remain
+  the only provider path.
+- Each baseline, primary and configured long-term window is collected separately
+  from the Plan's inclusive dates. A window becomes eligible when the Search
+  Console Pacific calendar reaches three days after its end. This source-ready
+  date is distinct from the Plan's report-timezone review due date.
+- Page/date requests retain the existing `web`/`final`, 1,000-row and 25-call
+  bounds. Measurement supplies the Plan's frozen URL Metrics directly instead of
+  rereading mutable key-page context. Version 1 matches the frozen URL exactly;
+  query, trailing-slash or other variants cannot silently satisfy that identity.
+- A period is complete only when pagination is exhausted and every frozen
+  URL/calendar-day coordinate has an observed row. Explicit zero rows are facts;
+  absent rows and capped retrieval are incomplete and produce no Observation.
+  Supported collection Metrics are URL search clicks and impressions.
+- All mature, wholly missing periods in one attempt are fetched and validated
+  before one provider-neutral atomic Observation batch. Exact facts are retryable;
+  coordinate drift, partial saved periods, an inactive Plan or a concurrent close
+  conflicts. A non-`not_measurable` Result requires completeness `1` on every
+  required primary Observation.
+- Each generated evidence reference is
+  `gsc:measurement:v1:<property-hash>:<fact-digest>`. The property hash allows a
+  later attempt to reject a changed Search Console property without persisting or
+  exposing the property/account identity. Raw provider snapshots, account email,
+  tokens and provider error bodies are not copied into Measurement storage.
+- Work shows period readiness, stored scalar values and derived absolute and
+  percentage deltas. A zero baseline has no percentage delta. Observations remain
+  non-causal evidence; collection does not choose an outcome, confidence or
+  confounder set and does not move the Action from `measuring` to `evaluated`.
+
+### Why
+
+OpenSEO already owns Search Console authentication and retrieval, while the
+Growth Measurement aggregate already owns immutable scalar evidence. Joining
+those boundaries closes the data-collection gap without creating a second data
+platform and without turning Google's omitted rows into invented zero traffic.
+Keeping interpretation separate avoids embedding unreviewed success thresholds
+or causal claims in a provider adapter.
+
+### Supersedes
+
+This resolves ADR-026's deferred provider-collection boundary and hardens its
+primary-coverage rule to require complete observations. It resolves ADR-031's
+deferred collection/UI portion only for user-triggered GSC scalar collection.
+Automatic scheduling, GA4 and other providers, raw snapshot replay, site/cluster
+context, confounder discovery, outcome/confidence policy, AI interpretation and
+terminal result orchestration remain deferred.

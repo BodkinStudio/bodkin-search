@@ -1,5 +1,10 @@
 import { useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useIsMutating,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   getGrowthWorkMeasurement,
   startGrowthWorkMeasurement,
@@ -14,6 +19,7 @@ import type {
   StartGrowthWorkMeasurementInput,
 } from "@/types/schemas/growth-work";
 import { GrowthWorkMeasurementContent } from "./GrowthWorkMeasurementPresentation";
+import { GrowthWorkMeasurementCollection } from "./GrowthWorkMeasurementCollection";
 
 type SubmittedMeasurement = {
   request: StartGrowthWorkMeasurementInput;
@@ -75,11 +81,19 @@ export function GrowthWorkMeasurementPanel({
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
   const queryKey = ["growthWorkMeasurement", projectId, action.id];
+  const collecting = useIsMutating({
+    mutationKey: ["growthWorkMeasurementCollect", projectId, action.id],
+  });
   const workKey = ["growthWork", projectId];
   const historyKey = ["growthWorkHistory", projectId, action.id];
   const read = () =>
     getGrowthWorkMeasurement({ data: { projectId, actionId: action.id } });
-  const query = useQuery({ queryKey, queryFn: read, retry: false });
+  const query = useQuery({
+    queryKey,
+    queryFn: read,
+    retry: false,
+    refetchOnWindowFocus: collecting === 0,
+  });
   const applySavedState = (saved: GrowthWorkMeasurementOverview) => {
     client.setQueryData<GrowthWorkMeasurementOverview>(queryKey, (current) =>
       current && current.stateVersion > saved.stateVersion ? current : saved,
@@ -197,7 +211,11 @@ export function GrowthWorkMeasurementPanel({
         type="button"
         className="btn btn-ghost btn-sm"
         disabled={
-          query.isFetching || Boolean(submitted) || save.isPending || checking
+          query.isFetching ||
+          Boolean(submitted) ||
+          save.isPending ||
+          checking ||
+          collecting > 0
         }
         onClick={() => void query.refetch()}
       >
@@ -268,6 +286,16 @@ export function GrowthWorkMeasurementPanel({
           disabled={Boolean(submitted) || save.isPending || checking}
           pending={save.isPending}
           onSubmit={submit}
+          collectionControl={
+            query.data.plan ? (
+              <GrowthWorkMeasurementCollection
+                projectId={projectId}
+                actionId={action.id}
+                stateVersion={query.data.stateVersion}
+                collection={query.data.plan.collection}
+              />
+            ) : null
+          }
         />
       ) : null}
     </div>

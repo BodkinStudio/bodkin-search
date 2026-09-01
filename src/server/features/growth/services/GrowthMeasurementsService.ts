@@ -3,26 +3,21 @@ import { AppError } from "@/server/lib/errors";
 import type {
   FinalizeGrowthMeasurementInput,
   GrowthMeasurementPeriodType,
-  RecordGrowthMeasurementObservationInput,
   StartGrowthMeasurementInput,
 } from "@/types/schemas/growth-measurements";
 import { GrowthMeasurementsRepository as repo } from "../repositories/GrowthMeasurementsRepository";
 import { growthActionEventFactHash } from "./GrowthActionEventFact";
 import {
   assertPlanWindows,
-  assertScalar,
   calendarDateInTimezone,
   canonicalizeMetrics,
   canonicalTimestamp,
   conflict,
-  expectedPeriod,
   type MeasurementGraph,
-  observationFact,
   observationFacts,
   observationsHash,
   type PlanFact,
   resultFact,
-  storedObservationFact,
   validation,
 } from "./GrowthMeasurementFacts";
 import {
@@ -30,6 +25,10 @@ import {
   assertExactMeasurementStart,
   assertStoredMeasurementGraph,
 } from "./GrowthMeasurementGraph";
+import {
+  recordObservation,
+  recordObservations,
+} from "./GrowthMeasurementObservations";
 import { GrowthSettingsService } from "./GrowthSettingsService";
 
 async function startMeasurement(input: StartGrowthMeasurementInput) {
@@ -161,82 +160,11 @@ async function startMeasurement(input: StartGrowthMeasurementInput) {
   return assertExactMeasurementStart(graph, fact, input);
 }
 
-async function assertExactObservation(
-  stored: NonNullable<
-    Awaited<ReturnType<typeof repo.getMeasurementObservation>>
-  >,
-  fact: ReturnType<typeof observationFact>,
-) {
-  const factHash = await sha256Hex(JSON.stringify(fact));
-  if (
-    stored.factHash !== factHash ||
-    JSON.stringify(storedObservationFact(stored)) !== JSON.stringify(fact)
-  ) {
-    conflict("Measurement Observation coordinate contains a different fact");
-  }
-  return stored;
-}
-
-async function recordObservation(
-  input: RecordGrowthMeasurementObservationInput,
-) {
-  const fact = observationFact(input);
-  const existing = await repo.getMeasurementObservation(
-    input.projectId,
-    input.measurementPlanId,
-    input.metricId,
-    input.periodType,
-  );
-  if (existing) return assertExactObservation(existing, fact);
-
-  const [plan, metric] = await Promise.all([
-    repo.getMeasurementPlan(input.projectId, input.measurementPlanId),
-    repo.getMeasurementMetric(
-      input.projectId,
-      input.measurementPlanId,
-      input.metricId,
-    ),
-  ]);
-  if (!plan || !metric)
-    throw new AppError("NOT_FOUND", "Measurement Plan or Metric not found");
-  if (plan.status !== "active")
-    conflict("Measurement Plan no longer accepts Observations");
-  const period = expectedPeriod(plan, input.periodType);
-  if (
-    fact.effectiveStart !== period.start ||
-    fact.effectiveEnd !== period.end
-  ) {
-    validation("Observation effective dates must match its Measurement window");
-  }
-  assertScalar(metric.metricType, fact.value);
-  if (
-    !Number.isFinite(fact.completeness) ||
-    fact.completeness < 0 ||
-    fact.completeness > 1
-  ) {
-    validation("Observation completeness must be between 0 and 1");
-  }
-  const factHash = await sha256Hex(JSON.stringify(fact));
-  await repo.recordMeasurementObservation({
-    id: crypto.randomUUID(),
-    ...fact,
-    factHash,
-  });
-  const winner = await repo.getMeasurementObservation(
-    input.projectId,
-    input.measurementPlanId,
-    input.metricId,
-    input.periodType,
-  );
-  if (!winner) conflict("Measurement Observation was not recorded");
-  return assertExactObservation(winner, fact);
-}
-
 function assertPrimaryCoverage(graph: MeasurementGraph) {
   const present = new Set(
-    graph.observations.map(
-      ({ metricId, periodType }) => `${metricId}:${periodType}`,
-    ),
+    graph.observations
+      .filter(({ completeness }) => completeness === 1)
+      .map(({ metricId, periodType }) => `${metricId}:${periodType}`),
   );
   for (const metric of graph.metrics.filter(({ isPrimary }) => isPrimary)) {
     const periods: GrowthMeasurementPeriodType[] = ["baseline", "measurement"];
@@ -391,6 +319,7 @@ async function getMeasurement(projectId: string, measurementPlanId: string) {
 export const GrowthMeasurementsService = {
   startMeasurement,
   recordObservation,
+  recordObservations,
   finalizeMeasurement,
   getMeasurement,
 } as const;

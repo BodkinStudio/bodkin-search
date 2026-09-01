@@ -60,6 +60,7 @@ const startInput = {
 
 let client: Client;
 let repo: typeof RepositoryModule.GrowthMeasurementsRepository;
+const batchStatementCounts: number[] = [];
 
 async function countRows(table: string, where = "1 = 1") {
   const [row] = (
@@ -83,6 +84,7 @@ beforeAll(async () => {
         build: (tx: typeof testDb) => readonly Promise<unknown>[],
       ): Promise<void> => {
         const statements = build(testDb);
+        batchStatementCounts.push(statements.length);
         if (statements.length === 0) return;
         // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the length guard proves this tuple is non-empty
         const batch = statements as unknown as [
@@ -314,12 +316,40 @@ describe.sequential("GrowthMeasurementsRepository D1 lifecycle", () => {
       ...baseline,
       id: "observation_retry",
     });
-    await repo.recordMeasurementObservation({
-      ...baseline,
-      id: "observation_drift",
-      factHash: "0".repeat(64),
-      value: 999,
+    const batchesBeforeLargeRetry = batchStatementCounts.length;
+    await repo.recordMeasurementObservations({
+      observations: Array.from({ length: 150 }, (_, index) => ({
+        ...baseline,
+        id: `observation_large_retry_${index}`,
+      })),
     });
+    expect(batchStatementCounts.slice(batchesBeforeLargeRetry)).toEqual([3]);
+    await expect(
+      repo.recordMeasurementObservation({
+        ...baseline,
+        id: "observation_drift",
+        factHash: "0".repeat(64),
+        value: 999,
+      }),
+    ).rejects.toThrow();
+    const batchesBeforeConflict = batchStatementCounts.length;
+    await expect(
+      repo.recordMeasurementObservations({
+        observations: [
+          {
+            ...baseline,
+            id: "observation_batch_drift",
+            factHash: "0".repeat(64),
+            value: 999,
+          },
+          measurement,
+        ],
+      }),
+    ).rejects.toThrow();
+    expect(batchStatementCounts.slice(batchesBeforeConflict)).toEqual([3]);
+    expect(await repo.listObservations("project_1", "plan_1")).toEqual([
+      expect.objectContaining({ id: "observation_baseline" }),
+    ]);
     await repo.recordMeasurementObservation(measurement);
     await repo.recordMeasurementObservation({
       ...measurement,

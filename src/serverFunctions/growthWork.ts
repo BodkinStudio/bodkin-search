@@ -3,6 +3,7 @@ import { GrowthInvestigationsService } from "@/server/features/growth/services/G
 import { GrowthWorkChangesService } from "@/server/features/growth/services/GrowthWorkChangesService";
 import { GrowthWorkMeasurementService } from "@/server/features/growth/services/GrowthWorkMeasurementService";
 import {
+  collectGrowthWorkMeasurementSchema,
   getGrowthWorkChangesSchema,
   getGrowthWorkHistorySchema,
   getGrowthWorkMeasurementSchema,
@@ -71,5 +72,15 @@ export const startGrowthWorkMeasurement = createServerFn({ method: "POST" })
       ...data,
       projectId: context.projectId,
       actorId: context.userId,
+    }),
+  );
+
+export const collectGrowthWorkMeasurement = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(collectGrowthWorkMeasurementSchema)
+  .handler(({ data, context }) =>
+    GrowthWorkMeasurementService.collectGrowthWorkMeasurement({
+      ...data,
+      projectId: context.projectId,
     }),
   );
