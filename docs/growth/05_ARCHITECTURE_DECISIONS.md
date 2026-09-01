@@ -916,3 +916,24 @@ The tool makes no provider calls, uses zero credits, and writes nothing. It is
 not a total, snapshot, discovery, collection, or Change Event creation/linking
 surface. One shared MCP definition is adapted into project-bound SAM, where the
 session project is injected server-side.
+
+---
+
+## ADR-043 - Saved Measurement Plan list
+
+**Status:** Accepted
+
+### Decision
+
+`growth_get_measurements` reads existing Measurement Plans, their bounded
+Metric counts and privacy-safe recorded Result summaries through the existing
+MCP server and project-bound SAM adapter. It pages Plans first by normalized
+immutable creation time, then loads child rows only for emitted roots.
+
+### Consequence
+
+The read does not collect evidence, recalculate outcomes, load full
+Measurement graphs or establish causality. Action lifecycle drift is exposed
+as `inconsistent`; malformed Plan/Result or Metric lifecycle data is rejected
+before public projection. It makes no provider calls, spends no credits and
+writes nothing.

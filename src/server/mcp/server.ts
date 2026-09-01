@@ -71,6 +71,7 @@ import {
 import { growthGetActionsTool } from "@/server/mcp/tools/growth-action-tools";
 import { growthGetPriorityRecommendationsTool } from "@/server/mcp/tools/growth-priority-recommendations-tool";
 import { growthGetRecentChangesTool } from "@/server/mcp/tools/growth-recent-changes-tool";
+import { growthGetMeasurementsTool } from "@/server/mcp/tools/growth-measurements-tool";
 import { growthGetActionTool } from "@/server/mcp/tools/growth-action-detail-tool";
 import { growthGetProjectSummaryTool } from "@/server/mcp/tools/growth-project-summary-tool";
 import { growthGetPageContextTool } from "@/server/mcp/tools/growth-page-context-tool";
@@ -210,6 +211,7 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
   register(growthGetActionsTool);
   register(growthGetPriorityRecommendationsTool);
   register(growthGetRecentChangesTool);
+  register(growthGetMeasurementsTool);
   register(growthGetActionTool);
   register(growthGetMonthlySummaryTool);
 
