@@ -1,7 +1,9 @@
 import { sha256Hex } from "@/server/lib/audit/ids";
-import type {
-  FinalizeGrowthMeasurementInput,
-  StartGrowthMeasurementInput,
+import {
+  type FinalizeGrowthMeasurementInput,
+  MAX_GROWTH_MEASUREMENT_CONFOUNDERS,
+  MAX_GROWTH_MEASUREMENT_METRICS,
+  type StartGrowthMeasurementInput,
 } from "@/types/schemas/growth-measurements";
 import {
   assertGrowthActionEvent,
@@ -19,6 +21,8 @@ import {
   storedPlanFact,
   storedResultFact,
 } from "./GrowthMeasurementFacts";
+
+const MAX_STORED_OBSERVATIONS = MAX_GROWTH_MEASUREMENT_METRICS * 3;
 
 function percentDelta(baseline: number, current: number) {
   return baseline === 0 ? null : ((current - baseline) / baseline) * 100;
@@ -100,6 +104,14 @@ async function assertLifecycleEvent(
 }
 
 export async function assertStoredMeasurementGraph(graph: MeasurementGraph) {
+  if (graph.metrics.length > MAX_GROWTH_MEASUREMENT_METRICS)
+    conflict("Stored Measurement exceeds the Metric integrity limit");
+  if (graph.observations.length > MAX_STORED_OBSERVATIONS)
+    conflict("Stored Measurement exceeds the Observation integrity limit");
+  if (
+    graph.confoundingChangeEventIds.length > MAX_GROWTH_MEASUREMENT_CONFOUNDERS
+  )
+    conflict("Stored Measurement exceeds the confounder integrity limit");
   const factHash = await sha256Hex(JSON.stringify(storedPlanFact(graph)));
   if (graph.plan.factHash !== factHash)
     conflict("Stored Measurement Plan graph does not match its immutable fact");

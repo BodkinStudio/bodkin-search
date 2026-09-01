@@ -852,3 +852,21 @@ is public. Saved rows are current reads coordinated by one `asOf`, not a
 historical snapshot. Two final GSC reads supply an ungrouped aggregate and top
 queries; any failed, malformed, or property-drift pair suppresses the whole
 live section rather than mixing partial or private provider context.
+
+## ADR-040 - Bounded saved Action detail chains
+
+**Status:** Accepted
+
+### Decision
+
+`growth_get_action` exposes one project-authorized, current (not snapshot)
+Action chain from saved normalized data only. It returns bounded topology and
+explicit overflow rather than raw evidence or history export. Display values
+are privacy-projected before public caps; Changes and Measurement are temporal
+context, never causal proof.
+
+### Consequence
+
+The tool performs no provider read, mutation or credit use. Measurement must
+pass the existing immutable-fact validator before projection, while validator
+storage reads retain independent limit-plus-one integrity bounds.

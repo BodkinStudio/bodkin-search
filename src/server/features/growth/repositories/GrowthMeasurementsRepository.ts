@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   growthActionEvents,
@@ -140,21 +140,25 @@ async function listMeasurementMetrics(
   projectId: string,
   measurementPlanId: string,
 ) {
-  return db
-    .select()
-    .from(growthMeasurementMetrics)
-    .where(
-      and(
-        eq(growthMeasurementMetrics.projectId, projectId),
-        eq(growthMeasurementMetrics.measurementPlanId, measurementPlanId),
-      ),
-    )
-    .orderBy(
-      growthMeasurementMetrics.metricType,
-      growthMeasurementMetrics.entityType,
-      growthMeasurementMetrics.entityKey,
-      growthMeasurementMetrics.id,
-    );
+  return (
+    db
+      .select()
+      .from(growthMeasurementMetrics)
+      .where(
+        and(
+          eq(growthMeasurementMetrics.projectId, projectId),
+          eq(growthMeasurementMetrics.measurementPlanId, measurementPlanId),
+        ),
+      )
+      .orderBy(
+        growthMeasurementMetrics.metricType,
+        growthMeasurementMetrics.entityType,
+        growthMeasurementMetrics.entityKey,
+        growthMeasurementMetrics.id,
+      )
+      // Preserve this provider-default ordering: it is part of stored Plan facts.
+      .limit(51)
+  );
 }
 
 async function getMeasurementObservation(
@@ -196,7 +200,8 @@ async function listMeasurementObservations(
       sql`CASE ${growthMeasurementObservations.periodType}
         WHEN 'baseline' THEN 0 WHEN 'measurement' THEN 1 ELSE 2 END`,
       growthMeasurementObservations.id,
-    );
+    )
+    .limit(151);
 }
 
 async function getMeasurementResult(
@@ -232,13 +237,15 @@ async function listMeasurementResultChangeEventIds(
         ),
       ),
     )
-    .orderBy(growthMeasurementResultChanges.changeEventId);
+    .orderBy(growthMeasurementResultChanges.changeEventId)
+    .limit(51);
   return rows.map(({ changeEventId }) => changeEventId);
 }
 
 async function listMeasurementActionEvents(
   projectId: string,
   actionId: string,
+  actionVersion: number,
 ) {
   return db
     .select()
@@ -247,6 +254,10 @@ async function listMeasurementActionEvents(
       and(
         eq(growthActionEvents.projectId, projectId),
         eq(growthActionEvents.actionId, actionId),
+        inArray(growthActionEvents.actionVersion, [
+          actionVersion,
+          actionVersion + 1,
+        ]),
       ),
     )
     .orderBy(growthActionEvents.actionVersion);
@@ -260,7 +271,7 @@ async function getMeasurementGraph(projectId: string, id: string) {
       listMeasurementMetrics(projectId, id),
       listMeasurementObservations(projectId, id),
       getMeasurementResult(projectId, id),
-      listMeasurementActionEvents(projectId, plan.actionId),
+      listMeasurementActionEvents(projectId, plan.actionId, plan.actionVersion),
       getMeasurementPlanAnchor(projectId, id),
     ]);
   const confoundingChangeEventIds = result

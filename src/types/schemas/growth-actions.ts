@@ -11,6 +11,7 @@ export const GROWTH_ACTION_STATUSES = [
   "evaluated",
   "cancelled",
 ] as const;
+export const GROWTH_ACTION_EVENT_TYPES = ["created", "status_changed"] as const;
 
 export type GrowthActionStatus = (typeof GROWTH_ACTION_STATUSES)[number];
 

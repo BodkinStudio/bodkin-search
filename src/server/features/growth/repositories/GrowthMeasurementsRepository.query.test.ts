@@ -472,6 +472,61 @@ describe.sequential("GrowthMeasurementsRepository D1 lifecycle", () => {
       await countRows("growth_change_events", "id = 'change_context'"),
     ).toBe(1);
 
+    // The shared read must expose the limit-plus-one sentinels for the service
+    // integrity guard, while selecting only the two Measurement lifecycle rows.
+    for (let index = 0; index < 49; index += 1) {
+      await client.execute({
+        sql: `INSERT INTO growth_measurement_metrics (
+          id, project_id, measurement_plan_id, metric_type, entity_type,
+          entity_key, is_primary
+        ) VALUES (?, 'project_1', 'plan_1', 'search_clicks', 'site', ?, 0)`,
+        args: [`overflow_metric_${index}`, `overflow-${index}`],
+      });
+    }
+    for (let index = 0; index < 148; index += 1) {
+      const metric =
+        index === 0
+          ? "metric_impressions"
+          : `overflow_metric_${Math.floor((index - 1) / 3)}`;
+      const period = (["baseline", "measurement", "long_term"] as const)[
+        index === 0 ? 0 : (index - 1) % 3
+      ];
+      await client.execute({
+        sql: `INSERT INTO growth_measurement_observations (
+          id, project_id, measurement_plan_id, metric_id, period_type, fact_hash,
+          effective_start, effective_end, value, completeness, evidence_kind,
+          evidence_ref, captured_at
+        ) VALUES (?, 'project_1', 'plan_1', ?, ?, ?, '2026-08-01',
+          '2026-08-14', 1, 1, 'gsc_period', 'private',
+          '2026-09-15T12:00:00.000Z')`,
+        args: [`overflow_observation_${index}`, metric, period, "a".repeat(64)],
+      });
+    }
+    for (let index = 0; index < 50; index += 1) {
+      const changeId = `overflow_change_${index}`;
+      await client.execute({
+        sql: `INSERT INTO growth_change_events (
+          id, project_id, creation_key, fact_hash, source, change_type,
+          actor_type, actor_id, description, happened_at
+        ) VALUES (?, 'project_1', ?, ?, 'manual', 'content_updated', 'user',
+          'user_1', 'Overflow context', '2026-09-01T12:00:00.000Z')`,
+        args: [changeId, changeId, "b".repeat(64)],
+      });
+      await client.execute({
+        sql: `INSERT INTO growth_measurement_result_changes (
+          project_id, measurement_result_id, change_event_id
+        ) VALUES ('project_1', 'result_1', ?)`,
+        args: [changeId],
+      });
+    }
+    const boundedGraph = await repo.getGraph("project_1", "plan_1");
+    expect(boundedGraph?.metrics).toHaveLength(51);
+    expect(boundedGraph?.observations).toHaveLength(151);
+    expect(boundedGraph?.confoundingChangeEventIds).toHaveLength(51);
+    expect(
+      boundedGraph?.actionEvents.map(({ actionVersion }) => actionVersion),
+    ).toEqual([6, 7]);
+
     await client.execute("DELETE FROM growth_runs WHERE id = 'run_1'");
     expect(await repo.getPlan("project_1", "plan_1")).toBeNull();
     expect(await countRows("growth_measurement_results")).toBe(0);

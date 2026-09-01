@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import type { ToolAuthContext } from "@/server/mcp/context";
 import { growthGetActionsTool } from "@/server/mcp/tools/growth-action-tools";
+import { makeGrowthActionDetailFixture } from "@/server/mcp/tools/growth-action-detail-test-fixture";
+import { growthGetActionTool } from "@/server/mcp/tools/growth-action-detail-tool";
 import { makeGrowthPageContextFixture } from "@/server/mcp/tools/growth-page-context-test-fixture";
 import { growthGetPageContextTool } from "@/server/mcp/tools/growth-page-context-tool";
 import { makeGrowthProjectSummaryFixture } from "@/server/mcp/tools/growth-project-summary-test-fixture";
@@ -13,6 +15,7 @@ import { buildSamMcpTools } from "./samChatTools";
 const mocks = vi.hoisted(() => ({
   getProjectForOrganization: vi.fn(),
   listActions: vi.fn(),
+  getActionDetail: vi.fn(),
   getPageContext: vi.fn(),
   getProjectSummary: vi.fn(),
   getGrowthMonthlyReport: vi.fn(),
@@ -47,6 +50,10 @@ vi.mock("@/server/features/projects/services/ProjectService", () => ({
 
 vi.mock("@/server/features/growth/services/GrowthActionsReadService", () => ({
   GrowthActionsReadService: { listActions: mocks.listActions },
+}));
+
+vi.mock("@/server/features/growth/services/GrowthActionDetailService", () => ({
+  GrowthActionDetailService: { getAction: mocks.getActionDetail },
 }));
 
 vi.mock("@/server/features/growth/services/GrowthPageContextService", () => ({
@@ -106,6 +113,7 @@ beforeEach(() => {
     hasMore: false,
     nextCursor: null,
   });
+  mocks.getActionDetail.mockResolvedValue(makeGrowthActionDetailFixture());
   mocks.getGrowthMonthlyReport.mockResolvedValue(summary);
   mocks.getPageContext.mockResolvedValue(makeGrowthPageContextFixture());
   mocks.getProjectSummary.mockResolvedValue({
@@ -277,6 +285,47 @@ describe("SAM Growth MCP tools", () => {
           limit: 20,
           hasMore: false,
           nextCursor: null,
+        },
+        meta: {
+          projectId: "bound_project",
+          url: "https://open-seo.test/p/bound_project/growth#growth-work",
+        },
+      },
+    });
+  });
+
+  it("binds the shared Action detail to the session project with actionId-only input", async () => {
+    const tools = buildSamMcpTools(authContext, {
+      id: "bound_project",
+      domain: "example.com",
+    });
+    const detail = tools.growth_get_action;
+
+    expect(detail).toBeDefined();
+    expect(detail.description).toBe(growthGetActionTool.config.description);
+    expect(detail.inputSchema).toBeInstanceOf(z.ZodObject);
+    if (!(detail.inputSchema instanceof z.ZodObject)) {
+      throw new Error("Expected SAM to expose a Zod object input schema");
+    }
+    expect(Object.keys(detail.inputSchema.shape)).toEqual(["actionId"]);
+    expect(detail.inputSchema.shape).not.toHaveProperty("projectId");
+
+    if (!detail.execute) throw new Error("Expected an executable SAM tool");
+    const result: unknown = await detail.execute(
+      detail.inputSchema.parse({ actionId: "action_123" }),
+      callOptions,
+    );
+
+    expect(mocks.withPgClient).toHaveBeenCalledTimes(1);
+    expect(mocks.getActionDetail).toHaveBeenCalledWith({
+      projectId: "bound_project",
+      actionId: "action_123",
+    });
+    expect(result).toMatchObject({
+      data: {
+        action: {
+          consistency: "current_not_snapshot",
+          action: { id: "action_123" },
         },
         meta: {
           projectId: "bound_project",

@@ -1,0 +1,13 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep the discriminated Measurement Metric schema requiring URL-safe keys only for entityType url and safe-text keys for site, keyword and cluster.",
+    "Keep the fresh PostgreSQL migration-order correction: establish the referenced composite uniqueness before creating the anchor foreign key.",
+    "Keep the verified project-leading, bounded saved-data graph reads; auth-first MCP/SAM binding; immutable Measurement validation bounds; and non-causal current-not-snapshot contract."
+  ]
+}

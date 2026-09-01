@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createWorkersOAuthMcpProps } from "@/server/mcp/context";
 import { createOpenSeoMcpServer } from "@/server/mcp/server";
 import { makeGrowthPageContextFixture } from "@/server/mcp/tools/growth-page-context-test-fixture";
+import { makeGrowthActionDetailFixture } from "@/server/mcp/tools/growth-action-detail-test-fixture";
 import { makeGrowthProjectSummaryFixture } from "@/server/mcp/tools/growth-project-summary-test-fixture";
 
 const mocks = vi.hoisted(() => ({
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   getPageContext: vi.fn(),
   getProjectSummary: vi.fn(),
   listActions: vi.fn(),
+  getActionDetail: vi.fn(),
   waitUntil: vi.fn(),
   incrementSelfHostMcpToolCallCount: vi.fn(),
   captureServerEvent: vi.fn(),
@@ -52,6 +54,10 @@ vi.mock("@/server/features/growth/services/GrowthActionsReadService", () => ({
   GrowthActionsReadService: {
     listActions: mocks.listActions,
   },
+}));
+
+vi.mock("@/server/features/growth/services/GrowthActionDetailService", () => ({
+  GrowthActionDetailService: { getAction: mocks.getActionDetail },
 }));
 
 vi.mock(
@@ -130,6 +136,7 @@ beforeEach(() => {
       id: "action_123",
     },
   });
+  mocks.getActionDetail.mockResolvedValue(makeGrowthActionDetailFixture());
   mocks.getProjectSummary.mockResolvedValue(makeGrowthProjectSummaryFixture());
   mocks.getPageContext.mockResolvedValue(makeGrowthPageContextFixture());
   mocks.incrementSelfHostMcpToolCallCount.mockResolvedValue(undefined);
@@ -464,6 +471,65 @@ describe("Growth Action MCP registration", () => {
         minPriorityScore: 5,
         limit: 2,
         cursor,
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+});
+
+describe("Growth Action detail MCP registration", () => {
+  it("advertises and invokes the shared detail tool through the real in-process protocol", async () => {
+    const authProps = createWorkersOAuthMcpProps({
+      userId: "user_123",
+      userEmail: "team@example.com",
+      organizationId: "org_123",
+      baseUrl: "https://app.example.com",
+      clientId: null,
+      scopes: ["mcp"],
+    });
+    const server = createOpenSeoMcpServer(authProps);
+    const client = new Client({ name: "growth-test", version: "1.0.0" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+
+    await server.connect(serverTransport);
+    try {
+      await client.connect(clientTransport);
+      const listing = await client.listTools();
+      const tool = listing.tools.find(
+        (candidate) => candidate.name === "growth_get_action",
+      );
+      expect(tool).toMatchObject({
+        name: "growth_get_action",
+        inputSchema: { type: "object", required: ["projectId", "actionId"] },
+        outputSchema: { type: "object", required: ["action"] },
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          openWorldHint: false,
+        },
+      });
+
+      const result = await client.callTool({
+        name: "growth_get_action",
+        arguments: { projectId: "project_123", actionId: "action_123" },
+      });
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        action: {
+          consistency: "current_not_snapshot",
+          action: { id: "action_123" },
+        },
+        meta: {
+          projectId: "project_123",
+          url: "https://app.example.com/p/project_123/growth#growth-work",
+        },
+      });
+      expect(mocks.getActionDetail).toHaveBeenCalledWith({
+        projectId: "project_123",
+        actionId: "action_123",
       });
     } finally {
       await client.close();

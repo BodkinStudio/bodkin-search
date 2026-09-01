@@ -1458,6 +1458,64 @@ describe("GrowthMeasurementsService finalize", () => {
 });
 
 describe("GrowthMeasurementsService read model", () => {
+  it("rejects limit-plus-one Metric, Observation, and confounder graph reads before hashing facts", async () => {
+    const cases = [
+      {
+        label: "Metric",
+        mutate: (graph: StoredGraph) => {
+          graph.metrics.push(
+            ...Array.from({ length: 49 }, (_, index) => ({
+              ...graph.metrics[0],
+              id: `overflow_metric_${index}`,
+            })),
+          );
+        },
+      },
+      {
+        label: "Observation",
+        mutate: (graph: StoredGraph) => {
+          graph.observations.push(
+            ...Array.from({ length: 151 }, (_, index) => ({
+              id: `overflow_observation_${index}`,
+              projectId,
+              measurementPlanId: graph.plan.id,
+              metricId: graph.metrics[0].id,
+              periodType: "baseline" as const,
+              factHash: "f".repeat(64),
+              effectiveStart: "2026-08-01",
+              effectiveEnd: "2026-08-14",
+              value: 1,
+              completeness: 1,
+              evidenceKind: "gsc_period" as const,
+              evidenceRef: "private",
+              capturedAt: createdAt,
+              createdAt,
+            })),
+          );
+        },
+      },
+      {
+        label: "confounder",
+        mutate: (graph: StoredGraph) => {
+          graph.confoundingChangeEventIds = Array.from(
+            { length: 51 },
+            (_, index) => `overflow_change_${index}`,
+          );
+        },
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const store = installStore();
+      const graph = await startPlan(store);
+      testCase.mutate(graph);
+
+      await expect(
+        GrowthMeasurementsService.getMeasurement(projectId, graph.plan.id),
+      ).rejects.toMatchObject({ code: "CONFLICT" });
+    }
+  });
+
   it("derives absolute and percent deltas without inventing a percent for zero baselines", async () => {
     const store = installStore();
     const graph = await startPlan(

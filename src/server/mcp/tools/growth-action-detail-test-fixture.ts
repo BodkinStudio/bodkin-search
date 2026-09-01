@@ -1,0 +1,70 @@
+import type { GrowthActionDetailDto } from "@/types/schemas/growth-action-detail";
+
+const safe = (value: string) => ({
+  value,
+  redacted: false,
+  truncated: false,
+});
+
+export function makeGrowthActionDetailFixture(): GrowthActionDetailDto {
+  return {
+    asOf: "2026-09-01T12:00:00.000Z",
+    consistency: "current_not_snapshot",
+    changesAreTemporalContextNotCausalProof: true,
+    action: {
+      id: "action_123",
+      title: safe("Repair pricing visibility"),
+      description: safe("Restore measurable demand for the pricing page."),
+      category: safe("content"),
+      priorityScore: 10,
+      status: "ready",
+      version: 1,
+      dueAt: "2026-09-30T12:00:00.000Z",
+      approvedAt: "2026-08-31T12:00:00.000Z",
+      startedAt: null,
+      implementedAt: null,
+      evaluatedAt: null,
+      cancelledAt: null,
+      createdAt: "2026-08-31T12:00:00.000Z",
+      updatedAt: "2026-09-01T12:00:00.000Z",
+      targets: [],
+      targetCoverage: { returned: 0, hasMore: false },
+    },
+    history: [],
+    historyCoverage: { returned: 0, hasMore: false },
+    source: {
+      run: {
+        runType: "manual_analysis",
+        status: "completed",
+        periodStart: "2026-08-01",
+        periodEnd: "2026-08-31",
+        startedAt: "2026-08-31T10:00:00.000Z",
+        completedAt: "2026-08-31T11:00:00.000Z",
+      },
+      recommendation: {
+        id: "recommendation_123",
+        status: "accepted",
+        title: safe("Repair pricing visibility"),
+        rationale: safe("Pricing intent declined."),
+        category: safe("content"),
+        impact: 5,
+        commercialRelevance: 5,
+        effort: 2,
+        urgency: 3,
+        confidence: 0.8,
+        priorityScore: 10,
+        createdAt: "2026-08-31T10:00:00.000Z",
+        reviewedAt: "2026-08-31T11:00:00.000Z",
+        targets: [],
+        targetCoverage: { returned: 0, hasMore: false },
+        steps: [],
+        stepCoverage: { returned: 0, hasMore: false },
+      },
+      insights: [],
+      insightCoverage: { returned: 0, hasMore: false },
+    },
+    changes: [],
+    changeCoverage: { returned: 0, hasMore: false },
+    measurement: "none",
+  };
+}

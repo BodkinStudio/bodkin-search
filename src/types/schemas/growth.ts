@@ -70,12 +70,23 @@ export const updateGrowthSettingsSchema = z
 
 export type GrowthSettingsInput = z.infer<typeof growthSettingsInputSchema>;
 
-const GROWTH_RUN_TYPES = [
+export const GROWTH_RUN_TYPES = [
   "daily_monitor",
   "weekly_review",
   "monthly_review",
   "measurement_review",
   "manual_analysis",
+] as const;
+export const GROWTH_RUN_STATUSES = [
+  "running",
+  "completed",
+  "completed_with_errors",
+  "failed",
+] as const;
+export const GROWTH_SIGNAL_SEVERITIES = [
+  "info",
+  "warning",
+  "critical",
 ] as const;
 export const GROWTH_EVIDENCE_KINDS = [
   "gsc_period",
@@ -182,7 +193,7 @@ export const recordGrowthSignalSchema = z
     entityType: slug,
     entityRef: boundedText(500),
     metric: boundedText(200),
-    severity: z.enum(["info", "warning", "critical"]),
+    severity: z.enum(GROWTH_SIGNAL_SEVERITIES),
     confidence: z.number().finite().min(0).max(1),
     ...inclusivePeriod,
     baselineValue: z.number().finite(),
@@ -204,7 +215,7 @@ export type CompleteGrowthRunWithErrorsInput = z.infer<
 >;
 export type RecordGrowthSignalInput = z.infer<typeof recordGrowthSignalSchema>;
 
-const GROWTH_RECOMMENDATION_STATUSES = [
+export const GROWTH_RECOMMENDATION_STATUSES = [
   "proposed",
   "accepted",
   "dismissed",
