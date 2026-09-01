@@ -68,6 +68,7 @@ import {
   getAuditStatusTool,
   runSiteAuditTool,
 } from "@/server/mcp/tools/site-audit-tools";
+import { growthGetActionsTool } from "@/server/mcp/tools/growth-action-tools";
 import { growthGetMonthlySummaryTool } from "@/server/mcp/tools/growth-tools";
 import { whoamiTool } from "@/server/mcp/tools/whoami";
 
@@ -199,6 +200,7 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
   register(getAuditStatusTool);
   register(getAuditIssuesTool);
   register(getAuditPagesTool);
+  register(growthGetActionsTool);
   register(growthGetMonthlySummaryTool);
 
   return server;

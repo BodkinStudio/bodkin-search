@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import type { ToolAuthContext } from "@/server/mcp/context";
+import { growthGetActionsTool } from "@/server/mcp/tools/growth-action-tools";
 import type { GrowthMonthlyReportDto } from "@/types/schemas/growth-monthly-reports";
 import { growthGetMonthlySummaryTool } from "@/server/mcp/tools/growth-tools";
 import { buildSamMcpTools } from "./samChatTools";
 
 const mocks = vi.hoisted(() => ({
   getProjectForOrganization: vi.fn(),
+  listActions: vi.fn(),
   getGrowthMonthlyReport: vi.fn(),
   withPgClient: vi.fn((callback: () => unknown) => callback()),
 }));
@@ -35,6 +37,10 @@ vi.mock("@/server/features/projects/services/ProjectService", () => ({
   ProjectService: {
     getProjectForOrganization: mocks.getProjectForOrganization,
   },
+}));
+
+vi.mock("@/server/features/growth/services/GrowthActionsReadService", () => ({
+  GrowthActionsReadService: { listActions: mocks.listActions },
 }));
 
 vi.mock(
@@ -68,10 +74,82 @@ beforeEach(() => {
     callback(),
   );
   mocks.getProjectForOrganization.mockResolvedValue({ id: "bound_project" });
+  mocks.listActions.mockResolvedValue({
+    actions: [],
+    limit: 20,
+    hasMore: false,
+    nextCursor: null,
+  });
   mocks.getGrowthMonthlyReport.mockResolvedValue(summary);
 });
 
 describe("SAM Growth MCP tools", () => {
+  it("binds the shared Action list to the session project and preserves its query", async () => {
+    const tools = buildSamMcpTools(authContext, {
+      id: "bound_project",
+      domain: "example.com",
+    });
+    const actions = tools.growth_get_actions;
+
+    expect(actions).toBeDefined();
+    expect(actions.description).toBe(growthGetActionsTool.config.description);
+    expect(actions.inputSchema).toBeInstanceOf(z.ZodObject);
+    if (!(actions.inputSchema instanceof z.ZodObject)) {
+      throw new Error("Expected SAM to expose a Zod object input schema");
+    }
+    expect(Object.keys(actions.inputSchema.shape)).toEqual([
+      "statuses",
+      "category",
+      "minPriorityScore",
+      "limit",
+      "cursor",
+    ]);
+    expect(actions.inputSchema.shape).not.toHaveProperty("projectId");
+
+    const cursor = {
+      createdAt: "2026-08-20T09:00:00.000Z",
+      id: "action_cursor",
+    };
+    const modelInput = actions.inputSchema.parse({
+      statuses: ["blocked", "ready", "blocked"],
+      category: "  content  ",
+      minPriorityScore: 12.5,
+      limit: 7,
+      cursor,
+    });
+    if (!actions.execute) throw new Error("Expected an executable SAM tool");
+    const result: unknown = await actions.execute(modelInput, callOptions);
+
+    expect(mocks.withPgClient).toHaveBeenCalledTimes(1);
+    expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
+      authContext.organizationId,
+      "bound_project",
+    );
+    expect(mocks.listActions).toHaveBeenCalledTimes(1);
+    expect(mocks.listActions).toHaveBeenCalledWith({
+      projectId: "bound_project",
+      statuses: ["ready", "blocked"],
+      category: "content",
+      minPriorityScore: 12.5,
+      limit: 7,
+      cursor,
+    });
+    expect(result).toMatchObject({
+      data: {
+        page: {
+          actions: [],
+          limit: 20,
+          hasMore: false,
+          nextCursor: null,
+        },
+        meta: {
+          projectId: "bound_project",
+          url: "https://open-seo.test/p/bound_project/growth#growth-work",
+        },
+      },
+    });
+  });
+
   it("exposes the shared monthly-summary definition without a model-supplied projectId", async () => {
     const tools = buildSamMcpTools(authContext, {
       id: "bound_project",

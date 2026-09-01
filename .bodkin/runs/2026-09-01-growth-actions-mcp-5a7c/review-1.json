@@ -1,0 +1,31 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Keep the all-Action repository page read separate from the qualified priority-page Work query.",
+      "location": "src/server/features/growth/repositories/GrowthActionsRepository.ts",
+      "evidence": "listActionsPage reads growth_actions with project-leading filters; listInvestigationWork retains its detector/run/signal joins.",
+      "impact": "Reusing the Work query would silently omit valid Actions and regress the existing Work surface.",
+      "recommendation": "Preserve both reads as separate repository methods."
+    },
+    {
+      "summary": "Keep immutable creation-time keyset ordering with provider-specific ID collation.",
+      "location": "src/server/features/growth/repositories/GrowthActionsRepository.ts",
+      "evidence": "The page query and cursor predicate both use createdAt DESC plus BINARY/C-collated id DESC; SQLite and live Postgres coverage records exact continuation behavior.",
+      "impact": "Changing to mutable fields, default collation, or offset pagination would make continuations unstable across providers.",
+      "recommendation": "Retain the current ordering and limit-plus-one contract."
+    },
+    {
+      "summary": "Keep the shared MCP definition and SAM's server-bound project injection.",
+      "location": "src/server/mcp/tools/growth-action-tools.ts; src/server/features/sam/samChatTools.ts",
+      "evidence": "The tool is wrapped by canonical project authorization, while SAM removes model-visible projectId and injects the session project before invoking the same handler.",
+      "impact": "A separate adapter or model-controlled project identity could weaken tenancy guarantees or cause behavior drift.",
+      "recommendation": "Continue registering this shared definition through both existing adapters."
+    }
+  ]
+}

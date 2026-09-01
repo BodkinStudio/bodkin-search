@@ -749,3 +749,39 @@ The monthly-report service, DTO, authorization boundary and Growth page already 
 ### Deferred
 
 Historical or custom-period reads, build and publication actions, scheduled delivery, external sharing, provider collection, narrative generation and cross-project agent access remain separate reviewed work.
+
+## ADR-037 - Growth Action MCP is a sanitized current keyset list
+
+**Status:** Accepted
+
+### Decision
+
+- `growth_get_actions` is a project-scoped, read-only adapter over the general
+  Growth Action read service and its strict safe page DTO. It reads all current
+  project Actions rather than reusing the narrower qualified-Work UI query.
+- Callers may apply only the shared bounded status, exact category and minimum
+  priority filters, page limit and immutable creation cursor. Pagination remains
+  `(createdAt DESC, code-unit id DESC)` keyset pagination implemented by the
+  repository; the adapter neither invents another sort nor claims a total count.
+- The established MCP project authorization gate runs before the read service.
+  Structured content returns only the sanitized Action summaries, bounded target
+  projections and truthful continuation cursor approved by the shared DTO.
+  Human-readable text is derived from that same page.
+- The tool reads saved OpenSEO data, uses zero credits and makes no provider or
+  mutation call. The external MCP server and project-bound SAM agent share the
+  exact definition; SAM strips the model-visible project ID, injects its bound
+  session project, and preserves the remaining filters and cursor unchanged.
+
+### Why
+
+A general bounded Action list is the smallest agent read foundation for later
+project summaries and focused Action investigation. Reusing the project auth,
+read service, privacy projection and existing MCP/SAM surfaces avoids exposing
+internal workflow rows or creating a second Growth API.
+
+### Deferred
+
+Action detail and event history, Recommendation/Insight/Signal evidence chains,
+linked Changes and Measurements, historical snapshots, arbitrary sorting or
+search, total counts, Action writes, provider refreshes and cross-project agent
+access remain separate reviewed work.

@@ -6,6 +6,7 @@ import { createOpenSeoMcpServer } from "@/server/mcp/server";
 const mocks = vi.hoisted(() => ({
   getProjectForOrganization: vi.fn(),
   getGrowthMonthlyReport: vi.fn(),
+  listActions: vi.fn(),
   waitUntil: vi.fn(),
   incrementSelfHostMcpToolCallCount: vi.fn(),
   captureServerEvent: vi.fn(),
@@ -36,6 +37,12 @@ vi.mock(
   }),
 );
 
+vi.mock("@/server/features/growth/services/GrowthActionsReadService", () => ({
+  GrowthActionsReadService: {
+    listActions: mocks.listActions,
+  },
+}));
+
 vi.mock("@/server/features/activation/mcpActivation", () => ({
   recordExternalMcpToolCall: mocks.recordExternalMcpToolCall,
 }));
@@ -59,6 +66,45 @@ beforeEach(() => {
     periodStart: "2026-07-01",
     periodEnd: "2026-07-31",
     reportTimezone: "Europe/London",
+  });
+  mocks.listActions.mockResolvedValue({
+    actions: [
+      {
+        id: "action_123",
+        title: "Repair pricing visibility",
+        titleRedacted: false,
+        titleTruncated: false,
+        category: "content",
+        categoryRedacted: false,
+        categoryTruncated: false,
+        description: "Restore measurable demand for the pricing page.",
+        descriptionRedacted: false,
+        descriptionTruncated: false,
+        priorityScore: 10,
+        status: "ready",
+        version: 1,
+        dueAt: "2026-09-30T12:00:00.000Z",
+        createdAt: "2026-08-31T12:00:00.000Z",
+        updatedAt: "2026-09-01T12:00:00.000Z",
+        targetCount: 1,
+        displayTargets: [
+          {
+            type: "url",
+            value: "https://example.com/pricing",
+            queryOrFragmentOmitted: true,
+            withheld: false,
+          },
+        ],
+        displayTargetsOmitted: false,
+        displayTargetsWithheld: false,
+      },
+    ],
+    limit: 2,
+    hasMore: true,
+    nextCursor: {
+      createdAt: "2026-08-31T12:00:00.000Z",
+      id: "action_123",
+    },
   });
   mocks.incrementSelfHostMcpToolCallCount.mockResolvedValue(undefined);
   mocks.captureServerEvent.mockResolvedValue(undefined);
@@ -132,6 +178,111 @@ describe("Growth monthly-summary MCP registration", () => {
         "project_123",
       );
       expect(mocks.getGrowthMonthlyReport).toHaveBeenCalledWith("project_123");
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+});
+
+describe("Growth Action MCP registration", () => {
+  it("advertises and invokes the tool through the real in-process server", async () => {
+    const authProps = createWorkersOAuthMcpProps({
+      userId: "user_123",
+      userEmail: "team@example.com",
+      organizationId: "org_123",
+      baseUrl: "https://app.example.com",
+      clientId: null,
+      scopes: ["mcp"],
+    });
+    const server = createOpenSeoMcpServer(authProps);
+    const client = new Client({ name: "growth-test", version: "1.0.0" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+
+    await server.connect(serverTransport);
+    try {
+      await client.connect(clientTransport);
+      const listing = await client.listTools();
+      const tool = listing.tools.find(
+        (candidate) => candidate.name === "growth_get_actions",
+      );
+
+      expect(tool).toMatchObject({
+        name: "growth_get_actions",
+        inputSchema: {
+          type: "object",
+          required: ["projectId"],
+        },
+        outputSchema: {
+          type: "object",
+          required: ["page"],
+        },
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          openWorldHint: false,
+        },
+      });
+      expect(tool?.inputSchema.properties).toHaveProperty("projectId");
+      expect(tool?.inputSchema.properties).toHaveProperty("cursor");
+      expect(tool?.outputSchema?.properties).toHaveProperty("page");
+      expect(tool?.outputSchema?.properties).toHaveProperty("meta");
+
+      const cursor = {
+        createdAt: "2026-09-01T12:00:00.000Z",
+        id: "action_older",
+      };
+      const result = await client.callTool({
+        name: "growth_get_actions",
+        arguments: {
+          projectId: "project_123",
+          statuses: ["ready"],
+          category: "content",
+          minPriorityScore: 5,
+          limit: 2,
+          cursor,
+        },
+      });
+
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        page: {
+          actions: [
+            {
+              id: "action_123",
+              status: "ready",
+              displayTargets: [
+                {
+                  type: "url",
+                  value: "https://example.com/pricing",
+                },
+              ],
+            },
+          ],
+          hasMore: true,
+          nextCursor: {
+            createdAt: "2026-08-31T12:00:00.000Z",
+            id: "action_123",
+          },
+        },
+        meta: {
+          projectId: "project_123",
+          url: "https://app.example.com/p/project_123/growth#growth-work",
+        },
+      });
+      expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
+        "org_123",
+        "project_123",
+      );
+      expect(mocks.listActions).toHaveBeenCalledWith({
+        projectId: "project_123",
+        statuses: ["ready"],
+        category: "content",
+        minPriorityScore: 5,
+        limit: 2,
+        cursor,
+      });
     } finally {
       await client.close();
       await server.close();

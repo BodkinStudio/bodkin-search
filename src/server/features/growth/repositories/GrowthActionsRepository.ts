@@ -1,5 +1,8 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
+import type { SQLWrapper } from "drizzle-orm";
 import { db } from "@/db";
+import { getDatabaseProvider } from "@/db/provider";
+import type { GrowthActionsReadRequest } from "@/types/schemas/growth-action-reads";
 import {
   growthActionEvents,
   growthActions,
@@ -17,6 +20,13 @@ import {
   createActionGraph,
   transitionAction,
 } from "./GrowthActionsWriter";
+
+/** BINARY/C matches JavaScript code-unit ordering for server-created Action IDs. */
+function codeUnitId(column: SQLWrapper) {
+  return getDatabaseProvider() === "postgres"
+    ? sql`${column} COLLATE "C"`
+    : sql`${column} COLLATE BINARY`;
+}
 
 async function getAction(projectId: string, id: string) {
   const [row] = await db
@@ -283,6 +293,56 @@ async function listInvestigationWork(
     .limit(limit);
 }
 
+/**
+ * Project-leading, immutable creation-order source read for current Action
+ * summaries. This intentionally does not reuse the narrower Work query.
+ */
+async function listActionsPage(input: GrowthActionsReadRequest) {
+  const { projectId, statuses, category, minPriorityScore, limit, cursor } =
+    input;
+  const actionId = codeUnitId(growthActions.id);
+  const afterCursor = cursor
+    ? or(
+        lt(growthActions.createdAt, cursor.createdAt),
+        and(
+          eq(growthActions.createdAt, cursor.createdAt),
+          lt(actionId, cursor.id),
+        ),
+      )
+    : undefined;
+  return db
+    .select({
+      id: growthActions.id,
+      title: growthActions.title,
+      description: growthActions.description,
+      category: growthActions.category,
+      priorityScore: growthActions.priorityScore,
+      status: growthActions.status,
+      stateVersion: growthActions.stateVersion,
+      dueAt: growthActions.dueAt,
+      createdAt: growthActions.createdAt,
+      updatedAt: growthActions.updatedAt,
+    })
+    .from(growthActions)
+    .where(
+      and(
+        eq(growthActions.projectId, projectId),
+        statuses === undefined
+          ? undefined
+          : inArray(growthActions.status, statuses),
+        category === undefined
+          ? undefined
+          : eq(growthActions.category, category),
+        minPriorityScore === undefined
+          ? undefined
+          : gte(growthActions.priorityScore, minPriorityScore),
+        afterCursor,
+      ),
+    )
+    .orderBy(desc(growthActions.createdAt), desc(actionId))
+    .limit(limit + 1);
+}
+
 async function listActionTargetsForActions(
   projectId: string,
   actionIds: string[],
@@ -315,6 +375,7 @@ export const GrowthActionsRepository = {
   listRecommendationTargets,
   projectDomain,
   listInvestigationWork,
+  listActionsPage,
   listActionTargetsForActions,
   createActionGraph,
   approveActionGraph,
