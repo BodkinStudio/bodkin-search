@@ -204,7 +204,7 @@ describe("Link saved change submission", () => {
     expect(find(render(), "form")?.disabled).toBe(false);
     expect(harness.mutate).toHaveBeenCalledTimes(1);
   });
-  it("uses the existing link endpoint and refreshes only the scoped association cache on success", async () => {
+  it("uses the existing link endpoint and refreshes the scoped association and measurement caches", async () => {
     find(render(), "form")?.onSubmit?.(change.id);
     await harness.options?.mutationFn(request);
     await harness.options?.onMutate();
@@ -214,7 +214,11 @@ describe("Link saved change submission", () => {
     expect(harness.cancel).toHaveBeenCalledWith({
       queryKey: ["growthWorkChanges", "project_1", "action_1"],
     });
-    expect(harness.invalidate).toHaveBeenCalledExactlyOnceWith({
+    expect(harness.invalidate).toHaveBeenCalledTimes(2);
+    expect(harness.invalidate).toHaveBeenNthCalledWith(1, {
+      queryKey: ["growthWorkMeasurement", "project_1", "action_1"],
+    });
+    expect(harness.invalidate).toHaveBeenNthCalledWith(2, {
       queryKey: ["growthWorkChanges", "project_1", "action_1"],
     });
     expect(find(render(), "form")?.disabled).toBe(false);

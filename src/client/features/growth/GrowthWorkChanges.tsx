@@ -73,6 +73,9 @@ export function GrowthWorkChangesPanel({
       setSubmitted(null);
       setSaved(true);
       setFormVersion((value) => value + 1);
+      void client.invalidateQueries({
+        queryKey: ["growthWorkMeasurement", projectId, actionId],
+      });
     },
     onSettled: () => {
       dispatching.current = false;
