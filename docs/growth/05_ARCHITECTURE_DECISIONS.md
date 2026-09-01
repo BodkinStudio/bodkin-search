@@ -721,6 +721,7 @@ MCP remain separate reviewed work.
 - Mutable Action, Change, Result and URL display values cross the existing Evidence Packet sanitizers before Report persistence. The client receives only a strict allowlisted projection of metadata, section prose and scalar facts, never sources, evidence, IDs, hashes, actors or internal versions.
 - The Report writer guards the persisted settings coordinate at its insert boundary. A settings projection mismatch causes no parent insert. The coordinator recovers any create error by reading the coordinate once; if another writer won, it returns that immutable winner without comparing or mutating a losing candidate. Direct Report callers retain exact-retry behaviour.
 - Build and recovery requests echo the server-issued period/timezone only as an expectation. An adjacent month may be read for an existing project-scoped winner, but no source query or write occurs unless echoed period and timezone still equal the freshly server-derived current values. A stale request with no winner returns current read state and requires a new explicit build action.
+- Publication is a separate authenticated, project-scoped action on one exact stored monthly version-1 coordinate. It delegates to the Report writer's one-way draft-to-published boundary as final internal approval of an already frozen report; it never builds, regenerates, shares, sends or otherwise exposes the report externally. Publication recovery reads only that exact coordinate and never uses build recovery's current-period fallback.
 
 ### Why
 
@@ -728,4 +729,4 @@ This produces a readable monthly snapshot from existing Growth facts without add
 
 ### Deferred
 
-Historical source reconstruction, regenerating or correcting v1, scheduling, publication UI, sharing, provider collection, AI narrative and custom/weekly reports remain separate decisions.
+Historical source reconstruction, regenerating or correcting v1, scheduling, sharing, provider collection, AI narrative and custom/weekly reports remain separate decisions.

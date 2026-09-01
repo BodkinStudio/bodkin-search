@@ -1,7 +1,26 @@
 import { z } from "zod";
 import { GROWTH_REPORT_SECTION_TYPES } from "./growth-reports";
 
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const date = z.string().refine((value) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return (
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value
+  );
+}, "Expected a real calendar date");
+const timezone = z
+  .string()
+  .min(1)
+  .max(100)
+  .refine((value) => {
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: value });
+      return true;
+    } catch {
+      return false;
+    }
+  }, "Expected an IANA timezone");
 const fact = z
   .object({
     label: z.string().min(1).max(200),
@@ -31,7 +50,7 @@ const section = z
 const common = {
   periodStart: date,
   periodEnd: date,
-  reportTimezone: z.string().min(1).max(100),
+  reportTimezone: timezone,
 };
 
 /** Deliberately allowlisted projection of a frozen monthly report for the UI. */
@@ -48,15 +67,31 @@ export const growthMonthlyReportDtoSchema = z.discriminatedUnion("state", [
     .object({
       state: z.literal("report"),
       ...common,
-      report: z
-        .object({
-          status: z.enum(["draft", "published"]),
-          version: z.number().int().positive(),
-          generatedAt: z.string().datetime({ offset: true }),
-          dataCutoffAt: z.string().datetime({ offset: true }),
-          sections: z.array(section).length(GROWTH_REPORT_SECTION_TYPES.length),
-        })
-        .strict(),
+      report: z.discriminatedUnion("status", [
+        z
+          .object({
+            status: z.literal("draft"),
+            version: z.number().int().positive(),
+            generatedAt: z.string().datetime({ offset: true }),
+            dataCutoffAt: z.string().datetime({ offset: true }),
+            sections: z
+              .array(section)
+              .length(GROWTH_REPORT_SECTION_TYPES.length),
+          })
+          .strict(),
+        z
+          .object({
+            status: z.literal("published"),
+            version: z.number().int().positive(),
+            generatedAt: z.string().datetime({ offset: true }),
+            dataCutoffAt: z.string().datetime({ offset: true }),
+            publishedAt: z.string().datetime({ offset: true }),
+            sections: z
+              .array(section)
+              .length(GROWTH_REPORT_SECTION_TYPES.length),
+          })
+          .strict(),
+      ]),
     })
     .strict(),
 ]);
@@ -68,7 +103,7 @@ const projectRoute = z.strictObject({
 const echoedCoordinate = {
   periodStart: date,
   periodEnd: date,
-  reportTimezone: z.string().min(1).max(100),
+  reportTimezone: timezone,
 };
 
 /** A read may be a normal current-month read or an exact retry/recovery read. */
@@ -86,9 +121,39 @@ export const buildGrowthMonthlyReportRequestSchema = z.strictObject({
   ...echoedCoordinate,
 });
 
+/** Publication can only address the exact server-issued monthly v1 coordinate. */
+export const publishGrowthMonthlyReportRequestSchema = z
+  .strictObject({
+    projectId: projectRoute.shape.projectId,
+    ...echoedCoordinate,
+    version: z.literal(1),
+  })
+  .superRefine((value, context) => {
+    if (!/^\d{4}-\d{2}-01$/.test(value.periodStart)) {
+      context.addIssue({
+        code: "custom",
+        path: ["periodStart"],
+        message: "Expected the first day of a month",
+      });
+      return;
+    }
+    const next = new Date(`${value.periodStart}T00:00:00.000Z`);
+    next.setUTCMonth(next.getUTCMonth() + 1);
+    next.setUTCDate(0);
+    if (next.toISOString().slice(0, 10) !== value.periodEnd)
+      context.addIssue({
+        code: "custom",
+        path: ["periodEnd"],
+        message: "Expected the final day of the same month",
+      });
+  });
+
 export type GrowthMonthlyReportExpectation = Omit<
   z.output<typeof buildGrowthMonthlyReportRequestSchema>,
   "projectId"
+>;
+export type GrowthMonthlyPublicationRequest = z.output<
+  typeof publishGrowthMonthlyReportRequestSchema
 >;
 export type GrowthMonthlyReportDto = z.output<
   typeof growthMonthlyReportDtoSchema

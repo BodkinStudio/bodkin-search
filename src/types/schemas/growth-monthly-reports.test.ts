@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { GROWTH_REPORT_SECTION_TYPES } from "./growth-reports";
-import { growthMonthlyReportDtoSchema } from "./growth-monthly-reports";
+import {
+  growthMonthlyReportDtoSchema,
+  publishGrowthMonthlyReportRequestSchema,
+} from "./growth-monthly-reports";
 
 function clientDto() {
   return {
@@ -54,5 +57,66 @@ describe("growthMonthlyReportDtoSchema", () => {
     expect(growthMonthlyReportDtoSchema.safeParse(itemSource).success).toBe(
       false,
     );
+  });
+
+  it("requires published metadata only for published reports", () => {
+    const published = {
+      ...clientDto(),
+      report: {
+        ...clientDto().report,
+        status: "published" as const,
+        publishedAt: "2026-09-01T09:00:00.000Z",
+      },
+    };
+    expect(growthMonthlyReportDtoSchema.safeParse(published).success).toBe(
+      true,
+    );
+    expect(
+      growthMonthlyReportDtoSchema.safeParse({
+        ...clientDto(),
+        report: {
+          ...clientDto().report,
+          publishedAt: "2026-09-01T09:00:00.000Z",
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      growthMonthlyReportDtoSchema.safeParse({
+        ...published,
+        report: { ...published.report, publishedAt: undefined },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts only a complete real monthly v1 publication coordinate", () => {
+    const valid = {
+      projectId: "project_1",
+      periodStart: "2026-02-01",
+      periodEnd: "2026-02-28",
+      reportTimezone: "Europe/London",
+      version: 1,
+    };
+    expect(
+      publishGrowthMonthlyReportRequestSchema.safeParse(valid).success,
+    ).toBe(true);
+    for (const invalid of [
+      { ...valid, periodStart: "2026-02-30" },
+      { ...valid, periodEnd: "2026-02-29" },
+      { ...valid, periodStart: "2026-02-02" },
+      { ...valid, reportTimezone: "Mars/Olympus" },
+      { ...valid, version: 2 },
+      { ...valid, periodEnd: undefined },
+      { ...valid, reportId: "forged" },
+      { ...valid, reportType: "monthly" },
+      { ...valid, status: "published" },
+      { ...valid, actorType: "user" },
+      { ...valid, actorId: "forged" },
+      { ...valid, publishedById: "forged" },
+      { ...valid, publishedAt: "2026-09-01T09:00:00.000Z" },
+      { ...valid, factHash: "forged" },
+    ])
+      expect(
+        publishGrowthMonthlyReportRequestSchema.safeParse(invalid).success,
+      ).toBe(false);
   });
 });

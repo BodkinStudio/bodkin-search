@@ -7,12 +7,15 @@ import {
   claimGrowthMonthlyReportDispatch,
   GrowthMonthlyReportState,
 } from "./GrowthMonthlyReport";
+import { GrowthMonthlyPublicationControl } from "./GrowthMonthlyReportPublication";
 import { GROWTH_REPORT_SECTION_TITLES } from "./GrowthReportPresentation";
 import { GrowthReportView } from "./GrowthReportView";
 
 vi.mock("@/serverFunctions/growthReports", () => ({
   getGrowthMonthlyReport: vi.fn(),
   buildGrowthMonthlyReport: vi.fn(),
+  getGrowthMonthlyPublicationStatus: vi.fn(),
+  publishGrowthMonthlyReport: vi.fn(),
 }));
 
 const common = {
@@ -146,12 +149,81 @@ describe("Growth Monthly Report rendered contract", () => {
   it("labels a previously published frozen report without offering publication", () => {
     const published = {
       ...report,
-      report: { ...report.report, status: "published" as const },
+      report: {
+        ...report.report,
+        status: "published" as const,
+        publishedAt: "2026-09-01T10:00:00.000Z",
+      },
     };
     const html = renderToStaticMarkup(
       createElement(GrowthReportView, { data: published }),
     );
     expect(html).toContain(">Published<");
+    expect(html).toContain("Published");
+    expect(html).toContain("1 Sept 2026, 10:00 UTC");
     expect(html).not.toContain(">Publish<");
+  });
+
+  it("renders the explicit publication trigger without dispatching", () => {
+    const onStart = vi.fn();
+    const html = renderToStaticMarkup(
+      createElement(GrowthMonthlyPublicationControl, {
+        request: null,
+        showTrigger: true,
+        attempted: false,
+        pending: false,
+        busy: false,
+        onStart,
+        onConfirm: vi.fn(),
+        onCancel: vi.fn(),
+      }),
+    );
+    expect(html).toContain("Publish summary");
+    expect(onStart).not.toHaveBeenCalled();
+  });
+
+  it("renders a labelled, focusable and truthful inline confirmation", () => {
+    const html = renderToStaticMarkup(
+      createElement(GrowthMonthlyPublicationControl, {
+        request: { projectId: "project_1", ...common, version: 1 },
+        showTrigger: true,
+        attempted: false,
+        pending: false,
+        busy: false,
+        onStart: vi.fn(),
+        onConfirm: vi.fn(),
+        onCancel: vi.fn(),
+      }),
+    );
+    expect(html).toContain(
+      'aria-labelledby="growth-publication-confirmation-title"',
+    );
+    expect(html).toContain('id="growth-publication-confirmation-title"');
+    expect(html).toContain('tabindex="-1"');
+    expect(html).toContain("Publish August 2026 summary?");
+    expect(html).toContain("final internal approval");
+    expect(html).toContain("does not share or send this report externally");
+    expect(html).toContain("Confirm publication");
+    expect(html).toContain("Cancel");
+  });
+
+  it("keeps the pending confirmation busy and removes Cancel", () => {
+    const html = renderToStaticMarkup(
+      createElement(GrowthMonthlyPublicationControl, {
+        request: { projectId: "project_1", ...common, version: 1 },
+        showTrigger: true,
+        attempted: true,
+        pending: true,
+        busy: true,
+        onStart: vi.fn(),
+        onConfirm: vi.fn(),
+        onCancel: vi.fn(),
+      }),
+    );
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain('role="status"');
+    expect(html).toContain("Publishing August 2026 summary");
+    expect(html).toContain("disabled");
+    expect(html).not.toContain(">Cancel<");
   });
 });

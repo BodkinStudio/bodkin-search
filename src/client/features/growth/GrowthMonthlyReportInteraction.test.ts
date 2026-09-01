@@ -10,6 +10,7 @@ type Expectation = {
   periodStart: string;
   periodEnd: string;
   reportTimezone: string;
+  version?: 1;
 };
 type MutationOptions = {
   mutationKey: string[];
@@ -66,6 +67,14 @@ const report: GrowthMonthlyReportDto = {
     sections: [],
   },
 };
+const publishedReport: GrowthMonthlyReportDto = {
+  ...report,
+  report: {
+    ...report.report,
+    status: "published",
+    publishedAt: "2026-09-01T10:00:00.000Z",
+  },
+};
 const noActivity: GrowthMonthlyReportDto = {
   state: "no_activity",
   periodStart: ready.periodStart,
@@ -86,6 +95,10 @@ const harness = vi.hoisted(() => ({
   refs: [
     { current: false },
     { current: null as { focus: () => void } | null },
+    { current: false },
+    { current: null as { focus: () => void } | null },
+    { current: null as { focus: () => void } | null },
+    { current: null as { focus: () => void } | null },
     { current: null as { focus: () => void } | null },
   ],
   refCursor: 0,
@@ -93,16 +106,23 @@ const harness = vi.hoisted(() => ({
   effectCursor: 0,
   queryOptions: undefined as QueryOptions | undefined,
   mutationOptions: undefined as MutationOptions | undefined,
+  publicationMutationOptions: undefined as MutationOptions | undefined,
   queryData: undefined as GrowthMonthlyReportDto | undefined,
   queryError: false,
   queryFetching: false,
   mutationPending: false,
   mutationError: false,
+  publicationPending: false,
+  publicationError: false,
   mutate: vi.fn(),
   reset: vi.fn(),
   refetch: vi.fn(),
   read: vi.fn(),
   build: vi.fn(),
+  publish: vi.fn(),
+  publicationRead: vi.fn(),
+  publishMutate: vi.fn(),
+  publishReset: vi.fn(),
 }));
 
 let client: QueryClient;
@@ -143,12 +163,18 @@ vi.mock("@tanstack/react-query", () => ({
     };
   },
   useMutation: (options: MutationOptions) => {
-    harness.mutationOptions = options;
+    const publication = options.mutationKey.some((key) =>
+      key.includes("Publish"),
+    );
+    if (publication) harness.publicationMutationOptions = options;
+    else harness.mutationOptions = options;
     return {
-      mutate: harness.mutate,
-      reset: harness.reset,
-      isPending: harness.mutationPending,
-      isError: harness.mutationError,
+      mutate: publication ? harness.publishMutate : harness.mutate,
+      reset: publication ? harness.publishReset : harness.reset,
+      isPending: publication
+        ? harness.publicationPending
+        : harness.mutationPending,
+      isError: publication ? harness.publicationError : harness.mutationError,
     };
   },
   useQueryClient: () => client,
@@ -157,28 +183,64 @@ vi.mock("@tanstack/react-query", () => ({
 vi.mock("@/serverFunctions/growthReports", () => ({
   getGrowthMonthlyReport: harness.read,
   buildGrowthMonthlyReport: harness.build,
+  getGrowthMonthlyPublicationStatus: harness.publicationRead,
+  publishGrowthMonthlyReport: harness.publish,
 }));
 
 import {
   GrowthMonthlyReport,
   GrowthMonthlyReportState,
 } from "./GrowthMonthlyReport";
+import {
+  GrowthMonthlyPublicationControl,
+  GrowthMonthlyPublicationRecovery,
+  type GrowthMonthlyPublicationControlProps,
+  type GrowthMonthlyPublicationRecoveryProps,
+} from "./GrowthMonthlyReportPublication";
 
 type NodeProps = {
   children?: ReactNode;
+  disabled?: boolean;
+  locked?: boolean;
   onClick?: () => void;
   onBuild?: () => void;
   role?: string;
   tabIndex?: number;
 };
 
+function isPublicationControlElement(
+  node: ReactNode,
+): node is React.ReactElement<GrowthMonthlyPublicationControlProps> {
+  return (
+    isValidElement<GrowthMonthlyPublicationControlProps>(node) &&
+    node.type === GrowthMonthlyPublicationControl
+  );
+}
+
+function isPublicationRecoveryElement(
+  node: ReactNode,
+): node is React.ReactElement<GrowthMonthlyPublicationRecoveryProps> {
+  return (
+    isValidElement<GrowthMonthlyPublicationRecoveryProps>(node) &&
+    node.type === GrowthMonthlyPublicationRecovery
+  );
+}
+
 function textFor(node: ReactNode): string {
   if (typeof node === "string" || typeof node === "number") return String(node);
+  if (isPublicationControlElement(node))
+    return textFor(GrowthMonthlyPublicationControl(node.props));
+  if (isPublicationRecoveryElement(node))
+    return textFor(GrowthMonthlyPublicationRecovery(node.props));
   if (!isValidElement<NodeProps>(node)) return "";
   return Children.toArray(node.props.children).map(textFor).join("");
 }
 
 function findButton(node: ReactNode, label: string): NodeProps | null {
+  if (isPublicationControlElement(node))
+    return findButton(GrowthMonthlyPublicationControl(node.props), label);
+  if (isPublicationRecoveryElement(node))
+    return findButton(GrowthMonthlyPublicationRecovery(node.props), label);
   if (!isValidElement<NodeProps>(node)) return null;
   if (node.type === "button" && textFor(node) === label) return node.props;
   for (const child of Children.toArray(node.props.children)) {
@@ -230,6 +292,18 @@ function failBuild() {
   harness.mutationError = true;
 }
 
+function beginPublication() {
+  harness.queryData = report;
+  findButton(render(), "Publish summary")?.onClick?.();
+  findButton(render(), "Confirm publication")?.onClick?.();
+}
+
+function failPublication() {
+  harness.publicationMutationOptions?.onError();
+  harness.publicationMutationOptions?.onSettled();
+  harness.publicationError = true;
+}
+
 describe("Growth Monthly Report interactions", () => {
   beforeEach(() => {
     client = new QueryClient();
@@ -241,15 +315,23 @@ describe("Growth Monthly Report interactions", () => {
     harness.refs[0].current = false;
     harness.refs[1].current = null;
     harness.refs[2].current = null;
+    harness.refs[3].current = null;
+    harness.refs[4].current = null;
+    harness.refs[5].current = null;
+    harness.refs[6].current = false;
     harness.queryData = ready;
     harness.queryError = false;
     harness.queryFetching = false;
     harness.mutationPending = false;
     harness.mutationError = false;
+    harness.publicationPending = false;
+    harness.publicationError = false;
     vi.clearAllMocks();
     harness.refetch.mockResolvedValue({ isSuccess: true, data: ready });
     harness.read.mockResolvedValue(ready);
     harness.build.mockResolvedValue(report);
+    harness.publish.mockResolvedValue(report);
+    harness.publicationRead.mockResolvedValue(report);
   });
 
   it("keeps render and refresh read-only", async () => {
@@ -284,6 +366,163 @@ describe("Growth Monthly Report interactions", () => {
     expect(harness.build).toHaveBeenCalledExactlyOnceWith({
       data: expectation,
     });
+  });
+
+  it("snapshots a draft coordinate before confirming and publishes it once", () => {
+    harness.queryData = report;
+    findButton(render(), "Publish summary")?.onClick?.();
+    const confirmation = render();
+    expect(textFor(confirmation)).toContain("Publish August 2026 summary?");
+    expect(textFor(confirmation)).toContain(
+      "does not share or send this report externally",
+    );
+    findButton(confirmation, "Confirm publication")?.onClick?.();
+    findButton(confirmation, "Confirm publication")?.onClick?.();
+    expect(harness.publishMutate).toHaveBeenCalledExactlyOnceWith({
+      ...expectation,
+      version: 1,
+    });
+  });
+
+  it("keeps the frozen publication confirmation actionable after a cache rollover", () => {
+    harness.queryData = report;
+    findButton(render(), "Publish summary")?.onClick?.();
+    harness.queryData = currentReady;
+    const confirmation = render();
+    expect(textFor(confirmation)).toContain("Publish August 2026 summary?");
+    findButton(confirmation, "Confirm publication")?.onClick?.();
+    expect(harness.publishMutate).toHaveBeenCalledWith({
+      ...expectation,
+      version: 1,
+    });
+  });
+
+  it("cancels publication without mutation and restores the trigger focus", () => {
+    harness.queryData = report;
+    findButton(render(), "Publish summary")?.onClick?.();
+    findButton(render(), "Cancel")?.onClick?.();
+    expect(harness.publishMutate).not.toHaveBeenCalled();
+    const triggerFocus = vi.fn();
+    harness.refs[3].current = { focus: triggerFocus };
+    const closed = render();
+    flushEffects();
+    expect(triggerFocus).toHaveBeenCalledOnce();
+    expect(textFor(closed)).toContain("Publish summary");
+  });
+
+  it("focuses the inline confirmation without publishing on open", () => {
+    harness.queryData = report;
+    findButton(render(), "Publish summary")?.onClick?.();
+    const confirmationFocus = vi.fn();
+    harness.refs[4].current = { focus: confirmationFocus };
+    const confirmation = render();
+    flushEffects();
+    expect(confirmationFocus).toHaveBeenCalledOnce();
+    expect(harness.publishMutate).not.toHaveBeenCalled();
+    expect(findButton(confirmation, "Refresh summary")?.disabled).toBe(true);
+  });
+
+  it("commits authoritative publication to cache and focuses the outcome", () => {
+    beginPublication();
+    const noticeFocus = vi.fn();
+    harness.refs[1].current = { focus: noticeFocus };
+    harness.publicationMutationOptions?.onSuccess(publishedReport, {
+      ...expectation,
+      version: 1,
+    });
+    harness.publicationMutationOptions?.onSettled();
+
+    const saved = render();
+    flushEffects();
+    expect(client.getQueryData(["growthMonthlyReport", "project_1"])).toEqual(
+      publishedReport,
+    );
+    expect(textFor(saved)).toContain("cannot be unpublished");
+    expect(noticeFocus).toHaveBeenCalledOnce();
+    expect(findButton(saved, "Publish summary")).toBeNull();
+    expect(harness.refs[0].current).toBe(false);
+  });
+
+  it("retains the exact lock and focuses the alert after an ambiguous failure", () => {
+    beginPublication();
+    failPublication();
+    const errorFocus = vi.fn();
+    harness.refs[5].current = { focus: errorFocus };
+    const uncertain = render();
+    flushEffects();
+    expect(errorFocus).toHaveBeenCalledOnce();
+    expect(textFor(uncertain)).toContain(
+      "The publication could not be confirmed",
+    );
+    expect(findButton(uncertain, "Cancel")).toBeNull();
+    expect(findButton(uncertain, "Refresh summary")?.disabled).toBe(true);
+    expect(findState(uncertain)?.locked).toBe(true);
+    expect(harness.refs[0].current).toBe(true);
+  });
+
+  it("retries only the identical uncertain publication", () => {
+    beginPublication();
+    failPublication();
+    const retry = findButton(render(), "Retry same publication");
+    retry?.onClick?.();
+    retry?.onClick?.();
+    expect(harness.publishMutate).toHaveBeenCalledTimes(2);
+    expect(harness.publishMutate).toHaveBeenNthCalledWith(1, {
+      ...expectation,
+      version: 1,
+    });
+    expect(harness.publishMutate).toHaveBeenNthCalledWith(2, {
+      ...expectation,
+      version: 1,
+    });
+  });
+
+  it("confirms an exact published winner with a read-only status check", async () => {
+    beginPublication();
+    failPublication();
+    harness.publicationRead.mockResolvedValueOnce(publishedReport);
+    findButton(render(), "Check saved summary")?.onClick?.();
+    await vi.waitFor(() => expect(harness.publishReset).toHaveBeenCalledOnce());
+    expect(harness.publicationRead).toHaveBeenCalledExactlyOnceWith({
+      data: { ...expectation, version: 1 },
+    });
+    expect(client.getQueryData(["growthMonthlyReport", "project_1"])).toEqual(
+      publishedReport,
+    );
+    const noticeFocus = vi.fn();
+    harness.refs[1].current = { focus: noticeFocus };
+    const confirmed = render();
+    flushEffects();
+    expect(textFor(confirmed)).toContain("Published summary confirmed");
+    expect(noticeFocus).toHaveBeenCalledOnce();
+    expect(harness.refs[0].current).toBe(false);
+  });
+
+  it("keeps a confirmed draft locked for exact retry", async () => {
+    beginPublication();
+    failPublication();
+    harness.publicationRead.mockResolvedValueOnce(report);
+    findButton(render(), "Check saved summary")?.onClick?.();
+    await vi.waitFor(() =>
+      expect(harness.publicationRead).toHaveBeenCalledOnce(),
+    );
+    const draft = render();
+    expect(textFor(draft)).toContain("No published version was found");
+    expect(findButton(draft, "Refresh summary")?.disabled).toBe(true);
+    expect(findButton(draft, "Retry same publication")).not.toBeNull();
+  });
+
+  it("keeps the exact lock when publication status cannot be read", async () => {
+    beginPublication();
+    failPublication();
+    harness.publicationRead.mockRejectedValueOnce(new Error("NOT_FOUND"));
+    findButton(render(), "Check saved summary")?.onClick?.();
+    await vi.waitFor(() =>
+      expect(harness.publicationRead).toHaveBeenCalledOnce(),
+    );
+    const failed = render();
+    expect(textFor(failed)).toContain("Published status could not be checked");
+    expect(findButton(failed, "Refresh summary")?.disabled).toBe(true);
   });
 
   it("commits a normal saved build to cache, unlocks and focuses its visible outcome", () => {

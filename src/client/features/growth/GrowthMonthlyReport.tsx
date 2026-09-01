@@ -7,6 +7,11 @@ import {
 import type { GrowthMonthlyReportDto } from "@/types/schemas/growth-monthly-reports";
 import { formatGrowthReportMonth } from "./GrowthReportPresentation";
 import { GrowthReportView } from "./GrowthReportView";
+import {
+  GrowthMonthlyPublicationControl,
+  GrowthMonthlyPublicationRecovery,
+  useGrowthMonthlyPublication,
+} from "./GrowthMonthlyReportPublication";
 
 type GrowthMonthlyReportExpectation = {
   projectId: string;
@@ -93,7 +98,6 @@ export function GrowthMonthlyReport({ projectId }: { projectId: string }) {
       dispatching.current = false;
     },
   });
-
   useEffect(() => {
     if (!focusNotice || !notice) return;
     noticeRef.current?.focus();
@@ -105,6 +109,18 @@ export function GrowthMonthlyReport({ projectId }: { projectId: string }) {
     buildErrorRef.current?.focus();
     setFocusBuildError(false);
   }, [focusBuildError]);
+
+  const publication = useGrowthMonthlyPublication({
+    projectId,
+    data: query.data,
+    queryKey,
+    client,
+    dispatching,
+    onSuccess: (message) => {
+      setNotice(message);
+      setFocusNotice(true);
+    },
+  });
 
   const refreshSummary = async () => {
     setNotice(null);
@@ -171,7 +187,12 @@ export function GrowthMonthlyReport({ projectId }: { projectId: string }) {
     }
   };
 
-  const refreshing = query.isFetching || build.isPending || checking;
+  const refreshing =
+    query.isFetching ||
+    build.isPending ||
+    checking ||
+    publication.pending ||
+    publication.checking;
   const displayedMonth = query.data
     ? formatGrowthReportMonth(query.data.periodStart)
     : null;
@@ -200,7 +221,7 @@ export function GrowthMonthlyReport({ projectId }: { projectId: string }) {
         <button
           type="button"
           className="btn btn-ghost btn-sm"
-          disabled={refreshing || Boolean(submitted)}
+          disabled={refreshing || Boolean(submitted) || publication.active}
           onClick={() => void refreshSummary()}
         >
           {query.isFetching ? "Refreshing summary…" : "Refresh summary"}
@@ -297,13 +318,23 @@ export function GrowthMonthlyReport({ projectId }: { projectId: string }) {
         </p>
       ) : null}
       {query.data ? (
-        <GrowthMonthlyReportState
-          data={query.data}
-          building={build.isPending}
-          locked={Boolean(submitted)}
-          onBuild={startBuild}
-        />
+        <>
+          <GrowthMonthlyPublicationControl
+            {...publication.control}
+            busy={refreshing || Boolean(submitted)}
+          />
+          <GrowthMonthlyReportState
+            data={query.data}
+            building={build.isPending}
+            locked={Boolean(submitted) || publication.active}
+            onBuild={startBuild}
+          />
+        </>
       ) : null}
+      <GrowthMonthlyPublicationRecovery
+        {...publication.recovery}
+        busy={refreshing}
+      />
     </section>
   );
 }

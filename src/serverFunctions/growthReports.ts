@@ -3,6 +3,7 @@ import { GrowthMonthlyReportsService } from "@/server/features/growth/services/G
 import {
   buildGrowthMonthlyReportRequestSchema,
   getGrowthMonthlyReportRequestSchema,
+  publishGrowthMonthlyReportRequestSchema,
 } from "@/types/schemas/growth-monthly-reports";
 import { requireProjectContext } from "./middleware";
 
@@ -18,6 +19,29 @@ export const buildGrowthMonthlyReport = createServerFn({ method: "POST" })
   .validator(buildGrowthMonthlyReportRequestSchema)
   .handler(async ({ data, context }) =>
     GrowthMonthlyReportsService.buildGrowthMonthlyReport(
+      context.projectId,
+      context.userId,
+      data,
+    ),
+  );
+
+export const getGrowthMonthlyPublicationStatus = createServerFn({
+  method: "POST",
+})
+  .middleware(requireProjectContext)
+  .validator(publishGrowthMonthlyReportRequestSchema)
+  .handler(async ({ data, context }) =>
+    GrowthMonthlyReportsService.getGrowthMonthlyPublicationStatus(
+      context.projectId,
+      data,
+    ),
+  );
+
+export const publishGrowthMonthlyReport = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(publishGrowthMonthlyReportRequestSchema)
+  .handler(async ({ data, context }) =>
+    GrowthMonthlyReportsService.publishGrowthMonthlyReport(
       context.projectId,
       context.userId,
       data,

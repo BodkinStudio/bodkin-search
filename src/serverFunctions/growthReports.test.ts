@@ -12,6 +12,8 @@ const registration = vi.hoisted(() => ({
 const service = vi.hoisted(() => ({
   getGrowthMonthlyReport: vi.fn(),
   buildGrowthMonthlyReport: vi.fn(),
+  getGrowthMonthlyPublicationStatus: vi.fn(),
+  publishGrowthMonthlyReport: vi.fn(),
 }));
 
 vi.mock("@tanstack/react-start", () => ({
@@ -49,9 +51,14 @@ vi.mock(
 
 import {
   buildGrowthMonthlyReport,
+  getGrowthMonthlyPublicationStatus,
   getGrowthMonthlyReport,
+  publishGrowthMonthlyReport,
 } from "./growthReports";
-import { getGrowthMonthlyReportRequestSchema } from "@/types/schemas/growth-monthly-reports";
+import {
+  getGrowthMonthlyReportRequestSchema,
+  publishGrowthMonthlyReportRequestSchema,
+} from "@/types/schemas/growth-monthly-reports";
 
 describe("monthly report server functions", () => {
   it("uses authorized project and actor rather than forged request fields", async () => {
@@ -88,5 +95,52 @@ describe("monthly report server functions", () => {
     { projectId: "p", periodStart: "2026-08-01", reportTimezone: "UTC" },
   ])("rejects partial echoed recovery fields", async (data) => {
     expect(() => getGrowthMonthlyReportRequestSchema.parse(data)).toThrow();
+  });
+
+  it("uses the authorized project and actor for exact publication", async () => {
+    const context = {
+      projectId: "project_authorized",
+      userId: "user_authorized",
+    };
+    const data = {
+      projectId: "project_forged",
+      periodStart: "2026-08-01",
+      periodEnd: "2026-08-31",
+      reportTimezone: "Europe/London",
+      version: 1,
+    };
+    await registration.handlers[2]?.({ data, context });
+    await registration.handlers[3]?.({ data, context });
+    expect(service.getGrowthMonthlyPublicationStatus).toHaveBeenCalledWith(
+      "project_authorized",
+      data,
+    );
+    expect(service.publishGrowthMonthlyReport).toHaveBeenCalledWith(
+      "project_authorized",
+      "user_authorized",
+      data,
+    );
+    expect(getGrowthMonthlyPublicationStatus).toBeTypeOf("function");
+    expect(publishGrowthMonthlyReport).toBeTypeOf("function");
+  });
+
+  it("rejects privileged publication fields before handler work", async () => {
+    const input = {
+      data: {
+        projectId: "p",
+        periodStart: "2026-08-01",
+        periodEnd: "2026-08-31",
+        reportTimezone: "UTC",
+        version: 1 as const,
+        actorId: "forged",
+      },
+      context: { projectId: "p", userId: "user_authorized" },
+    };
+    expect(() =>
+      publishGrowthMonthlyReportRequestSchema.parse(input.data),
+    ).toThrow();
+    service.publishGrowthMonthlyReport.mockClear();
+    await expect(publishGrowthMonthlyReport(input)).rejects.toThrow();
+    expect(service.publishGrowthMonthlyReport).not.toHaveBeenCalled();
   });
 });

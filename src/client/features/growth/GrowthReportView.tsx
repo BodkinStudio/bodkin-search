@@ -58,6 +58,14 @@ export function GrowthReportView({ data }: { data: SavedMonthlyReport }) {
               {formatGrowthReportTimestamp(data.report.dataCutoffAt)}
             </dd>
           </div>
+          {data.report.status === "published" ? (
+            <div>
+              <dt className="text-xs text-base-content/70">Published</dt>
+              <dd className="font-medium tabular-nums">
+                {formatGrowthReportTimestamp(data.report.publishedAt)}
+              </dd>
+            </div>
+          ) : null}
         </dl>
       </header>
 

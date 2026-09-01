@@ -2,6 +2,7 @@ import {
   growthMonthlyReportDtoSchema,
   type GrowthMonthlyReportDto,
   type GrowthMonthlyReportExpectation,
+  type GrowthMonthlyPublicationRequest,
 } from "@/types/schemas/growth-monthly-reports";
 import { AppError } from "@/server/lib/errors";
 import { GrowthMonthlyReportsRepository } from "../repositories/GrowthMonthlyReportsRepository";
@@ -114,6 +115,9 @@ function project(
       version: report.version,
       generatedAt: report.generatedAt,
       dataCutoffAt: report.dataCutoffAt,
+      ...(report.status === "published"
+        ? { publishedAt: report.publishedAt }
+        : {}),
       sections: report.sections.map((section) => {
         const content = section.content;
         return {
@@ -280,8 +284,59 @@ async function buildGrowthMonthlyReport(
     throw error;
   }
 }
+
+async function exactMonthlyPublicationReport(
+  projectId: string,
+  request: GrowthMonthlyPublicationRequest,
+  now = new Date(),
+) {
+  const settings = await GrowthSettingsService.getSettings(projectId);
+  const current = periodFor(now.toISOString(), settings.reportTimezone);
+  assertRecoveryExpectation(request, current);
+  const report = await existing(
+    projectId,
+    request.periodStart,
+    request.periodEnd,
+  );
+  if (!report)
+    throw new AppError(
+      "NOT_FOUND",
+      "Monthly report was not found for this publication coordinate",
+    );
+  if (report.reportTimezone !== request.reportTimezone)
+    throw new AppError(
+      "VALIDATION_ERROR",
+      "Monthly report timezone does not match the frozen report",
+    );
+  return report;
+}
+
+async function getGrowthMonthlyPublicationStatus(
+  projectId: string,
+  request: GrowthMonthlyPublicationRequest,
+  now = new Date(),
+) {
+  return project(await exactMonthlyPublicationReport(projectId, request, now));
+}
+
+async function publishGrowthMonthlyReport(
+  projectId: string,
+  actorId: string,
+  request: GrowthMonthlyPublicationRequest,
+  now = new Date(),
+) {
+  const report = await exactMonthlyPublicationReport(projectId, request, now);
+  return project(
+    await GrowthReportsService.publishGrowthReport(
+      { projectId, reportId: report.id, actorType: "user", actorId },
+      { now },
+    ),
+  );
+}
 export const GrowthMonthlyReportsService = {
   getGrowthMonthlyReport,
   buildGrowthMonthlyReport,
+  getGrowthMonthlyPublicationStatus,
+  publishGrowthMonthlyReport,
   GROWTH_MONTHLY_REPORT_BUILDER_VERSION,
 } as const;
