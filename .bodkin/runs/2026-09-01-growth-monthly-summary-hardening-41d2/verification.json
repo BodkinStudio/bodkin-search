@@ -1,0 +1,79 @@
+{
+  "runId": "2026-09-01-growth-monthly-summary-hardening-41d2",
+  "status": "pass",
+  "generatedAt": "2026-09-01T15:15:33Z",
+  "checks": [
+    {
+      "name": "Focused monthly summary, evidence projection, repository, service, server function and static UI regressions",
+      "command": "pnpm exec vitest run <17 focused files> --pool=forks --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 6200,
+      "output": "16 test files passed and the conditional Postgres file skipped; 175 tests passed and 4 conditional Postgres tests skipped. Executed D1 source predicates, cap-plus-one ordering, URL read bounds, settings drift, skipped-midnight and skipped-date conversion, mocked distinct-snapshot contention, rollover, privacy/DTO projection, and static UI interaction/render states."
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 68000,
+      "output": "Prettier, Knip, root and badseo TypeScript, type-aware Oxlint, plugin skill sync and generated-skill cleanliness passed. Oxlint reported 0 warnings and 0 errors across 1,019 files; generated plugin skills remained clean."
+    },
+    {
+      "name": "Full repository tests",
+      "command": "pnpm test:ci -- --pool=forks --maxWorkers=1",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 21900,
+      "output": "220 test files passed and 7 provider-gated files skipped; 1,945 tests passed and 21 skipped. Expected negative-path OAuth, MCP, workflow and provider diagnostics were emitted without failures."
+    },
+    {
+      "name": "Production build",
+      "command": "WRANGLER_LOG_PATH=/private/tmp/bodkin-growth-monthly-summary-build.log pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 85100,
+      "output": "Client and SSR production bundles built and the trailing TypeScript check passed. The existing non-fatal large-chunk advisory remained."
+    },
+    {
+      "name": "Diff whitespace",
+      "command": "git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 200,
+      "output": "No whitespace errors."
+    },
+    {
+      "name": "Live Postgres monthly repository, settings-lock and coordinator-contention fixture",
+      "command": "TEST_POSTGRES_DATABASE_URL=<isolated disposable database> pnpm exec vitest run src/server/features/growth/repositories/GrowthReportsRepository.postgres.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 3050,
+      "output": "All 4 tests passed against Postgres 16 using the repository's unchanged official migration SQL through 0028; the Report schema is migration 0027. Coverage executed provider-specific COLLATE C cap ordering, project/cutoff predicates, persisted and absent settings locks, two real coordinator builds with different bounded snapshots converging on one immutable winner, and existing Report publication/deletion concurrency."
+    },
+    {
+      "name": "Current-tip clean Postgres migration smoke",
+      "command": "POSTGRES_DATABASE_URL=<fresh isolated disposable database> pnpm db:migrate:pg",
+      "required": false,
+      "status": "blocked",
+      "exitCode": 1,
+      "durationMs": 1900,
+      "output": "Pre-existing migration 0029_fine_jackal.sql declares growth_measurement_plan_anchors_project_plan_action_fk before its referenced growth_measurement_plans_project_id_action_key unique constraint, so a clean all-at-once migration rolls back. This postdates the Report schema, is outside the accepted no-migration-change hardening scope, and is disclosed rather than hidden or patched here."
+    },
+    {
+      "name": "Rendered browser evidence",
+      "command": "Not run",
+      "required": false,
+      "status": "waived",
+      "exitCode": null,
+      "durationMs": 0,
+      "output": "Waived because the user explicitly prohibited browser, HTTP, CDP, Playwright, screenshots and old-screenshot evidence. Static server-render and hook-harness tests are the UI evidence for this slice."
+    }
+  ]
+}

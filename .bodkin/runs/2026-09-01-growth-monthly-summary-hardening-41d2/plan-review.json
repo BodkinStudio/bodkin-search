@@ -1,0 +1,26 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "Provider-independent cap ordering was underspecified",
+      "location": "plan.md and acceptance.md ordering requirements",
+      "evidence": "Default SQLite and Postgres collations need not select the same cap-boundary IDs before the JavaScript sort.",
+      "impact": "Frozen sections and URL facts could diverge by provider.",
+      "recommendation": "Pin provider collations over the canonical ASCII ID domain and assert the complete sequence on each provider fixture."
+    },
+    {
+      "summary": "Timezone evidence covered only cutoff conversion",
+      "location": "plan.md and acceptance.md timezone checks",
+      "evidence": "The stated invariant covered every source bound but the test named only one skipped-midnight cutoff.",
+      "impact": "Other boundary fields or the overdue predicate could remain wrong.",
+      "recommendation": "Use one shared conversion and test every bound, skipped-date fallback and overdue classification."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve source policy, caps, immutable Report semantics, first-writer recovery, DTO privacy and read-only UI behavior."
+  ]
+}

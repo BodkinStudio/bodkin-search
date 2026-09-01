@@ -3,7 +3,11 @@ import {
   buildGrowthEvidencePacketSchema,
   type BuildGrowthEvidencePacketInput,
 } from "@/types/schemas/growth-evidence-packet";
-import { buildGrowthEvidencePacket } from "./GrowthEvidencePacket";
+import {
+  buildGrowthEvidencePacket,
+  growthEvidenceDisplayActionText,
+  growthEvidenceDisplayUrl,
+} from "./GrowthEvidencePacket";
 
 function source(overrides: Record<string, unknown> = {}) {
   return {
@@ -166,5 +170,46 @@ describe("buildGrowthEvidencePacket", () => {
       }),
     );
     expect(JSON.stringify(result)).not.toContain("VALUE_SHOULD_NOT_LEAK");
+  });
+
+  it("withholds direct URLs whose retained origin or path contains email material", () => {
+    for (const value of [
+      "https://example.com/contact/sales@example.com",
+      "https://example.com/contact/sales%40example.com",
+      "https://user@example.com/path",
+    ])
+      expect(growthEvidenceDisplayUrl(value)).toEqual({
+        value: null,
+        omitted: false,
+        withheld: true,
+      });
+  });
+
+  it("withholds encoded email material embedded in narrative URLs", () => {
+    const projected = growthEvidenceDisplayActionText(
+      "Review https://example.com/private%40example.com?preview=1",
+    );
+    expect(projected.content).toContain("[private URL omitted]");
+    expect(projected.content).not.toContain("private%40example.com");
+  });
+
+  it("keeps safe direct URLs while removing userinfo, credentials, query, and fragments", () => {
+    expect(
+      growthEvidenceDisplayUrl(
+        "https://example.com/path?email=sales@example.com#x",
+      ),
+    ).toEqual({
+      value: "https://example.com/path",
+      omitted: true,
+      withheld: false,
+    });
+    expect(
+      growthEvidenceDisplayUrl("https://user:password@example.com/path"),
+    ).toEqual({ value: null, omitted: false, withheld: true });
+    expect(
+      growthEvidenceDisplayUrl(
+        "https://example.com/api_key%3AVALUE_SHOULD_NOT_LEAK",
+      ),
+    ).toEqual({ value: null, omitted: false, withheld: true });
   });
 });

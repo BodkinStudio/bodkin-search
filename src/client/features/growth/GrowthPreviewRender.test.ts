@@ -36,6 +36,10 @@ vi.mock("@/serverFunctions/growthWork", () => ({
   startGrowthWorkMeasurement: vi.fn(),
   updateGrowthWorkStatus: vi.fn(),
 }));
+vi.mock("@/serverFunctions/growthReports", () => ({
+  getGrowthMonthlyReport: vi.fn(),
+  buildGrowthMonthlyReport: vi.fn(),
+}));
 
 describe("GrowthPreview rendered contract", () => {
   it("labels the preview even before data is available", () => {
@@ -51,6 +55,10 @@ describe("GrowthPreview rendered contract", () => {
       ),
     );
     expect(html).toContain("Check priority pages");
+    expect(html).toContain("Monthly summary");
+    expect(html).toContain("turn the saved record into a monthly summary");
+    expect(html).toContain("Loading monthly summary");
+    expect(html).toContain('href="#growth-monthly-summary"');
     expect(html).toContain("Change log");
     expect(html).toContain("Loading saved work");
     expect(html).toContain('href="#growth-work"');

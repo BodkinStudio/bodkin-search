@@ -706,3 +706,26 @@ AI interpretation, automatic outcome/confidence rules, statistical thresholds,
 site-wide or semantic candidate inference, persisted review snapshots, Event
 tombstones, Result correction/supersession, scheduled finalization, reports and
 MCP remain separate reviewed work.
+
+## ADR-035 - Monthly summary builds one bounded, immutable Growth Report
+
+**Status:** Accepted
+
+### Decision
+
+- An explicit authenticated request captures one server cutoff and one Growth-settings projection before deriving the previous completed calendar month in the pinned IANA report timezone. Existing version-1 coordinates are read before any source query.
+- Current-state source reads are project-scoped and cutoff-bounded: changed rows use `createdAt`, Results use both `createdAt` and `evaluatedAt`, and Actions use `updatedAt`. Timestamp membership is resolved in the pinned timezone. This is not a historical as-of reconstruction; an Action edited after cutoff is omitted. Change-to-Action links are also a bounded current-state read because the join has no creation timestamp.
+- The pure builder freezes all eight canonical sections in their existing Report order. Performance contains terminal Results evaluated in-period; Results from earlier work is the independent subset whose owner Action was implemented before the period. Work completed contains Actions implemented in-period. Meaningful changes contains period Change Events and cites an Action only when exactly one valid Action is currently linked.
+- Risks are blocked Actions plus approved, ready or in-progress Actions due strictly before the cutoff calendar date. Next month is the remaining approved, ready or in-progress work due in the calendar month after the report period. Opportunities is the remaining approved or ready Action queue; it does not claim to cover unsaved proposed Recommendations. Those three Action sets are disjoint and exclude implemented, measuring, evaluated and cancelled work.
+- Performance and earlier Results are independently capped at 20; meaningful changes, completed work, risks, opportunities and next month are independently capped at 12. Stable documented sort keys end in code-unit ID order. Cap-plus-one reads freeze overflow disclosure. Each item exposes at most five sorted safe URLs plus an additional-URL count. At least one selected Action or terminal Result direct source is required; empty canonical sections remain truthful and present.
+- Mutable Action, Change, Result and URL display values cross the existing Evidence Packet sanitizers before Report persistence. The client receives only a strict allowlisted projection of metadata, section prose and scalar facts, never sources, evidence, IDs, hashes, actors or internal versions.
+- The Report writer guards the persisted settings coordinate at its insert boundary. A settings projection mismatch causes no parent insert. The coordinator recovers any create error by reading the coordinate once; if another writer won, it returns that immutable winner without comparing or mutating a losing candidate. Direct Report callers retain exact-retry behaviour.
+- Build and recovery requests echo the server-issued period/timezone only as an expectation. An adjacent month may be read for an existing project-scoped winner, but no source query or write occurs unless echoed period and timezone still equal the freshly server-derived current values. A stale request with no winner returns current read state and requires a new explicit build action.
+
+### Why
+
+This produces a readable monthly snapshot from existing Growth facts without adding collection, scheduling, narrative generation or a second reporting model. Pinned cutoff/timezone and first-writer-wins make its limited current-state claim explicit.
+
+### Deferred
+
+Historical source reconstruction, regenerating or correcting v1, scheduling, publication UI, sharing, provider collection, AI narrative and custom/weekly reports remain separate decisions.

@@ -1,0 +1,13 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Server-derived current timezone remains the sole write authority.",
+    "An adjacent project-scoped recovery coordinate is read before stale-write refusal.",
+    "An unsaved stale expectation returns current read state and requires a new explicit build."
+  ]
+}

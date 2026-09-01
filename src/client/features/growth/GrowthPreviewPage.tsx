@@ -6,6 +6,7 @@ import { GrowthPreviewWorkspace } from "./GrowthPreviewWorkspace";
 import { GrowthPriorityPageChecks } from "./GrowthPriorityPageChecks";
 import { GrowthChangeLog } from "./GrowthChangeLog";
 import { GrowthWork } from "./GrowthWork";
+import { GrowthMonthlyReport } from "./GrowthMonthlyReport";
 
 export function GrowthPreviewPage({ projectId }: { projectId: string }) {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -24,13 +25,16 @@ export function GrowthPreviewPage({ projectId }: { projectId: string }) {
             <h1 className="text-2xl font-semibold">Growth</h1>
           </div>
           <p className="mt-1 text-sm text-base-content/70">
-            Find priority pages that need attention, inspect the evidence, and
-            keep a record of what changed.
+            Find priority pages that need attention, record the work, measure
+            outcomes and turn the saved record into a monthly summary.
           </p>
           <nav
             aria-label="Growth sections"
             className="mt-2 flex flex-wrap gap-4 text-sm"
           >
+            <a href="#growth-monthly-summary" className="link">
+              View monthly summary
+            </a>
             <a href="#growth-work" className="link">
               View work
             </a>
@@ -40,6 +44,7 @@ export function GrowthPreviewPage({ projectId }: { projectId: string }) {
           </nav>
         </header>
 
+        <GrowthMonthlyReport key={projectId} projectId={projectId} />
         <GrowthPriorityPageChecks
           projectId={projectId}
           selectedRunId={selectedRunId}

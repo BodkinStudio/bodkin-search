@@ -1,4 +1,5 @@
-import { and, eq, exists, inArray, sql } from "drizzle-orm";
+/* eslint-disable max-lines -- transactional Report writer keeps graph guards together for auditability */
+import { and, eq, exists, inArray, notExists, sql } from "drizzle-orm";
 import { getDatabaseProvider } from "@/db/provider";
 import { runBatch, type BatchExecutor } from "@/db/runBatch";
 import {
@@ -8,6 +9,7 @@ import {
   growthReportMeasurementResults,
   growthReports,
   growthReportSections,
+  growthProjectSettings,
   projects,
 } from "@/db/schema";
 import type { EncodedGrowthReportSection } from "../services/GrowthReportSnapshot";
@@ -33,6 +35,11 @@ type CreateGrowthReportGraphInput = {
   sections: (EncodedGrowthReportSection & { id: string })[];
   actionIds: string[];
   measurementResultIds: string[];
+  expectedSettings?: {
+    reportTimezone: string;
+    updatedAt: string | null;
+    persisted: boolean;
+  };
 };
 
 type PublishGrowthReportGraphInput = {
@@ -64,7 +71,7 @@ function sourceLocks(
 ) {
   if (getDatabaseProvider() !== "postgres") return [];
   const locks: Promise<unknown>[] = [];
-  if (actionIds.length > 0) {
+  for (const ids of sourceIdChunks(actionIds)) {
     locks.push(
       lockForPostgres(
         tx
@@ -73,14 +80,14 @@ function sourceLocks(
           .where(
             and(
               eq(growthActions.projectId, projectId),
-              inArray(growthActions.id, actionIds),
+              inArray(growthActions.id, ids),
             ),
           ),
         "share",
       ),
     );
   }
-  if (measurementResultIds.length > 0) {
+  for (const ids of sourceIdChunks(measurementResultIds)) {
     locks.push(
       lockForPostgres(
         tx
@@ -89,7 +96,7 @@ function sourceLocks(
           .where(
             and(
               eq(growthMeasurementResults.projectId, projectId),
-              inArray(growthMeasurementResults.id, measurementResultIds),
+              inArray(growthMeasurementResults.id, ids),
             ),
           ),
         "share",
@@ -99,10 +106,81 @@ function sourceLocks(
   return locks;
 }
 
+const sourceIdChunks = (ids: string[]) => {
+  const size = 80;
+  return Array.from({ length: Math.ceil(ids.length / size) }, (_, index) =>
+    ids.slice(index * size, (index + 1) * size),
+  );
+};
+
+function settingsSerializationLocks(
+  tx: BatchExecutor,
+  input: CreateGrowthReportGraphInput,
+) {
+  if (!input.expectedSettings || getDatabaseProvider() !== "postgres")
+    return [];
+  if (input.expectedSettings.persisted) {
+    return [
+      lockForPostgres(
+        tx
+          .select({
+            projectId: growthProjectSettings.projectId,
+            reportTimezone: growthProjectSettings.reportTimezone,
+            updatedAt: growthProjectSettings.updatedAt,
+          })
+          .from(growthProjectSettings)
+          .where(eq(growthProjectSettings.projectId, input.projectId)),
+        "update",
+      ),
+    ];
+  }
+  // A missing settings row has no row lock. Serializing on its parent project
+  // makes an insert of that row wait until the absence predicate has been used.
+  return [
+    lockForPostgres(
+      tx
+        .select({ id: projects.id })
+        .from(projects)
+        .where(eq(projects.id, input.projectId)),
+      "update",
+    ),
+  ];
+}
+
 export async function createGrowthReportGraph(
   input: CreateGrowthReportGraphInput,
 ) {
   await runBatch((tx) => {
+    const settingsMatch = input.expectedSettings
+      ? and(
+          sql`${input.reportTimezone} = ${input.expectedSettings.reportTimezone}`,
+          input.expectedSettings.persisted
+            ? exists(
+                tx
+                  .select({ projectId: growthProjectSettings.projectId })
+                  .from(growthProjectSettings)
+                  .where(
+                    and(
+                      eq(growthProjectSettings.projectId, input.projectId),
+                      eq(
+                        growthProjectSettings.reportTimezone,
+                        input.expectedSettings.reportTimezone,
+                      ),
+                      eq(
+                        growthProjectSettings.updatedAt,
+                        input.expectedSettings.updatedAt!,
+                      ),
+                    ),
+                  ),
+              )
+            : notExists(
+                tx
+                  .select({ projectId: growthProjectSettings.projectId })
+                  .from(growthProjectSettings)
+                  .where(eq(growthProjectSettings.projectId, input.projectId)),
+              ),
+        )
+      : undefined;
     const parentSource = tx
       .select({
         id: sql<string>`${input.id}`.as("id"),
@@ -138,6 +216,7 @@ export async function createGrowthReportGraph(
         and(
           eq(projects.id, input.projectId),
           sql`${projects.archivedAt} IS NULL`,
+          settingsMatch,
         ),
       );
     const parent = tx
@@ -225,6 +304,7 @@ export async function createGrowthReportGraph(
         }),
     );
     return [
+      ...settingsSerializationLocks(tx, input),
       ...sourceLocks(
         tx,
         input.projectId,

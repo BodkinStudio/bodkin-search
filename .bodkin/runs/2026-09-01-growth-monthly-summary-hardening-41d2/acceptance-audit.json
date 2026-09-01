@@ -1,0 +1,172 @@
+{
+  "verdict": "pass",
+  "criteria": [
+    {
+      "criterion": "Original behaviour 1–5: server-pinned period/settings/cutoff; no implicit writes; settings-drift guard; immutable first-writer-wins recovery; browser expectations are limited and rollover-safe.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/services/GrowthMonthlyReportsService.ts",
+        "src/server/features/growth/repositories/GrowthReportsWriter.ts",
+        "src/serverFunctions/growthReports.ts",
+        "src/server/features/growth/services/GrowthMonthlyReportsService.test.ts",
+        "hardening verification: focused tests and live Postgres contention fixture"
+      ],
+      "note": "The service derives the prior month from server settings, captures one cutoff, returns existing coordinates before building, validates recovery expectations and recovers the stored winner after a concurrent insert."
+    },
+    {
+      "criterion": "Original behaviour 6: project-isolated, bounded, deterministic source selection with cap-plus-one overflow and bounded safe URL facts.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/repositories/GrowthMonthlyReportsRepository.ts",
+        "src/server/features/growth/repositories/GrowthReportsRepository.query.test.ts",
+        "hardening verification: focused D1 tests and live Postgres fixture"
+      ],
+      "note": "Provider-aware final ID collation, caps, project predicates, URL batching and overflow inputs are implemented and exercised."
+    },
+    {
+      "criterion": "Original behaviour 7–12: completed work, Performance, earlier-work Results, meaningful Changes, Risks, Next month and Opportunities follow the required source policies, ordering, caps and disjointness.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/repositories/GrowthMonthlyReportsRepository.ts",
+        "src/server/features/growth/services/GrowthMonthlyReportBuilder.ts",
+        "src/server/features/growth/repositories/GrowthReportsRepository.query.test.ts",
+        "src/server/features/growth/services/GrowthMonthlyReportBuilder.test.ts"
+      ],
+      "note": "Focused evidence covers status/date predicates, cutoff and due-date boundaries, independent Result caps, Change link cardinality, queue disjointness and ties."
+    },
+    {
+      "criterion": "Original behaviour 13–14: deterministic eight-section frozen summaries and no persistence for change-only or unsupported activity.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/services/GrowthMonthlyReportBuilder.ts",
+        "src/server/features/growth/services/GrowthMonthlyReportBuilder.test.ts",
+        "src/server/features/growth/services/GrowthMonthlyReportsService.test.ts"
+      ],
+      "note": "The builder emits canonical sections in order and the service returns no_activity without creating a Report when eligible Action or terminal Result evidence is absent."
+    },
+    {
+      "criterion": "Original behaviour 15–16: every display field is safely projected and the client DTO is a strict privacy allowlist.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/services/GrowthEvidencePacket.ts",
+        "src/types/schemas/growth-monthly-reports.ts",
+        "src/server/features/growth/services/GrowthEvidencePacket.test.ts",
+        "src/server/features/growth/services/GrowthEvidencePacketProjectionAcceptance.test.ts",
+        "src/types/schemas/growth-monthly-reports.test.ts"
+      ],
+      "note": "Tests cover credentials, raw and encoded emails, userinfo, query/fragment stripping, non-display identifiers and DTO exclusion."
+    },
+    {
+      "criterion": "Original behaviour 17–18 and product UX: Monthly summary is first after the Growth header, is read-only until Build, has accessible loading/error/retry/recovery states, and renders one semantic frozen Report article with all sections.",
+      "status": "pass",
+      "evidence": [
+        "src/client/features/growth/GrowthPreviewPage.tsx",
+        "src/client/features/growth/GrowthMonthlyReport.tsx",
+        "src/client/features/growth/GrowthReportView.tsx",
+        "src/client/features/growth/GrowthMonthlyReportInteraction.test.ts",
+        "src/client/features/growth/GrowthMonthlyReportRender.test.ts",
+        "hardening ui-review.json"
+      ],
+      "note": "Static review passed. Browser/screenshot evidence is explicitly waived by the user prohibition and disclosed in verification."
+    },
+    {
+      "criterion": "Original behaviour 19: an uncertain request across a local-month or timezone rollover only recovers the echoed existing winner; otherwise it reads current state and does not write.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/services/GrowthMonthlyReportsService.ts",
+        "src/server/features/growth/services/GrowthMonthlyReportsService.test.ts"
+      ],
+      "note": "Recovery expectation distance, old-coordinate lookup and stale-expectation current-read paths are present and tested."
+    },
+    {
+      "criterion": "Hardening behaviour 1: skipped-midnight timezone conversion is shared by all report source boundaries and preserves prior-local-date overdue semantics.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/services/GrowthMeasurementFacts.ts",
+        "src/server/features/growth/services/GrowthMonthlyReportsService.ts",
+        "src/server/features/growth/services/GrowthMonthlyReportsService.test.ts",
+        "src/server/features/growth/repositories/GrowthReportsRepository.query.test.ts"
+      ],
+      "note": "Focused tests cover Cairo skipped midnight, Apia skipped dates, month/year/leap boundaries and overdue cutoff behavior."
+    },
+    {
+      "criterion": "Hardening behaviour 2: direct displayed URLs omit credentials, userinfo, query, fragments and raw or encoded email material.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/services/GrowthEvidencePacket.ts",
+        "src/server/features/growth/services/GrowthEvidencePacket.test.ts"
+      ],
+      "note": "The projection validates both raw and decoded material before retaining an origin/path."
+    },
+    {
+      "criterion": "Hardening behaviour 3: SQLite/D1 and Postgres use code-unit-compatible final ID ordering, full cap-plus-one candidate selection and bounded URL eligibility.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/repositories/GrowthMonthlyReportsRepository.ts",
+        "src/server/features/growth/repositories/GrowthReportsRepository.query.test.ts",
+        "src/server/features/growth/repositories/GrowthReportsRepository.postgres.test.ts",
+        "hardening verification: live Postgres monthly fixture"
+      ],
+      "note": "D1 uses BINARY, Postgres uses C collation, and the live Postgres fixture passed."
+    },
+    {
+      "criterion": "Hardening behaviour 4–5: persisted/absent settings guards protect atomic insertion, and UI mutation outcomes safely replace cache, unlock dispatch and focus accurate visible status.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/repositories/GrowthReportsWriter.ts",
+        "src/client/features/growth/GrowthMonthlyReport.tsx",
+        "src/server/features/growth/repositories/GrowthReportsRepository.postgres.test.ts",
+        "src/client/features/growth/GrowthMonthlyReportInteraction.test.ts"
+      ],
+      "note": "Live Postgres evidence covers both settings lock shapes; hook-harness tests cover normal, no-activity and rollover success."
+    },
+    {
+      "criterion": "Hardening coordinator contention: two genuine live-Postgres coordinator builds with distinct bounded source snapshots converge on one immutable stored coordinate returned identically to both callers.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/repositories/GrowthReportsRepository.postgres.test.ts",
+        "hardening verification: live Postgres monthly repository, settings-lock and coordinator-contention fixture"
+      ],
+      "note": "The executed fixture held both callers at the real settings lock and passed all four conditional tests."
+    },
+    {
+      "criterion": "Required verification gates: focused tests, CI, full suite, production build and diff whitespace checks pass.",
+      "status": "pass",
+      "evidence": [
+        ".bodkin/runs/2026-09-01-growth-monthly-summary-hardening-41d2/verification.json"
+      ],
+      "note": "175 focused tests passed; 1,945 full-suite tests passed; ci:check, build and git diff --check passed."
+    },
+    {
+      "criterion": "Regression constraints: no dependency, schema, migration, provider, auth, scheduling, MCP, public-route or unrelated Growth-flow change was introduced.",
+      "status": "pass",
+      "evidence": [
+        ".bodkin/runs/2026-09-01-growth-monthly-summary-8b4c/acceptance.md",
+        "docs/growth/05_ARCHITECTURE_DECISIONS.md",
+        "hardening verification: full tests, CI and build",
+        "hardening review-final.json"
+      ],
+      "note": "The implementation composes existing Report/Growth services and preserves direct Report behavior under existing test coverage."
+    },
+    {
+      "criterion": "Required specialist reviews: fresh adversarial and static product/UI reviews passed; this audit is fresh and evidence-only.",
+      "status": "pass",
+      "evidence": [
+        ".bodkin/runs/2026-09-01-growth-monthly-summary-hardening-41d2/review-final.json",
+        ".bodkin/runs/2026-09-01-growth-monthly-summary-hardening-41d2/ui-review.json"
+      ],
+      "note": "Both reviews have pass verdicts with no outstanding findings."
+    }
+  ],
+  "missing": [],
+  "limitations": [
+    "Rendered browser, HTTP, CDP, Playwright and screenshot evidence was not used because the user explicitly prohibited it; static render and interaction coverage is the accepted UI evidence.",
+    "A clean current-tip Postgres migration smoke remains blocked by pre-existing migration 0029 foreign-key ordering. The live feature fixture passed with unchanged official migration SQL through 0028; the monthly Report schema is migration 0027, so this does not prevent executed compatibility evidence for this no-migration-change slice."
+  ],
+  "do_not_change": [
+    "Keep first-writer-wins coordination and pinned settings/cutoff behavior.",
+    "Keep provider-specific ID collation and strict DTO/evidence projection boundaries.",
+    "Keep explicit Build separate from read-only refresh/recovery and preserve the focused role=status outcome message.",
+    "Do not address the unrelated migration 0029 issue within this accepted monthly-summary slice."
+  ]
+}

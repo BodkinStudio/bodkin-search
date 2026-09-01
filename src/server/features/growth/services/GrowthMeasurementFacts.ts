@@ -110,6 +110,42 @@ export function calendarDateInTimezone(timestamp: string, timezone: string) {
   return `${dateParts.year}-${dateParts.month}-${dateParts.day}`;
 }
 
+/**
+ * Finds the earliest UTC instant at which an IANA timezone reaches a requested
+ * calendar date. If a civil date was skipped altogether, this instead returns
+ * the earliest instant of the next date that exists in that timezone.
+ */
+export function earliestUtcCalendarDateBoundary(
+  date: string,
+  timezone: string,
+) {
+  const requested = new Date(`${date}T00:00:00.000Z`);
+  if (
+    Number.isNaN(requested.valueOf()) ||
+    requested.toISOString().slice(0, 10) !== date
+  )
+    conflict("Growth report calendar boundary is invalid");
+
+  // IANA offsets are bounded well inside this window. The extra day on the
+  // upper side covers a whole civil date skipped by a zone realignment.
+  const day = 24 * 60 * 60 * 1000;
+  let lower = requested.valueOf() - 2 * day;
+  let upper = requested.valueOf() + 3 * day;
+  if (calendarDateInTimezone(new Date(upper).toISOString(), timezone) < date)
+    conflict("Growth report calendar boundary could not be resolved");
+
+  while (lower < upper) {
+    const candidate = lower + Math.floor((upper - lower) / 2);
+    if (
+      calendarDateInTimezone(new Date(candidate).toISOString(), timezone) >=
+      date
+    )
+      upper = candidate;
+    else lower = candidate + 1;
+  }
+  return new Date(lower).toISOString();
+}
+
 export function nextCalendarDate(value: string) {
   const date = new Date(`${value}T00:00:00.000Z`);
   if (Number.isNaN(date.valueOf()))

@@ -13,6 +13,8 @@ import {
   GROWTH_REPORT_BUILDER_VERSION,
 } from "../services/GrowthReportSnapshot";
 import type { GrowthReportsRepository as RepositoryExport } from "./GrowthReportsRepository";
+import type { GrowthMonthlyReportsRepository as MonthlyRepositoryExport } from "./GrowthMonthlyReportsRepository";
+import type { GrowthMonthlyReportsService as MonthlyReportsServiceExport } from "../services/GrowthMonthlyReportsService";
 
 const testUrl = process.env.TEST_POSTGRES_DATABASE_URL;
 
@@ -24,10 +26,14 @@ vi.mock("cloudflare:workers", () => ({
 }));
 
 type Repository = typeof RepositoryExport;
+type MonthlyRepository = typeof MonthlyRepositoryExport;
+type MonthlyReportsService = typeof MonthlyReportsServiceExport;
 type WithPgClient = typeof withPgClientExport;
 
 let sql: ReturnType<typeof postgres>;
 let repo: Repository;
+let monthlyRepo: MonthlyRepository;
+let monthlyReportsService: MonthlyReportsService;
 let withPgClient: WithPgClient;
 
 const describePostgres = testUrl ? describe : describe.skip;
@@ -236,12 +242,364 @@ describePostgres("GrowthReportsRepository Postgres", () => {
     sql = postgres(testUrl!, { max: 12 });
     ({ GrowthReportsRepository: repo } =
       await import("./GrowthReportsRepository"));
+    ({ GrowthMonthlyReportsRepository: monthlyRepo } =
+      await import("./GrowthMonthlyReportsRepository"));
+    ({ GrowthMonthlyReportsService: monthlyReportsService } =
+      await import("../services/GrowthMonthlyReportsService"));
     ({ withPgClient } = await import("@/db"));
   });
 
   afterAll(async () => {
     if (testUrl) await sql.end({ timeout: 5 });
   });
+
+  it("bounds monthly candidates by project and cutoff with deterministic tied IDs", async () => {
+    const suffix = crypto.randomUUID();
+    const source = await seedSource(suffix);
+    const runId = `gr_run_${suffix}`;
+    const tiedIds = [
+      "Tie_A",
+      "Tie_a",
+      "Tie_B",
+      "Tie_b",
+      "Tie_C",
+      "Tie_c",
+      "Tie_D",
+      "Tie_d",
+      "Tie_E",
+      "Tie_e",
+      "Tie_F",
+      "Tie_f",
+      "Tie_G",
+      "Tie_g",
+    ].map((id) => `gr_monthly_${id}_${suffix}`);
+    try {
+      await sql`
+        UPDATE growth_actions
+        SET updated_at = '2026-07-31T12:00:00.000Z'
+        WHERE project_id IN (${source.projectId}, ${source.foreignProjectId})
+      `;
+      await sql`
+        UPDATE growth_measurement_results
+        SET created_at = '2026-07-31T12:00:00.000Z'
+        WHERE project_id IN (${source.projectId}, ${source.foreignProjectId})
+      `;
+      for (const actionId of tiedIds) {
+        const recommendationId = `gr_monthly_recommendation_${actionId}`;
+        await sql`
+          INSERT INTO growth_recommendations (
+            id, project_id, run_id, creation_key, fact_hash, title, rationale,
+            category, impact, commercial_relevance, effort, urgency, confidence,
+            priority_score, status, review_version, reviewed_at
+          ) VALUES (
+            ${recommendationId}, ${source.projectId}, ${runId}, ${`key-${actionId}`},
+            ${"m".repeat(64)}, 'Tied monthly action', 'Saved fact', 'content',
+            5, 5, 2, 3, 0.8, 10, 'accepted', 1, '2026-07-01T12:00:00.000Z'
+          )
+        `;
+        await sql`
+          INSERT INTO growth_actions (
+            id, project_id, recommendation_id, creation_key, fact_hash, title,
+            description, category, priority_score, status, state_version, due_at,
+            approved_at, created_at, updated_at
+          ) VALUES (
+            ${actionId}, ${source.projectId}, ${recommendationId}, ${`key-${actionId}`},
+            ${"n".repeat(64)}, 'Tied monthly action', 'Saved fact', 'content',
+            10, 'ready', 1, '2026-10-15T12:00:00.000Z',
+            '2026-07-01T12:00:00.000Z', '2026-07-01T12:00:00.000Z',
+            '2026-07-31T12:00:00.000Z'
+          )
+        `;
+      }
+      const lateActionId = `gr_monthly_late_${suffix}`;
+      await sql`
+        INSERT INTO growth_recommendations (
+          id, project_id, run_id, creation_key, fact_hash, title, rationale,
+          category, impact, commercial_relevance, effort, urgency, confidence,
+          priority_score, status, review_version, reviewed_at
+        ) VALUES (
+          ${`gr_monthly_recommendation_late_${suffix}`}, ${source.projectId}, ${runId},
+          ${`key-${lateActionId}`}, ${"o".repeat(64)}, 'Late action', 'Saved fact',
+          'content', 5, 5, 2, 3, 0.8, 10, 'accepted', 1,
+          '2026-07-01T12:00:00.000Z'
+        )
+      `;
+      await sql`
+        INSERT INTO growth_actions (
+          id, project_id, recommendation_id, creation_key, fact_hash, title,
+          description, category, priority_score, status, state_version, due_at,
+          approved_at, created_at, updated_at
+        ) VALUES (
+          ${lateActionId}, ${source.projectId}, ${`gr_monthly_recommendation_late_${suffix}`},
+          ${`key-${lateActionId}`}, ${"p".repeat(64)}, 'Late action', 'Saved fact',
+          'content', 10, 'ready', 1, '2026-10-15T12:00:00.000Z',
+          '2026-07-01T12:00:00.000Z', '2026-07-01T12:00:00.000Z',
+          '2026-08-01T08:00:00.001Z'
+        )
+      `;
+      const facts = await withPgClient(() =>
+        monthlyRepo.listMonthlySourceFacts(source.projectId, {
+          dataCutoffAt: "2026-08-01T08:00:00.000Z",
+          periodStartAt: "2026-07-01T00:00:00.000Z",
+          periodEndExclusiveAt: "2026-08-01T00:00:00.000Z",
+          cutoffStartAt: "2026-08-01T00:00:00.000Z",
+          nextMonthStartAt: "2026-08-01T00:00:00.000Z",
+          nextMonthEndExclusiveAt: "2026-09-01T00:00:00.000Z",
+        }),
+      );
+      expect(facts.performance.map(({ id }) => id)).toEqual([source.resultId]);
+      expect(facts.opportunities).toHaveLength(13);
+      expect(facts.opportunities.map(({ id }) => id)).toEqual(
+        [...tiedIds].toSorted().slice(0, 13),
+      );
+      expect(facts.opportunities.map(({ id }) => id)).not.toContain(
+        lateActionId,
+      );
+      expect(facts.opportunities.map(({ id }) => id)).not.toContain(
+        source.foreignActionId,
+      );
+    } finally {
+      await sql`DELETE FROM projects WHERE id IN (${source.projectId}, ${source.foreignProjectId})`;
+      await sql`DELETE FROM organization WHERE id = ${source.organizationId}`;
+    }
+  }, 30_000);
+
+  it("serializes expected monthly settings at the Report insert boundary", async () => {
+    const suffix = crypto.randomUUID();
+    const source = await seedSource(suffix);
+    const coordinate = (version: number) => ({
+      projectId: source.projectId,
+      reportType: "monthly" as const,
+      periodStart: "2026-07-01",
+      periodEnd: "2026-07-31",
+      version,
+    });
+    try {
+      const absentSettings = await reportWrite({
+        projectId: source.projectId,
+        actionId: source.actionId,
+        resultId: source.resultId,
+        name: `settings_absent_${suffix}`,
+        summary: "No settings row yet",
+        version: 7,
+      });
+      await withPgClient(() =>
+        repo.createGrowthReportGraph({
+          ...absentSettings,
+          expectedSettings: {
+            persisted: false,
+            reportTimezone: "Europe/London",
+            updatedAt: null,
+          },
+        }),
+      );
+      expect(
+        await withPgClient(() => repo.getReportByCoordinate(coordinate(7))),
+      ).toMatchObject({ id: absentSettings.id });
+
+      const settingsUpdatedAt = "2026-08-01T08:00:00.000Z";
+      await sql`
+        INSERT INTO growth_project_settings (
+          project_id, report_timezone, created_at, updated_at
+        ) VALUES (
+          ${source.projectId}, 'Europe/London', ${settingsUpdatedAt}, ${settingsUpdatedAt}
+        )
+      `;
+      const writes = await Promise.all([
+        reportWrite({
+          projectId: source.projectId,
+          actionId: source.actionId,
+          resultId: source.resultId,
+          name: `settings_a_${suffix}`,
+          summary: "First settings writer",
+          version: 8,
+        }),
+        reportWrite({
+          projectId: source.projectId,
+          actionId: source.actionId,
+          resultId: source.resultId,
+          name: `settings_b_${suffix}`,
+          summary: "Second settings writer",
+          version: 8,
+        }),
+      ]);
+      const expectedSettings = {
+        persisted: true,
+        reportTimezone: "Europe/London",
+        updatedAt: settingsUpdatedAt,
+      };
+      await Promise.all(
+        writes.map((write) =>
+          withPgClient(() =>
+            repo.createGrowthReportGraph({ ...write, expectedSettings }),
+          ),
+        ),
+      );
+      const winner = await withPgClient(() =>
+        repo.getReportByCoordinate(coordinate(8)),
+      );
+      expect(winner).not.toBeNull();
+      expect(writes.map(({ factHash }) => factHash)).toContain(
+        winner?.factHash,
+      );
+
+      const mismatch = await reportWrite({
+        projectId: source.projectId,
+        actionId: source.actionId,
+        resultId: source.resultId,
+        name: `settings_mismatch_${suffix}`,
+        summary: "Mismatched settings writer",
+        version: 9,
+      });
+      await withPgClient(() =>
+        repo.createGrowthReportGraph({
+          ...mismatch,
+          expectedSettings: { ...expectedSettings, reportTimezone: "UTC" },
+        }),
+      );
+      expect(
+        await withPgClient(() => repo.getReportByCoordinate(coordinate(9))),
+      ).toBeNull();
+    } finally {
+      await sql`DELETE FROM projects WHERE id IN (${source.projectId}, ${source.foreignProjectId})`;
+      await sql`DELETE FROM organization WHERE id = ${source.organizationId}`;
+    }
+  }, 30_000);
+
+  it("returns one immutable monthly winner after two bounded snapshots wait on settings", async () => {
+    const suffix = crypto.randomUUID();
+    const source = await seedSource(suffix);
+    const runId = `gr_run_${suffix}`;
+    const opportunityId = `gr_contention_opportunity_${suffix}`;
+    const recommendationId = `gr_contention_recommendation_${suffix}`;
+    const cutoffA = "2026-08-01T08:00:00.000Z";
+    const cutoffB = "2026-08-01T09:00:00.000Z";
+    const expectation = {
+      projectId: source.projectId,
+      periodStart: "2026-07-01",
+      periodEnd: "2026-07-31",
+      reportTimezone: "Europe/London",
+    };
+    const locker = postgres(testUrl!, { max: 1 });
+    let releaseSettingsLock: (() => void) | undefined;
+    try {
+      await sql`
+        UPDATE growth_actions SET updated_at = '2026-07-31T12:00:00.000Z'
+        WHERE project_id IN (${source.projectId}, ${source.foreignProjectId})
+      `;
+      await sql`
+        UPDATE growth_measurement_results SET created_at = '2026-07-31T12:00:00.000Z'
+        WHERE project_id IN (${source.projectId}, ${source.foreignProjectId})
+      `;
+      await sql`
+        INSERT INTO growth_project_settings (
+          project_id, report_timezone, created_at, updated_at
+        ) VALUES (${source.projectId}, 'Europe/London', ${cutoffA}, ${cutoffA})
+      `;
+      await sql`
+        INSERT INTO growth_recommendations (
+          id, project_id, run_id, creation_key, fact_hash, title, rationale,
+          category, impact, commercial_relevance, effort, urgency, confidence,
+          priority_score, status, review_version, reviewed_at
+        ) VALUES (
+          ${recommendationId}, ${source.projectId}, ${runId}, ${`key-${opportunityId}`},
+          ${"q".repeat(64)}, 'Later opportunity', 'Saved fact', 'content',
+          5, 5, 2, 3, 0.8, 10, 'accepted', 1, '2026-07-01T12:00:00.000Z'
+        )
+      `;
+      await sql`
+        INSERT INTO growth_actions (
+          id, project_id, recommendation_id, creation_key, fact_hash, title,
+          description, category, priority_score, status, state_version, due_at,
+          approved_at, created_at, updated_at
+        ) VALUES (
+          ${opportunityId}, ${source.projectId}, ${recommendationId},
+          ${`key-${opportunityId}`}, ${"r".repeat(64)}, 'Later opportunity',
+          'Saved fact', 'content', 10, 'ready', 1,
+          '2026-10-15T12:00:00.000Z', '2026-07-01T12:00:00.000Z',
+          '2026-07-01T12:00:00.000Z', '2026-08-01T08:30:00.000Z'
+        )
+      `;
+      let locked!: () => void;
+      const lockHeld = new Promise<void>((resolve) => {
+        locked = resolve;
+      });
+      const lockTransaction = locker.begin(async (tx) => {
+        await tx`SELECT project_id FROM growth_project_settings WHERE project_id = ${source.projectId} FOR UPDATE`;
+        locked();
+        await new Promise<void>((resolve) => {
+          releaseSettingsLock = resolve;
+        });
+      });
+      await lockHeld;
+
+      const builds = [cutoffA, cutoffB].map((cutoff, index) =>
+        withPgClient(() =>
+          monthlyReportsService.buildGrowthMonthlyReport(
+            source.projectId,
+            `contention_actor_${index}`,
+            expectation,
+            new Date(cutoff),
+          ),
+        ),
+      );
+      let waiters = 0;
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        const [activity] = await sql<{ waiters: number }[]>`
+          SELECT count(*)::int AS waiters
+          FROM pg_stat_activity
+          WHERE datname = current_database()
+            AND wait_event_type = 'Lock'
+            AND query LIKE '%growth_project_settings%'
+        `;
+        waiters = activity?.waiters ?? 0;
+        if (waiters >= 2) break;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      expect(waiters).toBeGreaterThanOrEqual(2);
+      releaseSettingsLock?.();
+      await lockTransaction;
+      const [first, second] = await Promise.all(builds);
+      expect(first).toEqual(second);
+      expect(first.state).toBe("report");
+      if (first.state !== "report")
+        throw new Error("Monthly contention did not return a report");
+      expect([cutoffA, cutoffB]).toContain(first.report.dataCutoffAt);
+
+      const coordinate = {
+        projectId: source.projectId,
+        reportType: "monthly" as const,
+        periodStart: "2026-07-01",
+        periodEnd: "2026-07-31",
+        version: 1,
+      };
+      const stored = await withPgClient(() =>
+        repo.getReportByCoordinate(coordinate),
+      );
+      expect(stored?.dataCutoffAt).toBe(first.report.dataCutoffAt);
+      const graph = stored
+        ? await withPgClient(() =>
+            repo.getReportGraph(source.projectId, stored.id),
+          )
+        : null;
+      expect(graph?.measurementResultIds).toEqual([source.resultId]);
+      expect(graph?.actionIds).toEqual(
+        first.report.dataCutoffAt === cutoffA
+          ? [source.actionId]
+          : [source.actionId, opportunityId].toSorted(),
+      );
+      const [counts] = await sql<{ reports: number }[]>`
+        SELECT count(*)::int AS reports FROM growth_reports
+        WHERE project_id = ${source.projectId}
+      `;
+      expect(counts?.reports).toBe(1);
+    } finally {
+      releaseSettingsLock?.();
+      await locker.end({ timeout: 5 });
+      await sql`DELETE FROM projects WHERE id IN (${source.projectId}, ${source.foreignProjectId})`;
+      await sql`DELETE FROM organization WHERE id = ${source.organizationId}`;
+    }
+  }, 45_000);
 
   it("serializes report drift and publication while preserving source deletion", async () => {
     const suffix = crypto.randomUUID();

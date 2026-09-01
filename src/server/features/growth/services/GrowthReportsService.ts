@@ -23,7 +23,12 @@ type CreateGrowthReportRequest = Omit<
   "reportTimezone" | "generatedAt" | "builderVersion" | "contentSchemaVersion"
 >;
 
-type ServiceClock = { now?: Date };
+type ExpectedSettings = {
+  reportTimezone: string;
+  updatedAt: string | null;
+  persisted: boolean;
+};
+type ServiceClock = { now?: Date; expectedSettings?: ExpectedSettings };
 
 const conflict = (message: string): never => {
   throw new AppError("CONFLICT", message);
@@ -111,6 +116,13 @@ async function createGrowthReport(
   if (!(await repo.projectExists(input.projectId)))
     throw new AppError("NOT_FOUND", "Growth project not found");
   const settings = await GrowthSettingsService.getSettings(input.projectId);
+  if (
+    options.expectedSettings &&
+    (settings.reportTimezone !== options.expectedSettings.reportTimezone ||
+      settings.updatedAt !== options.expectedSettings.updatedAt ||
+      settings.persisted !== options.expectedSettings.persisted)
+  )
+    conflict("Growth Report settings changed; retry the monthly build");
   const generatedAt = (options.now ?? new Date()).toISOString();
   let finalized: CreateGrowthReportInput;
   try {
@@ -166,6 +178,7 @@ async function createGrowthReport(
       })),
       actionIds,
       measurementResultIds: snapshot.measurementResultIds,
+      expectedSettings: options.expectedSettings,
     });
   } catch (error) {
     const winner = await repo.getReportByCoordinate(coordinate);
@@ -198,6 +211,21 @@ async function createGrowthReport(
 
 async function getGrowthReport(projectId: string, reportId: string) {
   return assertStoredGrowthReportGraph(await reportGraph(projectId, reportId));
+}
+
+async function getGrowthReportByCoordinate(coordinate: {
+  projectId: string;
+  reportType: "monthly";
+  periodStart: string;
+  periodEnd: string;
+  version: number;
+}) {
+  const report = await repo.getReportByCoordinate(coordinate);
+  return report
+    ? assertStoredGrowthReportGraph(
+        await reportGraph(coordinate.projectId, report.id),
+      )
+    : null;
 }
 
 async function publishGrowthReport(
@@ -275,5 +303,6 @@ async function publishGrowthReport(
 export const GrowthReportsService = {
   createGrowthReport,
   getGrowthReport,
+  getGrowthReportByCoordinate,
   publishGrowthReport,
 } as const;

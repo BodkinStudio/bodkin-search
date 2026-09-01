@@ -130,6 +130,16 @@ function hasCredentialMaterial(value: string) {
     value,
   );
 }
+function hasEmailMaterial(value: string) {
+  return /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(value);
+}
+function decoded(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
 function text(
   value: string | null,
   rawMax: number,
@@ -146,14 +156,8 @@ function text(
     };
   const safe = value
     .replace(/https?:\/\/[^\s)]+/gi, (match) => {
-      try {
-        const url = new URL(match);
-        url.search = "";
-        url.hash = "";
-        return url.toString();
-      } catch {
-        return "[invalid URL omitted]";
-      }
+      const projected = growthEvidenceDisplayUrl(match);
+      return projected.value ?? "[private URL omitted]";
     })
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email omitted]");
   return {
@@ -171,11 +175,29 @@ export function growthEvidenceDisplayMeasurementSummary(value: string) {
   return text(value, 5000, 5000)!;
 }
 
+/** Safe display projection for mutable Action narrative used by frozen reports. */
+export function growthEvidenceDisplayActionText(value: string) {
+  return text(value, 5000, 5000)!;
+}
+
 export function growthEvidenceDisplayUrl(value: string) {
   const valid = safeHttpUrl(value);
-  if (!valid || value.length > 2048 || hasCredentialMaterial(value))
+  if (
+    !valid ||
+    value.length > 2048 ||
+    hasCredentialMaterial(value) ||
+    hasCredentialMaterial(decoded(value))
+  )
     return { value: null, omitted: false, withheld: true };
   const url = new URL(valid);
+  const retainedMaterial = `${url.origin}${url.pathname}`;
+  if (
+    url.username ||
+    url.password ||
+    hasEmailMaterial(retainedMaterial) ||
+    hasEmailMaterial(decoded(retainedMaterial))
+  )
+    return { value: null, omitted: false, withheld: true };
   const omitted = Boolean(url.search || url.hash);
   url.search = "";
   url.hash = "";
