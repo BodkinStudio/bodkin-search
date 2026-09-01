@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   getPageContext: vi.fn(),
   getProjectSummary: vi.fn(),
   listActions: vi.fn(),
+  listPriorityRecommendations: vi.fn(),
   getActionDetail: vi.fn(),
   waitUntil: vi.fn(),
   incrementSelfHostMcpToolCallCount: vi.fn(),
@@ -55,6 +56,15 @@ vi.mock("@/server/features/growth/services/GrowthActionsReadService", () => ({
     listActions: mocks.listActions,
   },
 }));
+
+vi.mock(
+  "@/server/features/growth/services/GrowthPriorityRecommendationsReadService",
+  () => ({
+    GrowthPriorityRecommendationsReadService: {
+      listPriorityRecommendations: mocks.listPriorityRecommendations,
+    },
+  }),
+);
 
 vi.mock("@/server/features/growth/services/GrowthActionDetailService", () => ({
   GrowthActionDetailService: { getAction: mocks.getActionDetail },
@@ -135,6 +145,12 @@ beforeEach(() => {
       createdAt: "2026-08-31T12:00:00.000Z",
       id: "action_123",
     },
+  });
+  mocks.listPriorityRecommendations.mockResolvedValue({
+    recommendations: [],
+    limit: 2,
+    hasMore: false,
+    nextCursor: null,
   });
   mocks.getActionDetail.mockResolvedValue(makeGrowthActionDetailFixture());
   mocks.getProjectSummary.mockResolvedValue(makeGrowthProjectSummaryFixture());
@@ -467,6 +483,93 @@ describe("Growth Action MCP registration", () => {
       expect(mocks.listActions).toHaveBeenCalledWith({
         projectId: "project_123",
         statuses: ["ready"],
+        category: "content",
+        minPriorityScore: 5,
+        limit: 2,
+        cursor,
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+});
+
+describe("Growth priority-Recommendation MCP registration", () => {
+  it("advertises and invokes the shared tool through the real in-process server", async () => {
+    const authProps = createWorkersOAuthMcpProps({
+      userId: "user_123",
+      userEmail: "team@example.com",
+      organizationId: "org_123",
+      baseUrl: "https://app.example.com",
+      clientId: null,
+      scopes: ["mcp"],
+    });
+    const server = createOpenSeoMcpServer(authProps);
+    const client = new Client({ name: "growth-test", version: "1.0.0" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+
+    await server.connect(serverTransport);
+    try {
+      await client.connect(clientTransport);
+      const listing = await client.listTools();
+      const tool = listing.tools.find(
+        (candidate) => candidate.name === "growth_get_priority_recommendations",
+      );
+
+      expect(tool).toMatchObject({
+        name: "growth_get_priority_recommendations",
+        inputSchema: { type: "object", required: ["projectId"] },
+        outputSchema: { type: "object", required: ["page"] },
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          openWorldHint: false,
+        },
+      });
+      expect(tool?.inputSchema.properties).toHaveProperty("statuses");
+      expect(tool?.inputSchema.properties).toHaveProperty("cursor");
+      expect(tool?.outputSchema?.properties).toHaveProperty("page");
+      expect(tool?.outputSchema?.properties).toHaveProperty("meta");
+
+      const cursor = {
+        priorityScore: 12,
+        createdAt: "2026-08-31T12:00:00.000Z",
+        id: "recommendation_cursor",
+      };
+      const result = await client.callTool({
+        name: "growth_get_priority_recommendations",
+        arguments: {
+          projectId: "project_123",
+          statuses: ["accepted", "proposed", "accepted"],
+          category: " content ",
+          minPriorityScore: 5,
+          limit: 2,
+          cursor,
+        },
+      });
+
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        page: {
+          recommendations: [],
+          limit: 2,
+          hasMore: false,
+          nextCursor: null,
+        },
+        meta: {
+          projectId: "project_123",
+          url: "https://app.example.com/p/project_123/growth",
+        },
+      });
+      expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
+        "org_123",
+        "project_123",
+      );
+      expect(mocks.listPriorityRecommendations).toHaveBeenCalledWith({
+        projectId: "project_123",
+        statuses: ["proposed", "accepted"],
         category: "content",
         minPriorityScore: 5,
         limit: 2,

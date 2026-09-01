@@ -1,0 +1,78 @@
+{
+  "runId": "2026-09-01-growth-priority-recommendations-62af",
+  "baseCommit": "a382024",
+  "status": "pass",
+  "generatedAt": "2026-09-01T21:37:14Z",
+  "checks": [
+    {
+      "name": "Focused saved-Recommendation contract and agent regressions",
+      "command": "pnpm vitest run src/types/schemas/growth-priority-recommendations.test.ts src/server/features/growth/repositories/GrowthPriorityRecommendationsRepository.query.test.ts src/server/features/growth/services/GrowthPriorityRecommendationsReadService.test.ts src/server/mcp/tools/growth-priority-recommendations-tool.test.ts src/server/mcp/server.growth.integration.test.ts src/server/features/sam/samChatGrowthTools.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "6 files and 29 tests passed. Coverage includes strict/defaulted input, canonical offset cursors, unresolved-state and accepted-with-Action suppression, filter-before-limit, SQLite BINARY ID ties, per-parent 101-row child sentinels, safe projection before display caps, auth-first MCP handling, real in-process MCP registration and SAM project binding."
+    },
+    {
+      "name": "Live PostgreSQL repository parity",
+      "command": "TEST_POSTGRES_DATABASE_URL=<existing disposable local PostgreSQL URL> pnpm vitest run src/server/features/growth/repositories/GrowthPriorityRecommendationsRepository.postgres.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "1 live PostgreSQL test passed against the migrated disposable PostgreSQL 16 container. It covers C-collated keyset ties, proposed/snoozed/accepted/dismissed membership, accepted Recommendations with and without any Action, combined filters, foreign-project exclusion and both windowed child queries."
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "Prettier, Knip, root and badseo TypeScript checks, type-aware Oxlint across 1,073 files, plugin skill sync and generated-skill cleanliness passed with 0 warnings and 0 errors."
+    },
+    {
+      "name": "Full repository tests",
+      "command": "pnpm test:ci",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "244 test files and 2,109 tests passed; 13 environment-gated files and 27 tests skipped. The new PostgreSQL test was executed separately above."
+    },
+    {
+      "name": "Production build",
+      "command": "pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "Client and SSR/Worker production bundles plus the trailing TypeScript check passed. The existing large-client-chunk warning remained. Wrangler also emitted a non-fatal sandbox log-file EPERM diagnostic; the command exited 0."
+    },
+    {
+      "name": "Focused type-aware lint",
+      "command": "pnpm exec oxlint --type-aware <13 changed TypeScript files>",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "0 warnings and 0 errors."
+    },
+    {
+      "name": "Whitespace",
+      "command": "git diff --check && git diff --cached --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "No unstaged or staged whitespace errors after final review and acceptance artifacts were written."
+    },
+    {
+      "name": "External browser, HTTP and headless probes",
+      "command": "Not run",
+      "required": false,
+      "status": "waived",
+      "exitCode": null,
+      "output": "Explicitly waived because the user prohibited browser, HTTP, CDP, Playwright and screenshot verification. The real MCP client/server protocol was exercised in process."
+    }
+  ],
+  "initialFailuresResolved": [
+    "The first live PostgreSQL fixture used a cancelled Action without cancelledAt, violating the canonical milestone constraint. The fixture now represents a valid cancelled Action and the expanded live parity test passes.",
+    "Pre-review reproduced duplicate SQLite paging for an equivalent +01:00 cursor. Request parsing now canonicalizes the cursor instant before repository comparison, with schema and D1 regressions.",
+    "The first CI run found three unnecessarily exported internal schemas. They are now private and the complete CI gate passes.",
+    "A direct Zod transform on the tool-visible timestamp could not be represented in MCP JSON Schema. Canonicalization now occurs only in the strict service request schema; real in-process registration passes."
+  ]
+}

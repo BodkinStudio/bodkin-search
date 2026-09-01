@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import type { ToolAuthContext } from "@/server/mcp/context";
 import { growthGetActionsTool } from "@/server/mcp/tools/growth-action-tools";
+import { growthGetPriorityRecommendationsTool } from "@/server/mcp/tools/growth-priority-recommendations-tool";
 import { makeGrowthActionDetailFixture } from "@/server/mcp/tools/growth-action-detail-test-fixture";
 import { growthGetActionTool } from "@/server/mcp/tools/growth-action-detail-tool";
 import { makeGrowthPageContextFixture } from "@/server/mcp/tools/growth-page-context-test-fixture";
@@ -15,6 +16,7 @@ import { buildSamMcpTools } from "./samChatTools";
 const mocks = vi.hoisted(() => ({
   getProjectForOrganization: vi.fn(),
   listActions: vi.fn(),
+  listPriorityRecommendations: vi.fn(),
   getActionDetail: vi.fn(),
   getPageContext: vi.fn(),
   getProjectSummary: vi.fn(),
@@ -51,6 +53,15 @@ vi.mock("@/server/features/projects/services/ProjectService", () => ({
 vi.mock("@/server/features/growth/services/GrowthActionsReadService", () => ({
   GrowthActionsReadService: { listActions: mocks.listActions },
 }));
+
+vi.mock(
+  "@/server/features/growth/services/GrowthPriorityRecommendationsReadService",
+  () => ({
+    GrowthPriorityRecommendationsReadService: {
+      listPriorityRecommendations: mocks.listPriorityRecommendations,
+    },
+  }),
+);
 
 vi.mock("@/server/features/growth/services/GrowthActionDetailService", () => ({
   GrowthActionDetailService: { getAction: mocks.getActionDetail },
@@ -109,6 +120,12 @@ beforeEach(() => {
   });
   mocks.listActions.mockResolvedValue({
     actions: [],
+    limit: 20,
+    hasMore: false,
+    nextCursor: null,
+  });
+  mocks.listPriorityRecommendations.mockResolvedValue({
+    recommendations: [],
     limit: 20,
     hasMore: false,
     nextCursor: null,
@@ -291,6 +308,36 @@ describe("SAM Growth MCP tools", () => {
           url: "https://open-seo.test/p/bound_project/growth#growth-work",
         },
       },
+    });
+  });
+
+  it("binds saved priority Recommendations to the session project", async () => {
+    const tools = buildSamMcpTools(authContext, {
+      id: "bound_project",
+      domain: "example.com",
+    });
+    const recommendations = tools.growth_get_priority_recommendations;
+    expect(recommendations.description).toBe(
+      growthGetPriorityRecommendationsTool.config.description,
+    );
+    if (!(recommendations.inputSchema instanceof z.ZodObject))
+      throw new Error("Expected a Zod object");
+    expect(Object.keys(recommendations.inputSchema.shape)).toEqual([
+      "statuses",
+      "category",
+      "minPriorityScore",
+      "limit",
+      "cursor",
+    ]);
+    if (!recommendations.execute) throw new Error("Expected executable tool");
+    await recommendations.execute(
+      recommendations.inputSchema.parse({ statuses: ["accepted", "proposed"] }),
+      callOptions,
+    );
+    expect(mocks.listPriorityRecommendations).toHaveBeenCalledWith({
+      projectId: "bound_project",
+      statuses: ["proposed", "accepted"],
+      limit: 20,
     });
   });
 

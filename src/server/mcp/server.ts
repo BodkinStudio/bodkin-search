@@ -69,6 +69,7 @@ import {
   runSiteAuditTool,
 } from "@/server/mcp/tools/site-audit-tools";
 import { growthGetActionsTool } from "@/server/mcp/tools/growth-action-tools";
+import { growthGetPriorityRecommendationsTool } from "@/server/mcp/tools/growth-priority-recommendations-tool";
 import { growthGetActionTool } from "@/server/mcp/tools/growth-action-detail-tool";
 import { growthGetProjectSummaryTool } from "@/server/mcp/tools/growth-project-summary-tool";
 import { growthGetPageContextTool } from "@/server/mcp/tools/growth-page-context-tool";
@@ -206,6 +207,7 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
   register(growthGetProjectSummaryTool);
   register(growthGetPageContextTool);
   register(growthGetActionsTool);
+  register(growthGetPriorityRecommendationsTool);
   register(growthGetActionTool);
   register(growthGetMonthlySummaryTool);
 

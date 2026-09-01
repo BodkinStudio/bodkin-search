@@ -870,3 +870,27 @@ context, never causal proof.
 The tool performs no provider read, mutation or credit use. Measurement must
 pass the existing immutable-fact validator before projection, while validator
 storage reads retain independent limit-plus-one integrity bounds.
+
+---
+
+## ADR-041 - Saved unresolved Recommendation list
+
+**Status:** Accepted
+
+### Decision
+
+`growth_get_priority_recommendations` is a project-authorized, read-only list
+of existing unresolved Recommendations. It includes proposed and snoozed rows,
+plus accepted rows only until any Action exists. It is ordered by immutable
+creation coordinates after priority and exposes bounded, privacy-projected
+targets and ordered steps.
+
+### Consequence
+
+The list is current state, not a historical snapshot or opportunity detector.
+It makes no provider call, spends no credits and performs no write. The same
+MCP definition is used by the external server and the project-bound SAM agent.
+The initial read reuses existing indexes; if project histories make the
+priority ordering or Action-existence check slow, add matching SQLite/Postgres
+indexes as a separately reviewed migration rather than silently changing the
+schema for this read-only boundary.

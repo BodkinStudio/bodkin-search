@@ -1,0 +1,50 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "The plan bundled the unmet prerequisite and BG-0606 without an independent acceptance boundary.",
+      "location": "plan.md — original Goal/Gate A/Gate B",
+      "evidence": "It proposed creating the prerequisite feed and immediately registering the MCP/SAM adapter.",
+      "impact": "An unproven feature could be exposed as if the prerequisite were established.",
+      "recommendation": "Split and independently accept the feed before a later BG-0606 run."
+    },
+    {
+      "summary": "The original Gate A was a mutable live-provider read rather than a deterministic saved feed.",
+      "location": "plan.md — original Gate A",
+      "evidence": "It returned live_provider_plus_current_saved_context with no saved result coordinate.",
+      "impact": "Repeated identical requests could materially differ while being represented as deterministic.",
+      "recommendation": "Define a stable saved-feed boundary."
+    },
+    {
+      "summary": "Saved-work suppression lacked a complete state precedence table.",
+      "location": "plan.md — original suppression semantics",
+      "evidence": "Mixed Recommendation, Action, Measurement, dismissal and revival states were underspecified.",
+      "impact": "Equivalent states could yield opposite suppression outcomes.",
+      "recommendation": "Specify and fixture a complete per-page precedence table."
+    },
+    {
+      "summary": "Original caller-selected date pairs were not bounded.",
+      "location": "plan.md — original tool inputs",
+      "evidence": "Any inclusive interval was accepted despite 28-day scoring assumptions.",
+      "impact": "Provider use and score comparability were unbounded.",
+      "recommendation": "Fix or bound the source interval."
+    }
+  ],
+  "minor": [
+    {
+      "summary": "The public-data rule was ambiguous about the host in an approved page URL.",
+      "location": "plan.md — original privacy boundary",
+      "evidence": "It exposed a safe URL while excluding raw domain without distinguishing a standalone field.",
+      "impact": "Page identity could be over-redacted or under-specified.",
+      "recommendation": "Allow the authorized page URL host while excluding standalone provider/project fields."
+    }
+  ],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve no hidden read-side writes, no LLM, no DataForSEO and zero-credit operation.",
+    "Preserve canonical URL validation, project-leading bounded suppression queries and strict public DTO validation.",
+    "Preserve explicit uncertainty rather than manufacturing causal or uplift certainty."
+  ]
+}
