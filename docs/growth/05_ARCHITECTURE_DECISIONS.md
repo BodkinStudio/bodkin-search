@@ -785,3 +785,56 @@ Action detail and event history, Recommendation/Insight/Signal evidence chains,
 linked Changes and Measurements, historical snapshots, arbitrary sorting or
 search, total counts, Action writes, provider refreshes and cross-project agent
 access remain separate reviewed work.
+
+## ADR-038 - Growth project summary is a bounded saved-record orientation
+
+**Status:** Accepted
+
+### Decision
+
+- `growth_get_project_summary` is a project-scoped, read-only orientation over
+  current saved Growth rows. It uses the established MCP project authorization
+  gate and the same shared definition in the external MCP server and
+  project-bound SAM agent. It makes no provider call, consumes no credits and
+  creates no second service, database, auth system or MCP server.
+- One server `asOf` instant coordinates date and future-Signal checks, but the
+  result is explicitly a current multi-query assembly rather than an atomic or
+  reconstructable historical snapshot. Mutable current rows are not filtered
+  by update time to imitate unavailable history.
+- Project identity and the four typed context sections use the existing Growth
+  credential, email and URL display projection followed by smaller truthful
+  field caps. Other context is represented only by counts. Organization IDs,
+  raw domains, notes, research prose and internal workflow fields are excluded.
+- Saved evidence freshness means only the latest eligible Growth Signal
+  `capturedAt`, overall and by evidence kind. Repository predicates exclude
+  future capture times before limiting or aggregation, and only Signals from
+  completed or completed-with-errors Runs qualify. This is not provider
+  connection health, source lag or a uniform freshness claim for Search
+  Console, Analytics, ranks, audits or backlinks.
+- Unresolved Recommendations, current Actions and recent Signals are narrow
+  five-item summaries read with cap-plus-one and deterministic provider-aware
+  ID ties. The general Action list remains the fuller paginated read; qualified
+  Work remains separate. Raw entity/evidence references and failure, model,
+  hash, actor and owner metadata never enter the summary DTO.
+- Measurement dates are evaluated in each active Plan's frozen report timezone
+  after its final inclusive window. This indicates a due window, not complete
+  evidence or finalization readiness. The summary discloses whether the linked
+  Action is missing, in the wrong state, at the wrong version, or consistent.
+  At most 51 active candidates are read: 50 or fewer are evaluated completely;
+  overflow withholds the partial due list rather than implying completeness.
+
+### Why
+
+Agents need one inexpensive place to orient themselves before choosing a more
+specific Growth read. The existing services already own settings, context,
+Actions and authorization; a narrow repository/service projection supplies the
+few cross-aggregate facts they do not expose safely. Explicitly limiting the
+freshness, time and snapshot claims avoids turning a convenient dashboard into
+an unreliable monitoring API.
+
+### Deferred
+
+Live provider refresh and connection health, historical snapshots, exhaustive
+large-project Measurement scheduling, full Recommendation or Action evidence
+chains, page context, monthly report bodies, writes, notifications and
+cross-project summaries remain separate reviewed work.

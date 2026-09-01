@@ -2,10 +2,12 @@ import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createWorkersOAuthMcpProps } from "@/server/mcp/context";
 import { createOpenSeoMcpServer } from "@/server/mcp/server";
+import { makeGrowthProjectSummaryFixture } from "@/server/mcp/tools/growth-project-summary-test-fixture";
 
 const mocks = vi.hoisted(() => ({
   getProjectForOrganization: vi.fn(),
   getGrowthMonthlyReport: vi.fn(),
+  getProjectSummary: vi.fn(),
   listActions: vi.fn(),
   waitUntil: vi.fn(),
   incrementSelfHostMcpToolCallCount: vi.fn(),
@@ -43,6 +45,15 @@ vi.mock("@/server/features/growth/services/GrowthActionsReadService", () => ({
   },
 }));
 
+vi.mock(
+  "@/server/features/growth/services/GrowthProjectSummaryService",
+  () => ({
+    GrowthProjectSummaryService: {
+      getProjectSummary: mocks.getProjectSummary,
+    },
+  }),
+);
+
 vi.mock("@/server/features/activation/mcpActivation", () => ({
   recordExternalMcpToolCall: mocks.recordExternalMcpToolCall,
 }));
@@ -59,7 +70,11 @@ vi.mock("@/server/lib/self-host-telemetry", () => ({
 beforeEach(() => {
   mocks.getProjectForOrganization.mockResolvedValue({
     id: "project_123",
+    name: "Example project",
     domain: "example.com",
+    locationCode: 2826,
+    languageCode: "en",
+    createdAt: "2026-08-01T09:00:00.000Z",
   });
   mocks.getGrowthMonthlyReport.mockResolvedValue({
     state: "ready",
@@ -106,10 +121,83 @@ beforeEach(() => {
       id: "action_123",
     },
   });
+  mocks.getProjectSummary.mockResolvedValue(makeGrowthProjectSummaryFixture());
   mocks.incrementSelfHostMcpToolCallCount.mockResolvedValue(undefined);
   mocks.captureServerEvent.mockResolvedValue(undefined);
   mocks.captureServerError.mockResolvedValue(undefined);
   mocks.recordExternalMcpToolCall.mockResolvedValue(undefined);
+});
+
+describe("Growth project-summary MCP registration", () => {
+  it("advertises and invokes the tool through the real in-process server", async () => {
+    const authProps = createWorkersOAuthMcpProps({
+      userId: "user_123",
+      userEmail: "team@example.com",
+      organizationId: "org_123",
+      baseUrl: "https://app.example.com",
+      clientId: null,
+      scopes: ["mcp"],
+    });
+    const server = createOpenSeoMcpServer(authProps);
+    const client = new Client({ name: "growth-test", version: "1.0.0" });
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+
+    await server.connect(serverTransport);
+    try {
+      await client.connect(clientTransport);
+      const listing = await client.listTools();
+      const tool = listing.tools.find(
+        (candidate) => candidate.name === "growth_get_project_summary",
+      );
+
+      expect(tool).toMatchObject({
+        name: "growth_get_project_summary",
+        inputSchema: { type: "object", required: ["projectId"] },
+        outputSchema: { type: "object", required: ["summary"] },
+        annotations: {
+          readOnlyHint: true,
+          destructiveHint: false,
+          openWorldHint: false,
+        },
+      });
+      expect(tool?.inputSchema.properties).toHaveProperty("projectId");
+      expect(tool?.outputSchema?.properties).toHaveProperty("summary");
+      expect(tool?.outputSchema?.properties).toHaveProperty("meta");
+
+      const result = await client.callTool({
+        name: "growth_get_project_summary",
+        arguments: { projectId: "project_123" },
+      });
+
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        summary: {
+          consistency: "current_not_snapshot",
+          freshness: { scope: "saved_growth_signals" },
+        },
+        meta: {
+          projectId: "project_123",
+          url: "https://app.example.com/p/project_123/growth",
+        },
+      });
+      expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
+        "org_123",
+        "project_123",
+      );
+      expect(mocks.getProjectSummary).toHaveBeenCalledWith({
+        id: "project_123",
+        name: "Example project",
+        domain: "example.com",
+        locationCode: 2826,
+        languageCode: "en",
+        createdAt: "2026-08-01T09:00:00.000Z",
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
 });
 
 describe("Growth monthly-summary MCP registration", () => {

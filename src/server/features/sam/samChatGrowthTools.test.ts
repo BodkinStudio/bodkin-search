@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import type { ToolAuthContext } from "@/server/mcp/context";
 import { growthGetActionsTool } from "@/server/mcp/tools/growth-action-tools";
+import { makeGrowthProjectSummaryFixture } from "@/server/mcp/tools/growth-project-summary-test-fixture";
+import { growthGetProjectSummaryTool } from "@/server/mcp/tools/growth-project-summary-tool";
 import type { GrowthMonthlyReportDto } from "@/types/schemas/growth-monthly-reports";
 import { growthGetMonthlySummaryTool } from "@/server/mcp/tools/growth-tools";
 import { buildSamMcpTools } from "./samChatTools";
@@ -9,6 +11,7 @@ import { buildSamMcpTools } from "./samChatTools";
 const mocks = vi.hoisted(() => ({
   getProjectForOrganization: vi.fn(),
   listActions: vi.fn(),
+  getProjectSummary: vi.fn(),
   getGrowthMonthlyReport: vi.fn(),
   withPgClient: vi.fn((callback: () => unknown) => callback()),
 }));
@@ -44,6 +47,15 @@ vi.mock("@/server/features/growth/services/GrowthActionsReadService", () => ({
 }));
 
 vi.mock(
+  "@/server/features/growth/services/GrowthProjectSummaryService",
+  () => ({
+    GrowthProjectSummaryService: {
+      getProjectSummary: mocks.getProjectSummary,
+    },
+  }),
+);
+
+vi.mock(
   "@/server/features/growth/services/GrowthMonthlyReportsService",
   () => ({
     GrowthMonthlyReportsService: {
@@ -73,7 +85,14 @@ beforeEach(() => {
   mocks.withPgClient.mockImplementation((callback: () => unknown) =>
     callback(),
   );
-  mocks.getProjectForOrganization.mockResolvedValue({ id: "bound_project" });
+  mocks.getProjectForOrganization.mockResolvedValue({
+    id: "bound_project",
+    name: "Bound project",
+    domain: "example.com",
+    locationCode: 2826,
+    languageCode: "en",
+    createdAt: "2026-08-01T09:00:00.000Z",
+  });
   mocks.listActions.mockResolvedValue({
     actions: [],
     limit: 20,
@@ -81,9 +100,70 @@ beforeEach(() => {
     nextCursor: null,
   });
   mocks.getGrowthMonthlyReport.mockResolvedValue(summary);
+  mocks.getProjectSummary.mockResolvedValue({
+    ...makeGrowthProjectSummaryFixture(),
+    project: {
+      ...makeGrowthProjectSummaryFixture().project,
+      id: "bound_project",
+      name: {
+        value: "Bound project",
+        redacted: false,
+        truncated: false,
+      },
+    },
+  });
 });
 
 describe("SAM Growth MCP tools", () => {
+  it("binds the shared project summary to the session project", async () => {
+    const tools = buildSamMcpTools(authContext, {
+      id: "bound_project",
+      domain: "example.com",
+    });
+    const projectSummary = tools.growth_get_project_summary;
+
+    expect(projectSummary).toBeDefined();
+    expect(projectSummary.description).toBe(
+      growthGetProjectSummaryTool.config.description,
+    );
+    expect(projectSummary.inputSchema).toBeInstanceOf(z.ZodObject);
+    if (!(projectSummary.inputSchema instanceof z.ZodObject)) {
+      throw new Error("Expected SAM to expose a Zod object input schema");
+    }
+    expect(Object.keys(projectSummary.inputSchema.shape)).toEqual([]);
+    expect(projectSummary.inputSchema.safeParse({}).success).toBe(true);
+
+    if (!projectSummary.execute)
+      throw new Error("Expected an executable SAM tool");
+    const result: unknown = await projectSummary.execute({}, callOptions);
+
+    expect(mocks.withPgClient).toHaveBeenCalledTimes(1);
+    expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
+      authContext.organizationId,
+      "bound_project",
+    );
+    expect(mocks.getProjectSummary).toHaveBeenCalledWith({
+      id: "bound_project",
+      name: "Bound project",
+      domain: "example.com",
+      locationCode: 2826,
+      languageCode: "en",
+      createdAt: "2026-08-01T09:00:00.000Z",
+    });
+    expect(result).toMatchObject({
+      data: {
+        summary: {
+          consistency: "current_not_snapshot",
+          project: { id: "bound_project" },
+        },
+        meta: {
+          projectId: "bound_project",
+          url: "https://open-seo.test/p/bound_project/growth",
+        },
+      },
+    });
+  });
+
   it("binds the shared Action list to the session project and preserves its query", async () => {
     const tools = buildSamMcpTools(authContext, {
       id: "bound_project",
