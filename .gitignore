@@ -47,3 +47,6 @@ dist-sourcemaps/
 
 # Transient UI review captures and current-run evidence
 .bodkin-ui/current/
+
+# Local agent planning, review, and verification evidence
+.bodkin/
