@@ -264,6 +264,25 @@ describe("Growth investigation review submission", () => {
     });
   });
 
+  it("invalidates the opportunities membership and project summary after approval", () => {
+    find(render(), "approvalForm")?.props.onSubmit?.("2026-09-04");
+    harness.mutationOptions[0]?.onSuccess?.({
+      ...proposal,
+      status: "accepted",
+      actionId: "action_1",
+      dueOn: "2026-09-04",
+    });
+    expect(harness.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["growthWork", "project_1"],
+    });
+    expect(harness.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["growthProjectSummary", "project_1"],
+    });
+    expect(harness.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["growthPriorityRecommendations", "project_1"],
+    });
+  });
+
   it("dispatches Review now only from the rendered snoozed state", () => {
     queryData = {
       ...proposal,

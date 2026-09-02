@@ -10,6 +10,7 @@ data, or sensitive paths.
 
 ## Open
 
+- [ ] `2026-09-02T02:51:14Z` — `codex` — Vitest's repository include pattern is only `src/**/*.test.ts`, so a valid `*.test.tsx` file is silently skipped even when its path is passed explicitly to `vitest run`; use `createElement` in `.test.ts` files or expand the include pattern and add a guard that fails on ignored explicit test paths.
 - [ ] `2026-09-01T05:28:26Z` — `codex` — `pnpm exec tsc --noEmit` can run silently for more than two minutes on this repository: one parallel implementer saw the same non-return while another completed, making focused type-check evidence unpredictable. Add timing diagnostics or split the root TypeScript projects so the standard command reports progress and finishes consistently.
 - [ ] `2026-08-29T16:08:28Z` — `codex` — `pnpm run test:ci` can intermittently exhaust the fixed 5-second timeout of unrelated tests when the suite includes a live provider integration test: the Growth Postgres run left `dataforseo/client.test.ts` and `mcp/oauth-provider.test.ts` timed out even though both pass in the normal suite. Give integration suites a separate Vitest project/command or isolate their worker budget so provider evidence does not make root CI flaky.
 - [ ] `2026-08-29T15:36:59Z` — `codex` — `pnpm db:generate` can place a Postgres composite foreign key before the separate unique index it references, producing migration SQL that cannot be applied. Prefer an inline named UNIQUE constraint for composite FK parent keys, and add a Postgres migration-order smoke check.

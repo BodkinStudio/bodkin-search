@@ -1072,3 +1072,37 @@ Controller release after material evidence change or completed/evaluated work,
 cooldowns, automatic snooze wake-up, dismissed-item restoration, cross-detector
 deduplication and semantic URL matching require a separately reviewed,
 versioned policy.
+
+---
+
+## ADR-047 - Opportunities compose the saved Recommendation read model
+
+**Status:** Accepted
+
+### Decision
+
+- The first Opportunities inbox is a project-local application view over the
+  existing unresolved priority-Recommendation read model. It preserves that
+  model's ordering, sanitization, child caps and cursor contract.
+- A separate app-only wrapper may expose an optional active controller Signal
+  ID for the already-qualified investigation review path. It does not alter the
+  MCP DTO or expose Run IDs, graph rows, source relationships or raw evidence.
+- The controller lookup is bounded to the emitted project page and returns only
+  unreleased controller links. It does not adopt legacy graphs, infer sources or
+  mutate on read.
+- Proposed and snoozed items can lazy-load the existing review disclosure.
+  Accepted recommendations without an Action and entries without a qualified
+  source remain visible but read-only.
+
+### Consequence
+
+Users can find saved rule-based suggestions near the top of Growth without
+duplicating review authority or adding a new opportunity detector. The first
+page intentionally stops at 20 entries and says when lower-priority saved
+entries are not yet shown.
+
+### Deferred
+
+Interactive pagination, a generic Recommendation mutation endpoint, full
+opportunity history, live discovery and controller release remain separate
+work.

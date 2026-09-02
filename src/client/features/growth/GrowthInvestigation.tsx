@@ -85,6 +85,12 @@ export function GrowthInvestigationReview({
           : saved,
       );
       void client.invalidateQueries({ queryKey: ["growthWork", projectId] });
+      void client.invalidateQueries({
+        queryKey: ["growthProjectSummary", projectId],
+      });
+      void client.invalidateQueries({
+        queryKey: ["growthPriorityRecommendations", projectId],
+      });
       void client.invalidateQueries({ queryKey });
     },
     onSettled: () => {

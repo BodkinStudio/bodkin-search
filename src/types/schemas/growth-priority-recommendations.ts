@@ -73,7 +73,7 @@ const step = z.strictObject({
   truncated: z.boolean(),
 });
 
-const growthPriorityRecommendationDtoSchema = z.strictObject({
+export const growthPriorityRecommendationDtoSchema = z.strictObject({
   id,
   title: z.string().min(1).max(300),
   titleRedacted: z.boolean(),

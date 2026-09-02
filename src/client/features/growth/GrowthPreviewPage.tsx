@@ -7,6 +7,7 @@ import { GrowthPriorityPageChecks } from "./GrowthPriorityPageChecks";
 import { GrowthChangeLog } from "./GrowthChangeLog";
 import { GrowthWork } from "./GrowthWork";
 import { GrowthMonthlyReport } from "./GrowthMonthlyReport";
+import { GrowthOpportunities } from "./GrowthOpportunities";
 
 export function GrowthPreviewPage({ projectId }: { projectId: string }) {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -35,6 +36,9 @@ export function GrowthPreviewPage({ projectId }: { projectId: string }) {
             <a href="#growth-monthly-summary" className="link">
               View monthly summary
             </a>
+            <a href="#growth-opportunities" className="link">
+              View opportunities
+            </a>
             <a href="#growth-work" className="link">
               View work
             </a>
@@ -45,6 +49,7 @@ export function GrowthPreviewPage({ projectId }: { projectId: string }) {
         </header>
 
         <GrowthMonthlyReport key={projectId} projectId={projectId} />
+        <GrowthOpportunities projectId={projectId} />
         <GrowthPriorityPageChecks
           projectId={projectId}
           selectedRunId={selectedRunId}

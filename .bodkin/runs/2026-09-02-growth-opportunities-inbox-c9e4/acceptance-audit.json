@@ -1,0 +1,24 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve the application-only wrapper and keep MCP-facing priority Recommendation DTO/page contracts unchanged.",
+      "location": "src/types/schemas/growth-opportunities.ts",
+      "evidence": "The composed DTO exposes only a nullable controller signal ID and strict schema tests reject Run IDs and relationship fields.",
+      "impact": "Maintains the established public read-model boundary.",
+      "recommendation": "Keep future opportunity-specific data behind separately reviewed app contracts."
+    },
+    {
+      "summary": "Preserve project-context authorization and the existing investigation mutation authority.",
+      "location": "src/serverFunctions/growthOpportunities.ts",
+      "evidence": "The server-function test proves submitted projectId is replaced by requireProjectContext projectId; the inbox only passes a signal ID to the existing review component.",
+      "impact": "Prevents tenant selection through route input and avoids a parallel mutation path.",
+      "recommendation": "Retain context-derived service inputs and source requalification in the investigation workflow."
+    }
+  ]
+}

@@ -41,6 +41,21 @@ The disposable preview has no Google credentials, so it can only demonstrate the
 
 New checks also save rule-based investigation suggestions for detected declines. Growth does not generate AI diagnoses or schedule collection. Usefulness on a live site and the full Phase 2 gate remain unverified.
 
+## Saved opportunities
+
+The **Opportunities** section appears directly below the monthly summary. It
+shows the top 20 unresolved saved, rule-based Recommendations for the current
+project. Expand an entry to read its rationale, saved affected targets and
+bounded next steps. This is a saved operating record, not a new live discovery
+or a prediction of SEO outcome.
+
+Proposed and snoozed entries with a qualified controller source can open the
+existing **Review investigation** disclosure. Use that disclosure for approval,
+dismissal, snoozing or returning a snoozed item to review. Accepted entries
+without an Action, and older entries with no qualified review source, remain
+useful read-only records. If more saved entries exist, the section says that
+lower-priority entries are not shown yet; pagination is deliberately deferred.
+
 ## Review an investigation and approve work
 
 1. Select a completed saved check and open Review investigation beneath a decline. A new controlling suggestion contains the observed comparison and investigation steps. A repeated check instead explains that its new evidence is covered by an existing suggestion. Its cause remains unknown.

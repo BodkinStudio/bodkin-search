@@ -1,5 +1,5 @@
 /* eslint-disable max-lines -- the ordered cross-provider atomic decision sequence is kept together for auditability */
-import { and, eq, exists, sql } from "drizzle-orm";
+import { and, eq, exists, inArray, sql } from "drizzle-orm";
 import type { SQLWrapper } from "drizzle-orm";
 import { getDatabaseProvider } from "@/db/provider";
 import { db } from "@/db";
@@ -773,9 +773,40 @@ async function getDecisionControllerSource(
   };
 }
 
+/**
+ * Returns controller Signal IDs only for the current, unreleased decision
+ * records. The caller has already bounded recommendationIds to one emitted
+ * project page; this read intentionally does not infer or adopt old graphs.
+ */
+async function listActiveControllerSources(
+  projectId: string,
+  recommendationIds: string[],
+) {
+  if (recommendationIds.length === 0) return [];
+  const rows = await db
+    .select({
+      recommendationId: growthRecommendationSignalLinks.recommendationId,
+      signalId: growthRecommendationSignalLinks.signalId,
+    })
+    .from(growthRecommendationSignalLinks)
+    .where(
+      and(
+        eq(growthRecommendationSignalLinks.projectId, projectId),
+        inArray(
+          growthRecommendationSignalLinks.recommendationId,
+          recommendationIds,
+        ),
+        eq(growthRecommendationSignalLinks.relationship, "controller"),
+        sql`${growthRecommendationSignalLinks.controllerReleasedAt} IS NULL`,
+      ),
+    );
+  return rows;
+}
+
 export const GrowthOpportunityDecisionsRepository = {
   writeDecision,
   getSignalDecision,
   getDecisionControllerSource,
+  listActiveControllerSources,
   findLegacyPriorityPageController,
 } as const;
