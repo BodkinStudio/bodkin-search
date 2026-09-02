@@ -1130,3 +1130,51 @@ opportunity history and live discovery remain separate work.
 Material-change thresholds, cooldowns, cancellation release, recovery or
 restoration policies, and releases for any detector other than priority-page
 click decline remain out of scope.
+
+---
+
+## ADR-049 - Manual monthly review composes existing phase authorities
+
+**Status:** Accepted
+
+### Decision
+
+- One explicit authenticated request may claim a `monthly_review` Run using a
+  caller-stable manual request key and `growth-monthly-review-v1`. The shared
+  Run contract already includes this type. The row returned by the atomic claim
+  is qualified again before work, so an incompatible slot winner conflicts.
+- Exact stored retries are read-only. Only the winning claim invokes the
+  existing priority-page check under a deterministic child request identity,
+  reads the current due-Measurement queue, and calls the existing immutable
+  monthly report builder. The child detector keeps its own `manual_analysis`
+  Run and remains the Signal and Recommendation provenance owner.
+- Due Measurements retain each Plan's frozen timezone and remain a bounded
+  current queue, not a coordinator snapshot. They are surfaced for human
+  review only; the coordinator never collects observations or selects an
+  outcome, confidence, narrative or confounders.
+- The envelope freezes the previous complete report month at one clock and
+  current report-timezone read. A built, recovered or no-activity report counts
+  only when its returned period and timezone exactly match that expectation.
+  Settings or coordinate drift is a safe partial failure.
+- Complete, partial and failed phase outcomes map to the existing terminal Run
+  states. Only static monthly-review failure codes and messages are persisted;
+  raw provider, database and exception text never crosses the boundary. Valid
+  child facts and Reports are not rolled back when another phase fails.
+- A hard process interruption may leave the exact manual request honestly
+  `running`, matching the current manual-check contract. Exact replay does not
+  infer abandonment or repeat phases; a distinct request key can record a new
+  explicit attempt.
+
+### Consequence
+
+The Growth backend gains one bounded monthly preparation action by composing
+existing services rather than adding a scheduler, workflow engine, database or
+provider client. It does not claim Gate 4, automated Measurement evaluation or
+durable crash recovery.
+
+### Deferred
+
+The application card and its rendered review, resumable phase checkpoints,
+leases or abandonment, scheduled execution, additional detectors, AI,
+automatic Measurement work, alerts, publication, sharing and delivery remain
+separate decisions.

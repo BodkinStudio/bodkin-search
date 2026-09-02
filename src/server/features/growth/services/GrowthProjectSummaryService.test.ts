@@ -6,14 +6,17 @@ const repository = vi.hoisted(() => ({
   listRecentSignals: vi.fn(),
   listSignalFreshness: vi.fn(),
   getLatestRun: vi.fn(),
-  listActiveMeasurementCandidates: vi.fn(),
 }));
 const settings = vi.hoisted(() => ({ getSettings: vi.fn() }));
 const context = vi.hoisted(() => ({ getProjectContext: vi.fn() }));
+const dueMeasurements = vi.hoisted(() => ({ getDueMeasurements: vi.fn() }));
 vi.mock("../repositories/GrowthProjectSummaryRepository", () => ({
   GrowthProjectSummaryRepository: repository,
 }));
 vi.mock("./GrowthSettingsService", () => ({ GrowthSettingsService: settings }));
+vi.mock("./GrowthDueMeasurementsService", () => ({
+  GrowthDueMeasurementsService: dueMeasurements,
+}));
 vi.mock(
   "@/server/features/project-context/services/ProjectContextService",
   () => ({ getProjectContext: context.getProjectContext }),
@@ -115,7 +118,11 @@ describe("GrowthProjectSummaryService", () => {
     repository.listRecentSignals.mockResolvedValue([]);
     repository.listSignalFreshness.mockResolvedValue([]);
     repository.getLatestRun.mockResolvedValue(null);
-    repository.listActiveMeasurementCandidates.mockResolvedValue([]);
+    dueMeasurements.getDueMeasurements.mockResolvedValue({
+      scanState: "complete",
+      items: [],
+      hasMore: false,
+    });
   });
 
   it("uses one injected asOf for every saved-signal read and exposes no internal facts", async () => {
@@ -165,22 +172,18 @@ describe("GrowthProjectSummaryService", () => {
     expect(summary.recentSignals.items).toHaveLength(5);
   });
 
-  it("withholds an overflowed candidate scan instead of claiming a partial due list", async () => {
-    repository.listActiveMeasurementCandidates.mockResolvedValue(
-      Array.from({ length: 51 }, (_, index) => ({
-        id: `plan_${index}`,
-        actionId: "action_1",
-        actionVersion: 1,
-        reportTimezone: "UTC",
-        measurementEnd: "2026-08-01",
-        longMeasurementEnd: null,
-        actionStatus: "measuring",
-        actionStateVersion: 1,
-        actionTitle: "Action",
-      })),
-    );
+  it("delegates the due-Measurement policy with the same project and captured clock", async () => {
+    dueMeasurements.getDueMeasurements.mockResolvedValue({
+      scanState: "overflow",
+      items: [],
+      hasMore: true,
+    });
     const summary = await GrowthProjectSummaryService.getProjectSummary(
       project,
+      { now },
+    );
+    expect(dueMeasurements.getDueMeasurements).toHaveBeenCalledWith(
+      project.id,
       { now },
     );
     expect(summary.dueMeasurements).toEqual({
@@ -188,108 +191,6 @@ describe("GrowthProjectSummaryService", () => {
       items: [],
       hasMore: true,
     });
-  });
-
-  it("uses each plan timezone and the next local date after an inclusive final day", async () => {
-    repository.listActiveMeasurementCandidates.mockResolvedValue([
-      {
-        id: "tokyo",
-        actionId: "a",
-        actionVersion: 2,
-        reportTimezone: "Asia/Tokyo",
-        measurementEnd: "2026-08-31",
-        longMeasurementEnd: null,
-        actionStatus: "measuring",
-        actionStateVersion: 2,
-        actionTitle: "Tokyo",
-      },
-      {
-        id: "los_angeles",
-        actionId: "b",
-        actionVersion: 2,
-        reportTimezone: "America/Los_Angeles",
-        measurementEnd: "2026-08-31",
-        longMeasurementEnd: null,
-        actionStatus: "ready",
-        actionStateVersion: 2,
-        actionTitle: "LA",
-      },
-    ]);
-    const summary = await GrowthProjectSummaryService.getProjectSummary(
-      project,
-      { now },
-    );
-    expect(summary.dueMeasurements).toMatchObject({
-      scanState: "complete",
-      items: [
-        { id: "tokyo", integrity: "consistent", availableOn: "2026-09-01" },
-      ],
-    });
-  });
-
-  it("derives every Measurement integrity state without exposing version internals", async () => {
-    repository.listActiveMeasurementCandidates.mockResolvedValue([
-      {
-        id: "missing",
-        actionId: "a",
-        actionVersion: 1,
-        reportTimezone: "UTC",
-        measurementEnd: "2026-08-01",
-        longMeasurementEnd: null,
-        actionStatus: null,
-        actionStateVersion: null,
-        actionTitle: null,
-      },
-      {
-        id: "state",
-        actionId: "b",
-        actionVersion: 1,
-        reportTimezone: "UTC",
-        measurementEnd: "2026-08-01",
-        longMeasurementEnd: null,
-        actionStatus: "ready",
-        actionStateVersion: 1,
-        actionTitle: "B",
-      },
-      {
-        id: "version",
-        actionId: "c",
-        actionVersion: 1,
-        reportTimezone: "UTC",
-        measurementEnd: "2026-08-01",
-        longMeasurementEnd: null,
-        actionStatus: "measuring",
-        actionStateVersion: 2,
-        actionTitle: "C",
-      },
-      {
-        id: "consistent",
-        actionId: "d",
-        actionVersion: 1,
-        reportTimezone: "UTC",
-        measurementEnd: "2026-08-01",
-        longMeasurementEnd: null,
-        actionStatus: "measuring",
-        actionStateVersion: 1,
-        actionTitle: "D",
-      },
-    ]);
-    const summary = await GrowthProjectSummaryService.getProjectSummary(
-      project,
-      { now },
-    );
-    expect(summary.dueMeasurements).toMatchObject({
-      scanState: "complete",
-      items: [
-        { id: "consistent", integrity: "consistent" },
-        { id: "missing", integrity: "action_missing", actionTitle: null },
-        { id: "state", integrity: "action_state_mismatch" },
-        { id: "version", integrity: "action_version_mismatch" },
-      ],
-    });
-    expect(JSON.stringify(summary.dueMeasurements)).not.toContain(
-      "actionVersion",
-    );
   });
 
   it("redacts credentials and reapplies public caps after Unicode URL projection", async () => {
@@ -368,25 +269,5 @@ describe("GrowthProjectSummaryService", () => {
     await expect(
       GrowthProjectSummaryService.getProjectSummary(project, { now }),
     ).rejects.toMatchObject({ code: "INTERNAL_ERROR" });
-  });
-
-  it("fails closed on an invalid frozen Measurement timezone", async () => {
-    repository.listActiveMeasurementCandidates.mockResolvedValue([
-      {
-        id: "invalid_timezone",
-        actionId: "action_1",
-        actionVersion: 1,
-        reportTimezone: "Mars/Olympus_Mons",
-        measurementEnd: "2026-08-01",
-        longMeasurementEnd: null,
-        actionStatus: "measuring",
-        actionStateVersion: 1,
-        actionTitle: "Action",
-      },
-    ]);
-
-    await expect(
-      GrowthProjectSummaryService.getProjectSummary(project, { now }),
-    ).rejects.toMatchObject({ code: "CONFLICT" });
   });
 });

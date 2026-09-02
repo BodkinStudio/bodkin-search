@@ -92,6 +92,16 @@ describe("Growth run and Signal schemas", () => {
     ).toMatchObject({ ...run, periodStart: "2026-08-29" });
   });
 
+  it("already accepts monthly review Runs without widening the shared vocabulary", () => {
+    expect(
+      createManualGrowthRunSchema.parse({
+        ...run,
+        runType: "monthly_review",
+        cadenceSlot: "monthly-review:request_1",
+      }),
+    ).toMatchObject({ runType: "monthly_review" });
+  });
+
   it("rejects invalid calendar dates and reversed periods", () => {
     expect(() =>
       createManualGrowthRunSchema.parse({ ...run, periodStart: "2026-02-30" }),

@@ -103,6 +103,14 @@ async function getRun(projectId: string, runId: string) {
   return row;
 }
 
+function getRunBySlot(
+  projectId: string,
+  runType: CreateManualGrowthRunInput["runType"],
+  cadenceSlot: string,
+) {
+  return GrowthRunsRepository.getRunBySlot(projectId, runType, cadenceSlot);
+}
+
 function listRuns(projectId: string) {
   return GrowthRunsRepository.listRuns(projectId);
 }
@@ -206,6 +214,7 @@ export const GrowthRunsService = {
   createManualRun,
   claimManualRun,
   getRun,
+  getRunBySlot,
   listRuns,
   listRecentRuns,
   listRecentRunsForDetector,

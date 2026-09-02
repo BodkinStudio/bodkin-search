@@ -17,6 +17,7 @@ import {
   calendarDateInTimezone,
   earliestUtcCalendarDateBoundary,
 } from "./GrowthMeasurementFacts";
+import { previousCompleteGrowthMonthlyPeriod } from "./GrowthMonthlyReportPeriod";
 
 const TITLES: Record<string, string> = {
   executive_summary: "Executive summary",
@@ -28,16 +29,6 @@ const TITLES: Record<string, string> = {
   opportunities: "Opportunities",
   next_month: "Next month",
 };
-function periodFor(cutoff: string, timezone: string) {
-  const current = calendarDateInTimezone(cutoff, timezone);
-  const d = new Date(`${current.slice(0, 7)}-01T00:00:00.000Z`);
-  d.setUTCMonth(d.getUTCMonth() - 1);
-  const periodStart = d.toISOString().slice(0, 10);
-  d.setUTCMonth(d.getUTCMonth() + 1);
-  d.setUTCDate(0);
-  return { periodStart, periodEnd: d.toISOString().slice(0, 10) };
-}
-
 function monthIndex(date: string) {
   return Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7)) - 1;
 }
@@ -188,7 +179,10 @@ async function getGrowthMonthlyReport(
   now = new Date(),
 ): Promise<GrowthMonthlyReportDto> {
   const settings = await GrowthSettingsService.getSettings(projectId);
-  const period = periodFor(now.toISOString(), settings.reportTimezone);
+  const period = previousCompleteGrowthMonthlyPeriod(
+    now.toISOString(),
+    settings.reportTimezone,
+  );
   const expected = expectationFromRequest(request);
   if (!expected) return currentRead(projectId, settings, period);
   assertRecoveryExpectation(expected, period);
@@ -214,7 +208,10 @@ async function buildGrowthMonthlyReport(
 ): Promise<GrowthMonthlyReportDto> {
   const settings = await GrowthSettingsService.getSettings(projectId);
   const dataCutoffAt = now.toISOString();
-  const period = periodFor(dataCutoffAt, settings.reportTimezone);
+  const period = previousCompleteGrowthMonthlyPeriod(
+    dataCutoffAt,
+    settings.reportTimezone,
+  );
   const expected = expectationFromRequest(request);
   if (!expected)
     throw new AppError(
@@ -291,7 +288,10 @@ async function exactMonthlyPublicationReport(
   now = new Date(),
 ) {
   const settings = await GrowthSettingsService.getSettings(projectId);
-  const current = periodFor(now.toISOString(), settings.reportTimezone);
+  const current = previousCompleteGrowthMonthlyPeriod(
+    now.toISOString(),
+    settings.reportTimezone,
+  );
   assertRecoveryExpectation(request, current);
   const report = await existing(
     projectId,

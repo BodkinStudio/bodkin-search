@@ -6,19 +6,15 @@ import {
   type GrowthProjectSummaryDto,
 } from "@/types/schemas/growth-project-summary";
 import { GrowthProjectSummaryRepository } from "../repositories/GrowthProjectSummaryRepository";
+import { GrowthDueMeasurementsService } from "./GrowthDueMeasurementsService";
 import { GrowthSettingsService } from "./GrowthSettingsService";
-import {
-  calendarDateInTimezone,
-  canonicalTimestamp,
-  nextCalendarDate,
-} from "./GrowthMeasurementFacts";
+import { canonicalTimestamp } from "./GrowthMeasurementFacts";
 import {
   growthEvidenceDisplayActionText,
   growthEvidenceDisplayUrl,
 } from "./GrowthEvidencePacket";
 
 const DISPLAY_LIMIT = 5;
-const MEASUREMENT_SCAN_LIMIT = 51;
 
 type UnresolvedRecommendationRow = Awaited<
   ReturnType<
@@ -34,12 +30,6 @@ type RecentSignalRow = Awaited<
 type SignalFreshnessRow = Awaited<
   ReturnType<typeof GrowthProjectSummaryRepository.listSignalFreshness>
 >[number];
-type MeasurementCandidateRow = Awaited<
-  ReturnType<
-    typeof GrowthProjectSummaryRepository.listActiveMeasurementCandidates
-  >
->[number];
-
 type AuthorizedProject = {
   id: string;
   name: string;
@@ -80,10 +70,6 @@ function derivedProjectUrl(domain: string | null) {
     queryOrFragmentOmitted: projection.omitted,
     withheld: projection.withheld,
   };
-}
-
-function codeUnitCompare(left: string, right: string) {
-  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function projectContext(
@@ -180,34 +166,6 @@ function recentSignal(row: RecentSignalRow, asOf: string) {
   };
 }
 
-function measurementIntegrity(row: MeasurementCandidateRow) {
-  if (row.actionStatus == null) return "action_missing" as const;
-  if (row.actionStatus !== "measuring") return "action_state_mismatch" as const;
-  if (row.actionStateVersion !== row.actionVersion)
-    return "action_version_mismatch" as const;
-  return "consistent" as const;
-}
-
-function dueMeasurement(row: MeasurementCandidateRow, now: Date) {
-  // The final measurement day is inclusive, so it is only actionable from
-  // the next local calendar date.
-  const availableOn = nextCalendarDate(
-    row.longMeasurementEnd ?? row.measurementEnd,
-  );
-  const nowDate = calendarDateInTimezone(now.toISOString(), row.reportTimezone);
-  if (nowDate < availableOn) return null;
-  return {
-    id: row.id,
-    actionId: row.actionId,
-    actionTitle:
-      row.actionTitle == null ? null : boundedText(row.actionTitle, 300),
-    availableOn,
-    reportTimezone: row.reportTimezone,
-    actionStatus: row.actionStatus ?? null,
-    integrity: measurementIntegrity(row),
-  };
-}
-
 async function getProjectSummary(
   project: AuthorizedProject,
   options: { now?: Date } = {},
@@ -224,7 +182,7 @@ async function getProjectSummary(
     signals,
     signalFreshness,
     latestRun,
-    candidates,
+    dueMeasurements,
   ] = await Promise.all([
     GrowthSettingsService.getSettings(project.id),
     getProjectContext(project.id),
@@ -243,33 +201,8 @@ async function getProjectSummary(
     ),
     GrowthProjectSummaryRepository.listSignalFreshness(project.id, asOf),
     GrowthProjectSummaryRepository.getLatestRun(project.id, asOf),
-    GrowthProjectSummaryRepository.listActiveMeasurementCandidates(
-      project.id,
-      MEASUREMENT_SCAN_LIMIT,
-    ),
+    GrowthDueMeasurementsService.getDueMeasurements(project.id, { now }),
   ]);
-
-  const dueState =
-    candidates.length >= MEASUREMENT_SCAN_LIMIT
-      ? { scanState: "overflow" as const, items: [], hasMore: true as const }
-      : (() => {
-          const due = candidates
-            .map((candidate) => dueMeasurement(candidate, now))
-            .filter(
-              (candidate): candidate is NonNullable<typeof candidate> =>
-                candidate !== null,
-            )
-            .toSorted((left, right) =>
-              left.availableOn === right.availableOn
-                ? codeUnitCompare(left.id, right.id)
-                : codeUnitCompare(left.availableOn, right.availableOn),
-            );
-          return {
-            scanState: "complete" as const,
-            items: due.slice(0, DISPLAY_LIMIT),
-            hasMore: due.length > DISPLAY_LIMIT,
-          };
-        })();
   const safeSignals = signals.map((signal) => recentSignal(signal, asOf));
   if (safeSignals.some((signal) => signal === null))
     throw new AppError(
@@ -352,7 +285,7 @@ async function getProjectSummary(
       items: safeSignals.slice(0, DISPLAY_LIMIT),
       hasMore: signals.length > DISPLAY_LIMIT,
     },
-    dueMeasurements: dueState,
+    dueMeasurements,
   });
 }
 

@@ -95,6 +95,23 @@ const dueMeasurement = z.strictObject({
   ]),
 });
 
+/** Bounded current view of Measurement Plans whose frozen windows have elapsed. */
+export const growthDueMeasurementsDtoSchema = z.discriminatedUnion(
+  "scanState",
+  [
+    z.strictObject({
+      scanState: z.literal("complete"),
+      items: z.array(dueMeasurement).max(5),
+      hasMore: z.boolean(),
+    }),
+    z.strictObject({
+      scanState: z.literal("overflow"),
+      items: z.array(dueMeasurement).length(0),
+      hasMore: z.literal(true),
+    }),
+  ],
+);
+
 const collection = <T extends z.ZodType>(item: T) =>
   z.strictObject({ items: z.array(item).max(5), hasMore: z.boolean() });
 
@@ -179,20 +196,12 @@ export const growthProjectSummaryDtoSchema = z.strictObject({
   unresolvedRecommendations: collection(unresolvedRecommendation),
   currentActions: collection(action),
   recentSignals: collection(signal),
-  dueMeasurements: z.discriminatedUnion("scanState", [
-    z.strictObject({
-      scanState: z.literal("complete"),
-      items: z.array(dueMeasurement).max(5),
-      hasMore: z.boolean(),
-    }),
-    z.strictObject({
-      scanState: z.literal("overflow"),
-      items: z.array(dueMeasurement).length(0),
-      hasMore: z.literal(true),
-    }),
-  ]),
+  dueMeasurements: growthDueMeasurementsDtoSchema,
 });
 
 export type GrowthProjectSummaryDto = z.output<
   typeof growthProjectSummaryDtoSchema
+>;
+export type GrowthDueMeasurementsDto = z.output<
+  typeof growthDueMeasurementsDtoSchema
 >;

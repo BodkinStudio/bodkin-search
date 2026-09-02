@@ -79,3 +79,9 @@ Done means the investigation work is finished; it does not edit the website or p
 ## Record a page change
 
 View change log opens a manual record of work on configured priority pages. Choose a page, change type and UTC change date, then describe the work and save it. Saved entries are immutable; add a correction as another entry. The latest 50 entries distinguish the change date from the recording date. This workflow needs no Search Console connection and does not establish that a change caused a search result.
+
+## Manual monthly review boundary
+
+The backend can now prepare one explicit monthly review attempt by composing the existing priority-page check, current due-Measurement queue and immutable monthly report builder. Each attempt has its own retry key and `monthly_review` Run. The detector remains a separate child Run, due Measurements remain human review work, and only an exact-period report counts as a successful report phase.
+
+This backend boundary is not yet a visible Growth-page control. It does not run on a schedule, resume an interrupted process, evaluate Measurements, publish or share a report, add detectors or generate AI interpretation. The current no-browser implementation checkpoint deliberately defers the application card and rendered visual review.

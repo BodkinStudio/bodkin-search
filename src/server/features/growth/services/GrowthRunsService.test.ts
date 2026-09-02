@@ -54,6 +54,31 @@ describe("GrowthRunsService", () => {
     );
   });
 
+  it("reads one exact project, type and cadence slot without inventing absence", async () => {
+    repository.getRunBySlot.mockResolvedValueOnce(runningRun);
+    await expect(
+      GrowthRunsService.getRunBySlot(
+        "project_1",
+        "daily_monitor",
+        "2026-08-29",
+      ),
+    ).resolves.toEqual(runningRun);
+    expect(repository.getRunBySlot).toHaveBeenCalledWith(
+      "project_1",
+      "daily_monitor",
+      "2026-08-29",
+    );
+
+    repository.getRunBySlot.mockResolvedValueOnce(null);
+    await expect(
+      GrowthRunsService.getRunBySlot(
+        "project_2",
+        "monthly_review",
+        "monthly-review:retry_1",
+      ),
+    ).resolves.toBeNull();
+  });
+
   it("replays a claimed request identity without recollecting across a later date boundary", async () => {
     repository.projectExists.mockResolvedValue(true);
     repository.tryCreateManualRun.mockResolvedValue(false);
