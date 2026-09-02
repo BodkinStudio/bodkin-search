@@ -47,6 +47,13 @@ vi.mock("@/serverFunctions/growthOpportunities", () => ({
 vi.mock("@/serverFunctions/growthOperatingOverview", () => ({
   getGrowthOperatingOverview: vi.fn(),
 }));
+vi.mock("@/serverFunctions/growth", () => ({
+  getGrowthSettings: vi.fn(),
+  updateGrowthSettings: vi.fn(),
+}));
+vi.mock("@/serverFunctions/projects", () => ({
+  getProjectAccess: vi.fn(),
+}));
 
 describe("GrowthPreview rendered contract", () => {
   it("labels the preview even before data is available", () => {
@@ -64,6 +71,9 @@ describe("GrowthPreview rendered contract", () => {
     expect(html).toContain("Check priority pages");
     expect(html).toContain("Monthly summary");
     expect(html).toContain("Growth at a glance");
+    expect(html).toContain("Ready for real data");
+    expect(html).toContain("Loading live Growth readiness");
+    expect(html).toContain('href="#growth-live-readiness"');
     expect(html).toContain("Loading Growth overview");
     expect(html).toContain("Opportunities");
     expect(html).toContain('href="#growth-opportunities"');

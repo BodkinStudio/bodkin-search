@@ -9,6 +9,7 @@ import { GrowthWork } from "./GrowthWork";
 import { GrowthMonthlyReport } from "./GrowthMonthlyReport";
 import { GrowthOpportunities } from "./GrowthOpportunities";
 import { GrowthOperatingOverview } from "./GrowthOperatingOverview";
+import { GrowthLiveReadiness } from "./GrowthLiveReadiness";
 
 export function GrowthPreviewPage({ projectId }: { projectId: string }) {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -34,6 +35,9 @@ export function GrowthPreviewPage({ projectId }: { projectId: string }) {
             aria-label="Growth sections"
             className="mt-2 flex flex-wrap gap-4 text-sm"
           >
+            <a href="#growth-live-readiness" className="link">
+              Set up real data
+            </a>
             <a href="#growth-monthly-summary" className="link">
               View monthly summary
             </a>
@@ -49,6 +53,7 @@ export function GrowthPreviewPage({ projectId }: { projectId: string }) {
           </nav>
         </header>
 
+        <GrowthLiveReadiness projectId={projectId} />
         <GrowthOperatingOverview projectId={projectId} />
         <GrowthMonthlyReport key={projectId} projectId={projectId} />
         <GrowthOpportunities projectId={projectId} />
