@@ -148,6 +148,15 @@ beforeEach(() => {
 });
 
 describe("SAM Growth MCP tools", () => {
+  it("does not expose controlled Growth writes to the in-app agent", () => {
+    expect(
+      buildSamMcpTools(authContext, {
+        id: "bound_project",
+        domain: "example.com",
+      }),
+    ).not.toHaveProperty("growth_record_change");
+  });
+
   it("binds page context to the session project and preserves the model URL", async () => {
     const tools = buildSamMcpTools(authContext, {
       id: "bound_project",

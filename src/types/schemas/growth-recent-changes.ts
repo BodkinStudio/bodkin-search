@@ -33,7 +33,7 @@ const displayUrl = z.strictObject({
   queryOrFragmentOmitted: z.boolean(),
   withheld: z.boolean(),
 });
-const change = z.strictObject({
+export const growthManualChangeDtoSchema = z.strictObject({
   id,
   source: z.literal("manual"),
   changeType: z.enum(GROWTH_CHANGE_EVENT_TYPES),
@@ -48,7 +48,7 @@ const change = z.strictObject({
   displayUrlsWithheld: z.boolean(),
 });
 export const growthRecentChangesPageDtoSchema = z.strictObject({
-  changes: z.array(change).max(50),
+  changes: z.array(growthManualChangeDtoSchema).max(50),
   limit: z.number().int().min(1).max(50),
   hasMore: z.boolean(),
   nextCursor: growthRecentChangesCursorSchema.nullable(),

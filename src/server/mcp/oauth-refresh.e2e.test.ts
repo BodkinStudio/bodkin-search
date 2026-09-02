@@ -1,6 +1,8 @@
+/* eslint-disable max-lines -- one real-provider lifecycle suite pins authorization, refresh, rotation, and capability behavior */
 import { createHash, randomBytes } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { GROWTH_CHANGE_CREATE_SCOPE } from "@/lib/oauth-resource";
 import type { createOpenSeoOAuthProvider } from "./oauth-provider";
 
 // End-to-end OAuth lifecycle against the REAL @cloudflare/workers-oauth-provider
@@ -193,7 +195,11 @@ async function registerCodexStyleClient(
   return registrationSchema.parse(await response.json());
 }
 
-async function authorizeAndGetCode(clientId: string, codeVerifier: string) {
+async function authorizeAndGetCode(
+  clientId: string,
+  codeVerifier: string,
+  scope = "offline_access mcp",
+) {
   const challenge = createHash("sha256")
     .update(codeVerifier)
     .digest("base64url");
@@ -201,7 +207,7 @@ async function authorizeAndGetCode(clientId: string, codeVerifier: string) {
     response_type: "code",
     client_id: clientId,
     redirect_uri: "http://localhost:1455/auth/callback",
-    scope: "offline_access mcp",
+    scope,
     state: "state-1",
     code_challenge: challenge,
     code_challenge_method: "S256",
@@ -282,10 +288,10 @@ async function callMcp(accessToken: string) {
   return propsEchoSchema.parse(await response.json()).props.openSeoAuth;
 }
 
-async function setupSession() {
+async function setupSession(scope = "offline_access mcp") {
   const client = await registerCodexStyleClient();
   const codeVerifier = randomBytes(32).toString("base64url");
-  const code = await authorizeAndGetCode(client.client_id, codeVerifier);
+  const code = await authorizeAndGetCode(client.client_id, codeVerifier, scope);
   const tokens = await exchangeCode(client.client_id, code, codeVerifier);
   return { client, tokens };
 }
@@ -319,6 +325,39 @@ describe("Codex-style OAuth token refresh (real workers-oauth-provider)", () => 
     // And the rotated refresh token keeps working for the next cycle.
     const second = await refresh(client.client_id, refreshed.refresh_token);
     expect(second.status).toBe(200);
+  });
+
+  it("downscopes a forged Growth write request to its read-only refresh grant", async () => {
+    const { client, tokens } = await setupSession();
+
+    const response = await tokenRequest({
+      grant_type: "refresh_token",
+      refresh_token: tokens.refresh_token,
+      client_id: client.client_id,
+      scope: `offline_access mcp ${GROWTH_CHANGE_CREATE_SCOPE}`,
+    });
+
+    expect(response.status).toBe(200);
+    const refreshed = tokenResponseSchema.parse(await response.json());
+    expect((await callMcp(refreshed.access_token)).scopes).not.toContain(
+      GROWTH_CHANGE_CREATE_SCOPE,
+    );
+  });
+
+  it("preserves an explicitly consented Growth write capability across refresh", async () => {
+    const { client, tokens } = await setupSession(
+      `offline_access mcp ${GROWTH_CHANGE_CREATE_SCOPE}`,
+    );
+    expect((await callMcp(tokens.access_token)).scopes).toContain(
+      GROWTH_CHANGE_CREATE_SCOPE,
+    );
+
+    const response = await refresh(client.client_id, tokens.refresh_token);
+    expect(response.status).toBe(200);
+    const refreshed = tokenResponseSchema.parse(await response.json());
+    expect((await callMcp(refreshed.access_token)).scopes).toEqual(
+      expect.arrayContaining(["mcp", GROWTH_CHANGE_CREATE_SCOPE]),
+    );
   });
 
   it("honors the previous refresh token until the rotated one is used", async () => {

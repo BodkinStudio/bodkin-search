@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MCP_AUTH_CONTEXT_PROP } from "@/server/mcp/context";
-import { MCP_OAUTH_SCOPES } from "@/lib/oauth-resource";
+import {
+  MCP_AUTH_CONTEXT_PROP,
+  workersOAuthMcpPropsSchema,
+} from "@/server/mcp/context";
+import {
+  GROWTH_CHANGE_CREATE_SCOPE,
+  MCP_OAUTH_SCOPES,
+} from "@/lib/oauth-resource";
 import type { handleAuthenticatedOpenSeoMcpRequest } from "@/server/mcp/transport";
 
 const mocks = vi.hoisted(() => ({
@@ -105,6 +111,10 @@ describe("handleMcpApiKeyRequest", () => {
         baseUrl: "https://app.openseo.so",
       },
     });
+    const parsedProps = workersOAuthMcpPropsSchema.parse(props);
+    expect(parsedProps[MCP_AUTH_CONTEXT_PROP].scopes).not.toContain(
+      GROWTH_CHANGE_CREATE_SCOPE,
+    );
   });
 
   it("accepts the key via a case-insensitive bearer scheme", async () => {

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- one provider configuration suite keeps scope, callback, consent, and error behavior together */
 import {
   GrantType,
   type OAuthProviderOptions,
@@ -5,12 +6,18 @@ import {
 } from "@cloudflare/workers-oauth-provider";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import {
+  GROWTH_CHANGE_CREATE_SCOPE,
+  MCP_OAUTH_SCOPES,
+} from "@/lib/oauth-resource";
+import { workersOAuthMcpPropsSchema } from "@/server/mcp/context";
 import type { createOpenSeoOAuthProvider } from "./oauth-provider";
 
 const mocks = vi.hoisted(() => ({
   options: [] as OAuthProviderOptions<unknown>[],
   requests: [] as Request[],
   purges: [] as unknown[],
+  resolveHostedContext: vi.fn(),
 }));
 
 vi.mock("cloudflare:workers", () => ({
@@ -90,7 +97,7 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/middleware/ensure-user/hosted", () => ({
-  resolveHostedContext: vi.fn(),
+  resolveHostedContext: mocks.resolveHostedContext,
 }));
 
 vi.mock("@/server/features/activation/mcpActivation", () => ({
@@ -121,13 +128,15 @@ async function dispatch(
 
 function tokenExchangeOptions(
   requestedScope: string[],
+  scope = [...MCP_OAUTH_SCOPES],
+  authScopes = scope,
 ): TokenExchangeCallbackOptions {
   return {
     grantType: GrantType.REFRESH_TOKEN,
     clientId: "client-1",
     userId: "user-1",
     grantId: "grant-1",
-    scope: ["offline_access", "mcp"],
+    scope,
     requestedScope,
     props: {
       openSeoAuth: {
@@ -136,7 +145,7 @@ function tokenExchangeOptions(
         organizationId: "org-1",
         baseUrl: "https://app.openseo.so",
         clientId: "client-1",
-        scopes: ["offline_access", "mcp"],
+        scopes: authScopes,
       },
     },
   };
@@ -176,6 +185,7 @@ describe("OpenSEO OAuth provider configuration", () => {
     mocks.options.length = 0;
     mocks.requests.length = 0;
     mocks.purges.length = 0;
+    mocks.resolveHostedContext.mockReset();
   });
 
   it("binds tokens and protected-resource metadata to the canonical MCP URL", async () => {
@@ -193,6 +203,7 @@ describe("OpenSEO OAuth provider configuration", () => {
     expect(mocks.options[0]?.scopesSupported).toEqual([
       "offline_access",
       "mcp",
+      GROWTH_CHANGE_CREATE_SCOPE,
     ]);
     expect(mocks.options[0]?.clientRegistrationTTL).toBe(60 * 60 * 24 * 365);
   });
@@ -237,6 +248,105 @@ describe("OpenSEO OAuth provider configuration", () => {
       },
     });
   });
+
+  it("rejects callback-level scope escalation and preserves a consented capability", async () => {
+    const { OAuthError } = await import("@cloudflare/workers-oauth-provider");
+    const { createOpenSeoOAuthProvider } = await import("./oauth-provider");
+    const provider = createOpenSeoOAuthProvider(() => new Response("app"));
+    await dispatch(provider, new Request("https://app.openseo.so/health"));
+
+    const callback = mocks.options[0]?.tokenExchangeCallback;
+    if (!callback) throw new Error("Missing token exchange callback");
+    const requested = ["mcp", GROWTH_CHANGE_CREATE_SCOPE];
+    expect(() => callback(tokenExchangeOptions(requested))).toThrowError(
+      OAuthError,
+    );
+    expect(() =>
+      callback(
+        tokenExchangeOptions(
+          requested,
+          [...MCP_OAUTH_SCOPES, GROWTH_CHANGE_CREATE_SCOPE],
+          MCP_OAUTH_SCOPES,
+        ),
+      ),
+    ).toThrowError(OAuthError);
+
+    const consented = [...MCP_OAUTH_SCOPES, GROWTH_CHANGE_CREATE_SCOPE];
+    expect(
+      callback(tokenExchangeOptions(requested, consented, consented)),
+    ).toEqual({
+      accessTokenProps: {
+        openSeoAuth: {
+          userId: "user-1",
+          userEmail: "user@example.com",
+          organizationId: "org-1",
+          baseUrl: "https://app.openseo.so",
+          clientId: "client-1",
+          scopes: requested,
+        },
+      },
+    });
+  });
+
+  it.each([
+    ["default", [], MCP_OAUTH_SCOPES],
+    [
+      "explicit write",
+      ["mcp", GROWTH_CHANGE_CREATE_SCOPE],
+      ["mcp", GROWTH_CHANGE_CREATE_SCOPE],
+    ],
+  ])(
+    "grants the %s consent scope set without adding unrequested writes",
+    async (_label, requestedScopes, expectedScopes) => {
+      mocks.resolveHostedContext.mockResolvedValue({
+        userId: "user-1",
+        userEmail: "user@example.com",
+        organizationId: "org-1",
+      });
+      const completeAuthorization = vi.fn().mockResolvedValue({
+        redirectTo: "https://client.example/callback?code=code-1",
+      });
+      const { createOpenSeoOAuthProvider } = await import("./oauth-provider");
+      const provider = createOpenSeoOAuthProvider(() => new Response("app"));
+      await dispatch(provider, new Request("https://app.openseo.so/health"));
+
+      const response = await invokeDefaultHandler(
+        new Request("https://app.openseo.so/api/oauth/consent", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Origin: "https://app.openseo.so",
+          },
+          body: JSON.stringify({ accept: true, query: "state=state-1" }),
+        }),
+        {
+          OAUTH_PROVIDER: {
+            parseAuthRequest: () =>
+              Promise.resolve({
+                clientId: "client-1",
+                redirectUri: "https://client.example/callback",
+                scope: requestedScopes,
+                state: "state-1",
+                issuer: "https://app.openseo.so",
+              }),
+            completeAuthorization,
+          },
+        },
+      );
+
+      expect(response.status).toBe(200);
+      expect(completeAuthorization).toHaveBeenCalledTimes(1);
+      const completed: unknown = completeAuthorization.mock.calls[0]?.[0];
+      const parsed = z
+        .object({
+          scope: z.array(z.string()),
+          props: workersOAuthMcpPropsSchema,
+        })
+        .parse(completed);
+      expect(parsed.scope).toEqual(expectedScopes);
+      expect(parsed.props.openSeoAuth.scopes).toEqual(expectedScopes);
+    },
+  );
 
   it("lets the provider issue Perplexity a real client secret", async () => {
     const { createOpenSeoOAuthProvider } = await import("./oauth-provider");

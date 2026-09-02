@@ -1,0 +1,14 @@
+{
+  "verdict": "PASS",
+  "generatedAt": "2026-09-02T00:03:59Z",
+  "unmet": [],
+  "notes": [
+    "The first controlled Growth MCP write is implemented on the existing OpenSEO server: only explicitly consented hosted OAuth grants with both mcp and growth:change:create can discover or invoke growth_record_change.",
+    "Default OAuth grants, API keys, self-hosted identities and project-bound SAM remain read-only. Authorization-server metadata advertises the capability while protected-resource metadata retains the minimal mcp baseline; refresh tests prove a read-only grant cannot widen.",
+    "Capability authorization runs before project authorization and is independently enforced at discovery and handler invocation. Canonical tenancy authorization still precedes every Growth write.",
+    "The service derives unambiguous principal-scoped actor and idempotency coordinates, fixes manual/agent provenance and delegates URL validation, immutable hashing, atomic graph creation, exact replay and conflict handling to the existing Change Event service/repository.",
+    "The write returns the same privacy-safe bounded manual-event projection as growth_get_recent_changes and excludes actor, auth, key, hash and graph internals. Tool text accurately discloses saved-state mutation, caller-supplied time, zero provider/credit use and absent Action/Measurement side effects.",
+    "Verification records 56 focused tests, 35 SQLite/D1 tests, 3 live PostgreSQL tests, a clean complete CI gate, 2,164 passing full-suite tests, a passing production build and clean staged/unstaged whitespace checks. Repair round 1 removed one unused export found by Knip.",
+    "Fresh adversarial review passed with no critical, major, minor, plan or verification findings. No dependency, schema, migration, provider, UI or separate service/auth/database/MCP architecture was introduced."
+  ]
+}

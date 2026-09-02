@@ -937,3 +937,43 @@ Measurement graphs or establish causality. Action lifecycle drift is exposed
 as `inconsistent`; malformed Plan/Result or Metric lifecycle data is rejected
 before public projection. It makes no provider calls, spends no credits and
 writes nothing.
+
+---
+
+## ADR-044 - Scoped manual Change Event write
+
+**Status:** Accepted
+
+### Decision
+
+- `growth_record_change` is an external MCP-only write, available solely to a
+  hosted OAuth grant explicitly carrying both `mcp` and
+  `growth:change:create`. The capability is supported but never part of the
+  default OAuth or API-key scope set. Self-hosted MCP and project-bound SAM do
+  not receive it.
+- Capability is checked before project authorization and again at invocation.
+  OAuth refresh can preserve or narrow a consented grant but cannot add the
+  capability to a read-only grant; the token callback independently enforces
+  the original stored and verified scope ceilings.
+- The tool accepts only a caller UUID, closed change type, bounded narrative,
+  non-future supplied timestamp and project URLs. Source and actor provenance
+  derive from verified auth. The existing Change Event service retains domain
+  validation, immutable fact hashing, atomic creation and exact-retry conflict
+  semantics. That immutable event is the audit record.
+- Public output reuses the recent-change privacy projector and excludes actors,
+  auth identities, creation keys, hashes and graph internals. The operation
+  writes no provider, consumes no credits, links no Action and starts no
+  Measurement.
+
+### Consequence
+
+Current OAuth clients, API keys, self-hosted deployments and SAM remain
+Growth-write-disabled by default. A capable client can append or replay only an
+authorized manual Change Event; it cannot mutate workflow state or publish a
+site change.
+
+### Deferred
+
+Growth Action writes, self-hosted capability configuration, a role matrix,
+deployment/CMS ingestion, external Action linking and provider publication
+remain separate permission reviews.
