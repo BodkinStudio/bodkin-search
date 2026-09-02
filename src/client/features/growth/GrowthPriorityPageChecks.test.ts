@@ -67,6 +67,7 @@ vi.mock("@/serverFunctions/growthChecks", () => ({
 vi.mock("@/serverFunctions/growthInvestigations", () => ({
   getGrowthInvestigation: vi.fn(),
   approveGrowthInvestigation: vi.fn(),
+  reviewGrowthInvestigation: vi.fn(),
 }));
 
 import { GrowthPriorityPageChecks } from "./GrowthPriorityPageChecks";

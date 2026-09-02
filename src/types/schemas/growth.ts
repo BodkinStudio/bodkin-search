@@ -223,7 +223,7 @@ export const GROWTH_RECOMMENDATION_STATUSES = [
   "merged",
   "superseded",
 ] as const;
-const GROWTH_DISMISSAL_REASONS = [
+export const GROWTH_DISMISSAL_REASONS = [
   "irrelevant",
   "already_planned",
   "not_commercially_important",

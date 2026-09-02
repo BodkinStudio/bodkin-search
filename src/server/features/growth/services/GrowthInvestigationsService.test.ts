@@ -77,6 +77,8 @@ const graph = {
     id: "recommendation_1",
     status: "proposed" as const,
     reviewVersion: 0,
+    dismissalReason: null,
+    snoozedUntil: null,
     title: "Investigate declining search clicks",
     rationale: "Cause is unknown.",
   },
@@ -120,6 +122,7 @@ beforeEach(() => {
     action,
     targets: graph.targets,
   });
+  services.reviewRecommendation.mockResolvedValue(graph.recommendation);
   services.transitionAction.mockResolvedValue({ action, event: {} });
 });
 
@@ -133,6 +136,9 @@ describe("GrowthInvestigationsService", () => {
       status: "proposed",
       displayUrls: ["https://example.com/pricing"],
       actionId: null,
+      reviewVersion: 0,
+      dismissalReason: null,
+      snoozedUntil: null,
     });
   });
 

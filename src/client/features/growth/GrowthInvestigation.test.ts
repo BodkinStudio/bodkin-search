@@ -8,10 +8,16 @@ import {
   GrowthInvestigationReview,
 } from "./GrowthInvestigation";
 import { GrowthInvestigationForm } from "./GrowthInvestigationForm";
+import {
+  GrowthInvestigationReviewControls,
+  GrowthInvestigationValidationFailure,
+  nextUtcCalendarDate,
+} from "./GrowthInvestigationReviewControls";
 
 vi.mock("@/serverFunctions/growthInvestigations", () => ({
   getGrowthInvestigation: vi.fn(),
   approveGrowthInvestigation: vi.fn(),
+  reviewGrowthInvestigation: vi.fn(),
 }));
 
 const proposal: GrowthInvestigationView = {
@@ -24,6 +30,9 @@ const proposal: GrowthInvestigationView = {
   ],
   displayUrls: ["https://example.com/pricing"],
   status: "proposed",
+  reviewVersion: 0,
+  dismissalReason: null,
+  snoozedUntil: null,
   actionId: null,
   dueOn: null,
   templateVersion: "priority-page-investigation-v1",
@@ -92,6 +101,18 @@ describe("Growth investigation rendered contract", () => {
     );
     expect(html).toContain("Due date (UTC)");
     expect(html).toContain("Approve investigation");
+    expect(html).toContain("Dismissal reason");
+    expect(html).toContain("Snooze until (UTC)");
+    expect(html).toContain('aria-label="Dismiss this suggestion"');
+    expect(html).toContain('aria-label="Snooze this suggestion"');
+    expect(html).toContain('required=""');
+    expect(html).toContain(`min="${nextUtcCalendarDate()}"`);
+    expect(html.indexOf("Approve investigation")).toBeLessThan(
+      html.indexOf("Dismissal reason"),
+    );
+    expect(html.indexOf("Dismissal reason")).toBeLessThan(
+      html.indexOf("Snooze until (UTC)"),
+    );
     expect(html).toContain("does not change the website");
     expect(html).not.toContain("Expected uplift");
   });
@@ -143,6 +164,8 @@ describe("Growth investigation rendered contract", () => {
     client.setQueryData(["growthInvestigation", "project_1", "signal_1"], {
       ...proposal,
       status: "dismissed",
+      reviewVersion: 1,
+      dismissalReason: "wrong_diagnosis",
       title: "<script>unsafe</script>",
       displayUrls: [null],
     });
@@ -150,9 +173,42 @@ describe("Growth investigation rendered contract", () => {
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
     expect(html).toContain("Saved page URL withheld");
-    expect(html).toContain("cannot be approved here");
+    expect(html).toContain("dismissed as wrong diagnosis");
+    expect(html).toContain("read-only");
     expect(html).not.toContain("Approve investigation");
+    expect(html).not.toContain("Review now");
   });
+
+  it("shows the saved snooze and offers only an explicit review-now transition", () => {
+    const client = queryClient();
+    client.setQueryData(["growthInvestigation", "project_1", "signal_1"], {
+      ...proposal,
+      status: "snoozed",
+      reviewVersion: 1,
+      snoozedUntil: "2026-09-04T00:00:00.000Z",
+    });
+    const html = render(client);
+    expect(html).toContain("snoozed until 4 Sept 2026 (UTC)");
+    expect(html).toContain("Review now");
+    expect(html).not.toContain("Approve investigation");
+    expect(html).not.toContain("Dismissal reason");
+  });
+
+  it.each(["merged", "superseded"] as const)(
+    "keeps %s suggestions read-only",
+    (status) => {
+      const client = queryClient();
+      client.setQueryData(["growthInvestigation", "project_1", "signal_1"], {
+        ...proposal,
+        status,
+        reviewVersion: 1,
+      });
+      const html = render(client);
+      expect(html).toContain(`${status} and is read-only`);
+      expect(html).not.toContain("Approve investigation");
+      expect(html).not.toContain("Review now");
+    },
+  );
 
   it("gives a read error recovery without exposing internal details", async () => {
     const client = queryClient();
@@ -181,5 +237,34 @@ describe("Growth investigation rendered contract", () => {
     expect(html).toContain("<label ");
     expect(html).toContain("aria-describedby");
     expect(html).toContain("Saving approved work");
+  });
+
+  it("locks every native review fieldset while a review is pending", () => {
+    const html = renderToStaticMarkup(
+      createElement(GrowthInvestigationReviewControls, {
+        disabled: true,
+        pending: true,
+        onDismiss: vi.fn(),
+        onSnooze: vi.fn(),
+      }),
+    );
+    expect(html.match(/<fieldset disabled=""/g)).toHaveLength(2);
+    expect(html).toContain('type="date"');
+    expect(html).toContain("Saving review");
+    expect(nextUtcCalendarDate(new Date("2026-12-31T23:59:59.000Z"))).toBe(
+      "2027-01-01",
+    );
+  });
+
+  it("surfaces a safe validation failure without internal details", () => {
+    const html = renderToStaticMarkup(
+      createElement(GrowthInvestigationValidationFailure, {
+        error: new Error("VALIDATION_ERROR"),
+      }),
+    );
+    expect(html).toContain("Please check your input and try again");
+    expect(html).toContain("Choose a new future UTC date");
+    expect(html).not.toContain("Retry review");
+    expect(html).not.toContain("database");
   });
 });

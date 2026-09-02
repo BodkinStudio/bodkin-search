@@ -26,6 +26,7 @@ vi.mock("@/serverFunctions/growthChangeLog", () => ({
 vi.mock("@/serverFunctions/growthInvestigations", () => ({
   getGrowthInvestigation: vi.fn(),
   approveGrowthInvestigation: vi.fn(),
+  reviewGrowthInvestigation: vi.fn(),
   getGrowthWork: vi.fn(),
 }));
 vi.mock("@/serverFunctions/growthWork", () => ({

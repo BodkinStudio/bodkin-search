@@ -1,9 +1,11 @@
 import { AppError } from "@/server/lib/errors";
 import type {
+  GrowthInvestigationReviewInput,
   GrowthInvestigationView,
   GrowthWorkItem,
   GrowthWorkOverview,
 } from "@/types/schemas/growth-investigations";
+import { growthInvestigationViewSchema } from "@/types/schemas/growth-investigations";
 import type {
   GrowthWorkHistory,
   UpdateGrowthWorkStatusInput,
@@ -18,6 +20,7 @@ import {
   investigationKeys,
 } from "./GrowthInvestigationTemplate";
 import { growthEvidenceDisplayUrl } from "./GrowthEvidencePacket";
+import { canonicalTimestamp } from "./GrowthMeasurementFacts";
 import { PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION } from "./PriorityPageClickDeclineDetector";
 
 const RUN_TYPE = "manual_analysis" as const;
@@ -64,6 +67,14 @@ function displayUrls(targets: { targetType: string; targetValue: string }[]) {
     );
 }
 
+function canonicalReviewTimestamp(value: string | null) {
+  if (value === null) return null;
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)
+    ? `${value.replace(" ", "T")}Z`
+    : value;
+  return canonicalTimestamp(normalized, "Recommendation snooze timestamp");
+}
+
 async function source(projectId: string, signalId: string) {
   const signal = await GrowthRunsRepository.getSignal(projectId, signalId);
   if (!signal || !isSourceSignal(signal))
@@ -101,17 +112,54 @@ async function getInvestigation(
     projectId,
     investigationKeys(signalId).action,
   );
-  return {
+  return growthInvestigationViewSchema.parse({
     recommendationId: saved.graph.recommendation.id,
     title: saved.graph.recommendation.title,
     rationale: saved.graph.recommendation.rationale,
     steps: saved.graph.steps.map((step) => step.content),
     displayUrls: displayUrls(saved.graph.targets),
     status: saved.graph.recommendation.status,
+    reviewVersion: saved.graph.recommendation.reviewVersion,
+    dismissalReason: saved.graph.recommendation.dismissalReason,
+    snoozedUntil: canonicalReviewTimestamp(
+      saved.graph.recommendation.snoozedUntil,
+    ),
     actionId: action?.id ?? null,
     dueOn: dueOn(action?.dueAt ?? null),
     templateVersion: GROWTH_INVESTIGATION_TEMPLATE_VERSION,
+  });
+}
+
+async function reviewInvestigation(input: GrowthInvestigationReviewInput) {
+  const saved = await getSaved(input.projectId, input.signalId);
+  if (!saved) throw new AppError("NOT_FOUND", "Growth investigation not found");
+
+  const review = {
+    projectId: input.projectId,
+    recommendationId: saved.graph.recommendation.id,
+    expectedVersion: input.expectedVersion,
+    ...(input.decision === "review_now"
+      ? { expectedStatus: "snoozed" as const, status: "proposed" as const }
+      : input.decision === "dismiss"
+        ? {
+            expectedStatus: "proposed" as const,
+            status: "dismissed" as const,
+            dismissalReason: input.dismissalReason,
+          }
+        : {
+            expectedStatus: "proposed" as const,
+            status: "snoozed" as const,
+            snoozedUntil: `${input.snoozeUntil}T00:00:00.000Z`,
+          }),
   };
+  await GrowthInsightsService.reviewRecommendation(review);
+  const projected = await getInvestigation(input.projectId, input.signalId);
+  if (!projected)
+    throw new AppError(
+      "CONFLICT",
+      "Growth investigation could not be read after review",
+    );
+  return projected;
 }
 
 function projectedWorkItem(
@@ -315,6 +363,7 @@ async function getWork(projectId: string): Promise<GrowthWorkOverview> {
 
 export const GrowthInvestigationsService = {
   getInvestigation,
+  reviewInvestigation,
   approveInvestigation,
   getWork,
   updateWorkStatus,

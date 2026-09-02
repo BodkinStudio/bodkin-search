@@ -13,6 +13,7 @@ const registration = vi.hoisted(() => ({
 const service = vi.hoisted(() => ({
   getInvestigation: vi.fn(),
   approveInvestigation: vi.fn(),
+  reviewInvestigation: vi.fn(),
   getWork: vi.fn(),
 }));
 
@@ -54,16 +55,22 @@ import {
   approveGrowthInvestigation,
   getGrowthInvestigation,
   getGrowthWork,
+  reviewGrowthInvestigation,
 } from "./growthInvestigations";
-import { approveGrowthInvestigationSchema } from "@/types/schemas/growth-investigations";
+import {
+  approveGrowthInvestigationSchema,
+  reviewGrowthInvestigationSchema,
+} from "@/types/schemas/growth-investigations";
 
 describe("Growth investigation server functions", () => {
   it("uses only the authorized project and user", async () => {
     expect(getGrowthInvestigation).toBeTypeOf("function");
     expect(approveGrowthInvestigation).toBeTypeOf("function");
     expect(getGrowthWork).toBeTypeOf("function");
+    expect(reviewGrowthInvestigation).toBeTypeOf("function");
     service.getInvestigation.mockResolvedValue(null);
     service.approveInvestigation.mockResolvedValue({ id: "action_1" });
+    service.reviewInvestigation.mockResolvedValue({ status: "dismissed" });
     service.getWork.mockResolvedValue({ actions: [], limit: 50 });
     const context = {
       projectId: "project_authorized",
@@ -82,10 +89,21 @@ describe("Growth investigation server functions", () => {
       context,
     });
     await registration.handlers[2]({
+      data: {
+        projectId: "project_forged",
+        signalId: "signal_1",
+        expectedVersion: 3,
+        decision: "dismiss",
+        dismissalReason: "irrelevant",
+      },
+      context,
+    });
+    await registration.handlers[3]({
       data: { projectId: "project_forged" },
       context,
     });
     expect(registration.middleware).toEqual([
+      ["project middleware"],
       ["project middleware"],
       ["project middleware"],
       ["project middleware"],
@@ -100,6 +118,13 @@ describe("Growth investigation server functions", () => {
       dueOn: "2026-09-01",
       actorId: "user_authorized",
     });
+    expect(service.reviewInvestigation).toHaveBeenCalledWith({
+      projectId: "project_authorized",
+      signalId: "signal_1",
+      expectedVersion: 3,
+      decision: "dismiss",
+      dismissalReason: "irrelevant",
+    });
     expect(service.getWork).toHaveBeenCalledWith("project_authorized");
   });
 
@@ -111,5 +136,26 @@ describe("Growth investigation server functions", () => {
         dueOn: "2026-02-30",
       }),
     ).toThrow("valid calendar date");
+  });
+
+  it("rejects arbitrary review states and unknown review fields", () => {
+    for (const value of [
+      {
+        projectId: "project_1",
+        signalId: "signal_1",
+        expectedVersion: 0,
+        decision: "review_now",
+        status: "accepted",
+      },
+      {
+        projectId: "project_1",
+        signalId: "signal_1",
+        expectedVersion: 0,
+        decision: "snooze",
+        snoozeUntil: "2026-02-30",
+      },
+    ]) {
+      expect(() => reviewGrowthInvestigationSchema.parse(value)).toThrow();
+    }
   });
 });

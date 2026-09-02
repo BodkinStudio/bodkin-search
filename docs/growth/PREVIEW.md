@@ -45,13 +45,15 @@ New checks also save rule-based investigation suggestions for detected declines.
 
 1. Select a completed saved check and open Review investigation beneath a decline. The suggestion contains the observed comparison and investigation steps. Its cause remains unknown.
 2. Check the existing Work list, choose a Due date (UTC), then select Approve investigation. Growth records an approved Action with a link to the saved recommendation and signal. It does not edit the website or mark the work implemented.
-3. Open View work to see the saved action. Open source check selects the check that produced it, including a check outside the latest-20 history list.
+3. If the suggestion should not become work, choose a Dismissal reason and select Dismiss suggestion. The saved reason is shown and the suggestion becomes read-only.
+4. To defer the decision, choose a future Snooze until (UTC) date and select Snooze suggestion. Snoozed suggestions do not wake automatically; select Review now to return one to the proposed review state.
+5. Open View work to see an approved action. Open source check selects the check that produced it, including a check outside the latest-20 history list.
 
-The Work section shows up to 50 recent investigations. Approval saves the accepted suggestion, action, due date and approving user in one transaction. A failed transaction leaves the suggestion proposed with no action. Retries reuse one action identity per suggestion and preserve its original date and user. A different due date conflicts with an existing approval; separate checks can still suggest work for the same page. An uncertain save keeps its submitted date for Retry approval. Reloading reads saved state without submitting again.
+The Work section shows up to 50 recent investigations. Approval saves the accepted suggestion, action, due date and approving user in one transaction. Dismissal and snooze update only the saved suggestion; they do not create an Action. Concurrent approval and review share the same saved status/version guard, so only one decision wins. A failed approval transaction leaves the suggestion proposed with no action. Retries reuse one action identity per suggestion and preserve its original date and user. A different due date conflicts with an existing approval; separate checks can still suggest work for the same page. An uncertain approval keeps its submitted date for Retry approval. An uncertain dismissal, snooze or Review now keeps the exact submitted review for Retry review. Refreshing or reloading reads saved state without submitting again.
 
 An older accepted suggestion with no action needs administrator review. Its original due date and approving user were not stored, so Growth does not offer a retry that could replace them. This release does not repair those older records automatically.
 
-Older completed checks without suggestions stay unchanged. Dismissal, assignment and measurement controls remain separate milestones. The disposable preview has no Google credentials; synthetic checks used for verification come from a local fixture, and do not prove a live collection.
+Older completed checks without suggestions stay unchanged. Assignment and measurement controls remain separate milestones. The disposable preview has no Google credentials; synthetic checks used for verification come from a local fixture, and do not prove a live collection.
 
 ## Finish an investigation
 

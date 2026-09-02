@@ -4,6 +4,7 @@ import {
   approveGrowthInvestigationSchema,
   getGrowthInvestigationSchema,
   getGrowthWorkSchema,
+  reviewGrowthInvestigationSchema,
 } from "@/types/schemas/growth-investigations";
 import { requireProjectContext } from "./middleware";
 
@@ -26,6 +27,16 @@ export const approveGrowthInvestigation = createServerFn({ method: "POST" })
       signalId: data.signalId,
       dueOn: data.dueOn,
       actorId: context.userId,
+    }),
+  );
+
+export const reviewGrowthInvestigation = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(reviewGrowthInvestigationSchema)
+  .handler(({ data, context }) =>
+    GrowthInvestigationsService.reviewInvestigation({
+      ...data,
+      projectId: context.projectId,
     }),
   );
 

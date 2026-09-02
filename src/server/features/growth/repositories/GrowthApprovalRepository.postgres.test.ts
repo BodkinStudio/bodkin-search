@@ -3,7 +3,6 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { withPgClient as withPgClientExport } from "@/db";
 import type { GrowthActionsRepository as RepositoryExport } from "./GrowthActionsRepository";
-import type { GrowthInsightsService as InsightsExport } from "../services/GrowthInsightsService";
 import type { GrowthInvestigationsService as InvestigationsExport } from "../services/GrowthInvestigationsService";
 
 const testUrl = process.env.TEST_POSTGRES_DATABASE_URL;
@@ -16,14 +15,12 @@ vi.mock("cloudflare:workers", () => ({
 }));
 
 type Repository = typeof RepositoryExport;
-type Insights = typeof InsightsExport;
 type Investigations = typeof InvestigationsExport;
 type WithPgClient = typeof withPgClientExport;
 type Approval = Awaited<ReturnType<Investigations["approveInvestigation"]>>;
 
 let sql: ReturnType<typeof postgres>;
 let GrowthActionsRepository: Repository;
-let GrowthInsightsService: Insights;
 let GrowthInvestigationsService: Investigations;
 let withPgClient: WithPgClient;
 
@@ -51,7 +48,7 @@ function keys(signalId: string) {
 
 async function seedInvestigation(input: {
   suffix: string;
-  status?: "proposed" | "accepted";
+  status?: "proposed" | "accepted" | "snoozed";
   reviewVersion?: number;
 }) {
   const value = ids(input.suffix);
@@ -104,12 +101,14 @@ async function seedInvestigation(input: {
     INSERT INTO growth_recommendations (
       id, project_id, run_id, creation_key, fact_hash, title, rationale,
       category, impact, commercial_relevance, effort, urgency, confidence,
-      priority_score, status, review_version
+      priority_score, status, review_version, snoozed_until, reviewed_at
     ) VALUES (
       ${value.recommendationId}, ${value.projectId}, ${value.runId},
       ${sourceKeys.recommendation}, ${"2".repeat(64)},
       'Investigate decline', 'Review the saved evidence.', 'investigation',
-      1, 1, 1, 1, 0, 0, ${input.status ?? "proposed"}, ${input.reviewVersion ?? 0}
+      1, 1, 1, 1, 0, 0, ${input.status ?? "proposed"}, ${input.reviewVersion ?? 0},
+      ${input.status === "snoozed" ? "2099-09-04T00:00:00.000Z" : null},
+      ${input.status === "snoozed" ? "2026-09-01T10:00:00.000Z" : null}
     )
   `;
   await sql`
@@ -122,6 +121,14 @@ async function seedInvestigation(input: {
     ) VALUES (
       ${value.projectId}, ${value.runId}, ${value.recommendationId}, 'url',
       'https://example.com/pricing'
+    )
+  `;
+  await sql`
+    INSERT INTO growth_recommendation_steps (
+      project_id, run_id, recommendation_id, position, content
+    ) VALUES (
+      ${value.projectId}, ${value.runId}, ${value.recommendationId}, 0,
+      'Review the saved evidence.'
     )
   `;
   return value;
@@ -167,8 +174,6 @@ beforeAll(async () => {
   // This test never creates, drops, migrates, or truncates databases.
   sql = postgres(testUrl, { max: 10 });
   ({ GrowthActionsRepository } = await import("./GrowthActionsRepository"));
-  ({ GrowthInsightsService } =
-    await import("../services/GrowthInsightsService"));
   ({ GrowthInvestigationsService } =
     await import("../services/GrowthInvestigationsService"));
   ({ withPgClient } = await import("@/db"));
@@ -527,77 +532,162 @@ describePostgres("Growth approval Postgres races and saved Work", () => {
       ]);
     }
   });
+});
 
-  it("allows exactly one concurrent proposed approval or dismissal decision", async () => {
-    const value = await seedInvestigation({ suffix: crypto.randomUUID() });
-    try {
-      const decisions = await Promise.allSettled([
-        withPgClient(() =>
-          GrowthInvestigationsService.approveInvestigation({
-            projectId: value.projectId,
-            signalId: value.signalId,
-            dueOn: "2026-09-07",
-            actorId: "reviewer",
-          }),
-        ),
-        withPgClient(() =>
-          GrowthInsightsService.reviewRecommendation({
-            projectId: value.projectId,
-            recommendationId: value.recommendationId,
-            expectedStatus: "proposed",
-            expectedVersion: 0,
-            status: "dismissed",
-            dismissalReason: "already_planned",
-          }),
-        ),
-      ]);
-      expect(
-        decisions.filter((decision) => decision.status === "fulfilled"),
-      ).toHaveLength(1);
-      expect(
-        decisions.filter((decision) => decision.status === "rejected"),
-      ).toHaveLength(1);
-      const rejected = decisions.find(
-        (decision): decision is PromiseRejectedResult =>
-          decision.status === "rejected",
-      );
-      expect(rejected?.reason).toMatchObject({ code: "CONFLICT" });
+describePostgres(
+  "Growth investigation review Postgres transaction guards",
+  () => {
+    it.each([
+      {
+        label: "dismissal",
+        review: {
+          decision: "dismiss" as const,
+          dismissalReason: "already_planned" as const,
+        },
+        status: "dismissed",
+      },
+      {
+        label: "snooze",
+        review: { decision: "snooze" as const, snoozeUntil: "2099-09-04" },
+        status: "snoozed",
+      },
+    ])(
+      "allows exactly one concurrent proposed approval or $label decision",
+      async ({ review, status }) => {
+        const value = await seedInvestigation({ suffix: crypto.randomUUID() });
+        try {
+          const decisions = await Promise.allSettled([
+            withPgClient(() =>
+              GrowthInvestigationsService.approveInvestigation({
+                projectId: value.projectId,
+                signalId: value.signalId,
+                dueOn: "2026-09-07",
+                actorId: "reviewer",
+              }),
+            ),
+            withPgClient(() =>
+              GrowthInvestigationsService.reviewInvestigation({
+                projectId: value.projectId,
+                signalId: value.signalId,
+                expectedVersion: 0,
+                ...review,
+              }),
+            ),
+          ]);
+          expect(
+            decisions.filter((decision) => decision.status === "fulfilled"),
+          ).toHaveLength(1);
+          expect(
+            decisions.filter((decision) => decision.status === "rejected"),
+          ).toHaveLength(1);
+          const rejected = decisions.find(
+            (decision): decision is PromiseRejectedResult =>
+              decision.status === "rejected",
+          );
+          expect(rejected?.reason).toMatchObject({ code: "CONFLICT" });
 
-      const [recommendation] = await sql`
-        SELECT status, review_version, dismissal_reason
+          const [recommendation] = await sql`
+        SELECT status, review_version, dismissal_reason, snoozed_until
         FROM growth_recommendations WHERE id = ${value.recommendationId}
       `;
-      expect(recommendation?.review_version).toBe(1);
-      const action = await withPgClient(() =>
-        GrowthActionsRepository.getActionByKey(
-          value.projectId,
-          keys(value.signalId).action,
-        ),
-      );
-      if (recommendation?.status === "accepted") {
-        expect(recommendation.dismissal_reason).toBeNull();
-        expect(action).toBeDefined();
-        if (!action) throw new Error("Approved decision had no Action");
-        const graph = await withPgClient(() =>
-          GrowthActionsRepository.getActionGraph(value.projectId, action.id),
-        );
-        expect(graph?.targets).toHaveLength(1);
-        expect(graph?.events).toHaveLength(1);
-      } else {
+          expect(recommendation?.review_version).toBe(1);
+          const action = await withPgClient(() =>
+            GrowthActionsRepository.getActionByKey(
+              value.projectId,
+              keys(value.signalId).action,
+            ),
+          );
+          if (recommendation?.status === "accepted") {
+            expect(recommendation.dismissal_reason).toBeNull();
+            expect(recommendation.snoozed_until).toBeNull();
+            expect(action).toBeDefined();
+            if (!action) throw new Error("Approved decision had no Action");
+            const graph = await withPgClient(() =>
+              GrowthActionsRepository.getActionGraph(
+                value.projectId,
+                action.id,
+              ),
+            );
+            expect(graph?.targets).toHaveLength(1);
+            expect(graph?.events).toHaveLength(1);
+          } else {
+            expect(recommendation?.status).toBe(status);
+            expect(recommendation?.dismissal_reason).toBe(
+              status === "dismissed" ? "already_planned" : null,
+            );
+            expect(recommendation?.snoozed_until).toBe(
+              status === "snoozed" ? "2099-09-04T00:00:00.000Z" : null,
+            );
+            expect(action).toBeNull();
+            const [targetCount, eventCount] = await Promise.all([
+              sql`SELECT count(*)::int AS count FROM growth_action_targets WHERE project_id = ${value.projectId}`,
+              sql`SELECT count(*)::int AS count FROM growth_action_events WHERE project_id = ${value.projectId}`,
+            ]);
+            expect(targetCount).toEqual([{ count: 0 }]);
+            expect(eventCount).toEqual([{ count: 0 }]);
+          }
+        } finally {
+          await deleteFixture(value);
+        }
+      },
+      15_000,
+    );
+
+    it("returns a snoozed investigation to review without allowing approval", async () => {
+      const value = await seedInvestigation({
+        suffix: crypto.randomUUID(),
+        status: "snoozed",
+        reviewVersion: 1,
+      });
+      try {
+        await expect(
+          withPgClient(() =>
+            GrowthInvestigationsService.approveInvestigation({
+              projectId: value.projectId,
+              signalId: value.signalId,
+              dueOn: "2026-09-07",
+              actorId: "reviewer",
+            }),
+          ),
+        ).rejects.toMatchObject({ code: "CONFLICT" });
+        await expect(
+          withPgClient(() =>
+            GrowthInvestigationsService.reviewInvestigation({
+              projectId: value.projectId,
+              signalId: value.signalId,
+              expectedVersion: 1,
+              decision: "review_now",
+            }),
+          ),
+        ).resolves.toMatchObject({ status: "proposed", reviewVersion: 2 });
+
+        const [recommendation] = await sql`
+        SELECT status, review_version, snoozed_until, reviewed_at
+        FROM growth_recommendations WHERE id = ${value.recommendationId}
+      `;
         expect(recommendation).toMatchObject({
-          status: "dismissed",
-          dismissal_reason: "already_planned",
+          status: "proposed",
+          review_version: 2,
+          snoozed_until: null,
+          reviewed_at: null,
         });
-        expect(action).toBeNull();
+        expect(
+          await withPgClient(() =>
+            GrowthActionsRepository.getActionByKey(
+              value.projectId,
+              keys(value.signalId).action,
+            ),
+          ),
+        ).toBeNull();
         const [targetCount, eventCount] = await Promise.all([
           sql`SELECT count(*)::int AS count FROM growth_action_targets WHERE project_id = ${value.projectId}`,
           sql`SELECT count(*)::int AS count FROM growth_action_events WHERE project_id = ${value.projectId}`,
         ]);
         expect(targetCount).toEqual([{ count: 0 }]);
         expect(eventCount).toEqual([{ count: 0 }]);
+      } finally {
+        await deleteFixture(value);
       }
-    } finally {
-      await deleteFixture(value);
-    }
-  }, 15_000);
-});
+    }, 15_000);
+  },
+);

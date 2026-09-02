@@ -977,3 +977,49 @@ site change.
 Growth Action writes, self-hosted capability configuration, a role matrix,
 deployment/CMS ingestion, external Action linking and provider publication
 remain separate permission reviews.
+
+---
+
+## ADR-045 - Investigation review reuses Recommendation state and concurrency
+
+**Status:** Accepted
+
+### Decision
+
+- The application review card can dismiss or snooze only the deterministic
+  priority-page investigation already qualified through its authorized
+  project, terminal supported run, signal and fixed template graph. A snoozed
+  investigation can be returned explicitly to proposed review; dismissed
+  investigations remain terminal in this slice.
+- The public request is a strict decision union, not a Recommendation state
+  editor. The server derives `proposed -> dismissed`, `proposed -> snoozed` or
+  `snoozed -> proposed`, injects the authorized project and delegates the
+  expected review version to the existing Recommendation compare-and-set
+  service. Dismissal reuses the closed PRD vocabulary. A calendar snooze date
+  is stored deterministically at UTC start of day and must be in the future for
+  a new transition.
+- Exact retries retain the original version and review fact. A stale version,
+  changed decision or illegal starting state conflicts. Client uncertainty
+  freezes the exact submitted review and offers only an exact retry or a safe
+  refresh; render, reload and refetch never dispatch a review.
+- Approval remains the separate audited user-bearing path that atomically
+  accepts the Recommendation and creates its complete Action graph. Review
+  records only the Recommendation review projection already defined by
+  ADR-023 and does not invent an actor field. Approval and proposed review
+  serialize on the same status/version guard, so only one can win.
+- The card receives a strict safe projection containing only its displayed
+  investigation, review version and closed review metadata. Run IDs, raw graph
+  relations, resolution metadata, actors and hashes remain internal.
+
+### Consequence
+
+Users can decline or defer a saved investigation without creating work, and
+can deliberately bring a snoozed item back for review. No provider call,
+credit, schedule, Measurement, MCP surface, Action side effect or new data
+model is introduced.
+
+### Deferred
+
+Automatic wake-up, dismissed-item restoration, assignment, bulk review,
+generic Recommendation review UI, review actors/history and MCP review remain
+separate decisions.

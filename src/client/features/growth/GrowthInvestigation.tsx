@@ -1,13 +1,29 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getErrorCode } from "@/client/lib/error-messages";
 import {
   approveGrowthInvestigation,
   getGrowthInvestigation,
+  reviewGrowthInvestigation,
 } from "@/serverFunctions/growthInvestigations";
-import type { GrowthInvestigationView } from "@/types/schemas/growth-investigations";
-import { getStandardErrorMessage } from "@/client/lib/error-messages";
+import type {
+  GrowthInvestigationReviewInput,
+  GrowthInvestigationView,
+} from "@/types/schemas/growth-investigations";
 import { formatGrowthPreviewDate } from "./GrowthPreviewPresentation";
 import { GrowthInvestigationForm } from "./GrowthInvestigationForm";
+import {
+  GrowthInvestigationReviewControls,
+  GrowthInvestigationMutationFailure,
+  GrowthInvestigationValidationFailure,
+  growthDismissalReasonLabel,
+} from "./GrowthInvestigationReviewControls";
+
+type WithoutInvestigationRoute<T> = T extends unknown
+  ? Omit<T, "projectId" | "signalId">
+  : never;
+type InvestigationReviewSubmission =
+  WithoutInvestigationRoute<GrowthInvestigationReviewInput>;
 
 export function GrowthInvestigation({
   projectId,
@@ -44,6 +60,8 @@ export function GrowthInvestigationReview({
   const client = useQueryClient();
   const dispatching = useRef(false);
   const [submittedDueOn, setSubmittedDueOn] = useState<string | null>(null);
+  const [submittedReview, setSubmittedReview] =
+    useState<GrowthInvestigationReviewInput | null>(null);
   const queryKey = ["growthInvestigation", projectId, signalId];
   const query = useQuery({
     queryKey,
@@ -72,11 +90,61 @@ export function GrowthInvestigationReview({
       dispatching.current = false;
     },
   });
+  const review = useMutation({
+    retry: false,
+    mutationFn: (request: GrowthInvestigationReviewInput) =>
+      reviewGrowthInvestigation({ data: request }),
+    onSuccess: (investigation) => {
+      setSubmittedReview(null);
+      client.setQueryData<GrowthInvestigationView | null>(
+        queryKey,
+        investigation,
+      );
+      void client.invalidateQueries({
+        queryKey: ["growthProjectSummary", projectId],
+      });
+      void client.invalidateQueries({
+        queryKey: ["growthPriorityRecommendations", projectId],
+      });
+    },
+    onError: (error) => {
+      if (getErrorCode(error) === "VALIDATION_ERROR") {
+        setSubmittedReview(null);
+      }
+    },
+    onSettled: () => {
+      dispatching.current = false;
+    },
+  });
   const submit = (dueOn: string) => {
-    if (dispatching.current || submittedDueOn) return;
+    if (
+      dispatching.current ||
+      submittedDueOn ||
+      approve.isPending ||
+      review.isPending
+    )
+      return;
     dispatching.current = true;
     setSubmittedDueOn(dueOn);
     approve.mutate(dueOn);
+  };
+  const submitReview = (reviewInput: InvestigationReviewSubmission) => {
+    if (
+      dispatching.current ||
+      submittedDueOn ||
+      submittedReview ||
+      approve.isPending ||
+      review.isPending
+    )
+      return;
+    const request = {
+      projectId,
+      signalId,
+      ...reviewInput,
+    } as GrowthInvestigationReviewInput;
+    dispatching.current = true;
+    setSubmittedReview(request);
+    review.mutate(request);
   };
 
   if (query.isPending)
@@ -107,6 +175,27 @@ export function GrowthInvestigationReview({
     );
 
   const saved = query.data;
+  const reviewLocked =
+    approve.isPending ||
+    review.isPending ||
+    Boolean(submittedDueOn) ||
+    Boolean(submittedReview);
+  const reviewFailure =
+    review.isError && getErrorCode(review.error) === "VALIDATION_ERROR" ? (
+      <GrowthInvestigationValidationFailure error={review.error} />
+    ) : review.isError && submittedReview ? (
+      <GrowthInvestigationMutationFailure
+        kind="review"
+        error={review.error}
+        pending={review.isPending}
+        onRetry={() => {
+          if (dispatching.current) return;
+          dispatching.current = true;
+          review.mutate(submittedReview);
+        }}
+        onRefresh={() => void query.refetch()}
+      />
+    ) : null;
   return (
     <div className="mt-3 space-y-3 text-sm [overflow-wrap:anywhere]">
       {query.isError ? (
@@ -168,53 +257,80 @@ export function GrowthInvestigationReview({
             before approving.
           </p>
           <GrowthInvestigationForm
-            disabled={Boolean(submittedDueOn)}
+            disabled={reviewLocked}
             pending={approve.isPending}
             onSubmit={submit}
           />
+          <GrowthInvestigationReviewControls
+            disabled={reviewLocked}
+            pending={review.isPending}
+            onDismiss={(dismissalReason) =>
+              submitReview({
+                expectedVersion: saved.reviewVersion,
+                decision: "dismiss",
+                dismissalReason,
+              })
+            }
+            onSnooze={(snoozeUntil) =>
+              submitReview({
+                expectedVersion: saved.reviewVersion,
+                decision: "snooze",
+                snoozeUntil,
+              })
+            }
+          />
           {approve.isError && submittedDueOn ? (
-            <div role="alert" className="space-y-2">
-              <p className="text-[color:color-mix(in_oklch,var(--color-error),var(--color-base-content)_35%)]">
-                {getStandardErrorMessage(
-                  approve.error,
-                  "The approval could not be confirmed.",
-                )}
-              </p>
-              <p>
-                Retry with the same due date, or refresh to check what was
-                saved. Reloading will not submit anything automatically.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  disabled={approve.isPending}
-                  onClick={() => {
-                    if (dispatching.current) return;
-                    dispatching.current = true;
-                    approve.mutate(submittedDueOn);
-                  }}
-                >
-                  Retry approval
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  disabled={approve.isPending}
-                  onClick={() => void query.refetch()}
-                >
-                  Refresh saved investigation
-                </button>
-              </div>
-            </div>
+            <GrowthInvestigationMutationFailure
+              kind="approval"
+              error={approve.error}
+              pending={approve.isPending}
+              onRetry={() => {
+                if (dispatching.current) return;
+                dispatching.current = true;
+                approve.mutate(submittedDueOn);
+              }}
+              onRefresh={() => void query.refetch()}
+            />
           ) : null}
+          {reviewFailure}
         </>
-      ) : (
+      ) : saved.status === "dismissed" ? (
         <p className="text-base-content/70">
-          This saved suggestion is {saved.status.replaceAll("_", " ")} and
-          cannot be approved here.
+          This suggestion was dismissed
+          {saved.dismissalReason
+            ? ` as ${growthDismissalReasonLabel(saved.dismissalReason).toLowerCase()}`
+            : ""}
+          . It is read-only.
         </p>
-      )}
+      ) : saved.status === "snoozed" ? (
+        <div className="space-y-3">
+          <p className="text-base-content/70">
+            This suggestion is snoozed
+            {saved.snoozedUntil
+              ? ` until ${formatGrowthPreviewDate(saved.snoozedUntil)} (UTC)`
+              : ""}
+            . It will stay snoozed until you explicitly return it to review.
+          </p>
+          <button
+            type="button"
+            className="btn btn-outline"
+            disabled={reviewLocked}
+            onClick={() =>
+              submitReview({
+                expectedVersion: saved.reviewVersion,
+                decision: "review_now",
+              })
+            }
+          >
+            {review.isPending ? "Saving review…" : "Review now"}
+          </button>
+          {reviewFailure}
+        </div>
+      ) : saved.status === "merged" || saved.status === "superseded" ? (
+        <p className="text-base-content/70">
+          This saved suggestion is {saved.status} and is read-only here.
+        </p>
+      ) : null}
     </div>
   );
 }
