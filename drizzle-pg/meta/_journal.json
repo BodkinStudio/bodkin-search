@@ -211,6 +211,13 @@
       "when": 1788233839858,
       "tag": "0029_fine_jackal",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1788312274151,
+      "tag": "0030_sweet_random",
+      "breakpoints": true
     }
   ]
 }

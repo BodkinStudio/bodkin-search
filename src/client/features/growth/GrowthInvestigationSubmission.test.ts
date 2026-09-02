@@ -20,6 +20,7 @@ type MutationOptions = {
 };
 
 const proposal: GrowthInvestigationView = {
+  relationship: "controller",
   recommendationId: "recommendation_1",
   title: "Investigate",
   rationale: "Cause unknown",

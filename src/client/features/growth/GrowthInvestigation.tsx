@@ -18,6 +18,7 @@ import {
   GrowthInvestigationValidationFailure,
   growthDismissalReasonLabel,
 } from "./GrowthInvestigationReviewControls";
+import { GrowthSuppressedInvestigation } from "./GrowthSuppressedInvestigation";
 
 type WithoutInvestigationRoute<T> = T extends unknown
   ? Omit<T, "projectId" | "signalId">
@@ -74,7 +75,7 @@ export function GrowthInvestigationReview({
       approveGrowthInvestigation({ data: { projectId, signalId, dueOn } }),
     onSuccess: (action) => {
       client.setQueryData<GrowthInvestigationView | null>(queryKey, (saved) =>
-        saved
+        saved?.relationship === "controller"
           ? {
               ...saved,
               status: "accepted",
@@ -175,6 +176,14 @@ export function GrowthInvestigationReview({
     );
 
   const saved = query.data;
+  if (saved.relationship === "suppressed")
+    return (
+      <GrowthSuppressedInvestigation
+        saved={saved}
+        refreshFailed={query.isError}
+        onRetry={() => void query.refetch()}
+      />
+    );
   const reviewLocked =
     approve.isPending ||
     review.isPending ||
@@ -250,7 +259,7 @@ export function GrowthInvestigationReview({
       ) : saved.status === "proposed" ? (
         <>
           <p className="text-base-content/70">
-            Separate checks may suggest work for the same page.{" "}
+            This suggestion covers later checks for the same saved page.{" "}
             <a className="link" href="#growth-work">
               Check existing work
             </a>{" "}

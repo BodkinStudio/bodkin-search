@@ -5,10 +5,12 @@ const repositories = vi.hoisted(() => ({
   getSignal: vi.fn(),
   getRun: vi.fn(),
   findRecommendationForSignal: vi.fn(),
+  getDecisionControllerSource: vi.fn(),
   getActionByKey: vi.fn(),
 }));
 const insights = vi.hoisted(() => ({
   getRecommendation: vi.fn(),
+  getInsight: vi.fn(),
   reviewRecommendation: vi.fn(),
 }));
 const actions = vi.hoisted(() => ({
@@ -26,6 +28,11 @@ vi.mock("../repositories/GrowthRunsRepository", () => ({
 vi.mock("../repositories/GrowthInsightsRepository", () => ({
   GrowthInsightsRepository: {
     findRecommendationForSignal: repositories.findRecommendationForSignal,
+  },
+}));
+vi.mock("../repositories/GrowthOpportunityDecisionsRepository", () => ({
+  GrowthOpportunityDecisionsRepository: {
+    getDecisionControllerSource: repositories.getDecisionControllerSource,
   },
 }));
 vi.mock("../repositories/GrowthActionsRepository", () => ({
@@ -51,6 +58,7 @@ const run = {
   runType: "manual_analysis",
   cadenceSlot: "priority-page-check:one",
   detectorVersion: "priority-page-click-decline-v1",
+  analysisVersion: "priority-page-investigation-v1",
   status: "completed",
 };
 const proposed = {
@@ -62,15 +70,25 @@ const proposed = {
     snoozedUntil: null,
     title: "Investigate declining search clicks",
     rationale: "Cause is unknown.",
+    creationKey: "priority-page-investigation-v1:recommendation:signal_1",
+    category: "investigation",
     runId: "must_not_escape",
     factHash: "must_not_escape",
     resolutionRecommendationId: null,
     reviewedAt: null,
   },
+  insightIds: ["insight_1"],
   targets: [
     { targetType: "url" as const, targetValue: "https://example.com/pricing" },
   ],
   steps: [{ position: 0, content: "Review saved evidence." }],
+};
+const insightGraph = {
+  insight: {
+    id: "insight_1",
+    creationKey: "priority-page-investigation-v1:insight:signal_1",
+  },
+  signalIds: ["signal_1"],
 };
 
 beforeEach(() => {
@@ -81,8 +99,10 @@ beforeEach(() => {
     id: "recommendation_1",
     runId: "run_1",
   });
+  repositories.getDecisionControllerSource.mockResolvedValue(null);
   repositories.getActionByKey.mockResolvedValue(null);
   insights.getRecommendation.mockResolvedValue(proposed);
+  insights.getInsight.mockResolvedValue(insightGraph);
   insights.reviewRecommendation.mockResolvedValue(proposed.recommendation);
 });
 
@@ -91,6 +111,7 @@ describe("GrowthInvestigationsService review", () => {
     await expect(
       GrowthInvestigationsService.getInvestigation("project_1", "signal_1"),
     ).resolves.toEqual({
+      relationship: "controller",
       recommendationId: "recommendation_1",
       title: "Investigate declining search clicks",
       rationale: "Cause is unknown.",
@@ -104,6 +125,28 @@ describe("GrowthInvestigationsService review", () => {
       dueOn: null,
       templateVersion: "priority-page-investigation-v1",
     });
+  });
+
+  it("rejects review through a suppressed Signal identity", async () => {
+    repositories.getDecisionControllerSource.mockResolvedValue({
+      relationship: "suppressed",
+      recommendationId: "recommendation_1",
+      controllerRunId: "run_1",
+      controllerSignalId: "signal_1",
+      suppressionReason: "existing_proposal",
+      policyVersion: "priority-page-repeat-suppression-v1",
+      controllerReleasedAt: null,
+    });
+    await expect(
+      GrowthInvestigationsService.reviewInvestigation({
+        projectId: "project_1",
+        signalId: "signal_1",
+        expectedVersion: 0,
+        decision: "dismiss",
+        dismissalReason: "duplicate",
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(insights.reviewRecommendation).not.toHaveBeenCalled();
   });
 
   it.each([

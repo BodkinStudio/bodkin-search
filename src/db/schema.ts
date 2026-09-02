@@ -140,6 +140,7 @@ export const {
   growthRecommendationInsights,
   growthRecommendationTargets,
   growthRecommendationSteps,
+  growthRecommendationSignalLinks,
   growthActions,
   growthActionTargets,
   growthActionEvents,

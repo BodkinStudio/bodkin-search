@@ -7,6 +7,7 @@ import {
   sqliteTable,
   text,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { projects } from "./app.schema";
 import { growthRuns, growthSignals } from "./growth.schema";
@@ -283,6 +284,81 @@ export const growthRecommendationSteps = sqliteTable(
     check(
       "growth_recommendation_steps_bounds_check",
       sql`typeof(${table.position}) = 'integer' AND ${table.position} >= 0 AND length(${table.content}) BETWEEN 1 AND 2000`,
+    ),
+  ],
+);
+
+export const growthRecommendationSignalLinks = sqliteTable(
+  "growth_recommendation_signal_links",
+  {
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    signalRunId: text("signal_run_id").notNull(),
+    signalId: text("signal_id").notNull(),
+    dedupeKey: text("dedupe_key").notNull(),
+    recommendationId: text("recommendation_id").notNull(),
+    relationship: text("relationship", {
+      enum: ["controller", "suppressed"],
+    }).notNull(),
+    suppressionReason: text("suppression_reason", {
+      enum: [
+        "existing_proposal",
+        "existing_snooze",
+        "prior_dismissal",
+        "existing_action",
+        "accepted_without_action",
+        "resolved_recommendation",
+      ],
+    }),
+    policyVersion: text("policy_version").notNull(),
+    controllerReleasedAt: text("controller_released_at"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(current_timestamp)`),
+  },
+  (table) => [
+    unique("growth_recommendation_signal_links_signal_key").on(
+      table.projectId,
+      table.signalRunId,
+      table.signalId,
+    ),
+    uniqueIndex("growth_recommendation_signal_links_controller_key")
+      .on(table.projectId, table.recommendationId)
+      .where(sql`${table.relationship} = 'controller'`),
+    uniqueIndex("growth_recommendation_signal_links_active_controller_key")
+      .on(table.projectId, table.dedupeKey)
+      .where(
+        sql`${table.relationship} = 'controller' AND ${table.controllerReleasedAt} IS NULL`,
+      ),
+    foreignKey({
+      columns: [table.projectId, table.signalRunId, table.signalId],
+      foreignColumns: [
+        growthSignals.projectId,
+        growthSignals.runId,
+        growthSignals.id,
+      ],
+      name: "growth_recommendation_signal_links_signal_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.projectId, table.recommendationId],
+      foreignColumns: [
+        growthRecommendations.projectId,
+        growthRecommendations.id,
+      ],
+      name: "growth_recommendation_signal_links_recommendation_fk",
+    }).onDelete("restrict"),
+    check(
+      "growth_recommendation_signal_links_dedupe_key_check",
+      sql`length(${table.dedupeKey}) = 64`,
+    ),
+    check(
+      "growth_recommendation_signal_links_relationship_check",
+      sql`(${table.relationship} = 'controller' AND ${table.suppressionReason} IS NULL) OR (${table.relationship} = 'suppressed' AND ${table.suppressionReason} IS NOT NULL AND ${table.suppressionReason} IN ('existing_proposal','existing_snooze','prior_dismissal','existing_action','accepted_without_action','resolved_recommendation'))`,
+    ),
+    check(
+      "growth_recommendation_signal_links_release_check",
+      sql`${table.controllerReleasedAt} IS NULL OR ${table.relationship} = 'controller'`,
     ),
   ],
 );

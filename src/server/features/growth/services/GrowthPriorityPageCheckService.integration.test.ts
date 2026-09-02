@@ -1,8 +1,11 @@
+/* eslint-disable max-lines -- one migrated SQLite fixture exercises the complete check-to-Work lifecycle */
 import { readFileSync } from "node:fs";
 import { createClient, type Client } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { sha256Hex } from "@/server/lib/audit/ids";
 import type { GrowthPriorityPageCheckService } from "./GrowthPriorityPageCheckService";
+import { priorityPageOpportunityDedupeKey } from "./PriorityPageOpportunityPolicy";
 
 const mocks = vi.hoisted(() => ({ getPerformance: vi.fn() }));
 vi.mock("cloudflare:workers", () => ({ env: { DATABASE_PROVIDER: "d1" } }));
@@ -63,6 +66,7 @@ beforeAll(async () => {
       readFileSync("drizzle/0044_glossy_komodo.sql", "utf8"),
       readFileSync("drizzle/0045_mean_retro_girl.sql", "utf8"),
       readFileSync("drizzle/0046_living_misty_knight.sql", "utf8"),
+      readFileSync("drizzle/0052_lethal_brother_voodoo.sql", "utf8"),
       `INSERT INTO project_key_pages (id, project_id, url, role, topic, notes, commercial_weight, protected, actively_optimized, updated_at, updated_by)
      VALUES ('key_pricing', 'project_1', 'https://example.com/pricing', 'money', NULL, NULL, 3, false, false, '2026-01-01T00:00:00.000Z', 'user');`,
     ].join("\n"),
@@ -73,6 +77,9 @@ beforeAll(async () => {
 
 afterAll(() => client.close());
 
+// Sharing the fixture makes the second distinct Run prove suppression against
+// the exact Action created from the first Run rather than a fabricated graph.
+// eslint-disable-next-line max-lines-per-function
 describe("GrowthPriorityPageCheckService SQLite integration", () => {
   it("persists a successful check and reloads its numeric evidence without recollecting a replay", async () => {
     mocks.getPerformance
@@ -181,9 +188,19 @@ describe("GrowthPriorityPageCheckService SQLite integration", () => {
     const { GrowthInvestigationsService: investigations } =
       await import("./GrowthInvestigationsService");
     const signalId = reloaded.signals[0].id;
-    await expect(
-      investigations.getInvestigation("project_1", signalId),
-    ).resolves.toMatchObject({ status: "proposed", actionId: null });
+    const initialInvestigation = await investigations.getInvestigation(
+      "project_1",
+      signalId,
+    );
+    expect(initialInvestigation).toMatchObject({
+      status: "proposed",
+      actionId: null,
+    });
+    if (
+      !initialInvestigation ||
+      initialInvestigation.relationship !== "controller"
+    )
+      throw new Error("First check did not create a controlling investigation");
     const input = {
       projectId: "project_1",
       signalId,
@@ -266,10 +283,187 @@ describe("GrowthPriorityPageCheckService SQLite integration", () => {
         }),
       ],
     });
+
+    const repeated = await service.runCheck({
+      projectId: "project_1",
+      requestKey: "repeat_1",
+    });
+    expect(repeated).toMatchObject({
+      replayed: false,
+      run: { status: "completed" },
+    });
+    const repeatedDetail = await service.getRunDetail(
+      "project_1",
+      repeated.run.id,
+    );
+    expect(repeatedDetail.signals).toHaveLength(1);
+    const repeatedSignalId = repeatedDetail.signals[0].id;
+    await expect(
+      investigations.getInvestigation("project_1", repeatedSignalId),
+    ).resolves.toEqual({
+      relationship: "suppressed",
+      recommendationId: initialInvestigation.recommendationId,
+      title: "Investigate a priority-page search click decline",
+      status: "accepted",
+      suppressionReason: "existing_action",
+      policyVersion: "priority-page-repeat-suppression-v1",
+      actionId: approval.id,
+      dueOn: "2026-09-04",
+    });
+    await expect(
+      investigations.approveInvestigation({
+        ...input,
+        signalId: repeatedSignalId,
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    const decisionCounts = await client.execute(`
+      SELECT
+        (SELECT count(*) FROM growth_recommendations WHERE project_id = 'project_1') AS recommendations,
+        (SELECT count(*) FROM growth_recommendation_signal_links WHERE project_id = 'project_1') AS decisions,
+        (SELECT count(*) FROM growth_recommendation_signal_links WHERE project_id = 'project_1' AND relationship = 'controller') AS controllers
+    `);
+    expect(decisionCounts.rows).toEqual([
+      { recommendations: 1, decisions: 2, controllers: 1 },
+    ]);
     const work = await investigations.getWork("project_1");
     expect(work.actions).toEqual([status]);
     expect((await investigations.getWork("foreign")).actions).toEqual([]);
-    expect(mocks.getPerformance).toHaveBeenCalledTimes(3);
+    expect(mocks.getPerformance).toHaveBeenCalledTimes(6);
+  });
+
+  it("keeps a real committed decision readable when a later page decision fails", async () => {
+    const failingKeyPageId = "key_z_failing";
+    const failingUrl = "https://example.com/zzz-failing";
+    await client.execute({
+      sql: `INSERT INTO project_key_pages
+        (id, project_id, url, role, topic, notes, commercial_weight, protected,
+         actively_optimized, updated_at, updated_by)
+        VALUES (?, 'project_1', ?, 'money', NULL, NULL, 2, false, false,
+          '2026-01-02T00:00:00.000Z', 'user')`,
+      args: [failingKeyPageId, failingUrl],
+    });
+    const dedupeKey = await priorityPageOpportunityDedupeKey({
+      projectId: "project_1",
+      keyPageId: failingKeyPageId,
+    });
+    const blockerInsightId = (
+      await sha256Hex(`project_1|${dedupeKey}|initial-controller|insight`)
+    ).slice(0, 36);
+    const controllerRows = await client.execute(
+      "SELECT id FROM growth_runs WHERE cadence_slot = 'priority-page-check:retry_1'",
+    );
+    const controllerRunId = controllerRows.rows[0]?.id;
+    if (typeof controllerRunId !== "string")
+      throw new Error("Controller Run fixture was unavailable");
+    await client.execute({
+      sql: `INSERT INTO growth_insights
+        (id, project_id, run_id, creation_key, fact_hash, title, explanation,
+         hypothesis, confidence, created_at)
+        VALUES (?, 'project_1', ?, ?, ?, 'Collision fixture', 'Fixture only.',
+          'Fixture only.', 0, '2026-01-02T00:00:00.000Z')`,
+      args: [
+        blockerInsightId,
+        controllerRunId,
+        `collision:${blockerInsightId}`,
+        "f".repeat(64),
+      ],
+    });
+    mocks.getPerformance
+      .mockReset()
+      .mockImplementation(
+        (request: {
+          startDate: string;
+          endDate: string;
+          dimensions: string[];
+          startRow?: number;
+        }) => {
+          const dates = calendarDates(request.startDate, request.endDate);
+          const rows =
+            request.dimensions.join(",") === "page,date"
+              ? request.startRow
+                ? []
+                : ["https://example.com/pricing", failingUrl].flatMap((url) =>
+                    dates.map((day, index) => ({
+                      keys: [url, day],
+                      clicks: index < 28 ? 11 : 5,
+                      impressions: 100,
+                    })),
+                  )
+              : dates.map((day) => ({
+                  keys: [day],
+                  clicks: 500,
+                  impressions: 5_000,
+                }));
+          return {
+            siteUrl: "sc-domain:example.com",
+            connectedBy: null,
+            request: {
+              ...request,
+              rowLimit: 1000,
+              startRow: request.startRow || undefined,
+              type: "web",
+              dataState: "final",
+            },
+            rows,
+          };
+        },
+      );
+
+    try {
+      const result = await service.runCheck({
+        projectId: "project_1",
+        requestKey: "partial_integration_1",
+      });
+      expect(result.run).toMatchObject({
+        status: "completed_with_errors",
+        failureCode: "INVESTIGATION_GENERATION_FAILED",
+      });
+      const detail = await service.getRunDetail("project_1", result.run.id);
+      expect(detail.signals).toHaveLength(2);
+      const pricingSignal = detail.signals.find(
+        (signal) => signal.entityRef === "key_pricing",
+      );
+      const failingSignal = detail.signals.find(
+        (signal) => signal.entityRef === failingKeyPageId,
+      );
+      expect(pricingSignal).toBeDefined();
+      expect(failingSignal).toBeDefined();
+      if (!pricingSignal || !failingSignal)
+        throw new Error(
+          "Partial integration fixture did not save both Signals",
+        );
+      const { GrowthInvestigationsService: investigations } =
+        await import("./GrowthInvestigationsService");
+      await expect(
+        investigations.getInvestigation("project_1", pricingSignal.id),
+      ).resolves.toMatchObject({
+        relationship: "suppressed",
+        suppressionReason: "existing_action",
+      });
+      await expect(
+        investigations.getInvestigation("project_1", failingSignal.id),
+      ).resolves.toBeNull();
+      const rows = await client.execute({
+        sql: `SELECT status, analysis_version
+          FROM growth_runs WHERE project_id = 'project_1' AND id = ?`,
+        args: [result.run.id],
+      });
+      expect(rows.rows).toEqual([
+        {
+          status: "completed_with_errors",
+          analysis_version: "priority-page-investigation-v1",
+        },
+      ]);
+    } finally {
+      await client.execute({
+        sql: "DELETE FROM growth_insights WHERE id = ?",
+        args: [blockerInsightId],
+      });
+      await client.execute({
+        sql: "DELETE FROM project_key_pages WHERE id = ?",
+        args: [failingKeyPageId],
+      });
+    }
   });
 
   it("claims overlapping requests once and replays after setup removal", async () => {

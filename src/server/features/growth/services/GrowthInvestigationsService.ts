@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- investigation review and its existing Work coordination remain one service boundary */
 import { AppError } from "@/server/lib/errors";
 import type {
   GrowthInvestigationReviewInput,
@@ -12,6 +13,7 @@ import type {
 } from "@/types/schemas/growth-work";
 import { GrowthActionsRepository } from "../repositories/GrowthActionsRepository";
 import { GrowthInsightsRepository } from "../repositories/GrowthInsightsRepository";
+import { GrowthOpportunityDecisionsRepository } from "../repositories/GrowthOpportunityDecisionsRepository";
 import { GrowthRunsRepository } from "../repositories/GrowthRunsRepository";
 import { GrowthActionsService } from "./GrowthActionsService";
 import { GrowthInsightsService } from "./GrowthInsightsService";
@@ -45,12 +47,14 @@ function sourceRun(run: {
   runType: string;
   cadenceSlot: string;
   detectorVersion: string;
+  analysisVersion: string | null;
   status: string;
 }) {
   return (
     run.runType === RUN_TYPE &&
     run.cadenceSlot.startsWith(CADENCE_SLOT_PREFIX) &&
     run.detectorVersion === PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION &&
+    run.analysisVersion === GROWTH_INVESTIGATION_TEMPLATE_VERSION &&
     ["completed", "completed_with_errors"].includes(run.status)
   );
 }
@@ -85,21 +89,112 @@ async function source(projectId: string, signalId: string) {
   return { signal, run };
 }
 
-async function getSaved(projectId: string, signalId: string) {
-  const { signal, run } = await source(projectId, signalId);
-  const found = await GrowthInsightsRepository.findRecommendationForSignal(
-    projectId,
-    signalId,
-    investigationKeys(signalId).recommendation,
-  );
-  if (!found || found.runId !== run.id) return null;
+async function qualifiedGraph(
+  projectId: string,
+  runId: string,
+  signalId: string,
+  recommendationId: string,
+) {
+  const keys = investigationKeys(signalId);
   const graph = await GrowthInsightsService.getRecommendation(
     projectId,
-    run.id,
-    found.id,
+    runId,
+    recommendationId,
+  );
+  if (
+    !graph ||
+    graph.recommendation.creationKey !== keys.recommendation ||
+    graph.recommendation.category !== "investigation" ||
+    graph.insightIds.length !== 1
+  )
+    return null;
+  const insight = await GrowthInsightsService.getInsight(
+    projectId,
+    runId,
+    graph.insightIds[0],
+  );
+  if (
+    !insight ||
+    insight.insight.creationKey !== keys.insight ||
+    insight.signalIds.length !== 1 ||
+    insight.signalIds[0] !== signalId
+  )
+    return null;
+  return graph;
+}
+
+async function legacySaved(
+  projectId: string,
+  signal: Awaited<ReturnType<typeof source>>["signal"],
+  run: Awaited<ReturnType<typeof source>>["run"],
+) {
+  const found = await GrowthInsightsRepository.findRecommendationForSignal(
+    projectId,
+    signal.id,
+    investigationKeys(signal.id).recommendation,
+  );
+  if (!found || found.runId !== run.id) return null;
+  const graph = await qualifiedGraph(projectId, run.id, signal.id, found.id);
+  if (!graph) return null;
+  return {
+    signal,
+    run,
+    controllerSignalId: signal.id,
+    controllerRunId: run.id,
+    relationship: "controller" as const,
+    suppressionReason: null,
+    policyVersion: null,
+    graph,
+  };
+}
+
+async function getSaved(projectId: string, signalId: string) {
+  const { signal, run } = await source(projectId, signalId);
+  const linked =
+    await GrowthOpportunityDecisionsRepository.getDecisionControllerSource(
+      projectId,
+      run.id,
+      signal.id,
+    );
+  if (!linked) return legacySaved(projectId, signal, run);
+  const controllerSource = await source(projectId, linked.controllerSignalId);
+  if (controllerSource.run.id !== linked.controllerRunId) return null;
+  const graph = await qualifiedGraph(
+    projectId,
+    linked.controllerRunId,
+    linked.controllerSignalId,
+    linked.recommendationId,
   );
   if (!graph) return null;
-  return { signal, run, graph };
+  return {
+    signal,
+    run,
+    controllerSignalId: linked.controllerSignalId,
+    controllerRunId: linked.controllerRunId,
+    relationship: linked.relationship,
+    suppressionReason: linked.suppressionReason,
+    policyVersion: linked.policyVersion,
+    graph,
+  };
+}
+
+async function getMutableSaved(projectId: string, signalId: string) {
+  const saved = await getSaved(projectId, signalId);
+  if (!saved || saved.relationship !== "controller")
+    throw new AppError("NOT_FOUND", "Growth investigation not found");
+  return saved;
+}
+
+async function exactTemplateAction(
+  projectId: string,
+  controllerSignalId: string,
+  recommendationId: string,
+) {
+  const action = await GrowthActionsRepository.getActionByKey(
+    projectId,
+    investigationKeys(controllerSignalId).action,
+  );
+  return action?.recommendationId === recommendationId ? action : null;
 }
 
 async function getInvestigation(
@@ -108,11 +203,30 @@ async function getInvestigation(
 ): Promise<GrowthInvestigationView | null> {
   const saved = await getSaved(projectId, signalId);
   if (!saved) return null;
-  const action = await GrowthActionsRepository.getActionByKey(
+  const action = await exactTemplateAction(
     projectId,
-    investigationKeys(signalId).action,
+    saved.controllerSignalId,
+    saved.graph.recommendation.id,
   );
+  if (saved.relationship === "suppressed") {
+    if (!saved.suppressionReason || !saved.policyVersion)
+      throw new AppError(
+        "CONFLICT",
+        "Growth investigation coverage decision is incomplete",
+      );
+    return growthInvestigationViewSchema.parse({
+      relationship: "suppressed",
+      recommendationId: saved.graph.recommendation.id,
+      title: saved.graph.recommendation.title,
+      status: saved.graph.recommendation.status,
+      suppressionReason: saved.suppressionReason,
+      policyVersion: saved.policyVersion,
+      actionId: action?.id ?? null,
+      dueOn: dueOn(action?.dueAt ?? null),
+    });
+  }
   return growthInvestigationViewSchema.parse({
+    relationship: "controller",
     recommendationId: saved.graph.recommendation.id,
     title: saved.graph.recommendation.title,
     rationale: saved.graph.recommendation.rationale,
@@ -131,8 +245,7 @@ async function getInvestigation(
 }
 
 async function reviewInvestigation(input: GrowthInvestigationReviewInput) {
-  const saved = await getSaved(input.projectId, input.signalId);
-  if (!saved) throw new AppError("NOT_FOUND", "Growth investigation not found");
+  const saved = await getMutableSaved(input.projectId, input.signalId);
 
   const review = {
     projectId: input.projectId,
@@ -243,9 +356,8 @@ async function approveInvestigation(input: {
   dueOn: string;
   actorId: string;
 }) {
-  const saved = await getSaved(input.projectId, input.signalId);
-  if (!saved) throw new AppError("NOT_FOUND", "Growth investigation not found");
-  const keys = investigationKeys(input.signalId);
+  const saved = await getMutableSaved(input.projectId, input.signalId);
+  const keys = investigationKeys(saved.controllerSignalId);
   const actionInput = {
     projectId: input.projectId,
     recommendationId: saved.graph.recommendation.id,

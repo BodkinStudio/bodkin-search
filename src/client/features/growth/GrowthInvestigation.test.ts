@@ -21,6 +21,7 @@ vi.mock("@/serverFunctions/growthInvestigations", () => ({
 }));
 
 const proposal: GrowthInvestigationView = {
+  relationship: "controller",
   recommendationId: "recommendation_1",
   title: "Investigate the saved pricing-page decline",
   rationale: "Clicks declined from 308 to 140. The cause remains unknown.",
@@ -97,7 +98,7 @@ describe("Growth investigation rendered contract", () => {
     expect(html).toContain(proposal.rationale);
     expect(html).toContain("No AI was used");
     expect(html).toContain(
-      "Separate checks may suggest work for the same page",
+      "This suggestion covers later checks for the same saved page",
     );
     expect(html).toContain("Due date (UTC)");
     expect(html).toContain("Approve investigation");
@@ -115,6 +116,32 @@ describe("Growth investigation rendered contract", () => {
     );
     expect(html).toContain("does not change the website");
     expect(html).not.toContain("Expected uplift");
+  });
+
+  it("shows repeated evidence as covered without exposing old evidence or review controls", () => {
+    const client = queryClient();
+    client.setQueryData(["growthInvestigation", "project_1", "signal_1"], {
+      relationship: "suppressed",
+      recommendationId: "recommendation_1",
+      title: "Investigate the earlier pricing-page decline",
+      status: "accepted",
+      suppressionReason: "existing_action",
+      policyVersion: "priority-page-repeat-suppression-v1",
+      actionId: "action_1",
+      dueOn: "2026-09-04",
+    } satisfies GrowthInvestigationView);
+    const html = render(client);
+    expect(html).toContain("Covered by an existing suggestion");
+    expect(html).toContain(
+      "This check was saved as new evidence without creating another",
+    );
+    expect(html).toContain("existing work already covered this issue");
+    expect(html).toContain("Due 4 Sept 2026 (UTC)");
+    expect(html).toContain('href="#growth-work"');
+    expect(html).not.toContain(proposal.rationale);
+    expect(html).not.toContain("Approve investigation");
+    expect(html).not.toContain("Dismissal reason");
+    expect(html).not.toContain("Review now");
   });
 
   it("does not display cached suggestions from another project or signal", () => {

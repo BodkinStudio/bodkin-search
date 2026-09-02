@@ -12,11 +12,8 @@ import {
   PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION,
 } from "./PriorityPageClickDeclineDetector";
 import { GrowthRunsService } from "./GrowthRunsService";
-import { GrowthInsightsService } from "./GrowthInsightsService";
-import {
-  GROWTH_INVESTIGATION_TEMPLATE_VERSION,
-  priorityPageInvestigationTemplate,
-} from "./GrowthInvestigationTemplate";
+import { GrowthOpportunityDecisionsService } from "./GrowthOpportunityDecisionsService";
+import { GROWTH_INVESTIGATION_TEMPLATE_VERSION } from "./GrowthInvestigationTemplate";
 
 const RUN_TYPE = "manual_analysis" as const;
 const WINDOW_DAYS = 28;
@@ -155,6 +152,8 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
   }
   let outcomes: Awaited<ReturnType<typeof detectPriorityPageClickDeclines>>;
   let snapshot: Awaited<ReturnType<typeof collectGrowthSearchPerformance>>;
+  let committedDecision = false;
+  let savedSignalIds: string[] = [];
   try {
     snapshot = await collectGrowthSearchPerformance({
       projectId: input.projectId,
@@ -195,6 +194,7 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
         )
         .map((outcome) => GrowthRunsService.recordSignal(outcome.signal)),
     );
+    savedSignalIds = savedSignals.map((signal) => signal.id);
     const keyPagesById = new Map(
       savedSignals.length === 0
         ? []
@@ -208,19 +208,13 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
           "Growth investigation source page is unavailable",
         );
       }
-      const template = priorityPageInvestigationTemplate({
+      await GrowthOpportunityDecisionsService.recordPriorityPageInvestigation({
         projectId: input.projectId,
         runId: claim.run.id,
         signal,
         keyPage,
       });
-      const insight = await GrowthInsightsService.createInsight(
-        template.insight,
-      );
-      await GrowthInsightsService.createRecommendation({
-        ...template.recommendation,
-        insightIds: [insight.insight.id],
-      });
+      committedDecision = true;
     }
     if (savedSignals.length > 0)
       await GrowthRunsService.setAnalysisVersion({
@@ -254,13 +248,41 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
         });
     return { run: runSummary(terminal), replayed: false };
   } catch {
-    const terminal = await GrowthRunsService.failRun({
-      projectId: input.projectId,
-      runId: claim.run.id,
-      failureCode: "INVESTIGATION_GENERATION_FAILED",
-      failureMessage:
-        "The check data was collected, but its investigation suggestions could not be saved.",
-    });
+    const durableDecision = committedDecision
+      ? true
+      : (
+          await Promise.all(
+            savedSignalIds.map((signalId) =>
+              GrowthOpportunityDecisionsService.getDecision(
+                input.projectId,
+                claim.run.id,
+                signalId,
+              ),
+            ),
+          )
+        ).some((decision) => decision !== null);
+    if (durableDecision) {
+      await GrowthRunsService.setAnalysisVersion({
+        projectId: input.projectId,
+        runId: claim.run.id,
+        analysisVersion: GROWTH_INVESTIGATION_TEMPLATE_VERSION,
+      });
+    }
+    const terminal = durableDecision
+      ? await GrowthRunsService.completeRunWithErrors({
+          projectId: input.projectId,
+          runId: claim.run.id,
+          failureCode: "INVESTIGATION_GENERATION_FAILED",
+          failureMessage:
+            "Some investigation suggestions could not be saved; saved decisions remain available.",
+        })
+      : await GrowthRunsService.failRun({
+          projectId: input.projectId,
+          runId: claim.run.id,
+          failureCode: "INVESTIGATION_GENERATION_FAILED",
+          failureMessage:
+            "The check data was collected, but its investigation suggestions could not be saved.",
+        });
     return { run: runSummary(terminal), replayed: false };
   }
 }

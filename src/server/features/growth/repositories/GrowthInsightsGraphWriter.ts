@@ -11,7 +11,7 @@ import {
   growthRuns,
 } from "@/db/schema";
 
-type InsightWrite = {
+export type InsightWrite = {
   id: string;
   projectId: string;
   runId: string;
@@ -113,7 +113,7 @@ export async function createInsightGraph(input: InsightWrite) {
   });
 }
 
-type RecommendationWrite = Omit<
+export type RecommendationWrite = Omit<
   InsightWrite,
   "title" | "signalIds" | "explanation" | "hypothesis" | "confidence"
 > & {

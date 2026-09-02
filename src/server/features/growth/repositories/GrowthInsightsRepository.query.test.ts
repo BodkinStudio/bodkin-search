@@ -1,13 +1,16 @@
+/* eslint-disable max-lines -- shared in-memory graph fixture keeps atomic decision coverage auditable */
 import { readFileSync } from "node:fs";
 import { createClient, type Client } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type * as RepositoryModule from "./GrowthInsightsRepository";
+import type * as DecisionsModule from "./GrowthOpportunityDecisionsRepository";
 
 vi.mock("cloudflare:workers", () => ({ env: { DATABASE_PROVIDER: "d1" } }));
 
 let client: Client;
 let GrowthInsightsRepository: typeof RepositoryModule.GrowthInsightsRepository;
+let GrowthOpportunityDecisionsRepository: typeof DecisionsModule.GrowthOpportunityDecisionsRepository;
 
 beforeAll(async () => {
   client = createClient({ url: "file::memory:" });
@@ -33,10 +36,13 @@ beforeAll(async () => {
   await client.executeMultiple(
     [
       "PRAGMA foreign_keys = ON;",
+      "CREATE TABLE user (id text PRIMARY KEY);",
       "CREATE TABLE projects (id text PRIMARY KEY);",
       "INSERT INTO projects (id) VALUES ('project_1');",
       readFileSync("drizzle/0044_glossy_komodo.sql", "utf8"),
       readFileSync("drizzle/0045_mean_retro_girl.sql", "utf8"),
+      readFileSync("drizzle/0046_living_misty_knight.sql", "utf8"),
+      readFileSync("drizzle/0052_lethal_brother_voodoo.sql", "utf8"),
       `INSERT INTO growth_runs (
         id, project_id, run_type, trigger, status, cadence_slot, period_start,
         period_end, started_at, detector_version
@@ -65,11 +71,526 @@ beforeAll(async () => {
   );
 
   ({ GrowthInsightsRepository } = await import("./GrowthInsightsRepository"));
+  ({ GrowthOpportunityDecisionsRepository } =
+    await import("./GrowthOpportunityDecisionsRepository"));
 });
 
 afterAll(() => client.close());
 
+const legacySteps = [
+  {
+    position: 0,
+    content: "Review saved Search Console page and query evidence.",
+  },
+  {
+    position: 1,
+    content: "Inspect known changes and indexing signals for the target page.",
+  },
+  {
+    position: 2,
+    content:
+      "Decide whether a website change is warranted before proposing one.",
+  },
+];
+
+async function seedLegacyPriorityPageGraph(input: {
+  suffix: string;
+  keyPageId: string;
+}) {
+  const runId = `legacy_run_${input.suffix}`;
+  const signalId = `legacy_signal_${input.suffix}`;
+  const insightId = `legacy_insight_${input.suffix}`;
+  const recommendationId = `legacy_recommendation_${input.suffix}`;
+  await client.execute({
+    sql: `INSERT INTO growth_runs (
+      id, project_id, run_type, trigger, status, cadence_slot, period_start,
+      period_end, started_at, completed_at, detector_version, analysis_version
+    ) VALUES (?, 'project_1', 'manual_analysis', 'manual', 'completed', ?,
+      '2026-07-01', '2026-07-28', '2026-07-29T10:00:00.000Z',
+      '2026-07-29T10:01:00.000Z', 'priority-page-click-decline-v1',
+      'priority-page-investigation-v1')`,
+    args: [runId, `priority-page-check:current:${input.suffix}`],
+  });
+  await client.execute({
+    sql: `INSERT INTO growth_signals (
+      id, project_id, run_id, signal_type, entity_type, entity_ref, metric,
+      severity, confidence, period_start, period_end, baseline_value,
+      current_value, delta_value, evidence_kind, evidence_ref, captured_at
+    ) VALUES (?, 'project_1', ?, 'priority_page_click_decline', 'key_page',
+      ?, 'gsc_clicks', 'warning', 0.8, '2026-07-01', '2026-07-28', 20,
+      10, -10, 'gsc_period', ?, '2026-07-29T10:00:00.000Z')`,
+    args: [signalId, runId, input.keyPageId, `gsc:${input.suffix}`],
+  });
+  await client.execute({
+    sql: `INSERT INTO growth_insights (
+      id, project_id, run_id, creation_key, fact_hash, title, explanation,
+      hypothesis, confidence
+    ) VALUES (?, 'project_1', ?, ?, ?, 'Observed decline', 'Clicks fell.',
+      'Cause unknown.', 0)`,
+    args: [
+      insightId,
+      runId,
+      `priority-page-investigation-v1:insight:${signalId}`,
+      "a".repeat(64),
+    ],
+  });
+  await client.execute({
+    sql: `INSERT INTO growth_insight_signals
+      (project_id, run_id, insight_id, signal_id)
+      VALUES ('project_1', ?, ?, ?)`,
+    args: [runId, insightId, signalId],
+  });
+  await client.execute({
+    sql: `INSERT INTO growth_recommendations (
+      id, project_id, run_id, creation_key, fact_hash, title, rationale,
+      category, impact, commercial_relevance, effort, urgency, confidence,
+      priority_score, created_at
+    ) VALUES (?, 'project_1', ?, ?, ?, 'Investigate decline', 'Cause unknown.',
+      'investigation', 1, 1, 1, 1, 0, 0, '2026-07-29T10:00:00.000Z')`,
+    args: [
+      recommendationId,
+      runId,
+      `priority-page-investigation-v1:recommendation:${signalId}`,
+      "b".repeat(64),
+    ],
+  });
+  await client.execute({
+    sql: `INSERT INTO growth_recommendation_insights
+      (project_id, run_id, recommendation_id, insight_id)
+      VALUES ('project_1', ?, ?, ?)`,
+    args: [runId, recommendationId, insightId],
+  });
+  await client.execute({
+    sql: `INSERT INTO growth_recommendation_targets
+      (project_id, run_id, recommendation_id, target_type, target_value)
+      VALUES ('project_1', ?, ?, 'url', ?)`,
+    args: [runId, recommendationId, `https://example.com/${input.suffix}`],
+  });
+  for (const step of legacySteps) {
+    await client.execute({
+      sql: `INSERT INTO growth_recommendation_steps
+        (project_id, run_id, recommendation_id, position, content)
+        VALUES ('project_1', ?, ?, ?, ?)`,
+      args: [runId, recommendationId, step.position, step.content],
+    });
+  }
+  return { runId, signalId, insightId, recommendationId };
+}
+
+async function seedRunningPriorityPageSignal(input: {
+  suffix: string;
+  keyPageId: string;
+}) {
+  const runId = `current_run_${input.suffix}`;
+  const signalId = `current_signal_${input.suffix}`;
+  await client.execute({
+    sql: `INSERT INTO growth_runs (
+      id, project_id, run_type, trigger, status, cadence_slot, period_start,
+      period_end, started_at, detector_version
+    ) VALUES (?, 'project_1', 'manual_analysis', 'manual', 'running', ?,
+      '2026-08-01', '2026-08-28', '2026-08-29T10:00:00.000Z',
+      'priority-page-click-decline-v1')`,
+    args: [runId, `priority-page-check:${input.suffix}`],
+  });
+  await client.execute({
+    sql: `INSERT INTO growth_signals (
+      id, project_id, run_id, signal_type, entity_type, entity_ref, metric,
+      severity, confidence, period_start, period_end, baseline_value,
+      current_value, delta_value, evidence_kind, evidence_ref, captured_at
+    ) VALUES (?, 'project_1', ?, 'priority_page_click_decline', 'key_page',
+      ?, 'gsc_clicks', 'warning', 0.8, '2026-08-01', '2026-08-28', 20,
+      10, -10, 'gsc_period', ?, '2026-08-29T10:00:00.000Z')`,
+    args: [signalId, runId, input.keyPageId, `gsc:${input.suffix}`],
+  });
+  return { runId, signalId };
+}
+
+function decisionCandidate(input: {
+  suffix: string;
+  runId: string;
+  signalId: string;
+  dedupeKey: string;
+}) {
+  const insightId = `candidate_insight_${input.suffix}`;
+  return {
+    projectId: "project_1",
+    signalRunId: input.runId,
+    signalId: input.signalId,
+    dedupeKey: input.dedupeKey,
+    policyVersion: "priority-page-repeat-suppression-v1",
+    insight: {
+      id: insightId,
+      projectId: "project_1",
+      runId: input.runId,
+      creationKey: `priority-page-investigation-v1:insight:${input.signalId}`,
+      factHash: "c".repeat(64),
+      title: "Observed decline",
+      explanation: "Clicks fell.",
+      hypothesis: "Cause unknown.",
+      confidence: 0,
+      model: null,
+      promptVersion: null,
+      signalIds: [input.signalId],
+    },
+    recommendation: {
+      id: `candidate_recommendation_${input.suffix}`,
+      projectId: "project_1",
+      runId: input.runId,
+      creationKey: `priority-page-investigation-v1:recommendation:${input.signalId}`,
+      factHash: "d".repeat(64),
+      title: "Investigate decline",
+      rationale: "Cause unknown.",
+      category: "investigation",
+      impact: 1,
+      commercialRelevance: 1,
+      effort: 1,
+      urgency: 1,
+      confidence: 0,
+      priorityScore: 0,
+      model: null,
+      promptVersion: null,
+      insightIds: [insightId],
+      targets: [
+        {
+          targetType: "url" as const,
+          targetValue: `https://example.com/${input.suffix}`,
+        },
+      ],
+      steps: legacySteps,
+    },
+  };
+}
+
+// eslint-disable-next-line max-lines-per-function -- one shared database makes the sequential graph lifecycle explicit
 describe("GrowthInsightsRepository D1 graph writes", () => {
+  it("atomically records one controller and suppresses a later equivalent Signal", async () => {
+    await client.executeMultiple(`INSERT INTO growth_runs (
+      id, project_id, run_type, trigger, status, cadence_slot, period_start,
+      period_end, started_at, detector_version
+    ) VALUES ('run_2', 'project_1', 'manual_analysis', 'manual', 'running',
+      'slot_2', '2026-08-01', '2026-08-29', '2026-08-29T10:00:00.000Z', 'v1');
+    INSERT INTO growth_signals (
+      id, project_id, run_id, signal_type, entity_type, entity_ref, metric,
+      severity, confidence, period_start, period_end, baseline_value,
+      current_value, delta_value, evidence_kind, evidence_ref, captured_at
+    ) VALUES ('signal_4', 'project_1', 'run_2', 'priority_page_click_decline',
+      'key_page', 'key_1', 'gsc_clicks', 'warning', 0.8, '2026-08-01',
+      '2026-08-29', 20, 10, -10, 'gsc_period', 'gsc:two',
+      '2026-08-29T10:00:00.000Z');`);
+    const candidate = {
+      projectId: "project_1",
+      dedupeKey: "d".repeat(64),
+      policyVersion: "priority-page-repeat-suppression-v1",
+      insight: {
+        id: "stable_insight",
+        projectId: "project_1",
+        runId: "run_1",
+        creationKey: "template:insight:signal_1",
+        factHash: "a".repeat(64),
+        title: "Observed priority-page click decline",
+        explanation: "Clicks fell during the period.",
+        hypothesis: "The cause is unknown.",
+        confidence: 0,
+        model: null,
+        promptVersion: null,
+        signalIds: ["signal_1"],
+      },
+      recommendation: {
+        id: "stable_recommendation",
+        projectId: "project_1",
+        runId: "run_1",
+        creationKey: "template:recommendation:signal_1",
+        factHash: "b".repeat(64),
+        title: "Investigate a priority-page search click decline",
+        rationale: "Cause is unknown; this is a deterministic suggestion.",
+        category: "investigation",
+        impact: 1,
+        commercialRelevance: 1,
+        effort: 1,
+        urgency: 1,
+        confidence: 0,
+        priorityScore: 0,
+        model: null,
+        promptVersion: null,
+        insightIds: ["stable_insight"],
+        targets: [
+          {
+            targetType: "url" as const,
+            targetValue: "https://example.com/pricing",
+          },
+        ],
+        steps: [
+          { position: 0, content: "Review saved Search Console evidence." },
+        ],
+      },
+    };
+    await GrowthOpportunityDecisionsRepository.writeDecision({
+      ...candidate,
+      signalRunId: "run_1",
+      signalId: "signal_1",
+    });
+    await GrowthOpportunityDecisionsRepository.writeDecision({
+      ...candidate,
+      signalRunId: "run_2",
+      signalId: "signal_4",
+      insight: {
+        ...candidate.insight,
+        runId: "run_2",
+        creationKey: "template:insight:signal_4",
+      },
+      recommendation: {
+        ...candidate.recommendation,
+        runId: "run_2",
+        creationKey: "template:recommendation:signal_4",
+      },
+    });
+    expect(
+      await GrowthOpportunityDecisionsRepository.getSignalDecision(
+        "project_1",
+        "run_1",
+        "signal_1",
+      ),
+    ).toMatchObject({
+      relationship: "controller",
+      recommendationId: "stable_recommendation",
+    });
+    expect(
+      await GrowthOpportunityDecisionsRepository.getSignalDecision(
+        "project_1",
+        "run_2",
+        "signal_4",
+      ),
+    ).toMatchObject({
+      relationship: "suppressed",
+      recommendationId: "stable_recommendation",
+      suppressionReason: "existing_proposal",
+    });
+    expect(
+      (
+        await client.execute(
+          "SELECT count(*) AS count FROM growth_recommendations",
+        )
+      ).rows[0],
+    ).toMatchObject({ count: 1 });
+  });
+
+  it("adopts one exact legacy graph and records the new Signal as suppressed", async () => {
+    const keyPageId = "key_legacy_exact";
+    const legacy = await seedLegacyPriorityPageGraph({
+      suffix: "exact",
+      keyPageId,
+    });
+    const current = await seedRunningPriorityPageSignal({
+      suffix: "exact",
+      keyPageId,
+    });
+    const found =
+      await GrowthOpportunityDecisionsRepository.findLegacyPriorityPageController(
+        "project_1",
+        keyPageId,
+        legacySteps,
+      );
+    expect(found).toEqual({
+      recommendationId: legacy.recommendationId,
+      signalRunId: legacy.runId,
+      signalId: legacy.signalId,
+    });
+    const candidate = decisionCandidate({
+      suffix: "exact",
+      runId: current.runId,
+      signalId: current.signalId,
+      dedupeKey: "e".repeat(64),
+    });
+    await GrowthOpportunityDecisionsRepository.writeDecision({
+      ...candidate,
+      legacyController: { ...found, keyPageId },
+    });
+
+    await expect(
+      GrowthOpportunityDecisionsRepository.getSignalDecision(
+        "project_1",
+        legacy.runId,
+        legacy.signalId,
+      ),
+    ).resolves.toMatchObject({
+      relationship: "controller",
+      recommendationId: legacy.recommendationId,
+    });
+    await expect(
+      GrowthOpportunityDecisionsRepository.getSignalDecision(
+        "project_1",
+        current.runId,
+        current.signalId,
+      ),
+    ).resolves.toMatchObject({
+      relationship: "suppressed",
+      recommendationId: legacy.recommendationId,
+      suppressionReason: "existing_proposal",
+    });
+    await expect(
+      GrowthOpportunityDecisionsRepository.getDecisionControllerSource(
+        "project_1",
+        current.runId,
+        current.signalId,
+      ),
+    ).resolves.toMatchObject({
+      controllerRunId: legacy.runId,
+      controllerSignalId: legacy.signalId,
+    });
+    expect(
+      (
+        await client.execute({
+          sql: "SELECT count(*) AS count FROM growth_recommendations WHERE id = ?",
+          args: [candidate.recommendation.id],
+        })
+      ).rows[0],
+    ).toMatchObject({ count: 0 });
+  });
+
+  it("rechecks the complete legacy graph atomically and falls back after drift", async () => {
+    const keyPageId = "key_legacy_drift";
+    const legacy = await seedLegacyPriorityPageGraph({
+      suffix: "drift",
+      keyPageId,
+    });
+    const found =
+      await GrowthOpportunityDecisionsRepository.findLegacyPriorityPageController(
+        "project_1",
+        keyPageId,
+        legacySteps,
+      );
+    expect(found?.recommendationId).toBe(legacy.recommendationId);
+    await client.execute({
+      sql: `UPDATE growth_recommendation_steps SET content = 'Tampered step'
+        WHERE project_id = 'project_1' AND run_id = ?
+          AND recommendation_id = ? AND position = 1`,
+      args: [legacy.runId, legacy.recommendationId],
+    });
+    await expect(
+      GrowthOpportunityDecisionsRepository.findLegacyPriorityPageController(
+        "project_1",
+        keyPageId,
+        legacySteps,
+      ),
+    ).resolves.toBeNull();
+
+    const current = await seedRunningPriorityPageSignal({
+      suffix: "drift",
+      keyPageId,
+    });
+    const candidate = decisionCandidate({
+      suffix: "drift",
+      runId: current.runId,
+      signalId: current.signalId,
+      dedupeKey: "f".repeat(64),
+    });
+    await GrowthOpportunityDecisionsRepository.writeDecision({
+      ...candidate,
+      legacyController: { ...found, keyPageId },
+    });
+
+    await expect(
+      GrowthOpportunityDecisionsRepository.getSignalDecision(
+        "project_1",
+        current.runId,
+        current.signalId,
+      ),
+    ).resolves.toMatchObject({
+      relationship: "controller",
+      recommendationId: candidate.recommendation.id,
+    });
+    await expect(
+      GrowthOpportunityDecisionsRepository.getSignalDecision(
+        "project_1",
+        legacy.runId,
+        legacy.signalId,
+      ),
+    ).resolves.toBeNull();
+  });
+
+  it("rejects a legacy Insight with more than one source Signal", async () => {
+    const keyPageId = "key_legacy_multi_source";
+    const legacy = await seedLegacyPriorityPageGraph({
+      suffix: "multi_source",
+      keyPageId,
+    });
+    const extraSignalId = "legacy_signal_multi_source_extra";
+    await client.execute({
+      sql: `INSERT INTO growth_signals (
+        id, project_id, run_id, signal_type, entity_type, entity_ref, metric,
+        severity, confidence, period_start, period_end, baseline_value,
+        current_value, delta_value, evidence_kind, evidence_ref, captured_at
+      ) VALUES (?, 'project_1', ?, 'priority_page_click_decline', 'key_page',
+        ?, 'gsc_clicks', 'warning', 0.8, '2026-07-01', '2026-07-28', 20,
+        10, -10, 'gsc_period', 'gsc:multi-source-extra',
+        '2026-07-29T10:00:00.000Z')`,
+      args: [extraSignalId, legacy.runId, keyPageId],
+    });
+    await client.execute({
+      sql: `INSERT INTO growth_insight_signals
+        (project_id, run_id, insight_id, signal_id)
+        VALUES ('project_1', ?, ?, ?)`,
+      args: [legacy.runId, legacy.insightId, extraSignalId],
+    });
+    await expect(
+      GrowthOpportunityDecisionsRepository.findLegacyPriorityPageController(
+        "project_1",
+        keyPageId,
+        legacySteps,
+      ),
+    ).resolves.toBeNull();
+  });
+
+  it("ranks only the exact template Action ahead of a proposed legacy graph", async () => {
+    const keyPageId = "key_legacy_action_rank";
+    const proposed = await seedLegacyPriorityPageGraph({
+      suffix: "rank_proposed",
+      keyPageId,
+    });
+    const accepted = await seedLegacyPriorityPageGraph({
+      suffix: "rank_accepted",
+      keyPageId,
+    });
+    await client.execute({
+      sql: `UPDATE growth_recommendations SET status = 'accepted'
+        WHERE project_id = 'project_1' AND id = ?`,
+      args: [accepted.recommendationId],
+    });
+    await client.execute({
+      sql: `INSERT INTO growth_actions (
+        id, project_id, recommendation_id, creation_key, fact_hash, title,
+        description, category, priority_score, due_at, approved_at
+      ) VALUES ('legacy_extra_action', 'project_1', ?, 'unrelated:action', ?,
+        'Unrelated work', 'Does not qualify the template.', 'investigation',
+        0, '2026-09-01T00:00:00.000Z', '2026-08-01T00:00:00.000Z')`,
+      args: [accepted.recommendationId, "e".repeat(64)],
+    });
+    await expect(
+      GrowthOpportunityDecisionsRepository.findLegacyPriorityPageController(
+        "project_1",
+        keyPageId,
+        legacySteps,
+      ),
+    ).resolves.toMatchObject({
+      recommendationId: proposed.recommendationId,
+    });
+
+    await client.execute({
+      sql: `UPDATE growth_actions SET creation_key = ?
+        WHERE project_id = 'project_1' AND id = 'legacy_extra_action'`,
+      args: [`priority-page-investigation-v1:action:${accepted.signalId}`],
+    });
+    await expect(
+      GrowthOpportunityDecisionsRepository.findLegacyPriorityPageController(
+        "project_1",
+        keyPageId,
+        legacySteps,
+      ),
+    ).resolves.toMatchObject({
+      recommendationId: accepted.recommendationId,
+    });
+  });
+
   it("keeps exact retries complete and prevents drift from extending children", async () => {
     const insight = {
       id: "insight_1",

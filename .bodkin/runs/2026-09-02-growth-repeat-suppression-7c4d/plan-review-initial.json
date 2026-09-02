@@ -1,0 +1,41 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "Failure-after-decision and controller-deletion lifecycle cases were missing from verification.",
+      "location": ".bodkin/runs/2026-09-02-growth-repeat-suppression-7c4d/plan.md",
+      "evidence": "Sequential/race coverage did not prove behavior after a later generation failure or deletion of a controller with decisions from other Runs.",
+      "impact": "A controller could become unreadable or a retained Signal could lose exact replay without detection.",
+      "recommendation": "Add dual-provider lifecycle, deletion and exact-replay fixtures."
+    }
+  ],
+  "plan_gaps": [
+    {
+      "summary": "A controller could be committed on a Run later marked failed.",
+      "location": "GrowthPriorityPageCheckService decision and terminal flow",
+      "evidence": "The current loop persists suggestions before terminalizing the Run; a later error marks the whole Run failed while investigation reads accept only successful terminal Runs.",
+      "impact": "Later Signals could be suppressed by an unreadable controller with no v1 release path.",
+      "recommendation": "Terminalize partial committed analysis as completed_with_errors and guard all decision inserts on the current Run remaining running."
+    },
+    {
+      "summary": "Cascading controller deletion could erase decisions for retained suppressed Signals.",
+      "location": "Planned growth_recommendation_signal_links foreign keys",
+      "evidence": "Suppressed rows point to a Recommendation owned by another Run; cascading that Recommendation removes their per-Signal replay record.",
+      "impact": "A retained Signal could be silently undecided or remapped.",
+      "recommendation": "Restrict controller deletion while retained decisions depend on it, while preserving suppressed-Signal and whole-project deletion semantics."
+    },
+    {
+      "summary": "Legacy adoption predicates and ordering were underspecified across providers.",
+      "location": "Planned legacy controller selector",
+      "evidence": "Loose same-page qualification, multiple Actions and default string collation could select different or noncanonical controllers.",
+      "impact": "D1 and PostgreSQL could suppress against different saved work or expose the wrong Action link.",
+      "recommendation": "Require the exact detector/template graph and Action key, explicit provider code-unit ordering and distinguishing parity fixtures."
+    }
+  ],
+  "do_not_change": [
+    "Preserve the conservative v1 policy; do not infer material change or completed-work release in this foundation."
+  ]
+}

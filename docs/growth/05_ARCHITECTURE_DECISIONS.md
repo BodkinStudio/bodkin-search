@@ -1023,3 +1023,52 @@ model is introduced.
 Automatic wake-up, dismissed-item restoration, assignment, bulk review,
 generic Recommendation review UI, review actors/history and MCP review remain
 separate decisions.
+
+---
+
+## ADR-046 - Priority-page repeat suppression uses immutable Signal decisions
+
+**Status:** Accepted
+
+### Decision
+
+- Every detected priority-page click decline remains a new immutable Signal.
+  A stable project-scoped key identifies the issue by detector family, explicit
+  key-page record and metric; URL similarity is not used.
+- A normalized `growth_recommendation_signal_links` relation records whether
+  each Signal created the controlling Recommendation or was suppressed by it.
+  One partial unique constraint permits only one unreleased controller for an
+  issue. Graph creation, controller claim and suppression are composed in one
+  provider-aware atomic write so concurrent checks cannot leave duplicate or
+  orphan investigation graphs.
+- The suppression reason is a closed, immutable decision-time fact derived
+  from the controlling Recommendation and its exact template Action. It does
+  not change when that Recommendation later changes status.
+- Policy v1 is deliberately conservative: proposed, snoozed, dismissed,
+  accepted, merged and superseded controllers all remain controlling. The
+  relation can represent a later release, but this policy never writes one.
+- A repeated Signal receives a strict read-only projection containing the
+  controller title and status, saved reason, policy version and optional Work
+  link. It cannot expose the earlier rationale, steps or target evidence, and
+  its Signal identity cannot approve, dismiss, snooze or reopen the controller.
+- Exact deterministic pre-ledger investigations may be adopted lazily when the
+  same issue is observed again. Adoption requires the supported terminal Run,
+  source Signal, template keys, complete direct graph and exact template Action;
+  unrelated same-page graphs and extra Actions do not qualify.
+- Deleting a suppressed Signal removes only its own decision. A controller is
+  retained while other Signals depend on it; whole-project deletion continues
+  to remove the complete project graph.
+
+### Consequence
+
+Repeating a manual priority-page check preserves fresh evidence without filling
+review and Work surfaces with another suggestion for the same issue. Dismissal,
+snooze and accepted work now influence later generation without introducing a
+new service, database, provider call, credential, model or scheduler.
+
+### Deferred
+
+Controller release after material evidence change or completed/evaluated work,
+cooldowns, automatic snooze wake-up, dismissed-item restoration, cross-detector
+deduplication and semantic URL matching require a separately reviewed,
+versioned policy.

@@ -68,7 +68,19 @@ const recommendationStatus = z.enum([
   "superseded",
 ]);
 const canonicalTimestamp = z.string().datetime({ offset: true });
-const growthInvestigationViewBaseSchema = z.strictObject({
+export const GROWTH_INVESTIGATION_SUPPRESSION_REASONS = [
+  "existing_proposal",
+  "existing_snooze",
+  "prior_dismissal",
+  "existing_action",
+  "accepted_without_action",
+  "resolved_recommendation",
+] as const;
+export type GrowthInvestigationSuppressionReason =
+  (typeof GROWTH_INVESTIGATION_SUPPRESSION_REASONS)[number];
+
+const growthInvestigationControllerViewSchema = z.strictObject({
+  relationship: z.literal("controller"),
   recommendationId: id,
   title: z.string().min(1).max(300),
   rationale: z.string().min(1).max(5000),
@@ -83,8 +95,24 @@ const growthInvestigationViewBaseSchema = z.strictObject({
   templateVersion: z.string().min(1).max(100),
 });
 
-export const growthInvestigationViewSchema =
-  growthInvestigationViewBaseSchema.superRefine((value, context) => {
+const growthInvestigationSuppressedViewSchema = z.strictObject({
+  relationship: z.literal("suppressed"),
+  recommendationId: id,
+  title: z.string().min(1).max(300),
+  status: recommendationStatus,
+  suppressionReason: z.enum(GROWTH_INVESTIGATION_SUPPRESSION_REASONS),
+  policyVersion: z.string().min(1).max(100),
+  actionId: id.nullable(),
+  dueOn: calendarDate.nullable(),
+});
+
+export const growthInvestigationViewSchema = z
+  .discriminatedUnion("relationship", [
+    growthInvestigationControllerViewSchema,
+    growthInvestigationSuppressedViewSchema,
+  ])
+  .superRefine((value, context) => {
+    if (value.relationship !== "controller") return;
     if (value.status === "dismissed" && value.dismissalReason === null)
       context.addIssue({
         code: "custom",

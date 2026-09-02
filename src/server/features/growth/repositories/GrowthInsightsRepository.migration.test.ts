@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 const legacyMigration = readFileSync("drizzle/0044_glossy_komodo.sql", "utf8");
 const insightMigrations = [
   readFileSync("drizzle/0045_mean_retro_girl.sql", "utf8"),
+  readFileSync("drizzle/0052_lethal_brother_voodoo.sql", "utf8"),
 ];
 const insightMigrationSql = insightMigrations.join("\n");
 const factHash = "a".repeat(64);
@@ -179,6 +180,64 @@ beforeEach(async () => {
 afterEach(() => client.close());
 
 describe("Growth Insights and Recommendations D1 migrations", () => {
+  it("adds a project-qualified immutable Signal decision ledger", async () => {
+    await insertRecommendation({
+      id: "recommendation_1",
+      projectId: "project_1",
+      runId: "run_1",
+    });
+    await client.execute(`INSERT INTO growth_recommendation_signal_links
+      (project_id, signal_run_id, signal_id, dedupe_key, recommendation_id,
+       relationship, suppression_reason, policy_version)
+      VALUES ('project_1', 'run_1', 'signal_1', '${"d".repeat(64)}',
+        'recommendation_1', 'controller', NULL, 'priority-page-v1')`);
+    await expect(
+      client.execute(`INSERT INTO growth_recommendation_signal_links
+        (project_id, signal_run_id, signal_id, dedupe_key, recommendation_id,
+         relationship, suppression_reason, policy_version)
+        VALUES ('project_1', 'run_2', 'signal_2', '${"d".repeat(64)}',
+        'recommendation_1', 'controller', NULL, 'priority-page-v1')`),
+    ).rejects.toThrow();
+    await expect(
+      client.execute(`INSERT INTO growth_recommendation_signal_links
+        (project_id, signal_run_id, signal_id, dedupe_key, recommendation_id,
+         relationship, suppression_reason, policy_version)
+        VALUES ('project_1', 'run_2', 'signal_2', '${"d".repeat(64)}',
+        'recommendation_1', 'suppressed', NULL, 'priority-page-v1')`),
+    ).rejects.toThrow();
+    await client.execute(`INSERT INTO growth_recommendation_signal_links
+      (project_id, signal_run_id, signal_id, dedupe_key, recommendation_id,
+       relationship, suppression_reason, policy_version)
+      VALUES ('project_1', 'run_2', 'signal_2', '${"d".repeat(64)}',
+        'recommendation_1', 'suppressed', 'existing_proposal',
+        'priority-page-v1')`);
+    await expect(
+      client.execute(`DELETE FROM growth_recommendations
+        WHERE project_id = 'project_1' AND id = 'recommendation_1'`),
+    ).rejects.toThrow();
+    await expect(
+      client.execute(`DELETE FROM growth_runs
+        WHERE project_id = 'project_1' AND id = 'run_1'`),
+    ).rejects.toThrow();
+    await client.execute(`DELETE FROM growth_signals
+      WHERE project_id = 'project_1' AND run_id = 'run_2' AND id = 'signal_2'`);
+    expect(
+      await countRows(
+        "growth_recommendation_signal_links",
+        "project_id = 'project_1'",
+      ),
+    ).toBe(1);
+    await expect(
+      client.execute("DELETE FROM projects WHERE id = 'project_1'"),
+    ).resolves.toBeDefined();
+    expect(
+      await countRows(
+        "growth_recommendation_signal_links",
+        "project_id = 'project_1'",
+      ),
+    ).toBe(0);
+  });
+
   it("preserves populated Signals and adds the exact composite parent index without a rebuild", async () => {
     expect(insightMigrationSql).not.toMatch(
       /\b(?:DROP|ALTER)\s+TABLE\s+[`"]?growth_signals\b|\bRENAME\s+(?:TABLE\s+)?[`"]?growth_signals\b/i,

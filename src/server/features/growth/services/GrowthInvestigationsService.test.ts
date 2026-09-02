@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- one shared fixture keeps controller and suppressed projections auditable together */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "@/server/lib/errors";
 
@@ -5,6 +6,7 @@ const repositories = vi.hoisted(() => ({
   getSignal: vi.fn(),
   getRun: vi.fn(),
   findRecommendationForSignal: vi.fn(),
+  getDecisionControllerSource: vi.fn(),
   getActionByKey: vi.fn(),
   getActionGraph: vi.fn(),
   getRecommendationSource: vi.fn(),
@@ -14,6 +16,7 @@ const repositories = vi.hoisted(() => ({
 }));
 const services = vi.hoisted(() => ({
   getRecommendation: vi.fn(),
+  getInsight: vi.fn(),
   reviewRecommendation: vi.fn(),
   createAction: vi.fn(),
   approveProposedRecommendation: vi.fn(),
@@ -31,6 +34,11 @@ vi.mock("../repositories/GrowthInsightsRepository", () => ({
     findRecommendationForSignal: repositories.findRecommendationForSignal,
   },
 }));
+vi.mock("../repositories/GrowthOpportunityDecisionsRepository", () => ({
+  GrowthOpportunityDecisionsRepository: {
+    getDecisionControllerSource: repositories.getDecisionControllerSource,
+  },
+}));
 vi.mock("../repositories/GrowthActionsRepository", () => ({
   GrowthActionsRepository: {
     getActionByKey: repositories.getActionByKey,
@@ -44,6 +52,7 @@ vi.mock("../repositories/GrowthActionsRepository", () => ({
 vi.mock("./GrowthInsightsService", () => ({
   GrowthInsightsService: {
     getRecommendation: services.getRecommendation,
+    getInsight: services.getInsight,
     reviewRecommendation: services.reviewRecommendation,
   },
 }));
@@ -70,6 +79,7 @@ const run = {
   runType: "manual_analysis",
   cadenceSlot: "priority-page-check:one",
   detectorVersion: "priority-page-click-decline-v1",
+  analysisVersion: "priority-page-investigation-v1",
   status: "completed",
 };
 const graph = {
@@ -81,11 +91,21 @@ const graph = {
     snoozedUntil: null,
     title: "Investigate declining search clicks",
     rationale: "Cause is unknown.",
+    creationKey: "priority-page-investigation-v1:recommendation:signal_1",
+    category: "investigation",
   },
+  insightIds: ["insight_1"],
   targets: [
     { targetType: "url" as const, targetValue: "https://example.com/pricing" },
   ],
   steps: [{ position: 0, content: "Review saved evidence." }],
+};
+const insightGraph = {
+  insight: {
+    id: "insight_1",
+    creationKey: "priority-page-investigation-v1:insight:signal_1",
+  },
+  signalIds: ["signal_1"],
 };
 const action = {
   id: "action_1",
@@ -106,7 +126,9 @@ beforeEach(() => {
     id: "recommendation_1",
     runId: "run_1",
   });
+  repositories.getDecisionControllerSource.mockResolvedValue(null);
   services.getRecommendation.mockResolvedValue(graph);
+  services.getInsight.mockResolvedValue(insightGraph);
   repositories.getRecommendationSource.mockResolvedValue({ runId: "run_1" });
   repositories.getActionGraph.mockResolvedValue({
     action,
@@ -126,12 +148,16 @@ beforeEach(() => {
   services.transitionAction.mockResolvedValue({ action, event: {} });
 });
 
+// The cases intentionally share strict graph mocks so projection and mutation
+// authorization cannot drift between controller and suppressed identities.
+// eslint-disable-next-line max-lines-per-function
 describe("GrowthInvestigationsService", () => {
   it("reads only the saved, same-run template suggestion", async () => {
     repositories.getActionByKey.mockResolvedValue(null);
     await expect(
       GrowthInvestigationsService.getInvestigation("project_1", "signal_1"),
     ).resolves.toMatchObject({
+      relationship: "controller",
       recommendationId: "recommendation_1",
       status: "proposed",
       displayUrls: ["https://example.com/pricing"],
@@ -140,6 +166,84 @@ describe("GrowthInvestigationsService", () => {
       dismissalReason: null,
       snoozedUntil: null,
     });
+  });
+
+  it("projects a repeated Signal through its controller without old evidence", async () => {
+    const controllerSignal = {
+      ...signal,
+      id: "signal_controller",
+      runId: "run_controller",
+    };
+    const controllerRun = { ...run, id: "run_controller" };
+    repositories.getSignal.mockImplementation(async (_projectId, signalId) =>
+      signalId === controllerSignal.id ? controllerSignal : signal,
+    );
+    repositories.getRun.mockImplementation(async (_projectId, runId) =>
+      runId === controllerRun.id ? controllerRun : run,
+    );
+    repositories.getDecisionControllerSource.mockResolvedValue({
+      relationship: "suppressed",
+      recommendationId: "recommendation_1",
+      controllerRunId: controllerRun.id,
+      controllerSignalId: controllerSignal.id,
+      suppressionReason: "existing_action",
+      policyVersion: "priority-page-repeat-suppression-v1",
+      controllerReleasedAt: null,
+    });
+    services.getRecommendation.mockResolvedValue({
+      ...graph,
+      recommendation: {
+        ...graph.recommendation,
+        creationKey:
+          "priority-page-investigation-v1:recommendation:signal_controller",
+      },
+    });
+    services.getInsight.mockResolvedValue({
+      insight: {
+        ...insightGraph.insight,
+        creationKey: "priority-page-investigation-v1:insight:signal_controller",
+      },
+      signalIds: [controllerSignal.id],
+    });
+    repositories.getActionByKey.mockResolvedValue(action);
+
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", "signal_1"),
+    ).resolves.toEqual({
+      relationship: "suppressed",
+      recommendationId: "recommendation_1",
+      title: "Investigate declining search clicks",
+      status: "proposed",
+      suppressionReason: "existing_action",
+      policyVersion: "priority-page-repeat-suppression-v1",
+      actionId: "action_1",
+      dueOn: "2026-09-01",
+    });
+    expect(repositories.getActionByKey).toHaveBeenCalledWith(
+      "project_1",
+      "priority-page-investigation-v1:action:signal_controller",
+    );
+  });
+
+  it("rejects approval through a suppressed Signal identity", async () => {
+    repositories.getDecisionControllerSource.mockResolvedValue({
+      relationship: "suppressed",
+      recommendationId: "recommendation_1",
+      controllerRunId: "run_1",
+      controllerSignalId: "signal_1",
+      suppressionReason: "existing_proposal",
+      policyVersion: "priority-page-repeat-suppression-v1",
+      controllerReleasedAt: null,
+    });
+    await expect(
+      GrowthInvestigationsService.approveInvestigation({
+        projectId: "project_1",
+        signalId: "signal_1",
+        dueOn: "2026-09-01",
+        actorId: "user_1",
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(services.approveProposedRecommendation).not.toHaveBeenCalled();
   });
 
   it("returns an identical existing action without changing its actor or due date", async () => {

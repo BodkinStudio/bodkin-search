@@ -3,6 +3,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { withPgClient as withPgClientExport } from "@/db";
 import type { GrowthInsightsRepository as RepositoryExport } from "./GrowthInsightsRepository";
+import type { GrowthOpportunityDecisionsRepository as DecisionsExport } from "./GrowthOpportunityDecisionsRepository";
 
 const testUrl = process.env.TEST_POSTGRES_DATABASE_URL;
 
@@ -14,10 +15,12 @@ vi.mock("cloudflare:workers", () => ({
 }));
 
 type Repository = typeof RepositoryExport;
+type Decisions = typeof DecisionsExport;
 type WithPgClient = typeof withPgClientExport;
 
 let sql: ReturnType<typeof postgres>;
 let GrowthInsightsRepository: Repository;
+let GrowthOpportunityDecisionsRepository: Decisions;
 let withPgClient: WithPgClient;
 
 const describePostgres = testUrl ? describe : describe.skip;
@@ -116,17 +119,476 @@ async function seedRecommendation(input: {
   `;
 }
 
+const legacySteps = [
+  {
+    position: 0,
+    content: "Review saved Search Console page and query evidence.",
+  },
+  {
+    position: 1,
+    content: "Inspect known changes and indexing signals for the target page.",
+  },
+  {
+    position: 2,
+    content:
+      "Decide whether a website change is warranted before proposing one.",
+  },
+];
+
+async function seedLegacyPriorityPageGraph(input: {
+  projectId: string;
+  runId: string;
+  signalId: string;
+  insightId: string;
+  recommendationId: string;
+  keyPageId: string;
+  suffix: string;
+}) {
+  await sql`
+    INSERT INTO growth_runs (
+      id, project_id, run_type, trigger, status, cadence_slot, period_start,
+      period_end, started_at, completed_at, detector_version, analysis_version
+    ) VALUES (
+      ${input.runId}, ${input.projectId}, 'manual_analysis', 'manual',
+      'completed', ${`priority-page-check:legacy:${input.suffix}`},
+      '2026-07-01', '2026-07-28', '2026-07-29T10:00:00.000Z',
+      '2026-07-29T10:01:00.000Z', 'priority-page-click-decline-v1',
+      'priority-page-investigation-v1'
+    )
+  `;
+  await sql`
+    INSERT INTO growth_signals (
+      id, project_id, run_id, signal_type, entity_type, entity_ref, metric,
+      severity, confidence, period_start, period_end, baseline_value,
+      current_value, delta_value, evidence_kind, evidence_ref, captured_at
+    ) VALUES (
+      ${input.signalId}, ${input.projectId}, ${input.runId},
+      'priority_page_click_decline', 'key_page', ${input.keyPageId},
+      'gsc_clicks', 'warning', 0.8, '2026-07-01', '2026-07-28', 20, 10,
+      -10, 'gsc_period', ${`gsc:legacy:${input.suffix}`},
+      '2026-07-29T10:00:00.000Z'
+    )
+  `;
+  await sql`
+    INSERT INTO growth_insights (
+      id, project_id, run_id, creation_key, fact_hash, title, explanation,
+      hypothesis, confidence
+    ) VALUES (
+      ${input.insightId}, ${input.projectId}, ${input.runId},
+      ${`priority-page-investigation-v1:insight:${input.signalId}`},
+      ${"a".repeat(64)}, 'Observed decline', 'Clicks fell.', 'Cause unknown.', 0
+    )
+  `;
+  await sql`
+    INSERT INTO growth_insight_signals
+      (project_id, run_id, insight_id, signal_id)
+    VALUES (${input.projectId}, ${input.runId}, ${input.insightId}, ${input.signalId})
+  `;
+  await sql`
+    INSERT INTO growth_recommendations (
+      id, project_id, run_id, creation_key, fact_hash, title, rationale,
+      category, impact, commercial_relevance, effort, urgency, confidence,
+      priority_score, created_at
+    ) VALUES (
+      ${input.recommendationId}, ${input.projectId}, ${input.runId},
+      ${`priority-page-investigation-v1:recommendation:${input.signalId}`},
+      ${"b".repeat(64)}, 'Investigate decline', 'Cause unknown.',
+      'investigation', 1, 1, 1, 1, 0, 0, '2026-07-29T10:00:00.000Z'
+    )
+  `;
+  await sql`
+    INSERT INTO growth_recommendation_insights
+      (project_id, run_id, recommendation_id, insight_id)
+    VALUES (${input.projectId}, ${input.runId}, ${input.recommendationId}, ${input.insightId})
+  `;
+  await sql`
+    INSERT INTO growth_recommendation_targets
+      (project_id, run_id, recommendation_id, target_type, target_value)
+    VALUES (
+      ${input.projectId}, ${input.runId}, ${input.recommendationId}, 'url',
+      ${`https://example.com/${input.suffix}`}
+    )
+  `;
+  for (const step of legacySteps) {
+    await sql`
+      INSERT INTO growth_recommendation_steps
+        (project_id, run_id, recommendation_id, position, content)
+      VALUES (
+        ${input.projectId}, ${input.runId}, ${input.recommendationId},
+        ${step.position}, ${step.content}
+      )
+    `;
+  }
+}
+
+function priorityDecisionCandidate(input: {
+  projectId: string;
+  runId: string;
+  signalId: string;
+  suffix: string;
+  dedupeKey: string;
+}) {
+  const insightId = `decision_insight_${input.suffix}`;
+  return {
+    projectId: input.projectId,
+    signalRunId: input.runId,
+    signalId: input.signalId,
+    dedupeKey: input.dedupeKey,
+    policyVersion: "priority-page-repeat-suppression-v1",
+    insight: {
+      id: insightId,
+      projectId: input.projectId,
+      runId: input.runId,
+      creationKey: `template:insight:${input.signalId}`,
+      factHash: "a".repeat(64),
+      title: "Priority decline",
+      explanation: "Clicks fell.",
+      hypothesis: "Unknown cause.",
+      confidence: 0,
+      model: null,
+      promptVersion: null,
+      signalIds: [input.signalId],
+    },
+    recommendation: {
+      id: `decision_recommendation_${input.suffix}`,
+      projectId: input.projectId,
+      runId: input.runId,
+      creationKey: `template:recommendation:${input.signalId}`,
+      factHash: "b".repeat(64),
+      title: "Investigate decline",
+      rationale: "This deterministic investigation needs review.",
+      category: "investigation",
+      impact: 1,
+      commercialRelevance: 1,
+      effort: 1,
+      urgency: 1,
+      confidence: 0,
+      priorityScore: 0,
+      model: null,
+      promptVersion: null,
+      insightIds: [insightId],
+      targets: [
+        {
+          targetType: "url" as const,
+          targetValue: "https://example.com/pricing",
+        },
+      ],
+      steps: [{ position: 0, content: "Review saved evidence." }],
+    },
+  };
+}
+
+// This live-provider suite deliberately shares one migrated database connection
+// and sequential cleanup lifecycle so each dialect invariant remains visible.
+// eslint-disable-next-line max-lines-per-function
 describePostgres("GrowthInsightsRepository Postgres", () => {
   beforeAll(async () => {
     // TEST_POSTGRES_DATABASE_URL explicitly opts into a disposable migrated
     // OpenSEO database. This test never creates, drops, or migrates databases.
     sql = postgres(testUrl!, { max: 5 });
     ({ GrowthInsightsRepository } = await import("./GrowthInsightsRepository"));
+    ({ GrowthOpportunityDecisionsRepository } =
+      await import("./GrowthOpportunityDecisionsRepository"));
     ({ withPgClient } = await import("@/db"));
   });
 
   afterAll(async () => {
     if (testUrl) await sql.end({ timeout: 5 });
+  });
+
+  it("rejects a suppressed decision without its closed reason", async () => {
+    const suffix = crypto.randomUUID();
+    const organizationId = `growth_null_reason_org_${suffix}`;
+    const projectId = `growth_null_reason_project_${suffix}`;
+    const runId = `growth_null_reason_run_${suffix}`;
+    const signalId = `growth_null_reason_signal_${suffix}`;
+    const recommendationId = `growth_null_reason_recommendation_${suffix}`;
+    await seedProject(projectId, organizationId, suffix);
+    await seedRunAndSignal({ projectId, runId, signalId, suffix });
+    await seedRecommendation({ projectId, runId, recommendationId });
+    try {
+      await expect(sql`
+        INSERT INTO growth_recommendation_signal_links (
+          project_id, signal_run_id, signal_id, dedupe_key,
+          recommendation_id, relationship, suppression_reason, policy_version
+        ) VALUES (
+          ${projectId}, ${runId}, ${signalId}, ${"f".repeat(64)},
+          ${recommendationId}, 'suppressed', NULL,
+          'priority-page-repeat-suppression-v1'
+        )
+      `).rejects.toThrow();
+    } finally {
+      await sql`DELETE FROM projects WHERE id = ${projectId}`;
+      await sql`DELETE FROM organization WHERE id = ${organizationId}`;
+    }
+  });
+
+  it("races two Signal decisions to one controller without an orphan graph", async () => {
+    const suffix = crypto.randomUUID();
+    const organizationId = `growth_decision_org_${suffix}`;
+    const projectId = `growth_decision_project_${suffix}`;
+    const runA = `growth_decision_run_a_${suffix}`;
+    const runB = `growth_decision_run_b_${suffix}`;
+    const signalA = `growth_decision_signal_a_${suffix}`;
+    const signalB = `growth_decision_signal_b_${suffix}`;
+    await seedProject(projectId, organizationId, suffix);
+    await seedRunAndSignal({
+      projectId,
+      runId: runA,
+      signalId: signalA,
+      suffix: `${suffix}-a`,
+    });
+    await seedRunAndSignal({
+      projectId,
+      runId: runB,
+      signalId: signalB,
+      suffix: `${suffix}-b`,
+    });
+    const dedupeKey = "d".repeat(64);
+    const candidate = (runId: string, signalId: string) =>
+      priorityDecisionCandidate({
+        projectId,
+        runId,
+        signalId,
+        suffix,
+        dedupeKey,
+      });
+    try {
+      await Promise.all([
+        withPgClient(() =>
+          GrowthOpportunityDecisionsRepository.writeDecision(
+            candidate(runA, signalA),
+          ),
+        ),
+        withPgClient(() =>
+          GrowthOpportunityDecisionsRepository.writeDecision(
+            candidate(runB, signalB),
+          ),
+        ),
+      ]);
+      const [counts] = await sql<
+        [{ decisions: string; controllers: string; recommendations: string }]
+      >`
+        SELECT (SELECT count(*)::text FROM growth_recommendation_signal_links WHERE project_id = ${projectId}) AS decisions,
+          (SELECT count(*)::text FROM growth_recommendation_signal_links WHERE project_id = ${projectId} AND relationship = 'controller') AS controllers,
+          (SELECT count(*)::text FROM growth_recommendations WHERE project_id = ${projectId}) AS recommendations
+      `;
+      expect(counts).toEqual({
+        decisions: "2",
+        controllers: "1",
+        recommendations: "1",
+      });
+      await expect(sql`
+          DELETE FROM growth_recommendations
+          WHERE project_id = ${projectId}
+            AND id = ${`decision_recommendation_${suffix}`}
+        `).rejects.toThrow();
+      await expect(sql`
+          DELETE FROM growth_runs
+          WHERE project_id = ${projectId} AND id = ${runA}
+        `).rejects.toThrow();
+      await sql`
+          DELETE FROM growth_signals
+          WHERE project_id = ${projectId} AND run_id = ${runB} AND id = ${signalB}
+        `;
+      const [afterSuppressedDelete] = await sql<
+        [{ decisions: string; recommendations: string }]
+      >`
+          SELECT
+            (SELECT count(*)::text FROM growth_recommendation_signal_links WHERE project_id = ${projectId}) AS decisions,
+            (SELECT count(*)::text FROM growth_recommendations WHERE project_id = ${projectId}) AS recommendations
+        `;
+      expect(afterSuppressedDelete).toEqual({
+        decisions: "1",
+        recommendations: "1",
+      });
+      await sql`DELETE FROM projects WHERE id = ${projectId}`;
+      const [afterProjectDelete] = await sql<{ decisions: string }[]>`
+          SELECT count(*)::text AS decisions
+          FROM growth_recommendation_signal_links
+          WHERE project_id = ${projectId}
+        `;
+      expect(afterProjectDelete?.decisions).toBe("0");
+    } finally {
+      await sql`DELETE FROM projects WHERE id = ${projectId}`;
+      await sql`DELETE FROM organization WHERE id = ${organizationId}`;
+    }
+  });
+
+  it("lets a terminal Run win without leaving an orphan decision graph", async () => {
+    const suffix = crypto.randomUUID();
+    const organizationId = `growth_terminal_decision_org_${suffix}`;
+    const projectId = `growth_terminal_decision_project_${suffix}`;
+    const runId = `growth_terminal_decision_run_${suffix}`;
+    const signalId = `growth_terminal_decision_signal_${suffix}`;
+    await seedProject(projectId, organizationId, suffix);
+    await seedRunAndSignal({ projectId, runId, signalId, suffix });
+
+    let releaseTerminal = noop;
+    try {
+      const terminalReleased = new Promise<void>((resolve) => {
+        releaseTerminal = resolve;
+      });
+      let terminalLocked!: () => void;
+      const terminalHasLock = new Promise<void>((resolve) => {
+        terminalLocked = resolve;
+      });
+      const terminal = sql.begin(async (tx) => {
+        await tx`
+          UPDATE growth_runs
+          SET status = 'completed', completed_at = '2026-08-29T10:01:00.000Z'
+          WHERE id = ${runId} AND project_id = ${projectId} AND status = 'running'
+        `;
+        terminalLocked();
+        await terminalReleased;
+      });
+      await terminalHasLock;
+      const decision = withPgClient(() =>
+        GrowthOpportunityDecisionsRepository.writeDecision(
+          priorityDecisionCandidate({
+            projectId,
+            runId,
+            signalId,
+            suffix,
+            dedupeKey: "c".repeat(64),
+          }),
+        ),
+      );
+      void decision.catch(noop);
+      await waitForBlockedGrowthRunLock(runId);
+      releaseTerminal();
+      await terminal;
+      await decision;
+
+      const [counts] = await sql<
+        [{ insights: string; recommendations: string; decisions: string }]
+      >`
+        SELECT
+          (SELECT count(*)::text FROM growth_insights WHERE project_id = ${projectId}) AS insights,
+          (SELECT count(*)::text FROM growth_recommendations WHERE project_id = ${projectId}) AS recommendations,
+          (SELECT count(*)::text FROM growth_recommendation_signal_links WHERE project_id = ${projectId}) AS decisions
+      `;
+      expect(counts).toEqual({
+        insights: "0",
+        recommendations: "0",
+        decisions: "0",
+      });
+    } finally {
+      releaseTerminal();
+      await sql`DELETE FROM projects WHERE id = ${projectId}`;
+      await sql`DELETE FROM organization WHERE id = ${organizationId}`;
+    }
+  }, 15_000);
+
+  it("adopts and replays an exact legacy controller on PostgreSQL", async () => {
+    const suffix = crypto.randomUUID();
+    const organizationId = `growth_legacy_org_${suffix}`;
+    const projectId = `growth_legacy_project_${suffix}`;
+    const legacyRunId = `growth_legacy_run_${suffix}`;
+    const legacySignalId = `growth_legacy_signal_${suffix}`;
+    const legacyInsightId = `growth_legacy_insight_${suffix}`;
+    const legacyRecommendationId = `growth_legacy_recommendation_${suffix}`;
+    const currentRunId = `growth_legacy_current_run_${suffix}`;
+    const currentSignalId = `growth_legacy_current_signal_${suffix}`;
+    const keyPageId = `growth_legacy_key_page_${suffix}`;
+    await seedProject(projectId, organizationId, suffix);
+    await seedLegacyPriorityPageGraph({
+      projectId,
+      runId: legacyRunId,
+      signalId: legacySignalId,
+      insightId: legacyInsightId,
+      recommendationId: legacyRecommendationId,
+      keyPageId,
+      suffix,
+    });
+    await seedRunAndSignal({
+      projectId,
+      runId: currentRunId,
+      signalId: currentSignalId,
+      suffix: `current-${suffix}`,
+    });
+    try {
+      const legacy = await withPgClient(() =>
+        GrowthOpportunityDecisionsRepository.findLegacyPriorityPageController(
+          projectId,
+          keyPageId,
+          legacySteps,
+        ),
+      );
+      expect(legacy).toEqual({
+        recommendationId: legacyRecommendationId,
+        signalRunId: legacyRunId,
+        signalId: legacySignalId,
+      });
+      const candidateInsightId = `growth_legacy_candidate_insight_${suffix}`;
+      await withPgClient(() =>
+        GrowthOpportunityDecisionsRepository.writeDecision({
+          projectId,
+          signalRunId: currentRunId,
+          signalId: currentSignalId,
+          dedupeKey: "e".repeat(64),
+          policyVersion: "priority-page-repeat-suppression-v1",
+          legacyController: { ...legacy, keyPageId },
+          insight: {
+            id: candidateInsightId,
+            projectId,
+            runId: currentRunId,
+            creationKey: `priority-page-investigation-v1:insight:${currentSignalId}`,
+            factHash: "c".repeat(64),
+            title: "Observed decline",
+            explanation: "Clicks fell.",
+            hypothesis: "Cause unknown.",
+            confidence: 0,
+            model: null,
+            promptVersion: null,
+            signalIds: [currentSignalId],
+          },
+          recommendation: {
+            id: `growth_legacy_candidate_recommendation_${suffix}`,
+            projectId,
+            runId: currentRunId,
+            creationKey: `priority-page-investigation-v1:recommendation:${currentSignalId}`,
+            factHash: "d".repeat(64),
+            title: "Investigate decline",
+            rationale: "Cause unknown.",
+            category: "investigation",
+            impact: 1,
+            commercialRelevance: 1,
+            effort: 1,
+            urgency: 1,
+            confidence: 0,
+            priorityScore: 0,
+            model: null,
+            promptVersion: null,
+            insightIds: [candidateInsightId],
+            targets: [
+              {
+                targetType: "url",
+                targetValue: `https://example.com/${suffix}`,
+              },
+            ],
+            steps: legacySteps,
+          },
+        }),
+      );
+      await expect(
+        withPgClient(() =>
+          GrowthOpportunityDecisionsRepository.getDecisionControllerSource(
+            projectId,
+            currentRunId,
+            currentSignalId,
+          ),
+        ),
+      ).resolves.toMatchObject({
+        relationship: "suppressed",
+        recommendationId: legacyRecommendationId,
+        controllerRunId: legacyRunId,
+        controllerSignalId: legacySignalId,
+      });
+    } finally {
+      await sql`DELETE FROM projects WHERE id = ${projectId}`;
+      await sql`DELETE FROM organization WHERE id = ${organizationId}`;
+    }
   });
 
   it("creates complete normalized graphs and keeps concurrent drift out of the winner", async () => {

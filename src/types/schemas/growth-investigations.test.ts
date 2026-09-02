@@ -12,6 +12,7 @@ const request = {
 };
 
 const view = {
+  relationship: "controller" as const,
   recommendationId: "recommendation_1",
   title: "Investigate declining clicks",
   rationale: "The saved evidence shows a decline, but not its cause.",
@@ -103,6 +104,34 @@ describe("Growth investigation schemas", () => {
         }),
       ).toThrow();
     }
+  });
+
+  it("keeps a covered view strict and excludes the controller's old evidence", () => {
+    const covered = {
+      relationship: "suppressed" as const,
+      recommendationId: "recommendation_1",
+      title: "Investigate declining clicks",
+      status: "accepted" as const,
+      suppressionReason: "existing_action" as const,
+      policyVersion: "priority-page-repeat-suppression-v1",
+      actionId: "action_1",
+      dueOn: "2026-09-04",
+    };
+    expect(growthInvestigationViewSchema.parse(covered)).toEqual(covered);
+    for (const staleField of ["rationale", "steps", "displayUrls"]) {
+      expect(() =>
+        growthInvestigationViewSchema.parse({
+          ...covered,
+          [staleField]: staleField === "steps" ? ["Old step"] : "Old fact",
+        }),
+      ).toThrow();
+    }
+    expect(() =>
+      growthInvestigationViewSchema.parse({
+        ...covered,
+        suppressionReason: "future_reason",
+      }),
+    ).toThrow();
   });
 
   it("requires canonical review metadata only for its matching status", () => {

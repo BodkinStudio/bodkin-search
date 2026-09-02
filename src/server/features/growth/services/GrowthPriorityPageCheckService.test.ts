@@ -1,8 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { priorityPageInvestigationTemplate } from "./GrowthInvestigationTemplate";
-
-type TemplateInput = Parameters<typeof priorityPageInvestigationTemplate>[0];
-
 const mocks = vi.hoisted(() => ({
   connection: vi.fn(),
   keyPages: vi.fn(),
@@ -19,10 +15,9 @@ const mocks = vi.hoisted(() => ({
   getSignal: vi.fn(),
   getRunBySlot: vi.fn(),
   assemble: vi.fn(),
-  createInsight: vi.fn(),
-  createRecommendation: vi.fn(),
+  recordDecision: vi.fn(),
+  getDecision: vi.fn(),
   setAnalysisVersion: vi.fn(),
-  template: vi.fn(),
 }));
 vi.mock("@/server/features/gsc/repositories/GscConnectionRepository", () => ({
   GscConnectionRepository: { getByProjectId: mocks.connection },
@@ -61,15 +56,14 @@ vi.mock("./PriorityPageClickDeclineDetector", () => ({
 vi.mock("./GrowthEvidencePacketService", () => ({
   assembleGrowthEvidencePacket: mocks.assemble,
 }));
-vi.mock("./GrowthInsightsService", () => ({
-  GrowthInsightsService: {
-    createInsight: mocks.createInsight,
-    createRecommendation: mocks.createRecommendation,
+vi.mock("./GrowthOpportunityDecisionsService", () => ({
+  GrowthOpportunityDecisionsService: {
+    recordPriorityPageInvestigation: mocks.recordDecision,
+    getDecision: mocks.getDecision,
   },
 }));
 vi.mock("./GrowthInvestigationTemplate", () => ({
   GROWTH_INVESTIGATION_TEMPLATE_VERSION: "priority-page-investigation-v1",
-  priorityPageInvestigationTemplate: mocks.template,
 }));
 
 import {
@@ -102,12 +96,9 @@ beforeEach(() => {
   mocks.getRun.mockResolvedValue(running);
   mocks.listSignals.mockResolvedValue([]);
   mocks.getRunBySlot.mockResolvedValue(null);
-  mocks.createInsight.mockResolvedValue({ insight: { id: "insight_1" } });
+  mocks.recordDecision.mockResolvedValue({ relationship: "controller" });
+  mocks.getDecision.mockResolvedValue(null);
   mocks.setAnalysisVersion.mockResolvedValue(running);
-  mocks.template.mockImplementation(({ keyPage }: TemplateInput) => ({
-    insight: { keyPage },
-    recommendation: { keyPage },
-  }));
 });
 
 describe("Growth priority-page checks", () => {
@@ -140,7 +131,7 @@ describe("Growth priority-page checks", () => {
       projectId: "project_1",
       requestKey: "snapshot_1",
     });
-    expect(mocks.template).toHaveBeenCalledWith(
+    expect(mocks.recordDecision).toHaveBeenCalledWith(
       expect.objectContaining({
         // oxlint-disable-next-line typescript/no-unsafe-assignment -- Vitest asymmetric matcher is intentionally nested.
         keyPage: expect.objectContaining({
@@ -219,7 +210,6 @@ describe("Growth priority-page checks", () => {
     expect(mocks.completeErrors).toHaveBeenCalledWith(
       expect.objectContaining({ failureCode: "INCOMPLETE_SOURCE_DATA" }),
     );
-
     mocks.collect.mockRejectedValue(
       new Error("Bearer secret-provider-payload"),
     );
@@ -235,6 +225,92 @@ describe("Growth priority-page checks", () => {
       requestKey: "retry_2",
     });
     expect(failed.run.failureMessage).not.toContain("secret-provider-payload");
+  });
+
+  it("keeps a durably committed decision terminal when its service reread fails", async () => {
+    mocks.collect.mockResolvedValue({
+      keyPages: [
+        { id: "key_1", url: "https://example.test/one", commercialWeight: 1 },
+      ],
+    });
+    mocks.detect.mockResolvedValue([
+      {
+        status: "signal",
+        signal: {
+          id: "signal_1",
+          entityRef: "key_1",
+          signalType: "priority_page_click_decline",
+        },
+      },
+    ]);
+    mocks.record.mockResolvedValue({ id: "signal_1", entityRef: "key_1" });
+    mocks.recordDecision.mockRejectedValue(new Error("reread failed"));
+    mocks.getDecision.mockResolvedValue({ relationship: "controller" });
+    mocks.completeErrors.mockResolvedValue({
+      ...running,
+      status: "completed_with_errors",
+      failureCode: "INVESTIGATION_GENERATION_FAILED",
+      failureMessage: "safe",
+    });
+    await GrowthPriorityPageCheckService.runCheck({
+      projectId: "project_1",
+      requestKey: "durable_1",
+    });
+    expect(mocks.completeErrors).toHaveBeenCalled();
+    expect(mocks.fail).not.toHaveBeenCalled();
+    expect(mocks.setAnalysisVersion).toHaveBeenCalled();
+  });
+
+  it("keeps a partially decided Run readable when a later decision fails", async () => {
+    mocks.collect.mockResolvedValue({
+      keyPages: [
+        { id: "key_1", url: "https://example.test/one", commercialWeight: 1 },
+        { id: "key_2", url: "https://example.test/two", commercialWeight: 1 },
+      ],
+    });
+    mocks.detect.mockResolvedValue([
+      {
+        status: "signal",
+        signal: {
+          id: "signal_1",
+          entityRef: "key_1",
+          signalType: "priority_page_click_decline",
+        },
+      },
+      {
+        status: "signal",
+        signal: {
+          id: "signal_2",
+          entityRef: "key_2",
+          signalType: "priority_page_click_decline",
+        },
+      },
+    ]);
+    mocks.record
+      .mockResolvedValueOnce({ id: "signal_1", entityRef: "key_1" })
+      .mockResolvedValueOnce({ id: "signal_2", entityRef: "key_2" });
+    mocks.recordDecision
+      .mockResolvedValueOnce({ relationship: "controller" })
+      .mockRejectedValueOnce(new Error("write failed"));
+    mocks.completeErrors.mockResolvedValue({
+      ...running,
+      status: "completed_with_errors",
+      completedAt: "2026-08-01T00:01:00.000Z",
+      failureCode: "INVESTIGATION_GENERATION_FAILED",
+      failureMessage: "safe",
+    });
+    await expect(
+      GrowthPriorityPageCheckService.runCheck({
+        projectId: "project_1",
+        requestKey: "partial_1",
+      }),
+    ).resolves.toMatchObject({ run: { status: "completed_with_errors" } });
+    expect(mocks.completeErrors).toHaveBeenCalledWith(
+      expect.objectContaining({
+        failureCode: "INVESTIGATION_GENERATION_FAILED",
+      }),
+    );
+    expect(mocks.fail).not.toHaveBeenCalled();
   });
 
   it("replays a duplicate claim without collecting again", async () => {
