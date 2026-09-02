@@ -2,7 +2,30 @@ import { sha256Hex } from "@/server/lib/audit/ids";
 import type { GrowthInvestigationSuppressionReason } from "@/types/schemas/growth-investigations";
 
 export const PRIORITY_PAGE_OPPORTUNITY_POLICY_VERSION =
-  "priority-page-repeat-suppression-v1";
+  "priority-page-repeat-suppression-v2";
+
+export function priorityPageControllerCycleKey(
+  priorControllerRecommendationId: string | null,
+) {
+  return priorControllerRecommendationId ?? "initial-controller";
+}
+
+/**
+ * A new captured Signal may open the next cycle only when both stored values
+ * are valid instants and the Signal is strictly later than evaluation.
+ */
+export function isPriorityPageControllerReleasable(input: {
+  capturedAt: string;
+  evaluatedAt: string | null;
+  actionStatus: string | null;
+}) {
+  if (input.actionStatus !== "evaluated" || !input.evaluatedAt) return false;
+  const capturedAt = new Date(input.capturedAt);
+  const evaluatedAt = new Date(input.evaluatedAt);
+  if (Number.isNaN(capturedAt.getTime()) || Number.isNaN(evaluatedAt.getTime()))
+    return false;
+  return capturedAt.getTime() > evaluatedAt.getTime();
+}
 
 const priorityPageOpportunityCoordinate = (input: {
   projectId: string;

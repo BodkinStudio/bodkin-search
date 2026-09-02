@@ -14,6 +14,7 @@ import {
   growthRecommendations,
   growthRuns,
   growthSignals,
+  growthActions,
 } from "@/db/schema";
 import type {
   InsightWrite,
@@ -39,6 +40,11 @@ type DecisionWrite = {
     signalRunId: string;
     signalId: string;
     keyPageId: string;
+  } | null;
+  releaseController?: {
+    recommendationId: string;
+    signalRunId: string;
+    signalId: string;
   } | null;
 };
 
@@ -236,6 +242,36 @@ function runningSignalSource(
     );
 }
 
+function exactControllerActionReleasable(
+  tx: BatchExecutor,
+  input: DecisionWrite,
+  controller: NonNullable<DecisionWrite["releaseController"]>,
+) {
+  const candidateCapturedAt = sql`(SELECT captured_at FROM growth_signals candidate_signal WHERE candidate_signal.project_id = ${input.projectId} AND candidate_signal.run_id = ${input.signalRunId} AND candidate_signal.id = ${input.signalId})`;
+  const strictlyAfterEvaluation =
+    getDatabaseProvider() === "postgres"
+      ? sql`CASE WHEN pg_input_is_valid(${candidateCapturedAt}, 'timestamp with time zone') AND pg_input_is_valid(${growthActions.evaluatedAt}, 'timestamp with time zone') THEN (${candidateCapturedAt})::timestamptz > (${growthActions.evaluatedAt})::timestamptz ELSE FALSE END`
+      : sql`julianday(${candidateCapturedAt}) IS NOT NULL AND julianday(${growthActions.evaluatedAt}) IS NOT NULL AND julianday(${candidateCapturedAt}) > julianday(${growthActions.evaluatedAt})`;
+  return exists(
+    tx
+      .select({ value: sql<number>`1` })
+      .from(growthActions)
+      .where(
+        and(
+          eq(growthActions.projectId, input.projectId),
+          eq(growthActions.recommendationId, controller.recommendationId),
+          eq(
+            growthActions.creationKey,
+            `priority-page-investigation-v1:action:${controller.signalId}`,
+          ),
+          eq(growthActions.status, "evaluated"),
+          sql`${growthActions.evaluatedAt} IS NOT NULL`,
+          strictlyAfterEvaluation,
+        ),
+      ),
+  );
+}
+
 /**
  * Persist a candidate graph and its controller claim in one ordered atomic
  * batch. A competing candidate has deterministic parent ids, so it cannot
@@ -246,11 +282,94 @@ async function writeDecision(input: DecisionWrite) {
   const createdAt = new Date().toISOString();
   // eslint-disable-next-line max-lines-per-function -- the callback is the ordered cross-provider atomic batch
   await runBatch((tx) => {
+    // This must run before the conditional release. On PostgreSQL the share
+    // lock holds the accepted running source through the transaction, so a
+    // terminal Run transition cannot leave a released controller without its
+    // successor. D1 executes the equivalent running-state read first in the
+    // ordered atomic batch.
+    const candidateSource = runningSignalSource(tx, input, {
+      projectId: growthSignals.projectId,
+    });
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the provider guard proves this narrower Postgres builder surface
+    const postgresCandidateSource = candidateSource as unknown as {
+      for: (strength: "share") => typeof candidateSource;
+    };
+    const lockedCandidateSource =
+      getDatabaseProvider() === "postgres"
+        ? postgresCandidateSource.for("share")
+        : candidateSource;
+    const releaseController = input.releaseController
+      ? tx
+          .update(growthRecommendationSignalLinks)
+          .set({ controllerReleasedAt: createdAt })
+          .where(
+            and(
+              eq(growthRecommendationSignalLinks.projectId, input.projectId),
+              eq(growthRecommendationSignalLinks.dedupeKey, input.dedupeKey),
+              eq(growthRecommendationSignalLinks.relationship, "controller"),
+              eq(
+                growthRecommendationSignalLinks.recommendationId,
+                input.releaseController.recommendationId,
+              ),
+              eq(
+                growthRecommendationSignalLinks.signalRunId,
+                input.releaseController.signalRunId,
+              ),
+              eq(
+                growthRecommendationSignalLinks.signalId,
+                input.releaseController.signalId,
+              ),
+              sql`${growthRecommendationSignalLinks.controllerReleasedAt} IS NULL`,
+              exists(
+                runningSignalSource(tx, input, {
+                  projectId: growthSignals.projectId,
+                }),
+              ),
+              exactControllerActionReleasable(
+                tx,
+                input,
+                input.releaseController,
+              ),
+            ),
+          )
+      : null;
     const noController = sql`NOT ${activeController(tx, input)}`;
+    const releaseMarker = input.releaseController
+      ? exists(
+          tx
+            .select({ value: sql<number>`1` })
+            .from(growthRecommendationSignalLinks)
+            .where(
+              and(
+                eq(growthRecommendationSignalLinks.projectId, input.projectId),
+                eq(growthRecommendationSignalLinks.dedupeKey, input.dedupeKey),
+                eq(growthRecommendationSignalLinks.relationship, "controller"),
+                eq(
+                  growthRecommendationSignalLinks.recommendationId,
+                  input.releaseController.recommendationId,
+                ),
+                eq(
+                  growthRecommendationSignalLinks.signalRunId,
+                  input.releaseController.signalRunId,
+                ),
+                eq(
+                  growthRecommendationSignalLinks.signalId,
+                  input.releaseController.signalId,
+                ),
+                eq(
+                  growthRecommendationSignalLinks.controllerReleasedAt,
+                  createdAt,
+                ),
+              ),
+            ),
+        )
+      : null;
     const legacyEligible = qualifiedLegacyExists(tx, input);
-    const canCreateCandidate = legacyEligible
-      ? sql`${noController} AND NOT ${legacyEligible}`
-      : noController;
+    const canCreateCandidate = releaseMarker
+      ? sql`${releaseMarker} AND ${noController}`
+      : legacyEligible
+        ? sql`${noController} AND NOT ${legacyEligible}`
+        : noController;
     const source = tx
       .select({
         id: sql<string>`${input.insight.id}`.as("id"),
@@ -467,7 +586,7 @@ async function writeDecision(input: DecisionWrite) {
           .where(
             and(
               recommendationWhere,
-              noController,
+              canCreateCandidate,
               exists(
                 runningSignalSource(tx, input, {
                   projectId: growthSignals.projectId,
@@ -635,6 +754,8 @@ async function writeDecision(input: DecisionWrite) {
       )
       .onConflictDoNothing();
     return [
+      lockedCandidateSource,
+      ...(releaseController ? [releaseController] : []),
       insight,
       insightSignal,
       recommendation,
@@ -738,6 +859,82 @@ async function getSignalDecision(
   return row ?? null;
 }
 
+/**
+ * A bounded read used solely to choose deterministic ids for a possible next
+ * controller cycle. The later write rechecks all of these facts atomically.
+ */
+async function getActiveControllerReleasePreflight(
+  projectId: string,
+  dedupeKey: string,
+  signalRunId: string,
+  signalId: string,
+) {
+  const [controller, candidate] = await Promise.all([
+    db
+      .select({
+        recommendationId: growthRecommendationSignalLinks.recommendationId,
+        signalRunId: growthRecommendationSignalLinks.signalRunId,
+        signalId: growthRecommendationSignalLinks.signalId,
+        actionStatus: growthActions.status,
+        evaluatedAt: growthActions.evaluatedAt,
+      })
+      .from(growthRecommendationSignalLinks)
+      .leftJoin(
+        growthActions,
+        and(
+          eq(
+            growthActions.projectId,
+            growthRecommendationSignalLinks.projectId,
+          ),
+          eq(
+            growthActions.recommendationId,
+            growthRecommendationSignalLinks.recommendationId,
+          ),
+          sql`${growthActions.creationKey} = 'priority-page-investigation-v1:action:' || ${growthRecommendationSignalLinks.signalId}`,
+        ),
+      )
+      .where(
+        and(
+          eq(growthRecommendationSignalLinks.projectId, projectId),
+          eq(growthRecommendationSignalLinks.dedupeKey, dedupeKey),
+          eq(growthRecommendationSignalLinks.relationship, "controller"),
+          sql`${growthRecommendationSignalLinks.controllerReleasedAt} IS NULL`,
+        ),
+      )
+      .limit(1),
+    db
+      .select({ capturedAt: growthSignals.capturedAt })
+      .from(growthSignals)
+      .innerJoin(
+        growthRuns,
+        and(
+          eq(growthRuns.projectId, growthSignals.projectId),
+          eq(growthRuns.id, growthSignals.runId),
+        ),
+      )
+      .where(
+        and(
+          eq(growthSignals.projectId, projectId),
+          eq(growthSignals.runId, signalRunId),
+          eq(growthSignals.id, signalId),
+          eq(growthRuns.status, "running"),
+        ),
+      )
+      .limit(1),
+  ]);
+  const current = controller[0];
+  const signal = candidate[0];
+  if (!current || !signal) return null;
+  return {
+    recommendationId: current.recommendationId,
+    signalRunId: current.signalRunId,
+    signalId: current.signalId,
+    capturedAt: signal.capturedAt,
+    actionStatus: current.actionStatus,
+    evaluatedAt: current.evaluatedAt,
+  };
+}
+
 async function getDecisionControllerSource(
   projectId: string,
   signalRunId: string,
@@ -805,6 +1002,7 @@ async function listActiveControllerSources(
 
 export const GrowthOpportunityDecisionsRepository = {
   writeDecision,
+  getActiveControllerReleasePreflight,
   getSignalDecision,
   getDecisionControllerSource,
   listActiveControllerSources,

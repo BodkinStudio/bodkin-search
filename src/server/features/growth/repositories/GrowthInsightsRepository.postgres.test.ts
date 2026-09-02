@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { withPgClient as withPgClientExport } from "@/db";
 import type { GrowthInsightsRepository as RepositoryExport } from "./GrowthInsightsRepository";
 import type { GrowthOpportunityDecisionsRepository as DecisionsExport } from "./GrowthOpportunityDecisionsRepository";
+import type { GrowthOpportunityDecisionsService as DecisionsServiceExport } from "../services/GrowthOpportunityDecisionsService";
 
 const testUrl = process.env.TEST_POSTGRES_DATABASE_URL;
 
@@ -16,11 +17,13 @@ vi.mock("cloudflare:workers", () => ({
 
 type Repository = typeof RepositoryExport;
 type Decisions = typeof DecisionsExport;
+type DecisionsService = typeof DecisionsServiceExport;
 type WithPgClient = typeof withPgClientExport;
 
 let sql: ReturnType<typeof postgres>;
 let GrowthInsightsRepository: Repository;
 let GrowthOpportunityDecisionsRepository: Decisions;
+let GrowthOpportunityDecisionsService: DecisionsService;
 let withPgClient: WithPgClient;
 
 const describePostgres = testUrl ? describe : describe.skip;
@@ -98,6 +101,73 @@ async function seedRunAndSignal(input: {
       '2026-08-29T10:00:00.000Z'
     )
   `;
+}
+
+function eligiblePriorityPageSignal(input: {
+  projectId: string;
+  runId: string;
+  signalId: string;
+  keyPageId: string;
+  capturedAt: string;
+  suffix: string;
+}) {
+  return {
+    id: input.signalId,
+    projectId: input.projectId,
+    runId: input.runId,
+    signalType: "priority_page_click_decline" as const,
+    entityType: "key_page" as const,
+    entityRef: input.keyPageId,
+    metric: "gsc_clicks",
+    severity: "warning" as const,
+    confidence: 0.8,
+    periodStart: "2026-08-01",
+    periodEnd: "2026-08-28",
+    baselineValue: 20,
+    currentValue: 10,
+    deltaValue: -10,
+    deltaPercent: -50,
+    evidenceKind: "gsc_period" as const,
+    evidenceRef: `gsc:${input.suffix}`,
+    capturedAt: input.capturedAt,
+  };
+}
+
+async function seedEligiblePriorityPageSignal(input: {
+  projectId: string;
+  runId: string;
+  signalId: string;
+  keyPageId: string;
+  capturedAt: string;
+  suffix: string;
+}) {
+  const signal = eligiblePriorityPageSignal(input);
+  await sql`
+    INSERT INTO growth_runs (
+      id, project_id, run_type, trigger, status, cadence_slot, period_start,
+      period_end, started_at, detector_version
+    ) VALUES (
+      ${input.runId}, ${input.projectId}, 'manual_analysis', 'manual', 'running',
+      ${`priority-page-check:${input.suffix}`}, '2026-08-01', '2026-08-28',
+      '2026-08-29T10:00:00.000Z', 'priority-page-click-decline-v1'
+    )
+  `;
+  await sql`
+    INSERT INTO growth_signals (
+      id, project_id, run_id, signal_type, entity_type, entity_ref, metric,
+      severity, confidence, period_start, period_end, baseline_value,
+      current_value, delta_value, delta_percent, evidence_kind, evidence_ref,
+      captured_at
+    ) VALUES (
+      ${signal.id}, ${signal.projectId}, ${signal.runId}, ${signal.signalType},
+      ${signal.entityType}, ${signal.entityRef}, ${signal.metric},
+      ${signal.severity}, ${signal.confidence}, ${signal.periodStart},
+      ${signal.periodEnd}, ${signal.baselineValue}, ${signal.currentValue},
+      ${signal.deltaValue}, ${signal.deltaPercent}, ${signal.evidenceKind},
+      ${signal.evidenceRef}, ${signal.capturedAt}
+    )
+  `;
+  return signal;
 }
 
 async function seedRecommendation(input: {
@@ -278,6 +348,107 @@ function priorityDecisionCandidate(input: {
   };
 }
 
+async function seedPostgresControllerWithAction(input: {
+  projectId: string;
+  suffix: string;
+  dedupeKey: string;
+  evaluatedAt: string | null;
+  actionStatus?: "evaluated" | "measuring";
+  exactAction?: boolean;
+}) {
+  const runId = `release_source_run_${input.suffix}`;
+  const signalId = `release_source_signal_${input.suffix}`;
+  await seedEligiblePriorityPageSignal({
+    projectId: input.projectId,
+    runId,
+    signalId,
+    keyPageId: `release_key_page_${input.suffix}`,
+    capturedAt: "2026-08-27T10:00:00.000Z",
+    suffix: `release-source-${input.suffix}`,
+  });
+  const controller = priorityDecisionCandidate({
+    projectId: input.projectId,
+    runId,
+    signalId,
+    suffix: input.suffix,
+    dedupeKey: input.dedupeKey,
+  });
+  await withPgClient(() =>
+    GrowthOpportunityDecisionsRepository.writeDecision(controller),
+  );
+  await sql`
+    INSERT INTO growth_actions (
+      id, project_id, recommendation_id, creation_key, fact_hash, title,
+      description, category, priority_score, status, state_version, due_at,
+      approved_at, started_at, implemented_at, evaluated_at
+    ) VALUES (
+      ${`release_action_${input.suffix}`}, ${input.projectId},
+      ${controller.recommendation.id},
+      ${input.exactAction === false ? `unrelated:action:${signalId}` : `priority-page-investigation-v1:action:${signalId}`},
+      ${"f".repeat(64)}, 'Controller Action', 'Saved work.', 'investigation',
+      0, ${input.actionStatus ?? "evaluated"}, 1,
+      '2026-09-30T00:00:00.000Z', '2026-08-01T00:00:00.000Z',
+      '2026-08-02T00:00:00.000Z', '2026-08-27T00:00:00.000Z',
+      ${input.evaluatedAt}
+    )
+  `;
+  return { runId, signalId, controller };
+}
+
+async function attemptPostgresControllerRelease(input: {
+  projectId: string;
+  suffix: string;
+  dedupeKey: string;
+  capturedAt: string;
+  controller: Awaited<ReturnType<typeof seedPostgresControllerWithAction>>;
+}) {
+  const runId = `release_later_run_${input.suffix}`;
+  const signalId = `release_later_signal_${input.suffix}`;
+  await seedEligiblePriorityPageSignal({
+    projectId: input.projectId,
+    runId,
+    signalId,
+    keyPageId: `release_key_page_${input.suffix}`,
+    capturedAt: input.capturedAt,
+    suffix: `release-later-${input.suffix}`,
+  });
+  await expect(
+    withPgClient(() =>
+      GrowthOpportunityDecisionsRepository.writeDecision({
+        ...priorityDecisionCandidate({
+          projectId: input.projectId,
+          runId,
+          signalId,
+          suffix: `later_${input.suffix}`,
+          dedupeKey: input.dedupeKey,
+        }),
+        releaseController: {
+          recommendationId: input.controller.controller.recommendation.id,
+          signalRunId: input.controller.runId,
+          signalId: input.controller.signalId,
+        },
+      }),
+    ),
+  ).resolves.toBeUndefined();
+  const [oldDecision, laterDecision] = await Promise.all([
+    withPgClient(() =>
+      GrowthOpportunityDecisionsRepository.getSignalDecision(
+        input.projectId,
+        input.controller.runId,
+        input.controller.signalId,
+      ),
+    ),
+    withPgClient(() =>
+      GrowthOpportunityDecisionsRepository.getSignalDecision(
+        input.projectId,
+        runId,
+        signalId,
+      ),
+    ),
+  ]);
+  return { oldDecision, laterDecision };
+}
+
 // This live-provider suite deliberately shares one migrated database connection
 // and sequential cleanup lifecycle so each dialect invariant remains visible.
 // eslint-disable-next-line max-lines-per-function
@@ -289,6 +460,8 @@ describePostgres("GrowthInsightsRepository Postgres", () => {
     ({ GrowthInsightsRepository } = await import("./GrowthInsightsRepository"));
     ({ GrowthOpportunityDecisionsRepository } =
       await import("./GrowthOpportunityDecisionsRepository"));
+    ({ GrowthOpportunityDecisionsService } =
+      await import("../services/GrowthOpportunityDecisionsService"));
     ({ withPgClient } = await import("@/db"));
   });
 
@@ -907,4 +1080,513 @@ describePostgres("GrowthInsightsRepository Postgres", () => {
       await sql`DELETE FROM organization WHERE id = ${organizationId}`;
     }
   });
+
+  it("races two later Signals through one evaluated controller release", async () => {
+    const suffix = crypto.randomUUID();
+    const organizationId = `growth_release_org_${suffix}`;
+    const projectId = `growth_release_project_${suffix}`;
+    const firstRunId = `growth_release_first_run_${suffix}`;
+    const firstSignalId = `growth_release_first_signal_${suffix}`;
+    const laterRunA = `growth_release_later_run_a_${suffix}`;
+    const laterRunB = `growth_release_later_run_b_${suffix}`;
+    const laterSignalA = `growth_release_later_signal_a_${suffix}`;
+    const laterSignalB = `growth_release_later_signal_b_${suffix}`;
+    const keyPage = {
+      id: `growth_release_key_page_${suffix}`,
+      url: "https://example.com/pricing",
+      commercialWeight: 5,
+    };
+    await seedProject(projectId, organizationId, suffix);
+    const firstSignal = await seedEligiblePriorityPageSignal({
+      projectId,
+      runId: firstRunId,
+      signalId: firstSignalId,
+      keyPageId: keyPage.id,
+      capturedAt: "2026-08-27T10:00:00.000Z",
+      suffix: `release-first-${suffix}`,
+    });
+    try {
+      const firstDecision = await withPgClient(() =>
+        GrowthOpportunityDecisionsService.recordPriorityPageInvestigation({
+          projectId,
+          runId: firstRunId,
+          signal: firstSignal,
+          keyPage,
+        }),
+      );
+      expect(firstDecision).toMatchObject({
+        relationship: "controller",
+        policyVersion: "priority-page-repeat-suppression-v2",
+        controllerReleasedAt: null,
+      });
+      await sql`
+        INSERT INTO growth_actions (
+          id, project_id, recommendation_id, creation_key, fact_hash, title,
+          description, category, priority_score, status, state_version, due_at,
+          approved_at, started_at, implemented_at, evaluated_at
+        ) VALUES (
+          ${`growth_release_action_${suffix}`}, ${projectId},
+          ${firstDecision.recommendationId},
+          ${`priority-page-investigation-v1:action:${firstSignalId}`},
+          ${"f".repeat(64)}, 'Evaluate', 'Done.', 'investigation', 0,
+          'evaluated', 1, '2026-09-01T00:00:00.000Z',
+          '2026-08-01T00:00:00.000Z', '2026-08-02T00:00:00.000Z',
+          '2026-08-27T00:00:00.000Z', '2026-08-28T10:00:00.000Z'
+        )
+      `;
+      const [signalA, signalB] = await Promise.all([
+        seedEligiblePriorityPageSignal({
+          projectId,
+          runId: laterRunA,
+          signalId: laterSignalA,
+          keyPageId: keyPage.id,
+          capturedAt: "2026-08-29T10:00:00.000Z",
+          suffix: `release-later-a-${suffix}`,
+        }),
+        seedEligiblePriorityPageSignal({
+          projectId,
+          runId: laterRunB,
+          signalId: laterSignalB,
+          keyPageId: keyPage.id,
+          capturedAt: "2026-08-29T10:00:00.000Z",
+          suffix: `release-later-b-${suffix}`,
+        }),
+      ]);
+      const record = (runId: string, signal: typeof signalA) =>
+        withPgClient(() =>
+          GrowthOpportunityDecisionsService.recordPriorityPageInvestigation({
+            projectId,
+            runId,
+            signal,
+            keyPage,
+          }),
+        );
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-09-01T12:00:00.000Z"));
+      let results: Awaited<ReturnType<typeof record>>[];
+      try {
+        results = await Promise.all([
+          record(laterRunA, signalA),
+          record(laterRunB, signalB),
+        ]);
+      } finally {
+        vi.useRealTimers();
+      }
+      expect(results.map((result) => result.relationship).toSorted()).toEqual([
+        "controller",
+        "suppressed",
+      ]);
+      expect(
+        results.every(
+          (result) =>
+            result.policyVersion === "priority-page-repeat-suppression-v2",
+        ),
+      ).toBe(true);
+      expect(
+        new Set(results.map((result) => result.recommendationId)).size,
+      ).toBe(1);
+      const [retryA, retryB] = await Promise.all([
+        record(laterRunA, signalA),
+        record(laterRunB, signalB),
+      ]);
+      expect(retryA).toEqual(results[0]);
+      expect(retryB).toEqual(results[1]);
+
+      const decisions = await sql<
+        {
+          signalId: string;
+          recommendationId: string;
+          relationship: "controller" | "suppressed";
+          policyVersion: string;
+          controllerReleasedAt: string | null;
+        }[]
+      >`
+        SELECT signal_id AS "signalId", recommendation_id AS "recommendationId",
+          relationship, policy_version AS "policyVersion",
+          controller_released_at AS "controllerReleasedAt"
+        FROM growth_recommendation_signal_links
+        WHERE project_id = ${projectId}
+        ORDER BY signal_id COLLATE "C"
+      `;
+      const oldDecision = decisions.find(
+        (decision) => decision.signalId === firstSignalId,
+      );
+      const laterDecisions = decisions.filter(
+        (decision) => decision.signalId !== firstSignalId,
+      );
+      expect(oldDecision).toMatchObject({
+        relationship: "controller",
+        policyVersion: "priority-page-repeat-suppression-v2",
+        controllerReleasedAt: "2026-09-01T12:00:00.000Z",
+      });
+      expect(
+        laterDecisions.map((decision) => decision.relationship).toSorted(),
+      ).toEqual(["controller", "suppressed"]);
+      const nextController = laterDecisions.find(
+        (decision) => decision.relationship === "controller",
+      );
+      const suppressed = laterDecisions.find(
+        (decision) => decision.relationship === "suppressed",
+      );
+      expect(nextController).toMatchObject({
+        policyVersion: "priority-page-repeat-suppression-v2",
+        controllerReleasedAt: null,
+      });
+      expect(suppressed).toMatchObject({
+        recommendationId: nextController?.recommendationId,
+        policyVersion: "priority-page-repeat-suppression-v2",
+        controllerReleasedAt: null,
+      });
+
+      const [counts] = await sql<
+        [
+          {
+            controllers: string;
+            active: string;
+            suppressed: string;
+            insights: string;
+            insightSignals: string;
+            recommendations: string;
+            recommendationInsights: string;
+            targets: string;
+            steps: string;
+            decisions: string;
+            orphanGraphs: string;
+          },
+        ]
+      >`
+        SELECT
+          (SELECT count(*)::text FROM growth_recommendation_signal_links
+            WHERE project_id = ${projectId} AND relationship = 'controller') AS controllers,
+          (SELECT count(*)::text FROM growth_recommendation_signal_links
+            WHERE project_id = ${projectId} AND relationship = 'controller'
+              AND controller_released_at IS NULL) AS active,
+          (SELECT count(*)::text FROM growth_recommendation_signal_links
+            WHERE project_id = ${projectId} AND relationship = 'suppressed') AS suppressed,
+          (SELECT count(*)::text FROM growth_insights
+            WHERE project_id = ${projectId}) AS insights,
+          (SELECT count(*)::text FROM growth_insight_signals
+            WHERE project_id = ${projectId}) AS "insightSignals",
+          (SELECT count(*)::text FROM growth_recommendations
+            WHERE project_id = ${projectId}) AS recommendations,
+          (SELECT count(*)::text FROM growth_recommendation_insights
+            WHERE project_id = ${projectId}) AS "recommendationInsights",
+          (SELECT count(*)::text FROM growth_recommendation_targets
+            WHERE project_id = ${projectId}) AS targets,
+          (SELECT count(*)::text FROM growth_recommendation_steps
+            WHERE project_id = ${projectId}) AS steps,
+          (SELECT count(*)::text FROM growth_recommendation_signal_links
+            WHERE project_id = ${projectId}) AS decisions,
+          ((SELECT count(*) FROM growth_insights insight
+            WHERE insight.project_id = ${projectId}
+              AND ((SELECT count(*) FROM growth_insight_signals link
+                  WHERE link.project_id = insight.project_id
+                    AND link.run_id = insight.run_id
+                    AND link.insight_id = insight.id) <> 1
+                OR (SELECT count(*) FROM growth_recommendation_insights link
+                  WHERE link.project_id = insight.project_id
+                    AND link.run_id = insight.run_id
+                    AND link.insight_id = insight.id) <> 1))
+            +
+           (SELECT count(*) FROM growth_recommendations recommendation
+            WHERE recommendation.project_id = ${projectId}
+              AND ((SELECT count(*) FROM growth_recommendation_insights link
+                WHERE link.project_id = recommendation.project_id
+                  AND link.run_id = recommendation.run_id
+                  AND link.recommendation_id = recommendation.id) <> 1
+                OR (SELECT count(*) FROM growth_recommendation_targets target
+                  WHERE target.project_id = recommendation.project_id
+                    AND target.run_id = recommendation.run_id
+                    AND target.recommendation_id = recommendation.id) <> 1
+                OR (SELECT count(*) FROM growth_recommendation_steps step
+                  WHERE step.project_id = recommendation.project_id
+                    AND step.run_id = recommendation.run_id
+                    AND step.recommendation_id = recommendation.id) <> 3)
+           ))::text AS "orphanGraphs"
+      `;
+      expect(counts).toEqual({
+        controllers: "2",
+        active: "1",
+        suppressed: "1",
+        insights: "2",
+        insightSignals: "2",
+        recommendations: "2",
+        recommendationInsights: "2",
+        targets: "2",
+        steps: "6",
+        decisions: "3",
+        orphanGraphs: "0",
+      });
+      const targets = await sql<{ targetValue: string }[]>`
+        SELECT target_value AS "targetValue"
+        FROM growth_recommendation_targets
+        WHERE project_id = ${projectId}
+        ORDER BY run_id COLLATE "C"
+      `;
+      expect(targets).toEqual([
+        { targetValue: "https://example.com/pricing" },
+        { targetValue: "https://example.com/pricing" },
+      ]);
+    } finally {
+      await sql`DELETE FROM projects WHERE id = ${projectId}`;
+      await sql`DELETE FROM organization WHERE id = ${organizationId}`;
+    }
+  });
+
+  it("compares release timestamps as instants and fails closed on Postgres", async () => {
+    const suffix = crypto.randomUUID().slice(0, 8);
+    const organizationId = `release_time_org_${suffix}`;
+    const projectId = `release_time_project_${suffix}`;
+    const scenarios = [
+      {
+        name: "instant_after_lex_before",
+        dedupeKey: "g".repeat(64),
+        evaluatedAt: "2026-09-01T10:00:00+02:00",
+        capturedAt: "2026-09-01T09:00:00+00:00",
+        releases: true,
+      },
+      {
+        name: "instant_before_lex_after",
+        dedupeKey: "h".repeat(64),
+        evaluatedAt: "2026-09-01T09:00:00+00:00",
+        capturedAt: "2026-09-01T10:00:00+02:00",
+        releases: false,
+      },
+      {
+        name: "equal_instant",
+        dedupeKey: "i".repeat(64),
+        evaluatedAt: "2026-09-01T09:00:00+00:00",
+        capturedAt: "2026-09-01T11:00:00+02:00",
+        releases: false,
+      },
+      {
+        name: "malformed_evaluation",
+        dedupeKey: "j".repeat(64),
+        evaluatedAt: "not-a-valid-evaluation",
+        capturedAt: "2026-09-01T12:00:00+00:00",
+        releases: false,
+      },
+      {
+        name: "malformed_capture",
+        dedupeKey: "k".repeat(64),
+        evaluatedAt: "2026-09-01T09:00:00+00:00",
+        capturedAt: "not-a-valid-capture",
+        releases: false,
+      },
+    ];
+    await seedProject(projectId, organizationId, suffix);
+    try {
+      for (const scenario of scenarios) {
+        const scenarioSuffix = `${scenario.name}_${suffix}`;
+        const controller = await seedPostgresControllerWithAction({
+          projectId,
+          suffix: scenarioSuffix,
+          dedupeKey: scenario.dedupeKey,
+          evaluatedAt: scenario.evaluatedAt,
+        });
+        const outcome = await attemptPostgresControllerRelease({
+          projectId,
+          suffix: scenarioSuffix,
+          dedupeKey: scenario.dedupeKey,
+          capturedAt: scenario.capturedAt,
+          controller,
+        });
+        if (scenario.releases) {
+          expect(outcome.oldDecision?.controllerReleasedAt).toEqual(
+            expect.any(String),
+          );
+          expect(outcome.laterDecision).toMatchObject({
+            relationship: "controller",
+            controllerReleasedAt: null,
+          });
+        } else {
+          expect(outcome.oldDecision).toMatchObject({
+            relationship: "controller",
+            controllerReleasedAt: null,
+          });
+          expect(outcome.laterDecision).toMatchObject({
+            relationship: "suppressed",
+            recommendationId: controller.controller.recommendation.id,
+          });
+        }
+      }
+    } finally {
+      await sql`DELETE FROM projects WHERE id = ${projectId}`;
+      await sql`DELETE FROM organization WHERE id = ${organizationId}`;
+    }
+  });
+
+  it("requires the exact evaluated controller Action on Postgres", async () => {
+    const suffix = crypto.randomUUID().slice(0, 8);
+    const organizationId = `release_action_org_${suffix}`;
+    const projectId = `release_action_project_${suffix}`;
+    const scenarios = [
+      {
+        name: "unrelated_evaluated",
+        dedupeKey: "l".repeat(64),
+        evaluatedAt: "2026-08-28T10:00:00.000Z",
+        exactAction: false,
+      },
+      {
+        name: "exact_measuring",
+        dedupeKey: "m".repeat(64),
+        evaluatedAt: null,
+        actionStatus: "measuring" as const,
+      },
+    ];
+    await seedProject(projectId, organizationId, suffix);
+    try {
+      for (const scenario of scenarios) {
+        const scenarioSuffix = `${scenario.name}_${suffix}`;
+        const controller = await seedPostgresControllerWithAction({
+          projectId,
+          suffix: scenarioSuffix,
+          dedupeKey: scenario.dedupeKey,
+          evaluatedAt: scenario.evaluatedAt,
+          exactAction: scenario.exactAction,
+          actionStatus: scenario.actionStatus,
+        });
+        const outcome = await attemptPostgresControllerRelease({
+          projectId,
+          suffix: scenarioSuffix,
+          dedupeKey: scenario.dedupeKey,
+          capturedAt: "2026-09-01T12:00:00.000Z",
+          controller,
+        });
+        expect(outcome.oldDecision).toMatchObject({
+          relationship: "controller",
+          controllerReleasedAt: null,
+        });
+        expect(outcome.laterDecision).toMatchObject({
+          relationship: "suppressed",
+          recommendationId: controller.controller.recommendation.id,
+        });
+      }
+    } finally {
+      await sql`DELETE FROM projects WHERE id = ${projectId}`;
+      await sql`DELETE FROM organization WHERE id = ${organizationId}`;
+    }
+  });
+
+  it("never commits a released controller without a successor when its Run terminalizes", async () => {
+    const suffix = crypto.randomUUID().replaceAll("-", "");
+    const organizationId = `growth_release_lock_org_${suffix}`;
+    const projectId = `growth_release_lock_project_${suffix}`;
+    const firstRunId = `growth_release_lock_first_run_${suffix}`;
+    const firstSignalId = `growth_release_lock_first_signal_${suffix}`;
+    const laterRunId = `growth_release_lock_later_run_${suffix}`;
+    const laterSignalId = `growth_release_lock_later_signal_${suffix}`;
+    const triggerFunction = `growth_release_lock_fn_${suffix}`;
+    const triggerName = `growth_release_lock_trigger_${suffix}`;
+    const dedupeKey = "8".repeat(64);
+    await seedProject(projectId, organizationId, suffix);
+    await seedRunAndSignal({
+      projectId,
+      runId: firstRunId,
+      signalId: firstSignalId,
+      suffix: `release-lock-first-${suffix}`,
+    });
+    const first = priorityDecisionCandidate({
+      projectId,
+      runId: firstRunId,
+      signalId: firstSignalId,
+      suffix: `release-lock-first-${suffix}`,
+      dedupeKey,
+    });
+    try {
+      await withPgClient(() =>
+        GrowthOpportunityDecisionsRepository.writeDecision(first),
+      );
+      await sql`
+        INSERT INTO growth_actions (
+          id, project_id, recommendation_id, creation_key, fact_hash, title,
+          description, category, priority_score, status, state_version, due_at,
+          approved_at, started_at, implemented_at, evaluated_at
+        ) VALUES (
+          ${`growth_release_lock_action_${suffix}`}, ${projectId},
+          ${first.recommendation.id},
+          ${`priority-page-investigation-v1:action:${firstSignalId}`},
+          ${"f".repeat(64)}, 'Evaluate', 'Done.', 'investigation', 0,
+          'evaluated', 1, '2026-09-01T00:00:00.000Z',
+          '2026-08-01T00:00:00.000Z', '2026-08-02T00:00:00.000Z',
+          '2026-08-27T00:00:00.000Z', '2026-08-28T10:00:00.000Z'
+        )
+      `;
+      await seedRunAndSignal({
+        projectId,
+        runId: laterRunId,
+        signalId: laterSignalId,
+        suffix: `release-lock-later-${suffix}`,
+      });
+      await sql.unsafe(`
+        CREATE FUNCTION ${triggerFunction}() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+          PERFORM pg_advisory_xact_lock(hashtext('${projectId}'));
+          PERFORM pg_sleep(0.25);
+          RETURN NEW;
+        END;
+        $$;
+        CREATE TRIGGER ${triggerName}
+          BEFORE UPDATE OF controller_released_at ON growth_recommendation_signal_links
+          FOR EACH ROW EXECUTE FUNCTION ${triggerFunction}();
+      `);
+      const later = {
+        ...priorityDecisionCandidate({
+          projectId,
+          runId: laterRunId,
+          signalId: laterSignalId,
+          suffix: `release-lock-cycle-${suffix}`,
+          dedupeKey,
+        }),
+        releaseController: {
+          recommendationId: first.recommendation.id,
+          signalRunId: firstRunId,
+          signalId: firstSignalId,
+        },
+      };
+      const decision = withPgClient(() =>
+        GrowthOpportunityDecisionsRepository.writeDecision(later),
+      );
+      let releaseWindowHeld = false;
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        const [lock] = await sql<[{ held: boolean }]>`
+          SELECT NOT pg_try_advisory_xact_lock(hashtext(${projectId})) AS held
+        `;
+        if (lock?.held) {
+          releaseWindowHeld = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      const terminal = sql`
+        UPDATE growth_runs SET status = 'completed', completed_at = now()::text
+        WHERE project_id = ${projectId} AND id = ${laterRunId} AND status = 'running'
+      `;
+      await Promise.all([decision, terminal]);
+      expect(releaseWindowHeld).toBe(true);
+      const [state] = await sql<
+        [{ released: string; successor: string; graphs: string }]
+      >`
+        SELECT
+          (SELECT count(*)::text FROM growth_recommendation_signal_links
+            WHERE project_id = ${projectId} AND recommendation_id = ${first.recommendation.id}
+              AND controller_released_at IS NOT NULL) AS released,
+          (SELECT count(*)::text FROM growth_recommendation_signal_links
+            WHERE project_id = ${projectId} AND signal_run_id = ${laterRunId}
+              AND signal_id = ${laterSignalId}) AS successor,
+          (SELECT count(*)::text FROM growth_recommendations
+            WHERE project_id = ${projectId}) AS graphs
+      `;
+      expect(
+        state.released === "0" ||
+          (state.successor === "1" && state.graphs === "2"),
+      ).toBe(true);
+    } finally {
+      await sql.unsafe(
+        `DROP TRIGGER IF EXISTS ${triggerName} ON growth_recommendation_signal_links; DROP FUNCTION IF EXISTS ${triggerFunction}();`,
+      );
+      await sql`DELETE FROM projects WHERE id = ${projectId}`;
+      await sql`DELETE FROM organization WHERE id = ${organizationId}`;
+    }
+  }, 15_000);
 });

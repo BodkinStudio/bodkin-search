@@ -1068,10 +1068,9 @@ new service, database, provider call, credential, model or scheduler.
 
 ### Deferred
 
-Controller release after material evidence change or completed/evaluated work,
-cooldowns, automatic snooze wake-up, dismissed-item restoration, cross-detector
-deduplication and semantic URL matching require a separately reviewed,
-versioned policy.
+Cooldowns, automatic snooze wake-up, dismissed-item restoration,
+cross-detector deduplication and semantic URL matching require a separately
+reviewed, versioned policy.
 
 ---
 
@@ -1104,5 +1103,30 @@ entries are not yet shown.
 ### Deferred
 
 Interactive pagination, a generic Recommendation mutation endpoint, full
-opportunity history, live discovery and controller release remain separate
-work.
+opportunity history and live discovery remain separate work.
+
+---
+
+## ADR-048 - Evaluated priority-page work may release one controller cycle
+
+**Status:** Accepted
+
+### Decision
+
+- Policy v2 lazily releases an active priority-page controller only when its
+  exact generated Action is `evaluated` and a new saved Signal was captured
+  strictly later than that Action's evaluated instant.
+- The release and the next controller claim occur in the existing atomic,
+  provider-aware decision batch. Historical controller and suppressed links
+  remain immutable; only the old controller's release timestamp is populated.
+- The next graph uses the previous controller Recommendation ID as its
+  deterministic cycle key. Concurrent later Signals therefore share parent
+  identities and one loser is suppressed rather than leaving orphan rows.
+- Invalid historical timestamps fail closed. Read-time adoption of legacy
+  graphs remains unchanged and an unadopted graph cannot be released.
+
+### Deferred
+
+Material-change thresholds, cooldowns, cancellation release, recovery or
+restoration policies, and releases for any detector other than priority-page
+click decline remain out of scope.

@@ -180,6 +180,7 @@ async function seedLegacyPriorityPageGraph(input: {
 async function seedRunningPriorityPageSignal(input: {
   suffix: string;
   keyPageId: string;
+  capturedAt?: string;
 }) {
   const runId = `current_run_${input.suffix}`;
   const signalId = `current_signal_${input.suffix}`;
@@ -199,8 +200,14 @@ async function seedRunningPriorityPageSignal(input: {
       current_value, delta_value, evidence_kind, evidence_ref, captured_at
     ) VALUES (?, 'project_1', ?, 'priority_page_click_decline', 'key_page',
       ?, 'gsc_clicks', 'warning', 0.8, '2026-08-01', '2026-08-28', 20,
-      10, -10, 'gsc_period', ?, '2026-08-29T10:00:00.000Z')`,
-    args: [signalId, runId, input.keyPageId, `gsc:${input.suffix}`],
+      10, -10, 'gsc_period', ?, ?)`,
+    args: [
+      signalId,
+      runId,
+      input.keyPageId,
+      `gsc:${input.suffix}`,
+      input.capturedAt ?? "2026-08-29T10:00:00.000Z",
+    ],
   });
   return { runId, signalId };
 }
@@ -259,6 +266,87 @@ function decisionCandidate(input: {
       steps: legacySteps,
     },
   };
+}
+
+async function seedControllerWithAction(input: {
+  suffix: string;
+  dedupeKey: string;
+  evaluatedAt: string | null;
+  actionStatus?: "evaluated" | "measuring";
+  actionCreationKey?: string;
+}) {
+  const source = await seedRunningPriorityPageSignal({
+    suffix: `${input.suffix}_source`,
+    keyPageId: `key_${input.suffix}`,
+  });
+  const controller = decisionCandidate({
+    suffix: `${input.suffix}_source`,
+    runId: source.runId,
+    signalId: source.signalId,
+    dedupeKey: input.dedupeKey,
+  });
+  await GrowthOpportunityDecisionsRepository.writeDecision(controller);
+  await client.execute({
+    sql: `INSERT INTO growth_actions (
+      id, project_id, recommendation_id, creation_key, fact_hash, title,
+      description, category, priority_score, status, state_version, due_at,
+      approved_at, started_at, implemented_at, evaluated_at
+    ) VALUES (?, 'project_1', ?, ?, ?, 'Controller Action', 'Saved work.',
+      'investigation', 0, ?, 1, '2026-09-30T00:00:00.000Z',
+      '2026-08-01T00:00:00.000Z', '2026-08-02T00:00:00.000Z',
+      '2026-08-27T00:00:00.000Z', ?)`,
+    args: [
+      `action_${input.suffix}`,
+      controller.recommendation.id,
+      input.actionCreationKey ??
+        `priority-page-investigation-v1:action:${source.signalId}`,
+      "f".repeat(64),
+      input.actionStatus ?? "evaluated",
+      input.evaluatedAt,
+    ],
+  });
+  return { source, controller };
+}
+
+async function attemptControllerRelease(input: {
+  suffix: string;
+  dedupeKey: string;
+  capturedAt: string;
+  controller: Awaited<ReturnType<typeof seedControllerWithAction>>;
+}) {
+  const later = await seedRunningPriorityPageSignal({
+    suffix: `${input.suffix}_later`,
+    keyPageId: `key_${input.suffix}`,
+    capturedAt: input.capturedAt,
+  });
+  await expect(
+    GrowthOpportunityDecisionsRepository.writeDecision({
+      ...decisionCandidate({
+        suffix: `${input.suffix}_later`,
+        runId: later.runId,
+        signalId: later.signalId,
+        dedupeKey: input.dedupeKey,
+      }),
+      releaseController: {
+        recommendationId: input.controller.controller.recommendation.id,
+        signalRunId: input.controller.source.runId,
+        signalId: input.controller.source.signalId,
+      },
+    }),
+  ).resolves.toBeUndefined();
+  const [oldDecision, laterDecision] = await Promise.all([
+    GrowthOpportunityDecisionsRepository.getSignalDecision(
+      "project_1",
+      input.controller.source.runId,
+      input.controller.source.signalId,
+    ),
+    GrowthOpportunityDecisionsRepository.getSignalDecision(
+      "project_1",
+      later.runId,
+      later.signalId,
+    ),
+  ]);
+  return { oldDecision, laterDecision };
 }
 
 // eslint-disable-next-line max-lines-per-function -- one shared database makes the sequential graph lifecycle explicit
@@ -692,5 +780,204 @@ describe("GrowthInsightsRepository D1 graph writes", () => {
       { position: 0, content: "Rewrite the introduction" },
     ]);
     expect((await client.execute("PRAGMA foreign_key_check")).rows).toEqual([]);
+  });
+
+  it("releases an exact evaluated controller and retains both cycles", async () => {
+    const first = await seedRunningPriorityPageSignal({
+      suffix: "release_first",
+      keyPageId: "key_release",
+    });
+    const dedupeKey = "9".repeat(64);
+    const firstCandidate = decisionCandidate({
+      suffix: "release_first",
+      runId: first.runId,
+      signalId: first.signalId,
+      dedupeKey,
+    });
+    await GrowthOpportunityDecisionsRepository.writeDecision(firstCandidate);
+    await client.execute({
+      sql: `INSERT INTO growth_actions (
+        id, project_id, recommendation_id, creation_key, fact_hash, title,
+        description, category, priority_score, status, state_version, due_at,
+        approved_at, started_at, implemented_at, evaluated_at
+      ) VALUES ('release_action', 'project_1', ?, ?, ?, 'Evaluate', 'Done.',
+        'investigation', 0, 'evaluated', 1, '2026-09-01T00:00:00.000Z',
+        '2026-08-01T00:00:00.000Z', '2026-08-02T00:00:00.000Z',
+        '2026-08-27T00:00:00.000Z', '2026-08-28T10:00:00.000Z')`,
+      args: [
+        firstCandidate.recommendation.id,
+        `priority-page-investigation-v1:action:${first.signalId}`,
+        "f".repeat(64),
+      ],
+    });
+    const later = await seedRunningPriorityPageSignal({
+      suffix: "release_later",
+      keyPageId: "key_release",
+    });
+    const laterCandidate = decisionCandidate({
+      suffix: "release_later",
+      runId: later.runId,
+      signalId: later.signalId,
+      dedupeKey,
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-01T12:00:00.000Z"));
+    try {
+      await GrowthOpportunityDecisionsRepository.writeDecision({
+        ...laterCandidate,
+        releaseController: {
+          recommendationId: firstCandidate.recommendation.id,
+          signalRunId: first.runId,
+          signalId: first.signalId,
+        },
+      });
+      const sameClock = await seedRunningPriorityPageSignal({
+        suffix: "release_same_clock",
+        keyPageId: "key_release",
+      });
+      await GrowthOpportunityDecisionsRepository.writeDecision({
+        ...decisionCandidate({
+          suffix: "release_same_clock",
+          runId: sameClock.runId,
+          signalId: sameClock.signalId,
+          dedupeKey,
+        }),
+        releaseController: {
+          recommendationId: firstCandidate.recommendation.id,
+          signalRunId: first.runId,
+          signalId: first.signalId,
+        },
+      });
+      await expect(
+        GrowthOpportunityDecisionsRepository.getSignalDecision(
+          "project_1",
+          sameClock.runId,
+          sameClock.signalId,
+        ),
+      ).resolves.toMatchObject({
+        relationship: "suppressed",
+        recommendationId: laterCandidate.recommendation.id,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    const released =
+      await GrowthOpportunityDecisionsRepository.getSignalDecision(
+        "project_1",
+        first.runId,
+        first.signalId,
+      );
+    expect(released?.relationship).toBe("controller");
+    expect(typeof released?.controllerReleasedAt).toBe("string");
+    await expect(
+      GrowthOpportunityDecisionsRepository.getSignalDecision(
+        "project_1",
+        later.runId,
+        later.signalId,
+      ),
+    ).resolves.toMatchObject({
+      relationship: "controller",
+      recommendationId: laterCandidate.recommendation.id,
+      controllerReleasedAt: null,
+    });
+  });
+
+  it("compares release timestamps as instants and fails closed on D1", async () => {
+    const scenarios = [
+      {
+        suffix: "instant_after_lex_before",
+        dedupeKey: "g".repeat(64),
+        evaluatedAt: "2026-09-01T10:00:00+02:00",
+        capturedAt: "2026-09-01T09:00:00+00:00",
+        releases: true,
+      },
+      {
+        suffix: "instant_before_lex_after",
+        dedupeKey: "h".repeat(64),
+        evaluatedAt: "2026-09-01T09:00:00+00:00",
+        capturedAt: "2026-09-01T10:00:00+02:00",
+        releases: false,
+      },
+      {
+        suffix: "equal_instant",
+        dedupeKey: "i".repeat(64),
+        evaluatedAt: "2026-09-01T09:00:00+00:00",
+        capturedAt: "2026-09-01T11:00:00+02:00",
+        releases: false,
+      },
+      {
+        suffix: "malformed_evaluation",
+        dedupeKey: "j".repeat(64),
+        evaluatedAt: "not-a-valid-evaluation",
+        capturedAt: "2026-09-01T12:00:00+00:00",
+        releases: false,
+      },
+      {
+        suffix: "malformed_capture",
+        dedupeKey: "k".repeat(64),
+        evaluatedAt: "2026-09-01T09:00:00+00:00",
+        capturedAt: "not-a-valid-capture",
+        releases: false,
+      },
+    ];
+    for (const scenario of scenarios) {
+      const controller = await seedControllerWithAction(scenario);
+      const outcome = await attemptControllerRelease({
+        ...scenario,
+        controller,
+      });
+      if (scenario.releases) {
+        expect(outcome.oldDecision?.controllerReleasedAt).toEqual(
+          expect.any(String),
+        );
+        expect(outcome.laterDecision).toMatchObject({
+          relationship: "controller",
+          controllerReleasedAt: null,
+        });
+      } else {
+        expect(outcome.oldDecision).toMatchObject({
+          relationship: "controller",
+          controllerReleasedAt: null,
+        });
+        expect(outcome.laterDecision).toMatchObject({
+          relationship: "suppressed",
+          recommendationId: controller.controller.recommendation.id,
+        });
+      }
+    }
+  });
+
+  it("requires the exact evaluated controller Action on D1", async () => {
+    const scenarios = [
+      {
+        suffix: "unrelated_evaluated_action",
+        dedupeKey: "l".repeat(64),
+        evaluatedAt: "2026-08-28T10:00:00.000Z",
+        actionCreationKey: "unrelated:action",
+      },
+      {
+        suffix: "exact_measuring_action",
+        dedupeKey: "m".repeat(64),
+        evaluatedAt: null,
+        actionStatus: "measuring" as const,
+      },
+    ];
+    for (const scenario of scenarios) {
+      const controller = await seedControllerWithAction(scenario);
+      const outcome = await attemptControllerRelease({
+        suffix: scenario.suffix,
+        dedupeKey: scenario.dedupeKey,
+        capturedAt: "2026-09-01T12:00:00.000Z",
+        controller,
+      });
+      expect(outcome.oldDecision).toMatchObject({
+        relationship: "controller",
+        controllerReleasedAt: null,
+      });
+      expect(outcome.laterDecision).toMatchObject({
+        relationship: "suppressed",
+        recommendationId: controller.controller.recommendation.id,
+      });
+    }
   });
 });

@@ -5,6 +5,8 @@ import { GrowthInsightsRepository } from "../repositories/GrowthInsightsReposito
 import { GrowthOpportunityDecisionsRepository } from "../repositories/GrowthOpportunityDecisionsRepository";
 import {
   PRIORITY_PAGE_OPPORTUNITY_POLICY_VERSION,
+  isPriorityPageControllerReleasable,
+  priorityPageControllerCycleKey,
   priorityPageOpportunityDedupeKey,
 } from "./PriorityPageOpportunityPolicy";
 import { normalizeGrowthTargets } from "./GrowthTargetNormalizer";
@@ -17,11 +19,12 @@ function ids(values: string[]) {
 async function deterministicId(input: {
   projectId: string;
   dedupeKey: string;
+  cycleKey: string;
   kind: "insight" | "recommendation";
 }) {
   return (
     await sha256Hex(
-      `${input.projectId}|${input.dedupeKey}|initial-controller|${input.kind}`,
+      `${input.projectId}|${input.dedupeKey}|${input.cycleKey}|${input.kind}`,
     )
   ).slice(0, 36);
 }
@@ -66,6 +69,25 @@ async function recordPriorityPageInvestigation(input: {
     ),
   ]);
   if (!domain) throw new AppError("NOT_FOUND", "Growth project not found");
+  const activeController =
+    await GrowthOpportunityDecisionsRepository.getActiveControllerReleasePreflight(
+      input.projectId,
+      dedupeKey,
+      input.runId,
+      input.signal.id,
+    );
+  const releaseController =
+    activeController &&
+    isPriorityPageControllerReleasable({
+      capturedAt: activeController.capturedAt,
+      actionStatus: activeController.actionStatus,
+      evaluatedAt: activeController.evaluatedAt,
+    })
+      ? activeController
+      : null;
+  const cycleKey = priorityPageControllerCycleKey(
+    releaseController?.recommendationId ?? null,
+  );
   const signalIds = ids(template.insight.signalIds);
   const normalizedTargets = normalizeGrowthTargets(
     domain,
@@ -123,12 +145,14 @@ async function recordPriorityPageInvestigation(input: {
   const insightId = await deterministicId({
     projectId: input.projectId,
     dedupeKey,
+    cycleKey,
     kind: "insight",
   });
   recommendationFact.insightIds = [insightId];
   const recommendationId = await deterministicId({
     projectId: input.projectId,
     dedupeKey,
+    cycleKey,
     kind: "recommendation",
   });
   await GrowthOpportunityDecisionsRepository.writeDecision({
@@ -137,9 +161,18 @@ async function recordPriorityPageInvestigation(input: {
     signalId: input.signal.id,
     dedupeKey,
     policyVersion: PRIORITY_PAGE_OPPORTUNITY_POLICY_VERSION,
-    legacyController: legacy
-      ? { ...legacy, keyPageId: input.keyPage.id }
+    releaseController: releaseController
+      ? {
+          recommendationId: releaseController.recommendationId,
+          signalRunId: releaseController.signalRunId,
+          signalId: releaseController.signalId,
+        }
       : null,
+    legacyController: activeController
+      ? null
+      : legacy
+        ? { ...legacy, keyPageId: input.keyPage.id }
+        : null,
     insight: {
       id: insightId,
       ...insightFact,

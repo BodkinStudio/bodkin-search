@@ -1,0 +1,32 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "The verification record was stale relative to repair round 2 and did not independently establish the final diff.",
+      "location": ".bodkin/runs/2026-09-02-growth-controller-release-7f3a/verification.json",
+      "evidence": "The artifact still recorded pre-repair focused, live PostgreSQL, full-suite, and build results.",
+      "impact": "Final acceptance would have relied on implementer claims rather than authoritative evidence for the lock-first repair.",
+      "recommendation": "Refresh the artifact with final focused, PostgreSQL, CI, full-suite, and production-build results."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Keep the first ordered candidate-source read and PostgreSQL share lock before any release mutation.",
+      "location": "src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.ts",
+      "evidence": "The first transaction statement selects the candidate Signal/Run in running state and applies FOR SHARE on PostgreSQL; runBatch guarantees statement ordering.",
+      "impact": "A terminal transition either happens before the lock and prevents release, or waits until the release and successor graph commit together.",
+      "recommendation": "Retain the first-statement placement and interleaving regression."
+    },
+    {
+      "summary": "Keep the marker-plus-no-controller successor guard and provider-specific Action/time predicate.",
+      "location": "src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.ts",
+      "evidence": "The repair did not alter exact project/template Action qualification, provider-specific instant ordering, or releaseMarker AND noController.",
+      "impact": "Preserves accepted concurrency, timestamp, tenant, and deterministic-cycle boundaries.",
+      "recommendation": "Limit further changes to verification freshness unless new evidence finds a concrete defect."
+    }
+  ]
+}

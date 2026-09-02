@@ -306,7 +306,7 @@ describe("GrowthPriorityPageCheckService SQLite integration", () => {
       title: "Investigate a priority-page search click decline",
       status: "accepted",
       suppressionReason: "existing_action",
-      policyVersion: "priority-page-repeat-suppression-v1",
+      policyVersion: "priority-page-repeat-suppression-v2",
       actionId: approval.id,
       dueOn: "2026-09-04",
     });

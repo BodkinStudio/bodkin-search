@@ -1,0 +1,39 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "The strict event-time gate is underspecified for valid stored timestamp offsets, so a cross-provider implementation can release the wrong controller if it compares text values.",
+      "location": ".bodkin/runs/2026-09-02-growth-controller-release-7f3a/plan.md — Policy v2 and implementation steps 1–4",
+      "evidence": "RecordGrowthSignalInput.capturedAt accepts any RFC 3339 offset and GrowthRunsService persists that input unchanged. Signal and Action timestamps are text without a canonical-UTC database constraint.",
+      "impact": "The defining capturedAt > evaluatedAt rule could be decided by formatting rather than event time and differ between providers.",
+      "recommendation": "Require UTC normalization at the pure policy boundary, provider-specific instant comparison in the atomic guard, malformed historical values failing closed, and offset-ordering tests on SQLite/D1 and PostgreSQL."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Keep release lazy and scoped to the existing normalized controller ledger.",
+      "location": ".bodkin/runs/2026-09-02-growth-controller-release-7f3a/plan.md — Policy v2 and constraints",
+      "evidence": "The plan retains immutable historical graphs, changes only controller_released_at and avoids adding a release hook to Action finalization.",
+      "impact": "Preserves Action-lifecycle independence and avoids a new cross-feature mutation path.",
+      "recommendation": "Retain this boundary when repairing the timestamp specification."
+    },
+    {
+      "summary": "Keep the cycle identity tied to the prior controller Recommendation rather than the losing candidate Signal.",
+      "location": ".bodkin/runs/2026-09-02-growth-controller-release-7f3a/plan.md — Candidate identity and concurrency",
+      "evidence": "The prior-Recommendation cycle key gives concurrent reopen candidates the same parent IDs while separating subsequent cycles.",
+      "impact": "Preserves deterministic retry behavior and prevents losing candidates from creating independent graphs.",
+      "recommendation": "Keep this identity rule and guard every child insert by fact hash and release condition."
+    },
+    {
+      "summary": "Preserve the existing project-scoped exact-template Action qualification.",
+      "location": "src/server/features/growth/services/GrowthInvestigationsService.ts; src/db/growth-actions.schema.ts",
+      "evidence": "Current Work lookup derives the template key from the controller Signal and confirms the Action Recommendation ID; schema constraints are project scoped.",
+      "impact": "Avoids foreign-project or unrelated Action release authority.",
+      "recommendation": "Keep project, Recommendation, template-key, evaluated-status and non-null evaluated-at predicates in preflight and atomic guards."
+    }
+  ]
+}

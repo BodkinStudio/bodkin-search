@@ -68,7 +68,7 @@ The Work section shows up to 50 recent investigations. Approval saves the accept
 
 An older accepted suggestion with no action needs administrator review. Its original due date and approving user were not stored, so Growth does not offer a retry that could replace them. This release does not repair those older records automatically.
 
-Older completed checks without suggestions stay unchanged. A matching deterministic suggestion created before repeat suppression can be adopted only when that issue is checked again; unrelated same-page suggestions are ignored. The first suppression policy keeps every controller active, including dismissed, resolved and action-backed suggestions. Releasing one after material change or completed measurement remains a later policy decision. Assignment and measurement controls remain separate milestones. The disposable preview has no Google credentials; synthetic checks used for verification come from a local fixture, and do not prove a live collection.
+Older completed checks without suggestions stay unchanged. A matching deterministic suggestion created before repeat suppression can be adopted only when that issue is checked again; unrelated same-page suggestions are ignored. Dismissed, resolved and unfinished action-backed suggestions remain active controllers. Once the exact generated Work has been evaluated, a later saved decline can start one new investigation cycle; the prior controller and its suppressed evidence remain visible history. Assignment and measurement controls remain separate milestones. The disposable preview has no Google credentials; synthetic checks used for verification come from a local fixture, and do not prove a live collection.
 
 ## Finish an investigation
 
