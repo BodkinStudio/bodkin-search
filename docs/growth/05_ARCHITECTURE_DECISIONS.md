@@ -1172,9 +1172,16 @@ existing services rather than adding a scheduler, workflow engine, database or
 provider client. It does not claim Gate 4, automated Measurement evaluation or
 durable crash recovery.
 
+The Growth page exposes that action as one explicit Monthly review card. The
+client persists only the project-scoped retry key in browser session storage,
+clears it after a known terminal response and refreshes the existing phase
+views. Fresh responses may show the bounded phase results; exact replays remain
+truthful to the stored coordinator summary and do not reconstruct mutable phase
+state.
+
 ### Deferred
 
-The application card and its rendered review, resumable phase checkpoints,
-leases or abandonment, scheduled execution, additional detectors, AI,
-automatic Measurement work, alerts, publication, sharing and delivery remain
-separate decisions.
+Historical review inspection, resumable phase checkpoints, leases or
+abandonment, scheduled execution, additional detectors, AI, automatic
+Measurement work, alerts, publication, sharing and delivery remain separate
+decisions.
