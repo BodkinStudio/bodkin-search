@@ -1,7 +1,33 @@
 import { describe, expect, it } from "vitest";
 import { priorityPageInvestigationTemplate } from "./GrowthInvestigationTemplate";
+import {
+  investigationKeysForDescriptor,
+  strikingDistanceInvestigationDescriptor,
+} from "./GrowthInvestigationTemplateDescriptor";
 
 describe("priorityPageInvestigationTemplate", () => {
+  it("maps the striking descriptor to the exact controller and Work key family", () => {
+    expect(strikingDistanceInvestigationDescriptor).toMatchObject({
+      templateVersion: "striking-distance-investigation-v1",
+      run: {
+        cadenceSlotPrefix: "striking-distance-check:",
+        detectorVersions: ["striking-distance-query-v1"],
+      },
+      controller: {
+        signalType: "striking_distance_query",
+        entityType: "search_query",
+        metric: "gsc_impressions",
+        evidenceKind: "gsc_period",
+      },
+      companionMetrics: ["gsc_clicks", "gsc_average_position"],
+    });
+    expect(
+      investigationKeysForDescriptor(
+        strikingDistanceInvestigationDescriptor,
+        "signal_1",
+      ).action,
+    ).toBe("striking-distance-investigation-v1:action:signal_1");
+  });
   it("keeps deterministic investigation text bounded and preserves the URL only as a target", () => {
     const url = `https://example.com/${"a".repeat(2_000)}`;
     const template = priorityPageInvestigationTemplate({

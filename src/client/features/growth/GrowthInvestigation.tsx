@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- the existing investigation lifecycle and its typed evidence projection stay colocated */
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getErrorCode } from "@/client/lib/error-messages";
@@ -25,6 +26,103 @@ type WithoutInvestigationRoute<T> = T extends unknown
   : never;
 type InvestigationReviewSubmission =
   WithoutInvestigationRoute<GrowthInvestigationReviewInput>;
+type GrowthInvestigationControllerView = Extract<
+  GrowthInvestigationView,
+  { relationship: "controller" }
+>;
+type StrikingDistanceEvidenceSummary = NonNullable<
+  GrowthInvestigationControllerView["evidenceSummary"]
+>;
+
+function formatEvidenceValue(value: number, maximumFractionDigits: number) {
+  return new Intl.NumberFormat("en-GB", { maximumFractionDigits }).format(
+    value,
+  );
+}
+
+function GrowthInvestigationEvidencePeriod({
+  label,
+  period,
+  facts,
+}: {
+  label: string;
+  period: StrikingDistanceEvidenceSummary["baselinePeriod"];
+  facts: StrikingDistanceEvidenceSummary["baseline"];
+}) {
+  return (
+    <section
+      aria-label={`${label} evidence`}
+      className="rounded-md border border-base-300 p-3"
+    >
+      <h6 className="font-medium">{label}</h6>
+      <p className="mt-1 text-xs text-base-content/70">
+        {formatGrowthPreviewDate(period.start)} –{" "}
+        {formatGrowthPreviewDate(period.end)}
+      </p>
+      <dl className="mt-2 grid grid-cols-3 gap-2">
+        <div>
+          <dt className="text-xs text-base-content/70">Position</dt>
+          <dd className="font-medium">
+            {formatEvidenceValue(facts.position, 1)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-base-content/70">Impressions</dt>
+          <dd className="font-medium">
+            {formatEvidenceValue(facts.impressions, 0)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-base-content/70">Clicks</dt>
+          <dd className="font-medium">
+            {formatEvidenceValue(facts.clicks, 0)}
+          </dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
+function GrowthStrikingDistanceEvidence({
+  evidence,
+}: {
+  evidence: StrikingDistanceEvidenceSummary;
+}) {
+  return (
+    <section
+      aria-label="Saved ranking-opportunity evidence"
+      className="rounded-md bg-base-200/60 p-3"
+    >
+      <h5 className="font-semibold">Saved query evidence</h5>
+      <dl className="mt-2 grid gap-2 sm:grid-cols-2">
+        <div>
+          <dt className="text-xs text-base-content/70">Query</dt>
+          <dd className="font-medium">{evidence.query}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-base-content/70">Priority page</dt>
+          <dd>{evidence.page}</dd>
+        </div>
+        <div className="sm:col-span-2">
+          <dt className="text-xs text-base-content/70">Site</dt>
+          <dd>{evidence.site}</dd>
+        </div>
+      </dl>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <GrowthInvestigationEvidencePeriod
+          label="Preceding 28 days"
+          period={evidence.baselinePeriod}
+          facts={evidence.baseline}
+        />
+        <GrowthInvestigationEvidencePeriod
+          label="Current 28 days"
+          period={evidence.currentPeriod}
+          facts={evidence.current}
+        />
+      </div>
+    </section>
+  );
+}
 
 export function GrowthInvestigation({
   projectId,
@@ -233,6 +331,9 @@ export function GrowthInvestigationReview({
         Rule-based investigation. No AI was used.
       </p>
       <p className="whitespace-pre-wrap">{saved.rationale}</p>
+      {saved.evidenceSummary?.kind === "striking_distance_query" ? (
+        <GrowthStrikingDistanceEvidence evidence={saved.evidenceSummary} />
+      ) : null}
       <ul className="space-y-1 text-base-content/70">
         {saved.displayUrls.map((url, index) => (
           <li key={`${index}:${url}`}>{url ?? "Saved page URL withheld"}</li>
@@ -265,7 +366,11 @@ export function GrowthInvestigationReview({
       ) : saved.status === "proposed" ? (
         <>
           <p className="text-base-content/70">
-            This suggestion covers later checks for the same saved page.{" "}
+            This suggestion covers later checks for the same saved{" "}
+            {saved.evidenceSummary?.kind === "striking_distance_query"
+              ? "query and page"
+              : "page"}
+            .{" "}
             <a className="link" href="#growth-work">
               Check existing work
             </a>{" "}

@@ -1185,3 +1185,65 @@ Historical review inspection, resumable phase checkpoints, leases or
 abandonment, scheduled execution, additional detectors, AI, automatic
 Measurement work, alerts, publication, sharing and delivery remain separate
 decisions.
+
+---
+
+## ADR-050 - Striking-distance opportunities use exhaustive paired GSC evidence
+
+**Status:** Accepted
+
+### Decision
+
+- One explicit authenticated request claims a `manual_analysis` Run with a
+  caller-stable request key and `striking-distance-query-v1`. It remains
+  separate from priority-page decline history and is not yet part of the
+  monthly coordinator.
+- The detector reuses the existing Search Console service to collect `query`
+  and `page` rows for two adjacent 28-day windows. Requests use final web data,
+  1,000-row pages and at most ten requests per window. Only an empty page proves
+  exhaustion; a tenth non-empty page makes the inventory incomplete and no
+  opportunity is created from it.
+- A candidate must match a configured key page, have a real matching baseline
+  query/page coordinate, rank from position 5 through 20 inclusive and have at
+  least 50 current impressions. Provider aliases are reduced deterministically
+  and at most three candidates are selected by saved numeric facts and stable
+  tie-breakers.
+- Each candidate saves position, impressions and clicks as three immutable
+  Signals with one recomputable evidence reference bound to the project, site,
+  query, page, two windows, captured-at time and measured values. The connected
+  Search Console property must remain stable across collection, but is not
+  persisted as a separate graph identity; authorization continues to resolve it
+  from the project's connection. Impressions is the sole controller Signal; one
+  rule-based Insight links all three facts. The
+  Recommendation stores normalized keyword, URL and site targets and explicitly
+  says that the cause and warranted change remain unknown.
+- Newly generated `gsc_striking_distance_v2` evidence references bind the
+  captured-at time. Read validation also recognizes immutable preview-era v1
+  references, whose hash covers the same persisted facts except captured-at;
+  they are never rewritten or emitted for new Runs.
+- The repeat key is project, normalized query and the exact canonical key-page
+  URL. URL normalisation reuses the query-aware key-page policy: protocol and
+  leading-`www` aliases collapse, while meaningful queries and non-root trailing
+  slashes remain distinct. A later exact match still saves fresh Signals but
+  records only a suppressed controller decision against the existing
+  Recommendation. Striking-distance controllers are not released in version 1.
+- Review and approval reuse the existing Recommendation, Action and Work
+  authorities. The review projection verifies the exact three-Signal graph and
+  recomputes its evidence reference before showing the saved comparison.
+
+### Consequence
+
+Growth gains its first additional high-value detector without a new database,
+provider client, auth system, scheduler, MCP server or AI interpretation path.
+The live UI can find and review a bounded ranking opportunity while remaining
+honest about incomplete inventories, repeat coverage and unknown causation.
+
+This implements the first detector in BG-0402. It does not satisfy Gate 4,
+because scheduled monthly execution and two consecutive unattended cycles are
+still unproven.
+
+### Deferred
+
+High-impression/low-CTR detection, tracked-rank drops, audit and measurement-due
+detectors, controller release rules, scheduled orchestration, provider-cost
+inspection, alerts and AI-assisted diagnosis remain separate decisions.

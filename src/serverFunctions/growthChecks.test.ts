@@ -16,6 +16,7 @@ const service = vi.hoisted(() => ({
   getRunDetail: vi.fn(),
   getEvidence: vi.fn(),
 }));
+const strikingService = vi.hoisted(() => ({ runCheck: vi.fn() }));
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => ({
     middleware: (value: unknown) => {
@@ -49,12 +50,17 @@ vi.mock(
   "@/server/features/growth/services/GrowthPriorityPageCheckService",
   () => ({ GrowthPriorityPageCheckService: service }),
 );
+vi.mock(
+  "@/server/features/growth/services/GrowthStrikingDistanceCheckService",
+  () => ({ GrowthStrikingDistanceCheckService: strikingService }),
+);
 
 import {
   getGrowthCheckEvidence,
   getGrowthCheckRun,
   getGrowthChecksOverview,
   runGrowthCheck,
+  runGrowthStrikingDistanceCheck,
 } from "./growthChecks";
 
 describe("Growth checks server functions", () => {
@@ -63,6 +69,7 @@ describe("Growth checks server functions", () => {
     service.runCheck.mockResolvedValue({});
     service.getRunDetail.mockResolvedValue({});
     service.getEvidence.mockResolvedValue({});
+    strikingService.runCheck.mockResolvedValue({});
     const context = {
       projectId: "project_authorized",
       organizationId: "organization_authorized",
@@ -85,10 +92,15 @@ describe("Growth checks server functions", () => {
     };
     await getGrowthChecksOverview(overviewRequest);
     await runGrowthCheck(checkRequest);
+    await runGrowthStrikingDistanceCheck(checkRequest);
     await getGrowthCheckRun(runRequest);
     await getGrowthCheckEvidence(evidenceRequest);
     expect(service.getOverview).toHaveBeenCalledWith("project_authorized");
     expect(service.runCheck).toHaveBeenCalledWith({
+      projectId: "project_authorized",
+      requestKey: "retry_1",
+    });
+    expect(strikingService.runCheck).toHaveBeenCalledWith({
       projectId: "project_authorized",
       requestKey: "retry_1",
     });

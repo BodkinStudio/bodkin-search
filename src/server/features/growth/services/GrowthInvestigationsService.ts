@@ -17,47 +17,19 @@ import { GrowthOpportunityDecisionsRepository } from "../repositories/GrowthOppo
 import { GrowthRunsRepository } from "../repositories/GrowthRunsRepository";
 import { GrowthActionsService } from "./GrowthActionsService";
 import { GrowthInsightsService } from "./GrowthInsightsService";
-import {
-  GROWTH_INVESTIGATION_TEMPLATE_VERSION,
-  investigationKeys,
-} from "./GrowthInvestigationTemplate";
+import { investigationKeys } from "./GrowthInvestigationTemplate";
 import { growthEvidenceDisplayUrl } from "./GrowthEvidencePacket";
 import { canonicalTimestamp } from "./GrowthMeasurementFacts";
-import { isPriorityPageClickDeclineDetectorVersion } from "./PriorityPageClickDeclineDetector";
+import {
+  descriptorForRunAndController,
+  investigationKeysForDescriptor,
+  priorityPageInvestigationDescriptor,
+  type GrowthInvestigationTemplateDescriptor,
+} from "./GrowthInvestigationTemplateDescriptor";
+import { matchesStrikingDistanceEvidenceRef } from "./StrikingDistanceQueryDetector";
+import type { GrowthTargetNormalizationMode } from "./GrowthTargetNormalizer";
 
-const RUN_TYPE = "manual_analysis" as const;
-const CADENCE_SLOT_PREFIX = "priority-page-check:";
 const WORK_LIMIT = 50;
-
-function isSourceSignal(signal: {
-  signalType: string;
-  entityType: string;
-  metric: string;
-  evidenceKind: string;
-}) {
-  return (
-    signal.signalType === "priority_page_click_decline" &&
-    signal.entityType === "key_page" &&
-    signal.metric === "gsc_clicks" &&
-    signal.evidenceKind === "gsc_period"
-  );
-}
-
-function sourceRun(run: {
-  runType: string;
-  cadenceSlot: string;
-  detectorVersion: string;
-  analysisVersion: string | null;
-  status: string;
-}) {
-  return (
-    run.runType === RUN_TYPE &&
-    run.cadenceSlot.startsWith(CADENCE_SLOT_PREFIX) &&
-    isPriorityPageClickDeclineDetectorVersion(run.detectorVersion) &&
-    run.analysisVersion === GROWTH_INVESTIGATION_TEMPLATE_VERSION &&
-    ["completed", "completed_with_errors"].includes(run.status)
-  );
-}
 
 function dueOn(dueAt: string | null) {
   return dueAt?.slice(0, 10) ?? null;
@@ -79,14 +51,29 @@ function canonicalReviewTimestamp(value: string | null) {
   return canonicalTimestamp(normalized, "Recommendation snooze timestamp");
 }
 
+function preceding28DayPeriod(currentStart: string) {
+  const current = new Date(`${currentStart}T00:00:00.000Z`);
+  if (Number.isNaN(current.valueOf())) return null;
+  const end = new Date(current);
+  end.setUTCDate(end.getUTCDate() - 1);
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - 27);
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+  };
+}
+
 async function source(projectId: string, signalId: string) {
   const signal = await GrowthRunsRepository.getSignal(projectId, signalId);
-  if (!signal || !isSourceSignal(signal))
-    throw new AppError("NOT_FOUND", "Growth Signal not found");
+  if (!signal) throw new AppError("NOT_FOUND", "Growth Signal not found");
   const run = await GrowthRunsRepository.getRun(projectId, signal.runId);
-  if (!run || !sourceRun(run))
+  const descriptor = run
+    ? descriptorForRunAndController({ run, signal })
+    : null;
+  if (!descriptor)
     throw new AppError("NOT_FOUND", "Growth investigation source not found");
-  return { signal, run };
+  return { signal, run, descriptor };
 }
 
 async function qualifiedGraph(
@@ -94,8 +81,9 @@ async function qualifiedGraph(
   runId: string,
   signalId: string,
   recommendationId: string,
+  descriptor: GrowthInvestigationTemplateDescriptor,
 ) {
-  const keys = investigationKeys(signalId);
+  const keys = investigationKeysForDescriptor(descriptor, signalId);
   const graph = await GrowthInsightsService.getRecommendation(
     projectId,
     runId,
@@ -116,11 +104,121 @@ async function qualifiedGraph(
   if (
     !insight ||
     insight.insight.creationKey !== keys.insight ||
-    insight.signalIds.length !== 1 ||
-    insight.signalIds[0] !== signalId
+    (descriptor.family === "priority_page" &&
+      (insight.signalIds.length !== 1 || insight.signalIds[0] !== signalId))
   )
     return null;
-  return graph;
+  if (descriptor.family === "priority_page") return { graph, evidence: null };
+  if (insight.signalIds.length !== 3 || !insight.signalIds.includes(signalId))
+    return null;
+  const signals = await GrowthRunsRepository.listSignals(projectId, runId);
+  const facts = insight.signalIds
+    .map((id) => signals.find((signal) => signal.id === id))
+    .filter((signal): signal is NonNullable<typeof signal> => Boolean(signal));
+  if (facts.length !== 3) return null;
+  const byMetric = new Map(facts.map((fact) => [fact.metric, fact]));
+  const expectedMetrics = [
+    descriptor.controller.metric,
+    ...descriptor.companionMetrics,
+  ].toSorted();
+  if (
+    facts
+      .map((fact) => fact.metric)
+      .toSorted()
+      .join("\u0000") !== expectedMetrics.join("\u0000")
+  )
+    return null;
+  const position = byMetric.get("gsc_average_position");
+  const impressions = byMetric.get(descriptor.controller.metric);
+  const clicks = byMetric.get("gsc_clicks");
+  if (!position || !impressions || !clicks) return null;
+  const first = impressions;
+  if (
+    facts.some(
+      (fact) =>
+        fact.signalType !== descriptor.controller.signalType ||
+        fact.entityType !== descriptor.controller.entityType ||
+        fact.entityRef !== first.entityRef ||
+        fact.periodStart !== first.periodStart ||
+        fact.periodEnd !== first.periodEnd ||
+        fact.capturedAt !== first.capturedAt ||
+        fact.evidenceKind !== descriptor.controller.evidenceKind ||
+        fact.evidenceRef !== first.evidenceRef ||
+        fact.deltaValue !== fact.currentValue - fact.baselineValue,
+    )
+  )
+    return null;
+  const targetKinds = new Set(graph.targets.map((target) => target.targetType));
+  const page = graph.targets.find((target) => target.targetType === "url");
+  const site = graph.targets.find((target) => target.targetType === "site");
+  const baselinePeriod = preceding28DayPeriod(first.periodStart);
+  if (
+    graph.targets.length !== 3 ||
+    !targetKinds.has("keyword") ||
+    !targetKinds.has("url") ||
+    !targetKinds.has("site") ||
+    !page ||
+    !site ||
+    !baselinePeriod ||
+    !graph.targets.some(
+      (target) =>
+        target.targetType === "keyword" &&
+        target.targetValue === first.entityRef,
+    )
+  )
+    return null;
+  if (
+    !(await matchesStrikingDistanceEvidenceRef(
+      {
+        projectId,
+        site: site.targetValue,
+        query: first.entityRef,
+        page: page.targetValue,
+        capturedAt: first.capturedAt,
+        baselineWindow: {
+          startDate: baselinePeriod.start,
+          endDate: baselinePeriod.end,
+        },
+        currentWindow: {
+          startDate: first.periodStart,
+          endDate: first.periodEnd,
+        },
+        baseline: {
+          position: position.baselineValue,
+          impressions: impressions.baselineValue,
+          clicks: clicks.baselineValue,
+        },
+        current: {
+          position: position.currentValue,
+          impressions: impressions.currentValue,
+          clicks: clicks.currentValue,
+        },
+      },
+      first.evidenceRef,
+    ))
+  )
+    return null;
+  return {
+    graph,
+    evidence: {
+      kind: "striking_distance_query" as const,
+      query: first.entityRef,
+      page: page.targetValue,
+      site: site.targetValue,
+      baselinePeriod,
+      currentPeriod: { start: first.periodStart, end: first.periodEnd },
+      baseline: {
+        position: position.baselineValue,
+        impressions: impressions.baselineValue,
+        clicks: clicks.baselineValue,
+      },
+      current: {
+        position: position.currentValue,
+        impressions: impressions.currentValue,
+        clicks: clicks.currentValue,
+      },
+    },
+  };
 }
 
 async function legacySaved(
@@ -134,8 +232,14 @@ async function legacySaved(
     investigationKeys(signal.id).recommendation,
   );
   if (!found || found.runId !== run.id) return null;
-  const graph = await qualifiedGraph(projectId, run.id, signal.id, found.id);
-  if (!graph) return null;
+  const qualified = await qualifiedGraph(
+    projectId,
+    run.id,
+    signal.id,
+    found.id,
+    priorityPageInvestigationDescriptor,
+  );
+  if (!qualified) return null;
   return {
     signal,
     run,
@@ -144,7 +248,8 @@ async function legacySaved(
     relationship: "controller" as const,
     suppressionReason: null,
     policyVersion: null,
-    graph,
+    descriptor: priorityPageInvestigationDescriptor,
+    ...qualified,
   };
 }
 
@@ -159,13 +264,14 @@ async function getSaved(projectId: string, signalId: string) {
   if (!linked) return legacySaved(projectId, signal, run);
   const controllerSource = await source(projectId, linked.controllerSignalId);
   if (controllerSource.run.id !== linked.controllerRunId) return null;
-  const graph = await qualifiedGraph(
+  const qualified = await qualifiedGraph(
     projectId,
     linked.controllerRunId,
     linked.controllerSignalId,
     linked.recommendationId,
+    controllerSource.descriptor,
   );
-  if (!graph) return null;
+  if (!qualified) return null;
   return {
     signal,
     run,
@@ -174,7 +280,8 @@ async function getSaved(projectId: string, signalId: string) {
     relationship: linked.relationship,
     suppressionReason: linked.suppressionReason,
     policyVersion: linked.policyVersion,
-    graph,
+    descriptor: controllerSource.descriptor,
+    ...qualified,
   };
 }
 
@@ -189,10 +296,11 @@ async function exactTemplateAction(
   projectId: string,
   controllerSignalId: string,
   recommendationId: string,
+  descriptor: GrowthInvestigationTemplateDescriptor,
 ) {
   const action = await GrowthActionsRepository.getActionByKey(
     projectId,
-    investigationKeys(controllerSignalId).action,
+    investigationKeysForDescriptor(descriptor, controllerSignalId).action,
   );
   return action?.recommendationId === recommendationId ? action : null;
 }
@@ -207,6 +315,7 @@ async function getInvestigation(
     projectId,
     saved.controllerSignalId,
     saved.graph.recommendation.id,
+    saved.descriptor,
   );
   if (saved.relationship === "suppressed") {
     if (!saved.suppressionReason || !saved.policyVersion)
@@ -240,7 +349,8 @@ async function getInvestigation(
     ),
     actionId: action?.id ?? null,
     dueOn: dueOn(action?.dueAt ?? null),
-    templateVersion: GROWTH_INVESTIGATION_TEMPLATE_VERSION,
+    templateVersion: saved.descriptor.templateVersion,
+    ...(saved.evidence ? { evidenceSummary: saved.evidence } : {}),
   });
 }
 
@@ -357,7 +467,10 @@ async function approveInvestigation(input: {
   actorId: string;
 }) {
   const saved = await getMutableSaved(input.projectId, input.signalId);
-  const keys = investigationKeys(saved.controllerSignalId);
+  const keys = investigationKeysForDescriptor(
+    saved.descriptor,
+    saved.controllerSignalId,
+  );
   const actionInput = {
     projectId: input.projectId,
     recommendationId: saved.graph.recommendation.id,
@@ -372,6 +485,10 @@ async function approveInvestigation(input: {
     actorType: "user" as const,
     actorId: input.actorId,
   };
+  const targetNormalizationMode: GrowthTargetNormalizationMode | undefined =
+    saved.descriptor.family === "striking_distance"
+      ? "key_page_identity"
+      : undefined;
 
   const replay = async (existing: {
     id: string;
@@ -399,12 +516,18 @@ async function approveInvestigation(input: {
       );
     // Validate the complete immutable graph with its original actor and note.
     // A later reviewer can read that approval but cannot rewrite its intent.
-    const verified = await GrowthActionsService.createAction({
+    const replayInput = {
       ...actionInput,
       actorType: graph.creationEvent.actorType,
       actorId: graph.creationEvent.actorId,
       note: graph.creationEvent.note ?? undefined,
-    });
+    };
+    const verified = targetNormalizationMode
+      ? await GrowthActionsService.createAction(
+          replayInput,
+          targetNormalizationMode,
+        )
+      : await GrowthActionsService.createAction(replayInput);
     return projectedWorkItem(
       { ...verified.action, runId: saved.run.id },
       verified.targets,
@@ -430,10 +553,16 @@ async function approveInvestigation(input: {
   }
 
   try {
-    const graph = await GrowthActionsService.approveProposedRecommendation(
-      actionInput,
-      saved.graph.recommendation.reviewVersion,
-    );
+    const graph = targetNormalizationMode
+      ? await GrowthActionsService.approveProposedRecommendation(
+          actionInput,
+          saved.graph.recommendation.reviewVersion,
+          targetNormalizationMode,
+        )
+      : await GrowthActionsService.approveProposedRecommendation(
+          actionInput,
+          saved.graph.recommendation.reviewVersion,
+        );
     return projectedWorkItem(
       { ...graph.action, runId: saved.run.id },
       graph.targets,

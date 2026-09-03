@@ -1,4 +1,5 @@
 import { AppError } from "@/server/lib/errors";
+import { normalizeKeyPageUrl } from "@/server/features/project-context/services/contextUpdateOps";
 import {
   parseResearchTarget,
   urlMatchesResearchTarget,
@@ -13,6 +14,12 @@ export type NormalizedGrowthTarget = {
   targetType: GrowthTargetInput["type"];
   targetValue: string;
 };
+
+export type GrowthTargetNormalizationMode =
+  | "research_scope"
+  | "key_page_identity";
+
+const MAX_TARGET_VALUE_LENGTH = 2000;
 
 const normalizeWords = (value: string) =>
   value.trim().replace(/\s+/g, " ").toLowerCase();
@@ -31,6 +38,7 @@ export function canonicalizeGrowthExactUrls(values: string[]): string[] {
 export function normalizeGrowthTargets(
   projectDomain: string,
   values: GrowthTargetInput[],
+  mode: GrowthTargetNormalizationMode = "research_scope",
 ): NormalizedGrowthTarget[] {
   const project = parseResearchTarget(projectDomain, "subdomains");
   if (!project.ok)
@@ -42,7 +50,18 @@ export function normalizeGrowthTargets(
     }
 
     if (type === "url") {
-      const targetValue = canonicalizeGrowthExactUrl(value);
+      const targetValue =
+        mode === "key_page_identity"
+          ? normalizeKeyPageUrl(value)
+          : canonicalizeGrowthExactUrl(value);
+      if (
+        mode === "key_page_identity" &&
+        targetValue.length > MAX_TARGET_VALUE_LENGTH
+      )
+        throw new AppError(
+          "VALIDATION_ERROR",
+          `URL targets are capped at ${MAX_TARGET_VALUE_LENGTH} characters`,
+        );
       if (!urlMatchesResearchTarget(targetValue, project.target))
         throw new AppError(
           "VALIDATION_ERROR",

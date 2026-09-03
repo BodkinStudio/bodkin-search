@@ -4,6 +4,7 @@ import { AppError } from "@/server/lib/errors";
 
 const repositories = vi.hoisted(() => ({
   getSignal: vi.fn(),
+  listSignals: vi.fn(),
   getRun: vi.fn(),
   findRecommendationForSignal: vi.fn(),
   getDecisionControllerSource: vi.fn(),
@@ -26,6 +27,7 @@ const services = vi.hoisted(() => ({
 vi.mock("../repositories/GrowthRunsRepository", () => ({
   GrowthRunsRepository: {
     getSignal: repositories.getSignal,
+    listSignals: repositories.listSignals,
     getRun: repositories.getRun,
   },
 }));
@@ -121,6 +123,7 @@ const action = {
 beforeEach(() => {
   vi.resetAllMocks();
   repositories.getSignal.mockResolvedValue(signal);
+  repositories.listSignals.mockResolvedValue([signal]);
   repositories.getRun.mockResolvedValue(run);
   repositories.findRecommendationForSignal.mockResolvedValue({
     id: "recommendation_1",
@@ -152,6 +155,143 @@ beforeEach(() => {
 // authorization cannot drift between controller and suppressed identities.
 // eslint-disable-next-line max-lines-per-function
 describe("GrowthInvestigationsService", () => {
+  it("reconstructs three-fact striking-distance evidence and approves qualifying Work", async () => {
+    const { strikingDistanceEvidenceRef } =
+      await import("./StrikingDistanceQueryDetector");
+    const evidenceRef = await strikingDistanceEvidenceRef({
+      projectId: "project_1",
+      site: "example.com",
+      query: "web design bath",
+      page: "https://example.com/pricing/?plan=pro",
+      capturedAt: "2026-09-02T10:00:00.000Z",
+      baselineWindow: { startDate: "2026-07-07", endDate: "2026-08-03" },
+      currentWindow: { startDate: "2026-08-04", endDate: "2026-08-31" },
+      baseline: { position: 9, impressions: 80, clicks: 2 },
+      current: { position: 6, impressions: 150, clicks: 1 },
+    });
+    const strikingRun = {
+      ...run,
+      id: "striking_run",
+      cadenceSlot: "striking-distance-check:one",
+      detectorVersion: "striking-distance-query-v1",
+      analysisVersion: "striking-distance-investigation-v1",
+    };
+    const impressions = {
+      ...signal,
+      id: "striking_impressions",
+      runId: strikingRun.id,
+      signalType: "striking_distance_query",
+      entityType: "search_query",
+      entityRef: "web design bath",
+      metric: "gsc_impressions",
+      periodStart: "2026-08-04",
+      periodEnd: "2026-08-31",
+      baselineValue: 80,
+      currentValue: 150,
+      deltaValue: 70,
+      evidenceRef,
+      capturedAt: "2026-09-02T10:00:00.000Z",
+    };
+    const position = {
+      ...impressions,
+      id: "striking_position",
+      metric: "gsc_average_position",
+      baselineValue: 9,
+      currentValue: 6,
+      deltaValue: -3,
+    };
+    const clicks = {
+      ...impressions,
+      id: "striking_clicks",
+      metric: "gsc_clicks",
+      baselineValue: 2,
+      currentValue: 1,
+      deltaValue: -1,
+    };
+    repositories.getSignal.mockResolvedValue(impressions);
+    repositories.getRun.mockResolvedValue(strikingRun);
+    repositories.listSignals.mockResolvedValue([position, impressions, clicks]);
+    repositories.getDecisionControllerSource.mockResolvedValue({
+      relationship: "controller",
+      recommendationId: "striking_recommendation",
+      controllerRunId: strikingRun.id,
+      controllerSignalId: impressions.id,
+      suppressionReason: null,
+      policyVersion: "striking-distance-repeat-suppression-v1",
+      controllerReleasedAt: null,
+    });
+    const strikingGraph = {
+      ...graph,
+      recommendation: {
+        ...graph.recommendation,
+        id: "striking_recommendation",
+        creationKey:
+          "striking-distance-investigation-v1:recommendation:striking_impressions",
+      },
+      targets: [
+        { targetType: "keyword" as const, targetValue: "web design bath" },
+        {
+          targetType: "url" as const,
+          targetValue: "https://example.com/pricing/?plan=pro",
+        },
+        { targetType: "site" as const, targetValue: "example.com" },
+      ],
+    };
+    services.getRecommendation.mockResolvedValue(strikingGraph);
+    services.getInsight.mockResolvedValue({
+      insight: {
+        id: "striking_insight",
+        creationKey:
+          "striking-distance-investigation-v1:insight:striking_impressions",
+      },
+      signalIds: [position.id, impressions.id, clicks.id],
+    });
+    repositories.getActionByKey.mockResolvedValue(null);
+    const view = await GrowthInvestigationsService.getInvestigation(
+      "project_1",
+      impressions.id,
+    );
+    expect(view).toMatchObject({
+      relationship: "controller",
+      evidenceSummary: {
+        kind: "striking_distance_query",
+        query: "web design bath",
+        page: "https://example.com/pricing/?plan=pro",
+        current: { position: 6, impressions: 150, clicks: 1 },
+      },
+    });
+    repositories.listSignals.mockResolvedValue(
+      [position, impressions, clicks].map((fact) => ({
+        ...fact,
+        capturedAt: "2026-09-03T10:00:00.000Z",
+      })),
+    );
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", impressions.id),
+    ).resolves.toBeNull();
+    repositories.listSignals.mockResolvedValue([position, impressions, clicks]);
+    await GrowthInvestigationsService.approveInvestigation({
+      projectId: "project_1",
+      signalId: impressions.id,
+      dueOn: "2026-09-10",
+      actorId: "user_1",
+    });
+    expect(services.approveProposedRecommendation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        creationKey:
+          "striking-distance-investigation-v1:action:striking_impressions",
+        recommendationId: "striking_recommendation",
+        // eslint-disable-next-line typescript-eslint/no-unsafe-assignment -- Vitest's asymmetric matcher is intentionally untyped
+        targets: expect.arrayContaining([
+          expect.objectContaining({
+            value: "https://example.com/pricing/?plan=pro",
+          }),
+        ]),
+      }),
+      0,
+      "key_page_identity",
+    );
+  });
   it.each([
     ["v1", "priority-page-click-decline-v1"],
     ["v2", "priority-page-click-decline-v2"],

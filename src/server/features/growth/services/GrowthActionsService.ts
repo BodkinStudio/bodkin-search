@@ -12,6 +12,7 @@ import {
 } from "./GrowthActionEventFact";
 import {
   normalizeGrowthTargets,
+  type GrowthTargetNormalizationMode,
   type NormalizedGrowthTarget,
 } from "./GrowthTargetNormalizer";
 
@@ -107,6 +108,7 @@ async function readCreationGraph(
 async function createActionGraph(
   input: CreateGrowthActionInput,
   expectedReviewVersion?: number,
+  targetNormalizationMode: GrowthTargetNormalizationMode = "research_scope",
 ) {
   const [domain, source, sourceTargetRows] = await Promise.all([
     repo.projectDomain(input.projectId),
@@ -130,13 +132,18 @@ async function createActionGraph(
   if (!Number.isFinite(source.priorityScore) || source.priorityScore < 0)
     throw new AppError("CONFLICT", "Growth Recommendation priority is invalid");
 
-  const normalizedTargets = normalizeGrowthTargets(domain, input.targets);
+  const normalizedTargets = normalizeGrowthTargets(
+    domain,
+    input.targets,
+    targetNormalizationMode,
+  );
   const sourceTargets = normalizeGrowthTargets(
     domain,
     sourceTargetRows.map(({ targetType, targetValue }) => ({
       type: targetType,
       value: targetValue,
     })),
+    targetNormalizationMode,
   );
   const sourceTargetKeys = new Set(sourceTargets.map(targetKey));
   if (
@@ -262,15 +269,23 @@ async function createActionGraph(
   });
 }
 
-async function createAction(input: CreateGrowthActionInput) {
-  return createActionGraph(input);
+async function createAction(
+  input: CreateGrowthActionInput,
+  targetNormalizationMode?: GrowthTargetNormalizationMode,
+) {
+  return createActionGraph(input, undefined, targetNormalizationMode);
 }
 
 async function approveProposedRecommendation(
   input: CreateGrowthActionInput,
   expectedReviewVersion: number,
+  targetNormalizationMode?: GrowthTargetNormalizationMode,
 ) {
-  return createActionGraph(input, expectedReviewVersion);
+  return createActionGraph(
+    input,
+    expectedReviewVersion,
+    targetNormalizationMode,
+  );
 }
 
 async function transitionAction(input: TransitionGrowthActionInput) {

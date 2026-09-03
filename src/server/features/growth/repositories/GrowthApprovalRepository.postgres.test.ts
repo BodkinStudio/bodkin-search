@@ -26,6 +26,7 @@ let withPgClient: WithPgClient;
 
 const describePostgres = testUrl ? describe : describe.skip;
 const templateVersion = "priority-page-investigation-v1";
+const strikingTemplateVersion = "striking-distance-investigation-v1";
 
 function ids(suffix: string) {
   return {
@@ -132,6 +133,121 @@ async function seedInvestigation(input: {
     )
   `;
   return value;
+}
+
+async function seedStrikingWork(suffix: string) {
+  const organizationId = `growth_striking_work_org_${suffix}`;
+  const projectId = `growth_striking_work_project_${suffix}`;
+  const runId = `growth_striking_work_run_${suffix}`;
+  const impressionsSignalId = `growth_striking_impressions_${suffix}`;
+  const clicksSignalId = `growth_striking_clicks_${suffix}`;
+  const positionSignalId = `growth_striking_position_${suffix}`;
+  const insightId = `growth_striking_work_insight_${suffix}`;
+  const recommendationId = `growth_striking_work_recommendation_${suffix}`;
+  const actionId = `growth_striking_work_action_${suffix}`;
+  await sql`
+    INSERT INTO organization (id, name, slug, created_at)
+    VALUES (${organizationId}, 'Growth striking Work test', ${`growth-striking-work-${suffix}`}, now())
+  `;
+  await sql`
+    INSERT INTO projects (id, organization_id, name, domain)
+    VALUES (${projectId}, ${organizationId}, 'Growth striking Work test', 'example.com')
+  `;
+  await sql`
+    INSERT INTO growth_runs (
+      id, project_id, run_type, trigger, status, cadence_slot, period_start,
+      period_end, started_at, completed_at, detector_version, analysis_version
+    ) VALUES (
+      ${runId}, ${projectId}, 'manual_analysis', 'manual', 'completed',
+      ${`striking-distance-check:${suffix}`}, '2026-07-07', '2026-08-31',
+      '2026-09-01T10:00:00.000Z', '2026-09-01T10:01:00.000Z',
+      'striking-distance-query-v1', ${strikingTemplateVersion}
+    )
+  `;
+  await sql`
+    INSERT INTO growth_signals (
+      id, project_id, run_id, signal_type, entity_type, entity_ref, metric,
+      severity, confidence, period_start, period_end, baseline_value,
+      current_value, delta_value, evidence_kind, evidence_ref, captured_at
+    ) VALUES
+      (
+        ${positionSignalId}, ${projectId}, ${runId}, 'striking_distance_query',
+        'search_query', 'web design bath', 'gsc_average_position', 'info', .8,
+        '2026-08-04', '2026-08-31', 9, 6, -3, 'gsc_period',
+        'gsc_striking_distance_v1:test', '2026-09-01T10:00:00.000Z'
+      ),
+      (
+        ${impressionsSignalId}, ${projectId}, ${runId}, 'striking_distance_query',
+        'search_query', 'web design bath', 'gsc_impressions', 'info', .8,
+        '2026-08-04', '2026-08-31', 80, 150, 70, 'gsc_period',
+        'gsc_striking_distance_v1:test', '2026-09-01T10:00:00.000Z'
+      ),
+      (
+        ${clicksSignalId}, ${projectId}, ${runId}, 'striking_distance_query',
+        'search_query', 'web design bath', 'gsc_clicks', 'info', .8,
+        '2026-08-04', '2026-08-31', 2, 1, -1, 'gsc_period',
+        'gsc_striking_distance_v1:test', '2026-09-01T10:00:00.000Z'
+      )
+  `;
+  await sql`
+    INSERT INTO growth_insights (
+      id, project_id, run_id, creation_key, fact_hash, title, explanation,
+      hypothesis, confidence
+    ) VALUES (
+      ${insightId}, ${projectId}, ${runId},
+      ${`${strikingTemplateVersion}:insight:${impressionsSignalId}`},
+      ${"a".repeat(64)}, 'Observed query', 'Observed facts.', 'Cause unknown.', 0
+    )
+  `;
+  await sql`
+    INSERT INTO growth_insight_signals (project_id, run_id, insight_id, signal_id)
+    VALUES
+      (${projectId}, ${runId}, ${insightId}, ${positionSignalId}),
+      (${projectId}, ${runId}, ${insightId}, ${impressionsSignalId}),
+      (${projectId}, ${runId}, ${insightId}, ${clicksSignalId})
+  `;
+  await sql`
+    INSERT INTO growth_recommendations (
+      id, project_id, run_id, creation_key, fact_hash, title, rationale,
+      category, impact, commercial_relevance, effort, urgency, confidence,
+      priority_score, status, review_version
+    ) VALUES (
+      ${recommendationId}, ${projectId}, ${runId},
+      ${`${strikingTemplateVersion}:recommendation:${impressionsSignalId}`},
+      ${"b".repeat(64)}, 'Investigate query', 'Cause unknown.', 'investigation',
+      1, 1, 1, 1, 0, 0, 'accepted', 1
+    )
+  `;
+  await sql`
+    INSERT INTO growth_recommendation_insights (
+      project_id, run_id, recommendation_id, insight_id
+    ) VALUES (${projectId}, ${runId}, ${recommendationId}, ${insightId})
+  `;
+  await sql`
+    INSERT INTO growth_actions (
+      id, project_id, recommendation_id, creation_key, fact_hash, title,
+      description, category, priority_score, status, state_version, due_at,
+      approved_at, created_at, updated_at
+    ) VALUES (
+      ${actionId}, ${projectId}, ${recommendationId},
+      ${`${strikingTemplateVersion}:action:${impressionsSignalId}`},
+      ${"c".repeat(64)}, 'Investigate query', 'Cause unknown.', 'investigation',
+      0, 'approved', 0, '2026-09-10T00:00:00.000Z',
+      '2026-09-01T10:02:00.000Z', '2026-09-01T10:02:00.000Z',
+      '2026-09-01T10:02:00.000Z'
+    )
+  `;
+  return {
+    actionId,
+    clicksSignalId,
+    impressionsSignalId,
+    insightId,
+    organizationId,
+    positionSignalId,
+    projectId,
+    recommendationId,
+    runId,
+  };
 }
 
 async function deleteFixture(value: ReturnType<typeof ids>) {
@@ -530,6 +646,87 @@ describePostgres("Growth approval Postgres races and saved Work", () => {
         deleteFixture(work),
         deleteFixture(foreign),
       ]);
+    }
+  });
+
+  it("qualifies striking-distance Work only through its exact three-fact graph", async () => {
+    const value = await seedStrikingWork(crypto.randomUUID());
+    const listWork = () =>
+      withPgClient(() =>
+        GrowthActionsRepository.listInvestigationWork(
+          value.projectId,
+          1,
+          value.actionId,
+        ),
+      );
+    try {
+      await expect(listWork()).resolves.toEqual([
+        expect.objectContaining({ id: value.actionId, runId: value.runId }),
+      ]);
+
+      await sql`
+        UPDATE growth_signals SET metric = 'unrelated_metric'
+        WHERE id = ${value.clicksSignalId}
+      `;
+      await expect(listWork()).resolves.toEqual([]);
+      await sql`
+        UPDATE growth_signals SET metric = 'gsc_clicks'
+        WHERE id = ${value.clicksSignalId}
+      `;
+
+      await sql`
+        UPDATE growth_signals SET entity_ref = 'another query'
+        WHERE id = ${value.positionSignalId}
+      `;
+      await expect(listWork()).resolves.toEqual([]);
+      await sql`
+        UPDATE growth_signals SET entity_ref = 'web design bath'
+        WHERE id = ${value.positionSignalId}
+      `;
+
+      await sql`
+        UPDATE growth_signals SET delta_value = 71
+        WHERE id = ${value.impressionsSignalId}
+      `;
+      await expect(listWork()).resolves.toEqual([]);
+      await sql`
+        UPDATE growth_signals SET delta_value = 70
+        WHERE id = ${value.impressionsSignalId}
+      `;
+
+      await sql`
+        UPDATE growth_insights SET creation_key = 'wrong-key'
+        WHERE id = ${value.insightId}
+      `;
+      await expect(listWork()).resolves.toEqual([]);
+      await sql`
+        UPDATE growth_insights
+        SET creation_key = ${`${strikingTemplateVersion}:insight:${value.impressionsSignalId}`}
+        WHERE id = ${value.insightId}
+      `;
+
+      const extraInsightId = `growth_striking_extra_insight_${crypto.randomUUID()}`;
+      await sql`
+        INSERT INTO growth_insights (
+          id, project_id, run_id, creation_key, fact_hash, title, explanation,
+          hypothesis, confidence
+        ) VALUES (
+          ${extraInsightId}, ${value.projectId}, ${value.runId}, 'extra-insight',
+          ${"d".repeat(64)}, 'Extra', 'Extra.', 'Cause unknown.', 0
+        )
+      `;
+      await sql`
+        INSERT INTO growth_recommendation_insights (
+          project_id, run_id, recommendation_id, insight_id
+        ) VALUES (
+          ${value.projectId}, ${value.runId}, ${value.recommendationId},
+          ${extraInsightId}
+        )
+      `;
+      await expect(listWork()).resolves.toEqual([]);
+    } finally {
+      await sql`DELETE FROM projects WHERE id = ${value.projectId}`;
+      await sql`DELETE FROM organization WHERE id = ${value.organizationId}`;
     }
   });
 });

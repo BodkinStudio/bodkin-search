@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Action aggregate reads and provider-compatible guards remain one repository boundary */
 import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import type { SQLWrapper } from "drizzle-orm";
 import { db } from "@/db";
@@ -20,6 +21,11 @@ import {
   createActionGraph,
   transitionAction,
 } from "./GrowthActionsWriter";
+import {
+  priorityPageInvestigationDescriptor,
+  strikingDistanceInvestigationDescriptor,
+  type GrowthInvestigationTemplateDescriptor,
+} from "../services/GrowthInvestigationTemplateDescriptor";
 
 /** BINARY/C matches JavaScript code-unit ordering for server-created Action IDs. */
 function codeUnitId(column: SQLWrapper) {
@@ -195,6 +201,74 @@ async function projectDomain(projectId: string) {
   return row?.domain ?? null;
 }
 
+function investigationWorkGuard(
+  descriptor: GrowthInvestigationTemplateDescriptor,
+  requireAnalysisVersion: boolean,
+) {
+  return and(
+    eq(growthRuns.runType, "manual_analysis"),
+    inArray(growthRuns.detectorVersion, [...descriptor.run.detectorVersions]),
+    sql`${growthRuns.cadenceSlot} LIKE ${`${descriptor.run.cadenceSlotPrefix}%`}`,
+    requireAnalysisVersion
+      ? eq(growthRuns.analysisVersion, descriptor.templateVersion)
+      : undefined,
+    sql`${growthRuns.status} IN ('completed', 'completed_with_errors')`,
+    eq(growthSignals.signalType, descriptor.controller.signalType),
+    eq(growthSignals.entityType, descriptor.controller.entityType),
+    eq(growthSignals.metric, descriptor.controller.metric),
+    eq(growthSignals.evidenceKind, descriptor.controller.evidenceKind),
+    sql`${growthRecommendations.creationKey} = ${`${descriptor.templateVersion}:recommendation:`} || ${growthInsightSignals.signalId}`,
+    sql`${growthActions.creationKey} = ${descriptor.actionKeyPrefix} || ${growthInsightSignals.signalId}`,
+  );
+}
+
+function strikingCompanionGuard(metric: "gsc_clicks" | "gsc_average_position") {
+  return sql`EXISTS (
+    SELECT 1 FROM growth_insight_signals striking_companion_links
+    JOIN growth_signals striking_companion
+      ON striking_companion.project_id = striking_companion_links.project_id
+      AND striking_companion.run_id = striking_companion_links.run_id
+      AND striking_companion.id = striking_companion_links.signal_id
+    WHERE striking_companion_links.project_id = growth_recommendations.project_id
+      AND striking_companion_links.run_id = growth_recommendations.run_id
+      AND striking_companion_links.insight_id = ${growthRecommendationInsights.insightId}
+      AND striking_companion.metric = ${metric}
+      AND striking_companion.signal_type = ${growthSignals.signalType}
+      AND striking_companion.entity_type = ${growthSignals.entityType}
+      AND striking_companion.entity_ref = ${growthSignals.entityRef}
+      AND striking_companion.period_start = ${growthSignals.periodStart}
+      AND striking_companion.period_end = ${growthSignals.periodEnd}
+      AND striking_companion.captured_at = ${growthSignals.capturedAt}
+      AND striking_companion.evidence_kind = ${growthSignals.evidenceKind}
+      AND striking_companion.evidence_ref = ${growthSignals.evidenceRef}
+      AND striking_companion.delta_value = striking_companion.current_value - striking_companion.baseline_value
+  )`;
+}
+
+function strikingGraphGuard() {
+  const descriptor = strikingDistanceInvestigationDescriptor;
+  return and(
+    sql`${growthSignals.deltaValue} = ${growthSignals.currentValue} - ${growthSignals.baselineValue}`,
+    sql`(SELECT count(*) FROM growth_recommendation_insights striking_recommendation_insights
+      WHERE striking_recommendation_insights.project_id = growth_recommendations.project_id
+        AND striking_recommendation_insights.run_id = growth_recommendations.run_id
+        AND striking_recommendation_insights.recommendation_id = growth_recommendations.id) = 1`,
+    sql`EXISTS (
+      SELECT 1 FROM growth_insights striking_insight
+      WHERE striking_insight.project_id = growth_recommendations.project_id
+        AND striking_insight.run_id = growth_recommendations.run_id
+        AND striking_insight.id = ${growthRecommendationInsights.insightId}
+        AND striking_insight.creation_key = ${`${descriptor.templateVersion}:insight:`} || ${growthInsightSignals.signalId}
+    )`,
+    sql`(SELECT count(*) FROM growth_insight_signals striking_signals
+      WHERE striking_signals.project_id = growth_recommendations.project_id
+        AND striking_signals.run_id = growth_recommendations.run_id
+        AND striking_signals.insight_id = ${growthRecommendationInsights.insightId}) = ${1 + descriptor.companionMetrics.length}`,
+    strikingCompanionGuard("gsc_clicks"),
+    strikingCompanionGuard("gsc_average_position"),
+  );
+}
+
 async function listInvestigationWork(
   projectId: string,
   limit: number,
@@ -265,19 +339,16 @@ async function listInvestigationWork(
       and(
         eq(growthActions.projectId, projectId),
         actionId === undefined ? undefined : eq(growthActions.id, actionId),
-        eq(growthRuns.runType, "manual_analysis"),
-        inArray(growthRuns.detectorVersion, [
-          "priority-page-click-decline-v1",
-          "priority-page-click-decline-v2",
-        ]),
-        sql`${growthRuns.cadenceSlot} LIKE 'priority-page-check:%'`,
-        sql`${growthRuns.status} IN ('completed', 'completed_with_errors')`,
-        eq(growthSignals.signalType, "priority_page_click_decline"),
-        eq(growthSignals.entityType, "key_page"),
-        eq(growthSignals.metric, "gsc_clicks"),
-        eq(growthSignals.evidenceKind, "gsc_period"),
-        sql`${growthRecommendations.creationKey} = 'priority-page-investigation-v1:recommendation:' || ${growthInsightSignals.signalId}`,
-        sql`${growthActions.creationKey} = 'priority-page-investigation-v1:action:' || ${growthInsightSignals.signalId}`,
+        or(
+          investigationWorkGuard(priorityPageInvestigationDescriptor, false),
+          and(
+            investigationWorkGuard(
+              strikingDistanceInvestigationDescriptor,
+              true,
+            ),
+            strikingGraphGuard(),
+          ),
+        ),
       ),
     )
     .groupBy(

@@ -118,6 +118,51 @@ describe("Growth investigation rendered contract", () => {
     expect(html).not.toContain("Expected uplift");
   });
 
+  it("shows typed query evidence only for a striking-distance controller", () => {
+    const client = queryClient();
+    client.setQueryData(["growthInvestigation", "project_1", "signal_1"], {
+      ...proposal,
+      evidenceSummary: {
+        kind: "striking_distance_query",
+        query: "pricing software",
+        page: "https://example.com/pricing",
+        site: "sc-domain:example.com",
+        baselinePeriod: { start: "2026-07-01", end: "2026-07-28" },
+        currentPeriod: { start: "2026-07-29", end: "2026-08-25" },
+        baseline: { position: 14.2, impressions: 86, clicks: 3 },
+        current: { position: 8.4, impressions: 1_250, clicks: 27 },
+      },
+    } satisfies GrowthInvestigationView);
+    const html = render(client);
+    expect(html).toContain('aria-label="Saved ranking-opportunity evidence"');
+    expect(html).toContain("Saved query evidence");
+    expect(html).toContain("pricing software");
+    expect(html).toContain("https://example.com/pricing");
+    expect(html).toContain("sc-domain:example.com");
+    expect(html).toContain("Preceding 28 days");
+    expect(html).toContain("Current 28 days");
+    expect(html).toContain("1 Jul 2026");
+    expect(html).toContain("25 Aug 2026");
+    expect(html).toContain("Position");
+    expect(html).toContain("Impressions");
+    expect(html).toContain("1,250");
+    expect(html).toContain("Clicks");
+    expect(html).toContain(
+      "This suggestion covers later checks for the same saved query and page",
+    );
+  });
+
+  it("does not add a ranking-evidence summary to legacy controllers", () => {
+    const client = queryClient();
+    client.setQueryData(
+      ["growthInvestigation", "project_1", "signal_1"],
+      proposal,
+    );
+    const html = render(client);
+    expect(html).not.toContain("Saved query evidence");
+    expect(html).not.toContain("Saved ranking-opportunity evidence");
+  });
+
   it("shows repeated evidence as covered without exposing old evidence or review controls", () => {
     const client = queryClient();
     client.setQueryData(["growthInvestigation", "project_1", "signal_1"], {

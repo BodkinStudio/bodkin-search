@@ -348,6 +348,90 @@ function priorityDecisionCandidate(input: {
   };
 }
 
+async function seedPostgresStrikingSignals(projectId: string, suffix: string) {
+  const runId = `striking_run_${suffix}`;
+  const ids = {
+    position: `striking_position_${suffix}`,
+    impressions: `striking_impressions_${suffix}`,
+    clicks: `striking_clicks_${suffix}`,
+  };
+  await sql`
+    INSERT INTO growth_runs (id, project_id, run_type, trigger, status, cadence_slot, period_start, period_end, started_at, detector_version, analysis_version)
+    VALUES (${runId}, ${projectId}, 'manual_analysis', 'manual', 'running', ${`striking-distance-check:${suffix}`}, '2026-07-07', '2026-08-31', '2026-09-01T10:00:00.000Z', 'striking-distance-query-v1', 'striking-distance-investigation-v1')
+  `;
+  for (const [metric, id, baseline, current] of [
+    ["gsc_average_position", ids.position, 9, 6],
+    ["gsc_impressions", ids.impressions, 80, 150],
+    ["gsc_clicks", ids.clicks, 2, 1],
+  ] as const) {
+    await sql`
+      INSERT INTO growth_signals (id, project_id, run_id, signal_type, entity_type, entity_ref, metric, severity, confidence, period_start, period_end, baseline_value, current_value, delta_value, evidence_kind, evidence_ref, captured_at)
+      VALUES (${id}, ${projectId}, ${runId}, 'striking_distance_query', 'search_query', 'web design bath', ${metric}, 'info', .8, '2026-08-04', '2026-08-31', ${baseline}, ${current}, ${current - baseline}, 'gsc_period', 'gsc_striking_distance_v1:test', '2026-09-01T10:00:00.000Z')
+    `;
+  }
+  return { runId, ids };
+}
+
+function strikingDecisionCandidate(input: {
+  projectId: string;
+  suffix: string;
+  runId: string;
+  ids: { position: string; impressions: string; clicks: string };
+  dedupeKey: string;
+}) {
+  const insightId = `striking_insight_${input.suffix}`;
+  return {
+    projectId: input.projectId,
+    signalRunId: input.runId,
+    signalId: input.ids.impressions,
+    dedupeKey: input.dedupeKey,
+    policyVersion: "striking-distance-repeat-suppression-v1",
+    actionKeyPrefix: "striking-distance-investigation-v1:action:",
+    insight: {
+      id: insightId,
+      projectId: input.projectId,
+      runId: input.runId,
+      creationKey: `striking-distance-investigation-v1:insight:${input.ids.impressions}`,
+      factHash: `a${input.suffix}`.padEnd(64, "a"),
+      title: "Observed striking distance",
+      explanation: "Observed facts.",
+      hypothesis: "Unknown cause.",
+      confidence: 0,
+      model: null,
+      promptVersion: null,
+      signalIds: [input.ids.position, input.ids.impressions, input.ids.clicks],
+    },
+    recommendation: {
+      id: `striking_recommendation_${input.suffix}`,
+      projectId: input.projectId,
+      runId: input.runId,
+      creationKey: `striking-distance-investigation-v1:recommendation:${input.ids.impressions}`,
+      factHash: `b${input.suffix}`.padEnd(64, "b"),
+      title: "Investigate query",
+      rationale: "Cause unknown.",
+      category: "investigation",
+      impact: 1,
+      commercialRelevance: 1,
+      effort: 1,
+      urgency: 1,
+      confidence: 0,
+      priorityScore: 0,
+      model: null,
+      promptVersion: null,
+      insightIds: [insightId],
+      targets: [
+        { targetType: "keyword" as const, targetValue: "web design bath" },
+        {
+          targetType: "url" as const,
+          targetValue: "https://example.com/web-design-bath",
+        },
+        { targetType: "site" as const, targetValue: "example.com" },
+      ],
+      steps: [{ position: 0, content: "Review saved evidence." }],
+    },
+  };
+}
+
 async function seedPostgresControllerWithAction(input: {
   projectId: string;
   suffix: string;
@@ -496,6 +580,81 @@ describePostgres("GrowthInsightsRepository Postgres", () => {
     }
   });
 
+  it("keeps a striking controller's three facts immutable when a repeat is suppressed", async () => {
+    const suffix = crypto.randomUUID();
+    const organizationId = `growth_striking_org_${suffix}`;
+    const projectId = `growth_striking_project_${suffix}`;
+    await seedProject(projectId, organizationId, suffix);
+    try {
+      const dedupeKey = "e".repeat(64);
+      const first = await seedPostgresStrikingSignals(
+        projectId,
+        `${suffix}_first`,
+      );
+      const firstCandidate = strikingDecisionCandidate({
+        projectId,
+        suffix: `${suffix}_first`,
+        ...first,
+        dedupeKey,
+      });
+      await withPgClient(() =>
+        GrowthOpportunityDecisionsRepository.writeDecision(firstCandidate),
+      );
+      const repeat = await seedPostgresStrikingSignals(
+        projectId,
+        `${suffix}_repeat`,
+      );
+      const repeatCandidate = strikingDecisionCandidate({
+        projectId,
+        suffix: `${suffix}_repeat`,
+        ...repeat,
+        dedupeKey,
+      });
+      await withPgClient(() =>
+        GrowthOpportunityDecisionsRepository.writeDecision(repeatCandidate),
+      );
+      const [counts] = await sql<
+        [
+          {
+            insightSignals: string;
+            controllers: string;
+            repeats: string;
+            insights: string;
+            recommendations: string;
+          },
+        ]
+      >`
+        SELECT
+          (SELECT count(*)::text FROM growth_insight_signals WHERE project_id = ${projectId} AND insight_id = ${firstCandidate.insight.id}) AS "insightSignals",
+          (SELECT count(*)::text FROM growth_recommendation_signal_links WHERE project_id = ${projectId} AND relationship = 'controller') AS controllers,
+          (SELECT count(*)::text FROM growth_recommendation_signal_links WHERE project_id = ${projectId} AND signal_run_id = ${repeat.runId} AND signal_id = ${repeat.ids.impressions} AND relationship = 'suppressed') AS repeats,
+          (SELECT count(*)::text FROM growth_insights WHERE project_id = ${projectId}) AS insights,
+          (SELECT count(*)::text FROM growth_recommendations WHERE project_id = ${projectId}) AS recommendations
+      `;
+      expect(counts).toEqual({
+        insightSignals: "3",
+        controllers: "1",
+        repeats: "1",
+        insights: "1",
+        recommendations: "1",
+      });
+      const repeatDecision = await withPgClient(() =>
+        GrowthOpportunityDecisionsRepository.getSignalDecision(
+          projectId,
+          repeat.runId,
+          repeat.ids.impressions,
+        ),
+      );
+      expect(repeatDecision).toMatchObject({
+        relationship: "suppressed",
+        recommendationId: firstCandidate.recommendation.id,
+      });
+    } finally {
+      await sql`DELETE FROM projects WHERE id = ${projectId}`;
+      await sql`DELETE FROM organization WHERE id = ${organizationId}`;
+    }
+  });
+
   it("races two Signal decisions to one controller without an orphan graph", async () => {
     const suffix = crypto.randomUUID();
     const organizationId = `growth_decision_org_${suffix}`;
@@ -551,6 +710,25 @@ describePostgres("GrowthInsightsRepository Postgres", () => {
         controllers: "1",
         recommendations: "1",
       });
+      const decisions = await sql<
+        {
+          runId: string;
+          signalId: string;
+          relationship: "controller" | "suppressed";
+        }[]
+      >`
+        SELECT signal_run_id AS "runId", signal_id AS "signalId", relationship
+        FROM growth_recommendation_signal_links
+        WHERE project_id = ${projectId}
+      `;
+      const controller = decisions.find(
+        ({ relationship }) => relationship === "controller",
+      );
+      const suppressed = decisions.find(
+        ({ relationship }) => relationship === "suppressed",
+      );
+      expect(controller).toBeDefined();
+      expect(suppressed).toBeDefined();
       await expect(sql`
           DELETE FROM growth_recommendations
           WHERE project_id = ${projectId}
@@ -558,11 +736,13 @@ describePostgres("GrowthInsightsRepository Postgres", () => {
         `).rejects.toThrow();
       await expect(sql`
           DELETE FROM growth_runs
-          WHERE project_id = ${projectId} AND id = ${runA}
+          WHERE project_id = ${projectId} AND id = ${controller!.runId}
         `).rejects.toThrow();
       await sql`
           DELETE FROM growth_signals
-          WHERE project_id = ${projectId} AND run_id = ${runB} AND id = ${signalB}
+          WHERE project_id = ${projectId}
+            AND run_id = ${suppressed!.runId}
+            AND id = ${suppressed!.signalId}
         `;
       const [afterSuppressedDelete] = await sql<
         [{ decisions: string; recommendations: string }]

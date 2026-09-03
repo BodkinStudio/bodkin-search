@@ -121,6 +121,18 @@ describe("buildStrikingDistanceRows", () => {
     expect(rows[0].page).toBe("https://x.com/b");
     expect(rows[0].position).toBe(8);
   });
+
+  it("uses stable code-unit ties for equal candidates and equal best pages", () => {
+    const rows = buildStrikingDistanceRows([
+      pageRow("z", "https://x.com/z", 8, 100),
+      pageRow("a", "https://x.com/a-b", 8, 100),
+      pageRow("a", "https://x.com/a-a", 8, 100),
+    ]);
+    expect(rows).toEqual([
+      expect.objectContaining({ query: "a", page: "https://x.com/a-a" }),
+      expect.objectContaining({ query: "z", page: "https://x.com/z" }),
+    ]);
+  });
 });
 
 describe("previousPeriod", () => {

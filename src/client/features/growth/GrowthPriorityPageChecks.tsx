@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- live checks and their saved decline history remain one established card module */
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +10,12 @@ import {
   getGrowthCheckRun,
   getGrowthChecksOverview,
   runGrowthCheck,
+  runGrowthStrikingDistanceCheck,
 } from "@/serverFunctions/growthChecks";
+
+type GrowthStrikingDistanceCheckResult = Awaited<
+  ReturnType<typeof runGrowthStrikingDistanceCheck>
+>;
 
 function newGrowthCheckRequestKey() {
   return crypto.randomUUID().replaceAll("-", "");
@@ -19,11 +25,29 @@ function pendingCheckStorageKey(projectId: string) {
   return `growth:priority-page-check:${projectId}`;
 }
 
+function pendingStrikingDistanceStorageKey(projectId: string) {
+  return `growth:striking-distance-check:${projectId}`;
+}
+
 function readPendingCheck(projectId: string) {
   if (typeof window === "undefined") return null;
   try {
     const parsed = runGrowthCheckSchema.shape.requestKey.safeParse(
       window.sessionStorage.getItem(pendingCheckStorageKey(projectId)),
+    );
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function readPendingStrikingDistanceCheck(projectId: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    const parsed = runGrowthCheckSchema.shape.requestKey.safeParse(
+      window.sessionStorage.getItem(
+        pendingStrikingDistanceStorageKey(projectId),
+      ),
     );
     return parsed.success ? parsed.data : null;
   } catch {
@@ -43,6 +67,71 @@ function formatCheckStartedAt(value: string) {
   }).format(new Date(value))} UTC`;
 }
 
+function GrowthStrikingDistanceCheckStatus({
+  result,
+}: {
+  result: GrowthStrikingDistanceCheckResult;
+}) {
+  const resultPrefix = result.replayed ? "Retrieved the saved result. " : "";
+  const foundSummary = `Found ${result.candidateCount} eligible ranking ${result.candidateCount === 1 ? "opportunity" : "opportunities"}. Newly saved: ${result.savedOpportunityCount}. Already covered: ${result.alreadyCoveredCount}.`;
+  const hasReviewableResult =
+    result.savedOpportunityCount > 0 || result.alreadyCoveredCount > 0;
+  const reviewLink = hasReviewableResult ? (
+    <>
+      {" "}
+      <a className="link font-medium" href="#growth-opportunities">
+        Review saved opportunities
+      </a>
+      .
+    </>
+  ) : null;
+
+  if (result.run.status === "running")
+    return (
+      <p role="status" className="text-sm text-base-content/70">
+        {resultPrefix}This ranking-opportunity check is still running. Retry the
+        saved request to retrieve its outcome.
+      </p>
+    );
+  if (result.run.status === "failed")
+    return (
+      <div role="alert" className="alert alert-error py-3 text-sm">
+        <span>
+          {resultPrefix}The ranking-opportunity check failed.{" "}
+          {result.run.failureMessage ??
+            "No ranking-opportunity suggestion was saved."}
+        </span>
+      </div>
+    );
+  if (result.run.status === "completed_with_errors")
+    return (
+      <div role="alert" className="alert alert-warning py-3 text-sm">
+        <span>
+          {resultPrefix}
+          {result.run.failureCode === "INCOMPLETE_QUERY_INVENTORY"
+            ? "Search Console query data was incomplete, so no ranking opportunity was saved."
+            : `The ranking-opportunity check completed with errors. ${result.run.failureMessage ?? "Some suggestions could not be saved."} ${foundSummary}`}
+          {reviewLink}
+        </span>
+      </div>
+    );
+  if (result.candidateCount === 0)
+    return (
+      <p role="status" className="text-sm text-base-content/70">
+        {resultPrefix}No eligible ranking opportunities were found in the
+        completed Search Console inventory. No new suggestion was saved.
+      </p>
+    );
+  return (
+    <p role="status" className="text-sm text-base-content/70">
+      {resultPrefix}
+      {foundSummary}
+      {reviewLink}
+    </p>
+  );
+}
+
+// eslint-disable-next-line max-lines-per-function -- the established card owns both retry-safe checks and decline history
 export function GrowthPriorityPageChecks({
   projectId,
   selectedRunId,
@@ -57,6 +146,13 @@ export function GrowthPriorityPageChecks({
     readPendingCheck(projectId),
   );
   const [storageError, setStorageError] = useState<string | null>(null);
+  const [strikingDistanceRequestKey, setStrikingDistanceRequestKey] = useState(
+    () => readPendingStrikingDistanceCheck(projectId),
+  );
+  const [strikingDistanceStorageError, setStrikingDistanceStorageError] =
+    useState<string | null>(null);
+  const [strikingDistanceResult, setStrikingDistanceResult] =
+    useState<GrowthStrikingDistanceCheckResult | null>(null);
   const overview = useQuery({
     queryKey: ["growthChecks", projectId],
     queryFn: () => getGrowthChecksOverview({ data: { projectId } }),
@@ -88,6 +184,36 @@ export function GrowthPriorityPageChecks({
       });
     },
   });
+  const findStrikingDistance = useMutation({
+    mutationFn: (key: string) =>
+      runGrowthStrikingDistanceCheck({
+        data: { projectId, requestKey: key },
+      }),
+    onSuccess: (result) => {
+      setStrikingDistanceResult(result);
+      if (result.run.status !== "running") {
+        try {
+          window.sessionStorage.removeItem(
+            pendingStrikingDistanceStorageKey(projectId),
+          );
+        } catch {
+          // A stale terminal identity is safe to replay after a reload.
+        }
+        setStrikingDistanceRequestKey(null);
+      }
+      if (
+        result.run.status === "completed" ||
+        result.run.status === "completed_with_errors"
+      ) {
+        void client.invalidateQueries({
+          queryKey: ["growthPriorityRecommendations", projectId],
+        });
+        void client.invalidateQueries({
+          queryKey: ["growthProjectSummary", projectId],
+        });
+      }
+    },
+  });
   const refresh = () => {
     void overview.refetch();
     if (selectedRunId) void run.refetch();
@@ -106,6 +232,26 @@ export function GrowthPriorityPageChecks({
     setStorageError(null);
     setRequestKey(key);
     start.mutate(key);
+  };
+  const submitStrikingDistance = (newAttempt = false) => {
+    const key =
+      (!newAttempt && strikingDistanceRequestKey) || newGrowthCheckRequestKey();
+    try {
+      // Only a retry nonce is saved here, never source data or credentials.
+      window.sessionStorage.setItem(
+        pendingStrikingDistanceStorageKey(projectId),
+        key,
+      );
+    } catch {
+      setStrikingDistanceStorageError(
+        "Allow browser session storage before finding ranking opportunities so a retry can be recovered after a reload.",
+      );
+      return;
+    }
+    setStrikingDistanceStorageError(null);
+    setStrikingDistanceResult(null);
+    setStrikingDistanceRequestKey(key);
+    findStrikingDistance.mutate(key);
   };
 
   if (overview.isPending)
@@ -190,6 +336,84 @@ export function GrowthPriorityPageChecks({
             </button>
           ) : null}
         </div>
+      </div>
+      <div className="mt-4 border-t border-base-300 pt-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold">Find ranking opportunities</h3>
+            <p className="mt-1 max-w-prose text-sm text-base-content/70">
+              Find queries ranking in positions 5–20 on configured priority
+              pages with at least 50 impressions in the current final 28-day
+              window, using the preceding 28 days as evidence.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              aria-busy={findStrikingDistance.isPending}
+              disabled={
+                data.setup !== "ready" || findStrikingDistance.isPending
+              }
+              onClick={() => submitStrikingDistance()}
+            >
+              {findStrikingDistance.isPending
+                ? "Finding opportunities…"
+                : strikingDistanceRequestKey
+                  ? "Retry ranking-opportunity request"
+                  : "Find ranking opportunities"}
+            </button>
+            {strikingDistanceRequestKey ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={
+                  data.setup !== "ready" || findStrikingDistance.isPending
+                }
+                onClick={() => submitStrikingDistance(true)}
+              >
+                Start new ranking-opportunity check
+              </button>
+            ) : null}
+          </div>
+        </div>
+        {findStrikingDistance.isPending ? (
+          <p
+            role="status"
+            aria-busy="true"
+            className="mt-3 text-sm text-base-content/70"
+          >
+            Finding ranking opportunities in final Search Console data…
+          </p>
+        ) : strikingDistanceRequestKey && !strikingDistanceResult ? (
+          <p role="status" className="mt-3 text-sm text-base-content/70">
+            A previous ranking-opportunity request has no confirmed outcome yet.
+            Retry it to retrieve the saved result, or explicitly start a
+            separate check.
+          </p>
+        ) : null}
+        {strikingDistanceStorageError ? (
+          <p role="alert" className="mt-3 text-sm text-error">
+            {strikingDistanceStorageError}
+          </p>
+        ) : null}
+        {findStrikingDistance.isError ? (
+          <div role="alert" className="alert alert-error mt-3 py-3 text-sm">
+            <span>
+              {getStandardErrorMessage(
+                findStrikingDistance.error,
+                "Ranking opportunities could not be checked. Retry this request or start a new explicit check.",
+              )}
+            </span>
+          </div>
+        ) : null}
+        {strikingDistanceResult && !findStrikingDistance.isPending ? (
+          <div className="mt-3">
+            <GrowthStrikingDistanceCheckStatus
+              result={strikingDistanceResult}
+            />
+          </div>
+        ) : null}
       </div>
       {requestKey && !start.isPending ? (
         <p role="status" className="mt-3 text-sm text-base-content/70">

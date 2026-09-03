@@ -41,6 +41,28 @@ The disposable preview has no Google credentials, so it can only demonstrate the
 
 New checks also save rule-based investigation suggestions for detected declines. Growth does not generate AI diagnoses or schedule collection. Usefulness on a live site and the full Phase 2 gate remain unverified.
 
+## Find ranking opportunities
+
+The same authenticated card has a separate **Find ranking opportunities**
+action. It reads two adjacent final 28-day Search Console windows and looks for
+queries on configured priority pages that have a real matching baseline, at
+least 50 current impressions and an average current position from 5 through 20.
+The source read is bounded; an inventory that reaches its cap is labelled
+incomplete and cannot create a suggestion.
+
+A qualifying query saves its preceding/current position, impressions and clicks
+as one reviewable rule-based opportunity. Open it under **Opportunities**, then
+open **Review investigation** to inspect the exact saved query, page, site and
+both periods before deciding whether to approve work. Growth does not claim a
+cause or recommend a website edit from these numbers alone.
+
+At most three suggestions are considered per run. Repeating the same
+query/page opportunity saves the new facts but links them to the existing
+suggestion instead of creating duplicate work. The retry key is independent of
+the decline check, and ranking-opportunity Runs are deliberately not mixed into
+the saved decline history. The disposable preview has no Google credentials,
+so this action requires a connected real project for end-to-end verification.
+
 ## Saved opportunities
 
 The **Opportunities** section appears directly below the monthly summary. It
@@ -84,4 +106,4 @@ View change log opens a manual record of work on configured priority pages. Choo
 
 The Monthly review card can prepare one explicit review attempt by composing the existing priority-page check, current due-Measurement queue and immutable monthly report builder. The card asks for inline confirmation before dispatch. Each attempt has its own browser-session retry key and `monthly_review` Run. An uncertain request can be replayed exactly or replaced only through the separate Start new review action. The detector remains a separate child Run, due Measurements remain human review work, and only an exact-period report counts as a successful report phase.
 
-The result shows the authoritative review period and status. A fresh response also shows the priority-page check, due-Measurement and monthly-summary outcomes; an exact replay deliberately shows only the saved coordinator status rather than reconstructing phase detail from current state. The card does not run on a schedule, resume an interrupted process, evaluate Measurements, publish or share a report, add detectors or generate AI interpretation.
+The result shows the authoritative review period and status. A fresh response also shows the priority-page check, due-Measurement and monthly-summary outcomes; an exact replay deliberately shows only the saved coordinator status rather than reconstructing phase detail from current state. The card does not run on a schedule, resume an interrupted process, evaluate Measurements, publish or share a report, invoke the separate ranking-opportunity detector or generate AI interpretation.

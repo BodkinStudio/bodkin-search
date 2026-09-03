@@ -150,7 +150,7 @@ describe("Growth opportunities rendered contract", () => {
     expect(query.refetch).toHaveBeenCalledTimes(2);
   });
 
-  it("points an empty inbox to the priority-page check", () => {
+  it("points an empty inbox to the available Growth checks", () => {
     const html = renderToStaticMarkup(
       createElement(GrowthOpportunitiesList, {
         projectId: "project_1",
@@ -158,6 +158,7 @@ describe("Growth opportunities rendered contract", () => {
       }),
     );
     expect(html).toContain("No unresolved saved opportunities");
+    expect(html).toContain("Run a Growth check below");
     expect(html).toContain('href="#growth-live-check-title"');
   });
 

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- creation invariants share one in-memory repository harness */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createGrowthActionSchema } from "@/types/schemas/growth-actions";
 
@@ -172,6 +173,99 @@ describe("GrowthActionsService creation", () => {
       }),
     );
     expect(repository.createActionGraph).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["query-string", "https://example.com/Pricing?plan=pro"],
+    ["non-root trailing-slash", "https://example.com/Pricing/"],
+  ])(
+    "preserves a striking-distance %s URL from Recommendation through Action approval and replay",
+    async (_identity, exactUrl) => {
+      const exactTargets = [
+        { targetType: "keyword" as const, targetValue: "high intent" },
+        { targetType: "site" as const, targetValue: "example.com" },
+        { targetType: "url" as const, targetValue: exactUrl },
+      ];
+      repository.getRecommendationSource.mockResolvedValue({
+        ...source,
+        status: "proposed",
+        reviewVersion: 0,
+      });
+      repository.listRecommendationTargets.mockResolvedValue(exactTargets);
+      const { writes } = installCreationStore();
+      const exactInput = createGrowthActionSchema.parse({
+        ...input,
+        creationKey: `striking-${_identity}`,
+        targets: [
+          ...exactTargets
+            .map(({ targetType, targetValue }) => ({
+              type: targetType,
+              value: targetValue,
+            }))
+            .toReversed(),
+          {
+            type: "url",
+            value: exactUrl
+              .replace("https://example.com", "http://www.example.com")
+              .concat("#duplicate"),
+          },
+        ],
+      });
+
+      const approved = await GrowthActionsService.approveProposedRecommendation(
+        exactInput,
+        0,
+        "key_page_identity",
+      );
+      expect(approved.targets).toEqual(exactTargets);
+      expect(writes[0]?.targets).toEqual(exactTargets);
+
+      repository.getRecommendationSource.mockResolvedValue({
+        ...source,
+        status: "accepted",
+        reviewVersion: 1,
+      });
+      const replayed = await GrowthActionsService.createAction(
+        exactInput,
+        "key_page_identity",
+      );
+      expect(replayed).toBe(approved);
+      expect(repository.approveActionGraph).toHaveBeenCalledTimes(1);
+      expect(repository.createActionGraph).not.toHaveBeenCalled();
+    },
+  );
+
+  it("validates striking-distance exact URL scope and normalized length before writing", async () => {
+    repository.getRecommendationSource.mockResolvedValue({
+      ...source,
+      status: "proposed",
+      reviewVersion: 0,
+    });
+    const overlongUrl = `example.com/${"a".repeat(1988)}`;
+
+    await expect(
+      GrowthActionsService.approveProposedRecommendation(
+        {
+          ...input,
+          targets: [{ type: "url", value: overlongUrl }],
+        },
+        0,
+        "key_page_identity",
+      ),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(
+      GrowthActionsService.approveProposedRecommendation(
+        {
+          ...input,
+          targets: [
+            { type: "url", value: "https://competitor.com/Pricing/?x=1" },
+          ],
+        },
+        0,
+        "key_page_identity",
+      ),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(repository.approveActionGraph).not.toHaveBeenCalled();
   });
 
   it("rejects stale approval versions and accepted sources without attempting a write", async () => {

@@ -1,5 +1,10 @@
 import { sha256Hex } from "@/server/lib/audit/ids";
 import { AppError } from "@/server/lib/errors";
+import { normalizeKeyPageUrl } from "@/server/features/project-context/services/contextUpdateOps";
+import {
+  parseResearchTarget,
+  urlMatchesResearchTarget,
+} from "@/shared/researchScope";
 import type { RecordGrowthSignalInput } from "@/types/schemas/growth";
 import { GrowthInsightsRepository } from "../repositories/GrowthInsightsRepository";
 import { GrowthOpportunityDecisionsRepository } from "../repositories/GrowthOpportunityDecisionsRepository";
@@ -10,7 +15,18 @@ import {
   priorityPageOpportunityDedupeKey,
 } from "./PriorityPageOpportunityPolicy";
 import { normalizeGrowthTargets } from "./GrowthTargetNormalizer";
-import { priorityPageInvestigationTemplate } from "./GrowthInvestigationTemplate";
+import {
+  priorityPageInvestigationTemplate,
+  strikingDistanceInvestigationTemplate,
+} from "./GrowthInvestigationTemplate";
+import {
+  STRIKING_DISTANCE_OPPORTUNITY_POLICY_VERSION,
+  strikingDistanceOpportunityDedupeKey,
+} from "./StrikingDistanceOpportunityPolicy";
+import {
+  priorityPageInvestigationDescriptor,
+  strikingDistanceInvestigationDescriptor,
+} from "./GrowthInvestigationTemplateDescriptor";
 
 function ids(values: string[]) {
   return [...new Set(values)].toSorted();
@@ -77,6 +93,7 @@ async function recordPriorityPageInvestigation(input: {
       input.signal.id,
     );
   const releaseController =
+    priorityPageInvestigationDescriptor.releasesControllers &&
     activeController &&
     isPriorityPageControllerReleasable({
       capturedAt: activeController.capturedAt,
@@ -161,6 +178,7 @@ async function recordPriorityPageInvestigation(input: {
     signalId: input.signal.id,
     dedupeKey,
     policyVersion: PRIORITY_PAGE_OPPORTUNITY_POLICY_VERSION,
+    actionKeyPrefix: priorityPageInvestigationDescriptor.actionKeyPrefix,
     releaseController: releaseController
       ? {
           recommendationId: releaseController.recommendationId,
@@ -194,7 +212,192 @@ async function recordPriorityPageInvestigation(input: {
   return decision;
 }
 
+type SavedSignal = RecordGrowthSignalInput & { id: string };
+
+function actualDelta(signal: SavedSignal) {
+  return signal.deltaValue === signal.currentValue - signal.baselineValue;
+}
+
+function eligibleStrikingSignals(input: {
+  signals: {
+    averagePosition: SavedSignal;
+    impressions: SavedSignal;
+    clicks: SavedSignal;
+  };
+  query: string;
+}) {
+  const signals = input.signals;
+  const expected = [
+    [signals.averagePosition, "gsc_average_position"],
+    [signals.impressions, "gsc_impressions"],
+    [signals.clicks, "gsc_clicks"],
+  ] as const;
+  const query = input.query.trim().replace(/\s+/g, " ").toLowerCase();
+  if (!query || new Set(expected.map(([signal]) => signal.id)).size !== 3)
+    return false;
+  const first = signals.impressions;
+  return expected.every(
+    ([signal, metric]) =>
+      signal.signalType ===
+        strikingDistanceInvestigationDescriptor.controller.signalType &&
+      signal.entityType ===
+        strikingDistanceInvestigationDescriptor.controller.entityType &&
+      signal.entityRef.trim().replace(/\s+/g, " ").toLowerCase() === query &&
+      signal.metric === metric &&
+      signal.evidenceKind ===
+        strikingDistanceInvestigationDescriptor.controller.evidenceKind &&
+      signal.runId === first.runId &&
+      signal.periodStart === first.periodStart &&
+      signal.periodEnd === first.periodEnd &&
+      signal.capturedAt === first.capturedAt &&
+      signal.evidenceRef === first.evidenceRef &&
+      actualDelta(signal),
+  );
+}
+
+async function recordStrikingDistanceInvestigation(input: {
+  projectId: string;
+  runId: string;
+  signals: {
+    averagePosition: SavedSignal;
+    impressions: SavedSignal;
+    clicks: SavedSignal;
+  };
+  query: string;
+  page: string;
+  site: string;
+  commercialWeight: number | null;
+}) {
+  const controller = input.signals.impressions;
+  if (
+    controller.projectId !== input.projectId ||
+    controller.runId !== input.runId ||
+    !eligibleStrikingSignals(input)
+  )
+    throw new AppError("VALIDATION_ERROR", "Growth Signals are not eligible");
+
+  const existing = await GrowthOpportunityDecisionsRepository.getSignalDecision(
+    input.projectId,
+    input.runId,
+    controller.id,
+  );
+  if (existing) return existing;
+
+  const template = strikingDistanceInvestigationTemplate(input);
+  const steps = template.recommendation.steps.map((content, position) => ({
+    position,
+    content: content.trim().replace(/\s+/g, " "),
+  }));
+  const domain = await GrowthInsightsRepository.projectDomain(input.projectId);
+  if (!domain) throw new AppError("NOT_FOUND", "Growth project not found");
+  const url = normalizeKeyPageUrl(input.page);
+  if (url.length > 2000)
+    throw new AppError("VALIDATION_ERROR", "Target URL is too long");
+  const project = parseResearchTarget(domain, "subdomains");
+  if (!project.ok || !urlMatchesResearchTarget(url, project.target))
+    throw new AppError(
+      "VALIDATION_ERROR",
+      "Targets must belong to the project domain",
+    );
+  const normalizedTargets = [
+    ...normalizeGrowthTargets(
+      domain,
+      template.recommendation.targets.filter((target) => target.type !== "url"),
+    ),
+    { targetType: "url" as const, targetValue: url },
+  ].toSorted((left, right) =>
+    `${left.targetType}:${left.targetValue}`.localeCompare(
+      `${right.targetType}:${right.targetValue}`,
+    ),
+  );
+  const keyword = normalizedTargets.find(
+    (target) => target.targetType === "keyword",
+  );
+  const urlTarget = normalizedTargets.find(
+    (target) => target.targetType === "url",
+  );
+  const site = normalizedTargets.find((target) => target.targetType === "site");
+  if (!keyword || !urlTarget || !site)
+    throw new AppError("VALIDATION_ERROR", "Growth targets are not eligible");
+  const dedupeKey = await strikingDistanceOpportunityDedupeKey({
+    projectId: input.projectId,
+    query: keyword.targetValue,
+    canonicalUrl: urlTarget.targetValue,
+  });
+  const signalIds = ids(template.insight.signalIds);
+  const insightFact = {
+    projectId: input.projectId,
+    runId: input.runId,
+    creationKey: template.insight.creationKey,
+    title: template.insight.title,
+    explanation: template.insight.explanation,
+    hypothesis: template.insight.hypothesis,
+    confidence: template.insight.confidence,
+    model: null,
+    promptVersion: null,
+    signalIds,
+  };
+  const insightId = await deterministicId({
+    projectId: input.projectId,
+    dedupeKey,
+    cycleKey: "initial-controller",
+    kind: "insight",
+  });
+  const recommendationFact = {
+    projectId: input.projectId,
+    runId: input.runId,
+    creationKey: template.recommendation.creationKey,
+    title: template.recommendation.title,
+    rationale: template.recommendation.rationale,
+    category: template.recommendation.category,
+    impact: template.recommendation.impact,
+    commercialRelevance: template.recommendation.commercialRelevance,
+    effort: template.recommendation.effort,
+    urgency: template.recommendation.urgency,
+    confidence: template.recommendation.confidence,
+    priorityScore: template.recommendation.priorityScore,
+    model: null,
+    promptVersion: null,
+    insightIds: [insightId],
+    targets: normalizedTargets,
+    steps,
+  };
+  const recommendationId = await deterministicId({
+    projectId: input.projectId,
+    dedupeKey,
+    cycleKey: "initial-controller",
+    kind: "recommendation",
+  });
+  await GrowthOpportunityDecisionsRepository.writeDecision({
+    projectId: input.projectId,
+    signalRunId: input.runId,
+    signalId: controller.id,
+    dedupeKey,
+    policyVersion: STRIKING_DISTANCE_OPPORTUNITY_POLICY_VERSION,
+    actionKeyPrefix: strikingDistanceInvestigationDescriptor.actionKeyPrefix,
+    insight: {
+      id: insightId,
+      ...insightFact,
+      factHash: await sha256Hex(JSON.stringify(insightFact)),
+    },
+    recommendation: {
+      id: recommendationId,
+      ...recommendationFact,
+      factHash: await sha256Hex(JSON.stringify(recommendationFact)),
+    },
+  });
+  const decision = await GrowthOpportunityDecisionsRepository.getSignalDecision(
+    input.projectId,
+    input.runId,
+    controller.id,
+  );
+  if (!decision)
+    throw new AppError("CONFLICT", "Growth opportunity decision was not saved");
+  return decision;
+}
+
 export const GrowthOpportunityDecisionsService = {
   recordPriorityPageInvestigation,
+  recordStrikingDistanceInvestigation,
   getDecision: GrowthOpportunityDecisionsRepository.getSignalDecision,
 } as const;

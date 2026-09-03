@@ -268,6 +268,91 @@ function decisionCandidate(input: {
   };
 }
 
+async function seedStrikingSignals(suffix: string) {
+  const runId = `striking_run_${suffix}`;
+  const ids = {
+    position: `striking_position_${suffix}`,
+    impressions: `striking_impressions_${suffix}`,
+    clicks: `striking_clicks_${suffix}`,
+  };
+  await client.execute({
+    sql: `INSERT INTO growth_runs (id, project_id, run_type, trigger, status, cadence_slot, period_start, period_end, started_at, detector_version, analysis_version)
+      VALUES (?, 'project_1', 'manual_analysis', 'manual', 'running', ?, '2026-07-07', '2026-08-31', '2026-09-01T10:00:00.000Z', 'striking-distance-query-v1', 'striking-distance-investigation-v1')`,
+    args: [runId, `striking-distance-check:${suffix}`],
+  });
+  for (const [metric, id, baseline, current] of [
+    ["gsc_average_position", ids.position, 9, 6],
+    ["gsc_impressions", ids.impressions, 80, 150],
+    ["gsc_clicks", ids.clicks, 2, 1],
+  ] as const) {
+    await client.execute({
+      sql: `INSERT INTO growth_signals (id, project_id, run_id, signal_type, entity_type, entity_ref, metric, severity, confidence, period_start, period_end, baseline_value, current_value, delta_value, evidence_kind, evidence_ref, captured_at)
+        VALUES (?, 'project_1', ?, 'striking_distance_query', 'search_query', 'web design bath', ?, 'info', .8, '2026-08-04', '2026-08-31', ?, ?, ?, 'gsc_period', 'gsc_striking_distance_v1:test', '2026-09-01T10:00:00.000Z')`,
+      args: [id, runId, metric, baseline, current, current - baseline],
+    });
+  }
+  return { runId, ids };
+}
+
+function strikingDecisionCandidate(input: {
+  suffix: string;
+  runId: string;
+  ids: { position: string; impressions: string; clicks: string };
+  dedupeKey: string;
+}) {
+  const insightId = `striking_insight_${input.suffix}`;
+  return {
+    projectId: "project_1",
+    signalRunId: input.runId,
+    signalId: input.ids.impressions,
+    dedupeKey: input.dedupeKey,
+    policyVersion: "striking-distance-repeat-suppression-v1",
+    actionKeyPrefix: "striking-distance-investigation-v1:action:",
+    insight: {
+      id: insightId,
+      projectId: "project_1",
+      runId: input.runId,
+      creationKey: `striking-distance-investigation-v1:insight:${input.ids.impressions}`,
+      factHash: `a${input.suffix}`.padEnd(64, "a"),
+      title: "Observed striking distance",
+      explanation: "Observed facts.",
+      hypothesis: "Cause unknown.",
+      confidence: 0,
+      model: null,
+      promptVersion: null,
+      signalIds: [input.ids.position, input.ids.impressions, input.ids.clicks],
+    },
+    recommendation: {
+      id: `striking_recommendation_${input.suffix}`,
+      projectId: "project_1",
+      runId: input.runId,
+      creationKey: `striking-distance-investigation-v1:recommendation:${input.ids.impressions}`,
+      factHash: `b${input.suffix}`.padEnd(64, "b"),
+      title: "Investigate query",
+      rationale: "Cause unknown.",
+      category: "investigation",
+      impact: 1,
+      commercialRelevance: 1,
+      effort: 1,
+      urgency: 1,
+      confidence: 0,
+      priorityScore: 0,
+      model: null,
+      promptVersion: null,
+      insightIds: [insightId],
+      targets: [
+        { targetType: "keyword" as const, targetValue: "web design bath" },
+        {
+          targetType: "url" as const,
+          targetValue: "https://example.com/web-design-bath",
+        },
+        { targetType: "site" as const, targetValue: "example.com" },
+      ],
+      steps: legacySteps,
+    },
+  };
+}
+
 async function seedControllerWithAction(input: {
   suffix: string;
   dedupeKey: string;
@@ -351,6 +436,74 @@ async function attemptControllerRelease(input: {
 
 // eslint-disable-next-line max-lines-per-function -- one shared database makes the sequential graph lifecycle explicit
 describe("GrowthInsightsRepository D1 graph writes", () => {
+  it("writes exactly three striking evidence links and suppresses repeats without mutating the controller graph", async () => {
+    const dedupeKey = "e".repeat(64);
+    const first = await seedStrikingSignals("proof_first");
+    const firstCandidate = strikingDecisionCandidate({
+      suffix: "proof_first",
+      ...first,
+      dedupeKey,
+    });
+    await GrowthOpportunityDecisionsRepository.writeDecision(firstCandidate);
+    const firstLinks = await client.execute({
+      sql: "SELECT count(*) AS count FROM growth_insight_signals WHERE insight_id = ?",
+      args: [firstCandidate.insight.id],
+    });
+    const firstController =
+      await GrowthOpportunityDecisionsRepository.getSignalDecision(
+        "project_1",
+        first.runId,
+        first.ids.impressions,
+      );
+    expect(Number(firstLinks.rows[0]?.count)).toBe(3);
+    expect(firstController).toMatchObject({ relationship: "controller" });
+
+    const repeat = await seedStrikingSignals("proof_repeat");
+    const repeatCandidate = strikingDecisionCandidate({
+      suffix: "proof_repeat",
+      ...repeat,
+      dedupeKey,
+    });
+    await GrowthOpportunityDecisionsRepository.writeDecision(repeatCandidate);
+    const [repeatDecision, insightCount, recommendationCount, repeatLinks] =
+      await Promise.all([
+        GrowthOpportunityDecisionsRepository.getSignalDecision(
+          "project_1",
+          repeat.runId,
+          repeat.ids.impressions,
+        ),
+        client.execute(
+          "SELECT count(*) AS count FROM growth_insights WHERE id IN (?, ?)",
+          [firstCandidate.insight.id, repeatCandidate.insight.id],
+        ),
+        client.execute(
+          "SELECT count(*) AS count FROM growth_recommendations WHERE id IN (?, ?)",
+          [firstCandidate.recommendation.id, repeatCandidate.recommendation.id],
+        ),
+        client.execute(
+          "SELECT count(*) AS count FROM growth_recommendation_signal_links WHERE signal_run_id = ?",
+          [repeat.runId],
+        ),
+      ]);
+    expect(repeatDecision).toMatchObject({
+      relationship: "suppressed",
+      recommendationId: firstCandidate.recommendation.id,
+    });
+    expect(Number(insightCount.rows[0]?.count)).toBe(1);
+    expect(Number(recommendationCount.rows[0]?.count)).toBe(1);
+    expect(Number(repeatLinks.rows[0]?.count)).toBe(1);
+    await client.executeMultiple(`
+      DELETE FROM growth_recommendation_signal_links WHERE signal_run_id IN ('${first.runId}', '${repeat.runId}');
+      DELETE FROM growth_recommendation_targets WHERE recommendation_id IN ('${firstCandidate.recommendation.id}', '${repeatCandidate.recommendation.id}');
+      DELETE FROM growth_recommendation_steps WHERE recommendation_id IN ('${firstCandidate.recommendation.id}', '${repeatCandidate.recommendation.id}');
+      DELETE FROM growth_recommendation_insights WHERE recommendation_id IN ('${firstCandidate.recommendation.id}', '${repeatCandidate.recommendation.id}');
+      DELETE FROM growth_insight_signals WHERE insight_id IN ('${firstCandidate.insight.id}', '${repeatCandidate.insight.id}');
+      DELETE FROM growth_recommendations WHERE id IN ('${firstCandidate.recommendation.id}', '${repeatCandidate.recommendation.id}');
+      DELETE FROM growth_insights WHERE id IN ('${firstCandidate.insight.id}', '${repeatCandidate.insight.id}');
+      DELETE FROM growth_signals WHERE run_id IN ('${first.runId}', '${repeat.runId}');
+      DELETE FROM growth_runs WHERE id IN ('${first.runId}', '${repeat.runId}');
+    `);
+  });
   it("atomically records one controller and suppresses a later equivalent Signal", async () => {
     await client.executeMultiple(`INSERT INTO growth_runs (
       id, project_id, run_type, trigger, status, cadence_slot, period_start,
@@ -425,6 +578,7 @@ describe("GrowthInsightsRepository D1 graph writes", () => {
         ...candidate.insight,
         runId: "run_2",
         creationKey: "template:insight:signal_4",
+        signalIds: ["signal_4"],
       },
       recommendation: {
         ...candidate.recommendation,

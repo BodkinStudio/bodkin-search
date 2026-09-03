@@ -82,8 +82,8 @@ export function GrowthWorkList({
   if (data.actions.length === 0)
     return (
       <p className="mt-4 text-sm text-base-content/70">
-        No investigations approved yet. Open a decline from a new saved check,
-        review its investigation and choose a due date.
+        No investigations approved yet. Open a suggestion from a new saved
+        check, review its investigation and choose a due date.
       </p>
     );
   return (

@@ -33,6 +33,7 @@ type DecisionWrite = {
   signalId: string;
   signalRunId: string;
   projectId: string;
+  actionKeyPrefix?: string;
   insight: InsightWrite;
   recommendation: RecommendationWrite;
   legacyController?: {
@@ -47,6 +48,10 @@ type DecisionWrite = {
     signalId: string;
   } | null;
 };
+
+function actionKeyPrefix(input: DecisionWrite) {
+  return input.actionKeyPrefix ?? "priority-page-investigation-v1:action:";
+}
 
 type LegacyGraphQualification = {
   projectId: string;
@@ -245,6 +250,13 @@ function runningSignalSource(
     );
 }
 
+function requiredSignalsPresent(input: DecisionWrite) {
+  return sql`(SELECT count(*) FROM growth_signals required_signals WHERE required_signals.project_id = ${input.projectId} AND required_signals.run_id = ${input.signalRunId} AND required_signals.id IN (${sql.join(
+    input.insight.signalIds.map((signalId) => sql`${signalId}`),
+    sql`, `,
+  )})) = ${input.insight.signalIds.length}`;
+}
+
 function exactControllerActionReleasable(
   tx: BatchExecutor,
   input: DecisionWrite,
@@ -265,7 +277,7 @@ function exactControllerActionReleasable(
           eq(growthActions.recommendationId, controller.recommendationId),
           eq(
             growthActions.creationKey,
-            `priority-page-investigation-v1:action:${controller.signalId}`,
+            `${actionKeyPrefix(input)}${controller.signalId}`,
           ),
           eq(growthActions.status, "evaluated"),
           sql`${growthActions.evaluatedAt} IS NOT NULL`,
@@ -408,6 +420,7 @@ async function writeDecision(input: DecisionWrite) {
           eq(growthSignals.runId, input.signalRunId),
           eq(growthSignals.id, input.signalId),
           eq(growthRuns.status, "running"),
+          requiredSignalsPresent(input),
           canCreateCandidate,
         ),
       );
@@ -432,20 +445,22 @@ async function writeDecision(input: DecisionWrite) {
       eq(growthInsights.id, input.insight.id),
       eq(growthInsights.factHash, input.insight.factHash),
     );
-    const insightSignal = tx
-      .insert(growthInsightSignals)
-      .select(
-        tx
-          .select({
-            projectId: growthInsights.projectId,
-            runId: growthInsights.runId,
-            insightId: growthInsights.id,
-            signalId: sql<string>`${input.signalId}`.as("signal_id"),
-          })
-          .from(growthInsights)
-          .where(insightWhere),
-      )
-      .onConflictDoNothing();
+    const insightSignals = input.insight.signalIds.map((signalId) =>
+      tx
+        .insert(growthInsightSignals)
+        .select(
+          tx
+            .select({
+              projectId: growthInsights.projectId,
+              runId: growthInsights.runId,
+              insightId: growthInsights.id,
+              signalId: sql<string>`${signalId}`.as("signal_id"),
+            })
+            .from(growthInsights)
+            .where(insightWhere),
+        )
+        .onConflictDoNothing(),
+    );
     const recommendation = tx
       .insert(growthRecommendations)
       .select(
@@ -595,6 +610,7 @@ async function writeDecision(input: DecisionWrite) {
                   projectId: growthSignals.projectId,
                 }),
               ),
+              requiredSignalsPresent(input),
             ),
           ),
       )
@@ -695,6 +711,7 @@ async function writeDecision(input: DecisionWrite) {
                       projectId: growthSignals.projectId,
                     }),
                   ),
+                  requiredSignalsPresent(input),
                 ),
               ),
           )
@@ -718,7 +735,7 @@ async function writeDecision(input: DecisionWrite) {
               | "existing_action"
               | "accepted_without_action"
               | "resolved_recommendation"
-            >`CASE WHEN ${growthRecommendations.status} = 'snoozed' THEN 'existing_snooze' WHEN ${growthRecommendations.status} = 'dismissed' THEN 'prior_dismissal' WHEN ${growthRecommendations.status} IN ('merged', 'superseded') THEN 'resolved_recommendation' WHEN ${growthRecommendations.status} = 'accepted' AND EXISTS (SELECT 1 FROM growth_actions WHERE growth_actions.project_id = growth_recommendations.project_id AND growth_actions.recommendation_id = growth_recommendations.id AND growth_actions.creation_key = 'priority-page-investigation-v1:action:' || ${growthRecommendationSignalLinks.signalId}) THEN 'existing_action' WHEN ${growthRecommendations.status} = 'accepted' THEN 'accepted_without_action' ELSE 'existing_proposal' END`.as(
+            >`CASE WHEN ${growthRecommendations.status} = 'snoozed' THEN 'existing_snooze' WHEN ${growthRecommendations.status} = 'dismissed' THEN 'prior_dismissal' WHEN ${growthRecommendations.status} IN ('merged', 'superseded') THEN 'resolved_recommendation' WHEN ${growthRecommendations.status} = 'accepted' AND EXISTS (SELECT 1 FROM growth_actions WHERE growth_actions.project_id = growth_recommendations.project_id AND growth_actions.recommendation_id = growth_recommendations.id AND growth_actions.creation_key = ${actionKeyPrefix(input)} || ${growthRecommendationSignalLinks.signalId}) THEN 'existing_action' WHEN ${growthRecommendations.status} = 'accepted' THEN 'accepted_without_action' ELSE 'existing_proposal' END`.as(
               "suppression_reason",
             ),
             policyVersion: sql<string>`${input.policyVersion}`.as(
@@ -752,6 +769,7 @@ async function writeDecision(input: DecisionWrite) {
                   projectId: growthSignals.projectId,
                 }),
               ),
+              requiredSignalsPresent(input),
             ),
           ),
       )
@@ -760,7 +778,7 @@ async function writeDecision(input: DecisionWrite) {
       lockedCandidateSource,
       ...(releaseController ? [releaseController] : []),
       insight,
-      insightSignal,
+      ...insightSignals,
       recommendation,
       recommendationInsight,
       ...targets,

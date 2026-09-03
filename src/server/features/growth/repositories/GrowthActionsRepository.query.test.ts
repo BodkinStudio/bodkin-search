@@ -681,4 +681,112 @@ describe("GrowthActionsRepository D1 aggregate writes", () => {
       ),
     ).toHaveLength(52);
   });
+
+  it("qualifies striking-distance Work only through its exact three-fact graph", async () => {
+    await client.executeMultiple(`
+      INSERT INTO growth_runs (id, project_id, run_type, trigger, status, cadence_slot, period_start, period_end, started_at, completed_at, detector_version, analysis_version)
+      VALUES ('striking_work_run', 'project_1', 'manual_analysis', 'manual', 'completed', 'striking-distance-check:work', '2026-07-07', '2026-08-31', '2026-09-01T10:00:00.000Z', '2026-09-01T10:01:00.000Z', 'striking-distance-query-v1', 'striking-distance-investigation-v1');
+      INSERT INTO growth_signals (id, project_id, run_id, signal_type, entity_type, entity_ref, metric, severity, confidence, period_start, period_end, baseline_value, current_value, delta_value, evidence_kind, evidence_ref, captured_at) VALUES
+      ('striking_work_position','project_1','striking_work_run','striking_distance_query','search_query','web design bath','gsc_average_position','info',.8,'2026-08-04','2026-08-31',9,6,-3,'gsc_period','gsc_striking_distance_v1:test','2026-09-01T10:00:00.000Z'),
+      ('striking_work_impressions','project_1','striking_work_run','striking_distance_query','search_query','web design bath','gsc_impressions','info',.8,'2026-08-04','2026-08-31',80,150,70,'gsc_period','gsc_striking_distance_v1:test','2026-09-01T10:00:00.000Z'),
+      ('striking_work_clicks','project_1','striking_work_run','striking_distance_query','search_query','web design bath','gsc_clicks','info',.8,'2026-08-04','2026-08-31',2,1,-1,'gsc_period','gsc_striking_distance_v1:test','2026-09-01T10:00:00.000Z');
+      INSERT INTO growth_insights (id,project_id,run_id,creation_key,fact_hash,title,explanation,hypothesis,confidence) VALUES ('striking_work_insight','project_1','striking_work_run','striking-distance-investigation-v1:insight:striking_work_impressions','${"a".repeat(64)}','Observed query','Observed facts.','Unknown cause.',0);
+      INSERT INTO growth_insight_signals (project_id,run_id,insight_id,signal_id) VALUES ('project_1','striking_work_run','striking_work_insight','striking_work_position'),('project_1','striking_work_run','striking_work_insight','striking_work_impressions'),('project_1','striking_work_run','striking_work_insight','striking_work_clicks');
+      INSERT INTO growth_recommendations (id,project_id,run_id,creation_key,fact_hash,title,rationale,category,impact,commercial_relevance,effort,urgency,confidence,priority_score,status,review_version) VALUES ('striking_work_recommendation','project_1','striking_work_run','striking-distance-investigation-v1:recommendation:striking_work_impressions','${"b".repeat(64)}','Investigate query','Cause unknown.','investigation',1,1,1,1,0,0,'accepted',1);
+      INSERT INTO growth_recommendation_insights (project_id,run_id,recommendation_id,insight_id) VALUES ('project_1','striking_work_run','striking_work_recommendation','striking_work_insight');
+    `);
+    await client.execute(
+      `INSERT INTO growth_actions (id,project_id,recommendation_id,creation_key,fact_hash,title,description,category,priority_score,status,state_version,due_at,approved_at,created_at,updated_at) VALUES ('striking_work_action','project_1','striking_work_recommendation','striking-distance-investigation-v1:action:striking_work_impressions','${"c".repeat(64)}','Investigate query','Cause unknown.','investigation',0,'approved',0,'2026-09-10T00:00:00.000Z','2026-09-01T10:02:00.000Z','2026-09-01T10:02:00.000Z','2026-09-01T10:02:00.000Z')`,
+    );
+    await expect(
+      GrowthActionsRepository.listInvestigationWork(
+        "project_1",
+        1,
+        "striking_work_action",
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: "striking_work_action",
+        runId: "striking_work_run",
+      }),
+    ]);
+    await client.execute(
+      "UPDATE growth_signals SET metric = 'gsc_clicks' WHERE id = 'striking_work_impressions'",
+    );
+    await expect(
+      GrowthActionsRepository.listInvestigationWork(
+        "project_1",
+        1,
+        "striking_work_action",
+      ),
+    ).resolves.toEqual([]);
+
+    await client.execute(
+      "UPDATE growth_signals SET metric = 'gsc_impressions' WHERE id = 'striking_work_impressions'",
+    );
+    await client.execute(
+      "UPDATE growth_signals SET metric = 'unrelated_metric' WHERE id = 'striking_work_position'",
+    );
+    await expect(
+      GrowthActionsRepository.listInvestigationWork(
+        "project_1",
+        1,
+        "striking_work_action",
+      ),
+    ).resolves.toEqual([]);
+
+    await client.execute(
+      "UPDATE growth_signals SET metric = 'gsc_average_position', entity_ref = 'another query' WHERE id = 'striking_work_position'",
+    );
+    await expect(
+      GrowthActionsRepository.listInvestigationWork(
+        "project_1",
+        1,
+        "striking_work_action",
+      ),
+    ).resolves.toEqual([]);
+
+    await client.execute(
+      "UPDATE growth_signals SET entity_ref = 'web design bath' WHERE id = 'striking_work_position'",
+    );
+    await client.execute(
+      "UPDATE growth_signals SET delta_value = 71 WHERE id = 'striking_work_impressions'",
+    );
+    await expect(
+      GrowthActionsRepository.listInvestigationWork(
+        "project_1",
+        1,
+        "striking_work_action",
+      ),
+    ).resolves.toEqual([]);
+
+    await client.execute(
+      "UPDATE growth_signals SET delta_value = 70 WHERE id = 'striking_work_impressions'",
+    );
+    await client.execute(
+      "UPDATE growth_insights SET creation_key = 'wrong-key' WHERE id = 'striking_work_insight'",
+    );
+    await expect(
+      GrowthActionsRepository.listInvestigationWork(
+        "project_1",
+        1,
+        "striking_work_action",
+      ),
+    ).resolves.toEqual([]);
+
+    await client.execute(
+      "UPDATE growth_insights SET creation_key = 'striking-distance-investigation-v1:insight:striking_work_impressions' WHERE id = 'striking_work_insight'",
+    );
+    await client.executeMultiple(`
+      INSERT INTO growth_insights (id,project_id,run_id,creation_key,fact_hash,title,explanation,hypothesis,confidence) VALUES ('striking_extra_insight','project_1','striking_work_run','extra-insight','${"d".repeat(64)}','Extra','Extra.','Unknown.',0);
+      INSERT INTO growth_recommendation_insights (project_id,run_id,recommendation_id,insight_id) VALUES ('project_1','striking_work_run','striking_work_recommendation','striking_extra_insight');
+    `);
+    await expect(
+      GrowthActionsRepository.listInvestigationWork(
+        "project_1",
+        1,
+        "striking_work_action",
+      ),
+    ).resolves.toEqual([]);
+  });
 });

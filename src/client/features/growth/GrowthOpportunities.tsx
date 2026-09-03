@@ -96,9 +96,10 @@ export function GrowthOpportunitiesList({
       <p role="status" className="mt-4 text-sm text-base-content/70">
         No unresolved saved opportunities are available for this project yet.{" "}
         <a className="link" href="#growth-live-check-title">
-          Run a priority-page check below
+          Run a Growth check below
         </a>{" "}
-        to save rule-based suggestions when a decline is detected.
+        to save rule-based suggestions when a decline or ranking opportunity is
+        detected.
       </p>
     );
   }

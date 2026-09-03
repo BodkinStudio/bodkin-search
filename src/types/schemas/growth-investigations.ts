@@ -93,6 +93,29 @@ const growthInvestigationControllerViewSchema = z.strictObject({
   actionId: id.nullable(),
   dueOn: calendarDate.nullable(),
   templateVersion: z.string().min(1).max(100),
+  evidenceSummary: z
+    .strictObject({
+      kind: z.literal("striking_distance_query"),
+      query: z.string().min(1).max(500),
+      page: z.string().url().max(2048),
+      site: z.string().min(1).max(2000),
+      baselinePeriod: z.strictObject({
+        start: calendarDate,
+        end: calendarDate,
+      }),
+      currentPeriod: z.strictObject({ start: calendarDate, end: calendarDate }),
+      baseline: z.strictObject({
+        position: z.number().finite(),
+        impressions: z.number().finite(),
+        clicks: z.number().finite(),
+      }),
+      current: z.strictObject({
+        position: z.number().finite(),
+        impressions: z.number().finite(),
+        clicks: z.number().finite(),
+      }),
+    })
+    .optional(),
 });
 
 const growthInvestigationSuppressedViewSchema = z.strictObject({

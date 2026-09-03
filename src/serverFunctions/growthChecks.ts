@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { GrowthPriorityPageCheckService } from "@/server/features/growth/services/GrowthPriorityPageCheckService";
+import { GrowthStrikingDistanceCheckService } from "@/server/features/growth/services/GrowthStrikingDistanceCheckService";
 import { requireProjectContext } from "./middleware";
 import {
   getGrowthCheckEvidenceSchema,
@@ -19,6 +20,15 @@ export const runGrowthCheck = createServerFn({ method: "POST" })
   .validator(runGrowthCheckSchema)
   .handler(async ({ data, context }) =>
     GrowthPriorityPageCheckService.runCheck({
+      projectId: context.projectId,
+      requestKey: data.requestKey,
+    }),
+  );
+export const runGrowthStrikingDistanceCheck = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(runGrowthCheckSchema)
+  .handler(async ({ data, context }) =>
+    GrowthStrikingDistanceCheckService.runCheck({
       projectId: context.projectId,
       requestKey: data.requestKey,
     }),
