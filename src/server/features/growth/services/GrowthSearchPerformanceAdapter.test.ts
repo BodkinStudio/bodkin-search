@@ -1,7 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+type Request = {
+  startDate: string;
+  endDate: string;
+  dimensions?: string[];
+  filters?: Array<{ dimension: string; operator: string; expression: string }>;
+  rowLimit?: number;
+  startRow?: number;
+};
+
 const mocks = vi.hoisted(() => ({
-  getPerformance: vi.fn(),
+  getPerformance: vi.fn<(request: Request) => unknown>(),
   listKeyPages: vi.fn(),
 }));
 
@@ -20,14 +29,6 @@ import {
   collectGrowthSearchPerformance,
 } from "./GrowthSearchPerformanceAdapter";
 
-type Request = {
-  startDate: string;
-  endDate: string;
-  dimensions?: string[];
-  rowLimit?: number;
-  startRow?: number;
-};
-
 function response(input: Request) {
   return (rows: unknown[]) => ({
     siteUrl: "sc-domain:example.test",
@@ -36,6 +37,9 @@ function response(input: Request) {
       startRow: input.startRow || undefined,
       type: "web",
       dataState: "final",
+      dimensionFilterGroups: input.filters
+        ? [{ groupType: "and", filters: input.filters }]
+        : undefined,
     },
     rows,
   });
@@ -44,8 +48,8 @@ function response(input: Request) {
 const input = {
   projectId: "project_1",
   startDate: "2026-05-01",
-  endDate: "2026-05-03",
-  capturedAt: "2026-05-07T12:00:00.000Z",
+  endDate: "2026-05-04",
+  capturedAt: "2026-05-08T12:00:00.000Z",
 };
 
 describe("collectGrowthSearchPerformance", () => {
@@ -61,56 +65,53 @@ describe("collectGrowthSearchPerformance", () => {
     ]);
   });
 
-  it("advances by received rows, validates every raw row, and retains only curated observations", async () => {
-    const requestedStartRows: number[] = [];
-    const first = Array.from({ length: 1000 }, (_, index) => ({
-      keys: [`https://example.test/p/${index}`, "2026-05-01"],
-      clicks: 1,
-      impressions: 1,
-    }));
-    mocks.getPerformance
-      .mockImplementationOnce((request: Request) => {
-        requestedStartRows.push(request.startRow ?? 0);
-        return response(request)(first);
-      })
-      .mockImplementationOnce((request: Request) => {
-        requestedStartRows.push(request.startRow ?? 0);
-        return response(request)([
-          {
-            keys: ["https://example.test/p/1000", "2026-05-02"],
-            clicks: 1,
-            impressions: 1,
-          },
-        ]);
-      })
-      .mockImplementationOnce((request: Request) => {
-        requestedStartRows.push(request.startRow ?? 0);
-        return response(request)([]);
-      });
+  it("uses bounded exact URL-alias queries and retains sparse date facts", async () => {
+    mocks.getPerformance.mockImplementation((request: Request) =>
+      response(request)([{ keys: ["2026-05-01"], clicks: 1, impressions: 1 }]),
+    );
 
-    const snapshot = await collectGrowthSearchPerformance(input);
+    const snapshot = await collectGrowthSearchPerformance({
+      ...input,
+      includeSiteContext: true,
+    });
 
-    expect(requestedStartRows).toEqual([0, 1000, 1001]);
+    expect(mocks.getPerformance).toHaveBeenCalledTimes(5);
+    expect(
+      mocks.getPerformance.mock.calls.map(
+        ([request]) => request.filters?.[0]?.operator,
+      ),
+    ).toEqual(["equals", "equals", "equals", "equals", undefined]);
     expect(snapshot.retrievalStatus).toBe("exhausted");
-    expect(snapshot.observations).toEqual([
-      {
-        rawUrl: "https://example.test/p/0",
-        date: "2026-05-01",
-        clicks: 1,
-        impressions: 1,
-      },
-    ]);
+    expect(snapshot.observations).toHaveLength(4);
+    expect(
+      snapshot.observations.every(
+        (row) => row.date === "2026-05-01" && row.clicks === 1,
+      ),
+    ).toBe(true);
+    expect(snapshot.comparisonEvidence).toEqual({
+      status: "complete",
+      collectionMethod: "exact_page_alias_date_inventory_v2",
+      baselineWindow: { startDate: "2026-05-01", endDate: "2026-05-02" },
+      currentWindow: { startDate: "2026-05-03", endDate: "2026-05-04" },
+      pages: [
+        {
+          keyPageId: "key_0",
+          aliases: [
+            "http://example.test/p/0",
+            "http://www.example.test/p/0",
+            "https://example.test/p/0",
+            "https://www.example.test/p/0",
+          ],
+          baseline: { reported: true, clicks: 4, impressions: 4 },
+          current: { reported: false, clicks: 0, impressions: 0 },
+        },
+      ],
+    });
   });
 
   it("rejects an invalid non-curated source row before narrowing", async () => {
-    mocks.getPerformance.mockImplementationOnce((request: Request) =>
-      response(request)([
-        {
-          keys: ["https://example.test/not-curated", "2026-05-04"],
-          clicks: 1,
-          impressions: 1,
-        },
-      ]),
+    mocks.getPerformance.mockImplementation((request: Request) =>
+      response(request)([{ keys: ["2026-05-05"], clicks: 1, impressions: 1 }]),
     );
 
     await expect(collectGrowthSearchPerformance(input)).rejects.toThrow(

@@ -9,7 +9,9 @@ import { calendarDateInTimezone } from "./GrowthMeasurementFacts";
 import { collectGrowthSearchPerformance } from "./GrowthSearchPerformanceAdapter";
 import {
   detectPriorityPageClickDeclines,
+  isPriorityPageClickDeclineDetectorVersion,
   PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION,
+  PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSIONS,
 } from "./PriorityPageClickDeclineDetector";
 import { GrowthRunsService } from "./GrowthRunsService";
 import { GrowthOpportunityDecisionsService } from "./GrowthOpportunityDecisionsService";
@@ -76,23 +78,35 @@ function isPriorityPageCheckRun(
 ) {
   return (
     run.runType === RUN_TYPE &&
-    run.detectorVersion === PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION &&
+    isPriorityPageClickDeclineDetectorVersion(run.detectorVersion) &&
     run.cadenceSlot.startsWith(CADENCE_SLOT_PREFIX)
   );
 }
 
 async function getOverview(projectId: string): Promise<GrowthCheckOverview> {
-  const [connection, keyPages, runs] = await Promise.all([
+  const [connection, keyPages, runGroups] = await Promise.all([
     GscConnectionRepository.getByProjectId(projectId),
     ProjectContextRepository.listKeyPages(projectId),
-    GrowthRunsService.listRecentRunsForDetector(
-      projectId,
-      RUN_TYPE,
-      PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION,
-      CADENCE_SLOT_PREFIX,
-      20,
+    Promise.all(
+      PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSIONS.map((version) =>
+        GrowthRunsService.listRecentRunsForDetector(
+          projectId,
+          RUN_TYPE,
+          version,
+          CADENCE_SLOT_PREFIX,
+          20,
+        ),
+      ),
     ),
   ]);
+  const runs = runGroups
+    .flat()
+    .toSorted(
+      (left, right) =>
+        right.startedAt.localeCompare(left.startedAt) ||
+        right.id.localeCompare(left.id),
+    )
+    .slice(0, 20);
   return {
     setup: !connection
       ? "missing_connection"

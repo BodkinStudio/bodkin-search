@@ -51,7 +51,14 @@ vi.mock("./GrowthSearchPerformanceAdapter", () => ({
 vi.mock("./PriorityPageClickDeclineDetector", () => ({
   detectPriorityPageClickDeclines: mocks.detect,
   PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION:
+    "priority-page-click-decline-v2",
+  PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSIONS: [
     "priority-page-click-decline-v1",
+    "priority-page-click-decline-v2",
+  ],
+  isPriorityPageClickDeclineDetectorVersion: (value: unknown) =>
+    value === "priority-page-click-decline-v1" ||
+    value === "priority-page-click-decline-v2",
 }));
 vi.mock("./GrowthEvidencePacketService", () => ({
   assembleGrowthEvidencePacket: mocks.assemble,
@@ -131,6 +138,14 @@ describe("Growth priority-page checks", () => {
       projectId: "project_1",
       requestKey: "snapshot_1",
     });
+    expect(mocks.claim).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detectorVersion: "priority-page-click-decline-v2",
+      }),
+    );
+    expect(mocks.detect).toHaveBeenCalledWith(
+      expect.objectContaining({ runId: "run_1" }),
+    );
     expect(mocks.recordDecision).toHaveBeenCalledWith(
       expect.objectContaining({
         // oxlint-disable-next-line typescript/no-unsafe-assignment -- Vitest asymmetric matcher is intentionally nested.
@@ -225,6 +240,30 @@ describe("Growth priority-page checks", () => {
       requestKey: "retry_2",
     });
     expect(failed.run.failureMessage).not.toContain("secret-provider-payload");
+  });
+
+  it("completes determinate suppressed outcomes without an incomplete-source error", async () => {
+    mocks.collect.mockResolvedValue({ keyPages: [] });
+    mocks.detect.mockResolvedValue([
+      {
+        status: "suppressed",
+        suppressionReason: "low_baseline",
+        keyPageId: "key_1",
+      },
+    ]);
+    mocks.complete.mockResolvedValue({ ...running, status: "completed" });
+
+    await expect(
+      GrowthPriorityPageCheckService.runCheck({
+        projectId: "project_1",
+        requestKey: "determinate_1",
+      }),
+    ).resolves.toMatchObject({ run: { status: "completed" } });
+    expect(mocks.complete).toHaveBeenCalledWith({
+      projectId: "project_1",
+      runId: "run_1",
+    });
+    expect(mocks.completeErrors).not.toHaveBeenCalled();
   });
 
   it("keeps a durably committed decision terminal when its service reread fails", async () => {

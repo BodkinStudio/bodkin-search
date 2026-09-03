@@ -152,20 +152,39 @@ beforeEach(() => {
 // authorization cannot drift between controller and suppressed identities.
 // eslint-disable-next-line max-lines-per-function
 describe("GrowthInvestigationsService", () => {
-  it("reads only the saved, same-run template suggestion", async () => {
-    repositories.getActionByKey.mockResolvedValue(null);
+  it.each([
+    ["v1", "priority-page-click-decline-v1"],
+    ["v2", "priority-page-click-decline-v2"],
+  ])(
+    "reads only the saved, same-run template suggestion for a persisted %s run",
+    async (_label, detectorVersion) => {
+      repositories.getRun.mockResolvedValue({ ...run, detectorVersion });
+      repositories.getActionByKey.mockResolvedValue(null);
+      await expect(
+        GrowthInvestigationsService.getInvestigation("project_1", "signal_1"),
+      ).resolves.toMatchObject({
+        relationship: "controller",
+        recommendationId: "recommendation_1",
+        status: "proposed",
+        displayUrls: ["https://example.com/pricing"],
+        actionId: null,
+        reviewVersion: 0,
+        dismissalReason: null,
+        snoozedUntil: null,
+      });
+    },
+  );
+
+  it("rejects an unsupported persisted detector version before graph reads", async () => {
+    repositories.getRun.mockResolvedValue({
+      ...run,
+      detectorVersion: "priority-page-click-decline-v3",
+    });
     await expect(
       GrowthInvestigationsService.getInvestigation("project_1", "signal_1"),
-    ).resolves.toMatchObject({
-      relationship: "controller",
-      recommendationId: "recommendation_1",
-      status: "proposed",
-      displayUrls: ["https://example.com/pricing"],
-      actionId: null,
-      reviewVersion: 0,
-      dismissalReason: null,
-      snoozedUntil: null,
-    });
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(repositories.getDecisionControllerSource).not.toHaveBeenCalled();
+    expect(repositories.findRecommendationForSignal).not.toHaveBeenCalled();
   });
 
   it("projects a repeated Signal through its controller without old evidence", async () => {

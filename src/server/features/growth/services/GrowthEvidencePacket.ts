@@ -6,7 +6,7 @@ import { safeHttpUrl } from "@/server/features/ai-search/safeUrl";
 import { previousPeriod } from "@/server/features/gsc/searchPerformanceReport";
 import { calendarDateInTimezone } from "./GrowthMeasurementFacts";
 import { canonicalizeGrowthExactUrls } from "./GrowthTargetNormalizer";
-import { PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION } from "./PriorityPageClickDeclineDetector";
+import { isPriorityPageClickDeclineDetectorVersion } from "./PriorityPageClickDeclineDetector";
 import {
   growthEvidencePacketSchema,
   type GrowthEvidencePacket,
@@ -264,13 +264,14 @@ export async function buildGrowthEvidencePacket(
     s.run.id !== signal.runId
   )
     invalid("Stored Growth identities disagree");
+  const detectorVersion = s.run.detectorVersion;
   if (
     signal.signalType !== "priority_page_click_decline" ||
     signal.entityType !== "key_page" ||
     signal.metric !== "gsc_clicks" ||
     signal.evidenceKind !== "gsc_period" ||
     !/^gsc:[a-f0-9]{64}$/.test(signal.evidenceRef) ||
-    s.run.detectorVersion !== PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION
+    !isPriorityPageClickDeclineDetectorVersion(detectorVersion)
   )
     invalid("Signal is not supported by this evidence packet version");
   const start = isoDate(signal.periodStart, "Signal period start");
@@ -303,7 +304,7 @@ export async function buildGrowthEvidencePacket(
       ((signal.currentValue - signal.baselineValue) / signal.baselineValue) *
         100
   )
-    invalid("Signal numeric facts contradict the v1 detector");
+    invalid("Signal numeric facts contradict the priority-page detector");
   const latestFinalDate = new Date(
     `${calendarDateInTimezone(captured.toISOString(), SOURCE_TIMEZONE)}T00:00:00.000Z`,
   );
@@ -414,7 +415,7 @@ export async function buildGrowthEvidencePacket(
       signalId: signal.id,
       runId: s.run.id,
       evidenceReference: signal.evidenceRef,
-      detectorVersion: PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION,
+      detectorVersion,
     },
     observation: {
       capturedAt: captured.toISOString(),

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- collection validation and request accounting remain one adapter boundary */
 import { GscService } from "@/server/features/gsc/services/GscService";
 import { ProjectContextRepository } from "@/server/features/project-context/repositories/ProjectContextRepository";
 import { normalizeKeyPageUrl } from "@/server/features/project-context/services/contextUpdateOps";
@@ -9,6 +10,7 @@ import {
   type GrowthSearchPerformanceSnapshot,
 } from "@/types/schemas/growth-search-performance";
 import { z } from "zod";
+import type { GscPerformanceFilter } from "@/server/features/gsc/searchAnalytics";
 import type {
   FrozenGrowthSearchPerformanceSnapshot,
   FrozenTargetCollectionInput,
@@ -90,6 +92,11 @@ function assertRequest(
     endDate: string;
     startRow: number;
     dimensions: string[];
+    filters?: Array<{
+      dimension: string;
+      operator: string;
+      expression: string;
+    }>;
   },
 ) {
   if (
@@ -100,7 +107,12 @@ function assertRequest(
     request.type !== "web" ||
     request.dataState !== "final" ||
     request.aggregationType !== undefined ||
-    request.dimensionFilterGroups !== undefined ||
+    JSON.stringify(request.dimensionFilterGroups ?? undefined) !==
+      JSON.stringify(
+        expected.filters
+          ? [{ groupType: "and", filters: expected.filters }]
+          : undefined,
+      ) ||
     request.dimensions?.join("\u0000") !== expected.dimensions.join("\u0000")
   ) {
     validation(
@@ -144,6 +156,83 @@ function parseRows(rows: unknown[], dimensions: "page_date" | "date") {
       impressions,
     };
   });
+}
+
+function exactPageAliases(url: string) {
+  const normalized = new URL(normalizeKeyPageUrl(url));
+  const hostname = normalized.hostname.replace(/^www\./, "");
+  const hosts = [hostname, `www.${hostname}`];
+  return ["http:", "https:"].flatMap((protocol) =>
+    hosts.map((host) => {
+      const alias = new URL(normalized.toString());
+      alias.protocol = protocol;
+      alias.hostname = host;
+      return alias.toString();
+    }),
+  );
+}
+
+function splitExactPageRows(input: {
+  rows: unknown[];
+  alias: string;
+  baselineEnd: string;
+  currentStart: string;
+  startDate: string;
+  endDate: string;
+}) {
+  let baselineClicks = 0;
+  let baselineImpressions = 0;
+  let currentClicks = 0;
+  let currentImpressions = 0;
+  let baselineReported = false;
+  let currentReported = false;
+  const observations: GrowthSearchPerformanceSnapshot["observations"] = [];
+  const rows = parseRows(input.rows, "date");
+  const dates = new Set<string>();
+  for (const row of rows) {
+    if (row.date < input.startDate || row.date > input.endDate)
+      validation("Search Console returned a row outside the collection window");
+    if (dates.has(row.date))
+      validation("Search Console returned duplicate date rows");
+    dates.add(row.date);
+    observations.push({
+      rawUrl: input.alias,
+      date: row.date,
+      clicks: row.clicks,
+      impressions: row.impressions,
+    });
+    if (row.date <= input.baselineEnd) {
+      baselineReported = true;
+      baselineClicks += row.clicks;
+      baselineImpressions += row.impressions;
+    } else if (row.date >= input.currentStart) {
+      currentReported = true;
+      currentClicks += row.clicks;
+      currentImpressions += row.impressions;
+    }
+  }
+  if (
+    ![
+      baselineClicks,
+      baselineImpressions,
+      currentClicks,
+      currentImpressions,
+    ].every(Number.isSafeInteger)
+  )
+    validation("Search Console total exceeds safe integer range");
+  return {
+    observations,
+    baseline: {
+      reported: baselineReported,
+      clicks: baselineClicks,
+      impressions: baselineImpressions,
+    },
+    current: {
+      reported: currentReported,
+      clicks: currentClicks,
+      impressions: currentImpressions,
+    },
+  };
 }
 
 async function collectPageRows(
@@ -224,6 +313,8 @@ export async function collectGrowthSearchPerformance(
   input = collectionInputSchema.parse(input);
   const count = daysInclusive(input.startDate, input.endDate);
   if (count > 90) validation("Collection window cannot exceed 90 days");
+  if (count % 2 !== 0)
+    validation("Comparison collection window must have an even number of days");
   const capturedAt = new Date(input.capturedAt);
   if (Number.isNaN(capturedAt.valueOf())) validation("Capture time is invalid");
   const latestSourceDate = subtractDays(
@@ -261,12 +352,125 @@ export async function collectGrowthSearchPerformance(
       commercialWeight: page.commercialWeight,
     };
   });
-  const curatedUrls = new Set(keyPages.map((page) => page.url));
-
-  const { property, retrievalStatus, observations } = await collectPageRows(
-    input,
-    (rawUrl) => curatedUrls.has(normalizeKeyPageUrl(rawUrl)),
-  );
+  if (keyPages.length === 0) validation("Project has no key pages");
+  const baselineEnd = subtractDays(input.endDate, Math.floor(count / 2));
+  const currentStart = subtractDays(input.endDate, Math.floor(count / 2) - 1);
+  let property: string | null = null;
+  let requestsUsed = 0;
+  const observations: GrowthSearchPerformanceSnapshot["observations"] = [];
+  const comparisonPages: NonNullable<
+    GrowthSearchPerformanceSnapshot["comparisonEvidence"]
+  >["pages"] = [];
+  let retrievalStatus: "exhausted" | "capped" = "exhausted";
+  // Even a cap below one complete alias set must establish provider identity;
+  // it remains explicitly incomplete and never produces page evidence.
+  const pagesToCollect = maxCalls < 4 ? [] : keyPages;
+  if (maxCalls < 4) {
+    const alias = exactPageAliases(keyPages[0].url)[0];
+    const filters: GscPerformanceFilter[] = [
+      { dimension: "page", operator: "equals", expression: alias },
+    ];
+    const result = await GscService.getPerformance({
+      projectId: input.projectId,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      dimensions: ["date"],
+      filters,
+      rowLimit: ROW_LIMIT,
+      type: "web",
+      dataState: "final",
+    });
+    assertRequest(result.request, {
+      startDate: input.startDate,
+      endDate: input.endDate,
+      startRow: 0,
+      dimensions: ["date"],
+      filters,
+    });
+    property = result.siteUrl;
+    requestsUsed = 1;
+    retrievalStatus = "capped";
+  }
+  for (const page of pagesToCollect) {
+    if (requestsUsed + 4 > maxCalls) {
+      retrievalStatus = "capped";
+      break;
+    }
+    let baselineClicks = 0;
+    let baselineImpressions = 0;
+    let currentClicks = 0;
+    let currentImpressions = 0;
+    let baselineReported = false;
+    let currentReported = false;
+    const aliases = exactPageAliases(page.url);
+    for (const alias of aliases) {
+      requestsUsed += 1;
+      const filters: GscPerformanceFilter[] = [
+        { dimension: "page", operator: "equals", expression: alias },
+      ];
+      const result = await GscService.getPerformance({
+        projectId: input.projectId,
+        startDate: input.startDate,
+        endDate: input.endDate,
+        dimensions: ["date"],
+        filters,
+        rowLimit: ROW_LIMIT,
+        type: "web",
+        dataState: "final",
+      });
+      assertRequest(result.request, {
+        startDate: input.startDate,
+        endDate: input.endDate,
+        startRow: 0,
+        dimensions: ["date"],
+        filters,
+      });
+      if (property !== null && result.siteUrl !== property)
+        validation("Search Console property changed during collection");
+      property = result.siteUrl;
+      if (result.rows.length > ROW_LIMIT)
+        validation("Search Console returned more rows than requested");
+      const facts = splitExactPageRows({
+        rows: result.rows,
+        alias,
+        baselineEnd,
+        currentStart,
+        startDate: input.startDate,
+        endDate: input.endDate,
+      });
+      observations.push(...facts.observations);
+      baselineClicks += facts.baseline.clicks;
+      baselineImpressions += facts.baseline.impressions;
+      currentClicks += facts.current.clicks;
+      currentImpressions += facts.current.impressions;
+      baselineReported ||= facts.baseline.reported;
+      currentReported ||= facts.current.reported;
+    }
+    if (
+      ![
+        baselineClicks,
+        baselineImpressions,
+        currentClicks,
+        currentImpressions,
+      ].every(Number.isSafeInteger)
+    )
+      validation("Search Console total exceeds safe integer range");
+    comparisonPages.push({
+      keyPageId: page.id,
+      aliases,
+      baseline: {
+        reported: baselineReported,
+        clicks: baselineClicks,
+        impressions: baselineImpressions,
+      },
+      current: {
+        reported: currentReported,
+        clicks: currentClicks,
+        impressions: currentImpressions,
+      },
+    });
+  }
+  if (!property) validation("Search Console did not return a property");
 
   let siteContext: GrowthSearchPerformanceSnapshot["siteContext"] = {
     status: "absent",
@@ -293,7 +497,6 @@ export async function collectGrowthSearchPerformance(
     if (rows.length > ROW_LIMIT)
       validation("Search Console returned more site rows than requested");
     const dates = new Set<string>();
-    let complete = true;
     for (const row of rows) {
       if (row.date < input.startDate || row.date > input.endDate) {
         validation(
@@ -304,17 +507,15 @@ export async function collectGrowthSearchPerformance(
         validation("Search Console returned duplicate site/day rows");
       dates.add(row.date);
     }
-    complete = rows.length === count;
-    siteContext = complete
-      ? {
-          status: "complete",
-          observations: rows.map(({ date, clicks, impressions }) => ({
-            date,
-            clicks,
-            impressions,
-          })),
-        }
-      : { status: "requested_incomplete" };
+    siteContext = {
+      status: "complete",
+      coverage: "sparse_date_inventory_v2",
+      observations: rows.map(({ date, clicks, impressions }) => ({
+        date,
+        clicks,
+        impressions,
+      })),
+    };
   }
 
   return growthSearchPerformanceSnapshotSchema.parse({
@@ -332,6 +533,13 @@ export async function collectGrowthSearchPerformance(
     observations,
     keyPages,
     siteContext,
+    comparisonEvidence: {
+      status: retrievalStatus === "exhausted" ? "complete" : "incomplete",
+      collectionMethod: "exact_page_alias_date_inventory_v2",
+      baselineWindow: { startDate: input.startDate, endDate: baselineEnd },
+      currentWindow: { startDate: currentStart, endDate: input.endDate },
+      pages: comparisonPages,
+    },
   });
 }
 

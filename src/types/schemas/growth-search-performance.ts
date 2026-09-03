@@ -69,6 +69,7 @@ const growthSearchPerformanceSiteContextSchema = z.discriminatedUnion(
     z.strictObject({ status: z.literal("requested_incomplete") }),
     z.strictObject({
       status: z.literal("complete"),
+      coverage: z.literal("sparse_date_inventory_v2").optional(),
       observations: z.array(
         z.strictObject({
           date: calendarDate,
@@ -79,6 +80,34 @@ const growthSearchPerformanceSiteContextSchema = z.discriminatedUnion(
     }),
   ],
 );
+
+const comparisonPeriodFactSchema = z.strictObject({
+  reported: z.boolean(),
+  clicks: count,
+  impressions: count,
+});
+
+/**
+ * Exact page-filter queries establish the meaning of an omitted date row for a
+ * particular alias.  This is deliberately separate from the legacy observed
+ * page/date feed: an omitted row in the latter is still unknown.
+ */
+const growthSearchPerformanceComparisonEvidenceSchema = z.strictObject({
+  status: z.enum(["complete", "incomplete"]),
+  collectionMethod: z.literal("exact_page_alias_date_inventory_v2"),
+  baselineWindow: growthSearchPerformanceWindowSchema,
+  currentWindow: growthSearchPerformanceWindowSchema,
+  pages: z
+    .array(
+      z.strictObject({
+        keyPageId: boundedText(100),
+        aliases: z.array(pageUrl).min(1).max(4),
+        baseline: comparisonPeriodFactSchema,
+        current: comparisonPeriodFactSchema,
+      }),
+    )
+    .max(100),
+});
 
 export const growthSearchPerformanceSnapshotSchema = z
   .strictObject({
@@ -96,6 +125,8 @@ export const growthSearchPerformanceSnapshotSchema = z
     observations: z.array(growthSearchPerformanceObservationSchema).max(25000),
     keyPages: z.array(growthSearchPerformanceKeyPageSchema).max(100),
     siteContext: growthSearchPerformanceSiteContextSchema,
+    comparisonEvidence:
+      growthSearchPerformanceComparisonEvidenceSchema.optional(),
   })
   .superRefine((value, context) => {
     const sourceCoordinates = new Set<string>();
@@ -155,6 +186,36 @@ export const growthSearchPerformanceSnapshotSchema = z
       }
       ids.add(keyPage.id);
       urls.add(keyPage.url);
+    }
+    if (value.comparisonEvidence) {
+      const facts = new Set<string>();
+      for (const page of value.comparisonEvidence.pages) {
+        if (!ids.has(page.keyPageId) || facts.has(page.keyPageId)) {
+          context.addIssue({
+            code: "custom",
+            message: "Invalid comparison page fact",
+          });
+        }
+        facts.add(page.keyPageId);
+        for (const period of [page.baseline, page.current])
+          if (
+            !period.reported &&
+            (period.clicks !== 0 || period.impressions !== 0)
+          )
+            context.addIssue({
+              code: "custom",
+              message: "Not-reported comparison facts must be zero",
+            });
+      }
+      if (
+        value.comparisonEvidence.status === "complete" &&
+        facts.size !== value.keyPages.length
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "Complete comparison evidence must cover every key page",
+        });
+      }
     }
   });
 

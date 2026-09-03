@@ -89,27 +89,27 @@ describe("GrowthPriorityPageCheckService SQLite integration", () => {
           startDate: string;
           endDate: string;
           dimensions: string[];
+          filters?: Array<{ expression: string }>;
           startRow?: number;
         }) => {
           const dates = calendarDates(request.startDate, request.endDate);
           const pageRows = dates.map((day) => ({
-            keys: ["https://example.com/pricing", day],
-            clicks: day < "9999-01-01" ? 10 : 0,
+            keys: [day],
+            clicks: 10,
             impressions: 100,
           }));
           // The check's two source windows are intentionally made to decline.
           for (const row of pageRows)
-            row.clicks = row.keys[1] < dates[28] ? 11 : 5;
-          const rows =
-            request.dimensions.join(",") === "page,date"
-              ? request.startRow
-                ? []
-                : pageRows
-              : dates.map((day) => ({
-                  keys: [day],
-                  clicks: 500,
-                  impressions: 5_000,
-                }));
+            row.clicks = row.keys[0] < dates[28] ? 11 : 5;
+          const rows = request.filters
+            ? request.filters[0]?.expression === "https://example.com/pricing"
+              ? pageRows
+              : []
+            : [dates[0], dates[28]].map((day) => ({
+                keys: [day],
+                clicks: 500,
+                impressions: 5_000,
+              }));
           return {
             siteUrl: "sc-domain:example.com",
             connectedBy: null,
@@ -119,6 +119,9 @@ describe("GrowthPriorityPageCheckService SQLite integration", () => {
               startRow: request.startRow || undefined,
               type: "web",
               dataState: "final",
+              dimensionFilterGroups: request.filters
+                ? [{ groupType: "and", filters: request.filters }]
+                : undefined,
             },
             rows,
           };
@@ -133,7 +136,7 @@ describe("GrowthPriorityPageCheckService SQLite integration", () => {
       replayed: false,
       run: { status: "completed" },
     });
-    expect(mocks.getPerformance).toHaveBeenCalledTimes(3);
+    expect(mocks.getPerformance).toHaveBeenCalledTimes(5);
 
     const reloaded = await service.getRunDetail("project_1", first.run.id);
     expect(reloaded.signals).toEqual([
@@ -183,7 +186,7 @@ describe("GrowthPriorityPageCheckService SQLite integration", () => {
       requestKey: "retry_1",
     });
     expect(replay).toMatchObject({ replayed: true, run: { id: first.run.id } });
-    expect(mocks.getPerformance).toHaveBeenCalledTimes(3);
+    expect(mocks.getPerformance).toHaveBeenCalledTimes(5);
 
     const { GrowthInvestigationsService: investigations } =
       await import("./GrowthInvestigationsService");
@@ -328,7 +331,7 @@ describe("GrowthPriorityPageCheckService SQLite integration", () => {
     const work = await investigations.getWork("project_1");
     expect(work.actions).toEqual([status]);
     expect((await investigations.getWork("foreign")).actions).toEqual([]);
-    expect(mocks.getPerformance).toHaveBeenCalledTimes(6);
+    expect(mocks.getPerformance).toHaveBeenCalledTimes(10);
   });
 
   it("keeps a real committed decision readable when a later page decision fails", async () => {
@@ -375,25 +378,25 @@ describe("GrowthPriorityPageCheckService SQLite integration", () => {
           startDate: string;
           endDate: string;
           dimensions: string[];
+          filters?: Array<{ expression: string }>;
           startRow?: number;
         }) => {
           const dates = calendarDates(request.startDate, request.endDate);
-          const rows =
-            request.dimensions.join(",") === "page,date"
-              ? request.startRow
-                ? []
-                : ["https://example.com/pricing", failingUrl].flatMap((url) =>
-                    dates.map((day, index) => ({
-                      keys: [url, day],
-                      clicks: index < 28 ? 11 : 5,
-                      impressions: 100,
-                    })),
-                  )
-              : dates.map((day) => ({
+          const rows = request.filters
+            ? ["https://example.com/pricing", failingUrl].includes(
+                request.filters[0]?.expression ?? "",
+              )
+              ? dates.map((day, index) => ({
                   keys: [day],
-                  clicks: 500,
-                  impressions: 5_000,
-                }));
+                  clicks: index < 28 ? 11 : 5,
+                  impressions: 100,
+                }))
+              : []
+            : [dates[0], dates[28]].map((day) => ({
+                keys: [day],
+                clicks: 500,
+                impressions: 5_000,
+              }));
           return {
             siteUrl: "sc-domain:example.com",
             connectedBy: null,
@@ -403,6 +406,9 @@ describe("GrowthPriorityPageCheckService SQLite integration", () => {
               startRow: request.startRow || undefined,
               type: "web",
               dataState: "final",
+              dimensionFilterGroups: request.filters
+                ? [{ groupType: "and", filters: request.filters }]
+                : undefined,
             },
             rows,
           };
@@ -482,30 +488,27 @@ describe("GrowthPriorityPageCheckService SQLite integration", () => {
           startDate: string;
           endDate: string;
           dimensions: string[];
+          filters?: Array<{ expression: string }>;
           startRow?: number;
         }) => {
-          if (
-            request.dimensions.join(",") === "page,date" &&
-            !request.startRow
-          ) {
+          if (request.filters) {
             providerStarted();
             await providerReleased;
           }
           const dates = calendarDates(request.startDate, request.endDate);
-          const rows =
-            request.dimensions.join(",") === "page,date"
-              ? request.startRow
-                ? []
-                : dates.map((day, index) => ({
-                    keys: ["https://example.com/pricing", day],
-                    clicks: index < 28 ? 11 : 5,
-                    impressions: 100,
-                  }))
-              : dates.map((day) => ({
+          const rows = request.filters
+            ? request.filters[0]?.expression === "https://example.com/pricing"
+              ? dates.map((day, index) => ({
                   keys: [day],
-                  clicks: 500,
-                  impressions: 5_000,
-                }));
+                  clicks: index < 28 ? 11 : 5,
+                  impressions: 100,
+                }))
+              : []
+            : [dates[0], dates[28]].map((day) => ({
+                keys: [day],
+                clicks: 500,
+                impressions: 5_000,
+              }));
           return {
             siteUrl: "sc-domain:example.com",
             connectedBy: null,
@@ -515,6 +518,9 @@ describe("GrowthPriorityPageCheckService SQLite integration", () => {
               startRow: request.startRow || undefined,
               type: "web",
               dataState: "final",
+              dimensionFilterGroups: request.filters
+                ? [{ groupType: "and", filters: request.filters }]
+                : undefined,
             },
             rows,
           };
@@ -557,7 +563,7 @@ describe("GrowthPriorityPageCheckService SQLite integration", () => {
       replayed: true,
       run: { id: completed.run.id },
     });
-    expect(mocks.getPerformance).toHaveBeenCalledTimes(3);
+    expect(mocks.getPerformance).toHaveBeenCalledTimes(5);
     const { GrowthInvestigationsService: investigations } =
       await import("./GrowthInvestigationsService");
     const savedWork = await investigations.getWork("project_1");

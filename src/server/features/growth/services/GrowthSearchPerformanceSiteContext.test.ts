@@ -24,12 +24,12 @@ import { collectGrowthSearchPerformance } from "./GrowthSearchPerformanceAdapter
 const input = {
   projectId: "project_site_context",
   startDate: "2026-05-01",
-  endDate: "2026-05-03",
-  capturedAt: "2026-05-07T12:00:00.000Z",
+  endDate: "2026-05-04",
+  capturedAt: "2026-05-08T12:00:00.000Z",
 };
 const pageUrl = "https://example.test/pricing";
 const siteUrl = "sc-domain:example.test";
-const dates = ["2026-05-01", "2026-05-02", "2026-05-03"];
+const dates = ["2026-05-01", "2026-05-02", "2026-05-03", "2026-05-04"];
 const siteRows = dates.map((date, index) => ({
   keys: [date],
   clicks: 1000 - index * 100,
@@ -73,9 +73,9 @@ describe("Growth GSC site-context collection", () => {
 
   it("collects separate property totals only on explicit opt-in", async () => {
     mocks.getPerformance.mockImplementation((request: GscPerformanceInput) =>
-      request.dimensions?.length === 1
+      request.filters
         ? response(request, siteRows)
-        : pageResponse(request),
+        : response(request, siteRows),
     );
 
     const snapshot = await collectGrowthSearchPerformance({
@@ -85,7 +85,7 @@ describe("Growth GSC site-context collection", () => {
 
     expect(
       mocks.getPerformance.mock.calls.map(([request]) => request.dimensions),
-    ).toEqual([["page", "date"], ["page", "date"], ["date"]]);
+    ).toEqual([["date"], ["date"], ["date"], ["date"], ["date"]]);
     expect(mocks.getPerformance).toHaveBeenLastCalledWith({
       projectId: input.projectId,
       startDate: input.startDate,
@@ -97,31 +97,37 @@ describe("Growth GSC site-context collection", () => {
     });
     expect(snapshot.siteContext).toEqual({
       status: "complete",
+      coverage: "sparse_date_inventory_v2",
       observations: dates.map((date, index) => ({
         date,
         clicks: 1000 - index * 100,
         impressions: 2000,
       })),
     });
-    expect(snapshot.observations.map((row) => row.clicks)).toEqual([1, 1, 1]);
+    expect(snapshot.observations.map((row) => row.clicks)).toEqual([
+      1000, 900, 800, 700, 1000, 900, 800, 700, 1000, 900, 800, 700, 1000, 900,
+      800, 700,
+    ]);
     expect(JSON.stringify(snapshot)).not.toContain("private-connector");
   });
 
   it("does not make a site-total query by default", async () => {
-    mocks.getPerformance.mockImplementation(pageResponse);
+    mocks.getPerformance.mockImplementation((request: GscPerformanceInput) =>
+      request.filters ? response(request, siteRows) : pageResponse(request),
+    );
 
     const snapshot = await collectGrowthSearchPerformance(input);
 
     expect(snapshot.siteContext).toEqual({ status: "absent" });
-    expect(mocks.getPerformance).toHaveBeenCalledTimes(2);
+    expect(mocks.getPerformance).toHaveBeenCalledTimes(4);
     expect(mocks.listKeyPages).toHaveBeenCalledWith(input.projectId);
   });
 
   it("records incomplete requested context without inventing the absent date", async () => {
     mocks.getPerformance.mockImplementation((request: GscPerformanceInput) =>
-      request.dimensions?.length === 1
-        ? response(request, [siteRows[0], siteRows[2]])
-        : pageResponse(request),
+      request.filters
+        ? response(request, siteRows)
+        : response(request, [siteRows[0], siteRows[2]]),
     );
 
     const snapshot = await collectGrowthSearchPerformance({
@@ -129,18 +135,37 @@ describe("Growth GSC site-context collection", () => {
       includeSiteContext: true,
     });
 
-    expect(snapshot.siteContext).toEqual({ status: "requested_incomplete" });
+    expect(snapshot.siteContext).toMatchObject({
+      status: "complete",
+      coverage: "sparse_date_inventory_v2",
+      observations: [siteRows[0], siteRows[2]].map(
+        ({ keys: _keys, ...row }) => row,
+      ),
+    });
+  });
+
+  it("marks an empty validated site inventory complete", async () => {
+    mocks.getPerformance.mockImplementation((request: GscPerformanceInput) =>
+      request.filters ? response(request, siteRows) : response(request, []),
+    );
+    await expect(
+      collectGrowthSearchPerformance({ ...input, includeSiteContext: true }),
+    ).resolves.toMatchObject({
+      siteContext: {
+        status: "complete",
+        coverage: "sparse_date_inventory_v2",
+        observations: [],
+      },
+    });
   });
 
   it.each([
     ["duplicate date", [siteRows[0], siteRows[0]]],
-    ["out-of-window date", [{ ...siteRows[0], keys: ["2026-05-04"] }]],
+    ["out-of-window date", [{ ...siteRows[0], keys: ["2026-05-05"] }]],
     ["negative clicks", [{ ...siteRows[0], clicks: -1 }]],
   ])("rejects malformed site totals: %s", async (_label, rows) => {
     mocks.getPerformance.mockImplementation((request: GscPerformanceInput) =>
-      request.dimensions?.length === 1
-        ? response(request, rows)
-        : pageResponse(request),
+      request.filters ? response(request, siteRows) : response(request, rows),
     );
 
     await expect(
@@ -150,9 +175,9 @@ describe("Growth GSC site-context collection", () => {
 
   it("rejects a property change during the optional query", async () => {
     mocks.getPerformance.mockImplementation((request: GscPerformanceInput) =>
-      request.dimensions?.length === 1
-        ? { ...response(request, siteRows), siteUrl: "sc-domain:other.test" }
-        : pageResponse(request),
+      request.filters
+        ? response(request, siteRows)
+        : { ...response(request, siteRows), siteUrl: "sc-domain:other.test" },
     );
 
     await expect(
@@ -163,8 +188,8 @@ describe("Growth GSC site-context collection", () => {
   it("preserves a provider error from the optional query", async () => {
     const error = new Error("Test provider unavailable");
     mocks.getPerformance.mockImplementation((request: GscPerformanceInput) => {
-      if (request.dimensions?.length === 1) throw error;
-      return pageResponse(request);
+      if (!request.filters) throw error;
+      return response(request, siteRows);
     });
 
     await expect(

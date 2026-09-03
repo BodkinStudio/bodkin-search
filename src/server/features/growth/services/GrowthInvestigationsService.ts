@@ -23,7 +23,7 @@ import {
 } from "./GrowthInvestigationTemplate";
 import { growthEvidenceDisplayUrl } from "./GrowthEvidencePacket";
 import { canonicalTimestamp } from "./GrowthMeasurementFacts";
-import { PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION } from "./PriorityPageClickDeclineDetector";
+import { isPriorityPageClickDeclineDetectorVersion } from "./PriorityPageClickDeclineDetector";
 
 const RUN_TYPE = "manual_analysis" as const;
 const CADENCE_SLOT_PREFIX = "priority-page-check:";
@@ -53,7 +53,7 @@ function sourceRun(run: {
   return (
     run.runType === RUN_TYPE &&
     run.cadenceSlot.startsWith(CADENCE_SLOT_PREFIX) &&
-    run.detectorVersion === PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION &&
+    isPriorityPageClickDeclineDetectorVersion(run.detectorVersion) &&
     run.analysisVersion === GROWTH_INVESTIGATION_TEMPLATE_VERSION &&
     ["completed", "completed_with_errors"].includes(run.status)
   );

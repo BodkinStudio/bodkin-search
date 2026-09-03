@@ -266,7 +266,10 @@ async function listInvestigationWork(
         eq(growthActions.projectId, projectId),
         actionId === undefined ? undefined : eq(growthActions.id, actionId),
         eq(growthRuns.runType, "manual_analysis"),
-        eq(growthRuns.detectorVersion, "priority-page-click-decline-v1"),
+        inArray(growthRuns.detectorVersion, [
+          "priority-page-click-decline-v1",
+          "priority-page-click-decline-v2",
+        ]),
         sql`${growthRuns.cadenceSlot} LIKE 'priority-page-check:%'`,
         sql`${growthRuns.status} IN ('completed', 'completed_with_errors')`,
         eq(growthSignals.signalType, "priority_page_click_decline"),

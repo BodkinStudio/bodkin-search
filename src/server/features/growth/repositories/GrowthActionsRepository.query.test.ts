@@ -588,6 +588,39 @@ describe("GrowthActionsRepository D1 aggregate writes", () => {
       eventId: "event_work",
       eventFactHash: "0".repeat(64),
     });
+
+    for (const detectorVersion of [
+      "priority-page-click-decline-v1",
+      "priority-page-click-decline-v2",
+    ]) {
+      await client.execute({
+        sql: "UPDATE growth_runs SET detector_version = ? WHERE id = 'run_1'",
+        args: [detectorVersion],
+      });
+      await expect(
+        GrowthActionsRepository.listInvestigationWork(
+          "project_1",
+          1,
+          "action_work",
+        ),
+      ).resolves.toEqual([
+        expect.objectContaining({ id: "action_work", stateVersion: 0 }),
+      ]);
+    }
+    await client.execute(
+      "UPDATE growth_runs SET detector_version = 'priority-page-click-decline-v3' WHERE id = 'run_1'",
+    );
+    await expect(
+      GrowthActionsRepository.listInvestigationWork(
+        "project_1",
+        1,
+        "action_work",
+      ),
+    ).resolves.toEqual([]);
+    await client.execute(
+      "UPDATE growth_runs SET detector_version = 'priority-page-click-decline-v2' WHERE id = 'run_1'",
+    );
+
     const rows = await GrowthActionsRepository.listInvestigationWork(
       "project_1",
       50,
@@ -598,15 +631,6 @@ describe("GrowthActionsRepository D1 aggregate writes", () => {
         runId: "run_1",
         stateVersion: 0,
       }),
-    ]);
-    await expect(
-      GrowthActionsRepository.listInvestigationWork(
-        "project_1",
-        1,
-        "action_work",
-      ),
-    ).resolves.toEqual([
-      expect.objectContaining({ id: "action_work", stateVersion: 0 }),
     ]);
     await expect(
       GrowthActionsRepository.listInvestigationWork("project_1", 1, "action_1"),

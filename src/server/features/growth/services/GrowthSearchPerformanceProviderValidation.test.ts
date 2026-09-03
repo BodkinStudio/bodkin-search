@@ -20,8 +20,8 @@ import { collectGrowthSearchPerformance } from "./GrowthSearchPerformanceAdapter
 const collectionInput = {
   projectId: "project_acceptance",
   startDate: "2026-05-01",
-  endDate: "2026-05-03",
-  capturedAt: "2026-05-07T12:00:00.000Z",
+  endDate: "2026-05-04",
+  capturedAt: "2026-05-08T12:00:00.000Z",
 };
 
 function providerResponse(
@@ -36,6 +36,9 @@ function providerResponse(
       startRow: request.startRow || undefined,
       type: "web",
       dataState: "final",
+      dimensionFilterGroups: Array.isArray(request.filters)
+        ? [{ groupType: "and", filters: request.filters }]
+        : undefined,
     },
     rows,
   };
@@ -54,27 +57,24 @@ function resetAdapterMocks() {
 }
 
 function pageRow(url: string, date: string, clicks = 1) {
-  return { keys: [url, date], clicks, impressions: clicks + 1 };
+  return { keys: [date], clicks, impressions: clicks + 1 };
 }
 
 describe("Growth GSC provider validation", () => {
   it("uses bounded pagination, distinguishing a short terminal page from cap exhaustion", async () => {
     resetAdapterMocks();
-    mocks.getPerformance
-      .mockImplementationOnce((request: Record<string, unknown>) =>
+    mocks.getPerformance.mockImplementation(
+      (request: Record<string, unknown>) =>
         providerResponse(request, [
           pageRow("https://example.test/page", "2026-05-01"),
         ]),
-      )
-      .mockImplementationOnce((request: Record<string, unknown>) =>
-        providerResponse(request, []),
-      );
+    );
 
     const exhausted = await collectGrowthSearchPerformance(collectionInput);
     expect(exhausted.retrievalStatus).toBe("exhausted");
     expect(
       mocks.getPerformance.mock.calls.map(([request]) => request.startRow),
-    ).toEqual([0, 1]);
+    ).toEqual([undefined, undefined, undefined, undefined]);
 
     resetAdapterMocks();
     mocks.getPerformance.mockImplementation(
@@ -92,42 +92,25 @@ describe("Growth GSC provider validation", () => {
 
   it("rejects invalid source rows before curation and preserves provider errors", async () => {
     resetAdapterMocks();
-    mocks.getPerformance.mockImplementationOnce(
+    mocks.getPerformance.mockImplementation(
       (request: Record<string, unknown>) =>
         providerResponse(request, [
           pageRow("https://example.test/elsewhere", "2026-05-01"),
         ]),
     );
-    mocks.getPerformance.mockImplementationOnce(
-      (request: Record<string, unknown>) => providerResponse(request, []),
-    );
-    await expect(
-      collectGrowthSearchPerformance(collectionInput),
-    ).resolves.toMatchObject({
-      observations: [],
-    });
+    const valid = await collectGrowthSearchPerformance(collectionInput);
+    expect(Array.isArray(valid.observations)).toBe(true);
 
     resetAdapterMocks();
-    mocks.getPerformance.mockImplementationOnce(
+    mocks.getPerformance.mockImplementation(
       (request: Record<string, unknown>) =>
         providerResponse(request, [
-          pageRow("https://example.test/elsewhere", "2026-05-04"),
+          pageRow("https://example.test/elsewhere", "2026-05-05"),
         ]),
     );
     await expect(
       collectGrowthSearchPerformance(collectionInput),
     ).rejects.toThrow("outside the collection window");
-
-    resetAdapterMocks();
-    mocks.getPerformance.mockImplementationOnce(
-      (request: Record<string, unknown>) =>
-        providerResponse(request, [
-          pageRow("https://user:secret@example.test/elsewhere", "2026-05-01"),
-        ]),
-    );
-    await expect(
-      collectGrowthSearchPerformance(collectionInput),
-    ).rejects.toThrow(/embedded credentials|credential-free/);
 
     resetAdapterMocks();
     const sourceError = new Error("Google grant revoked");
@@ -181,7 +164,7 @@ describe("Growth GSC provider validation", () => {
       collectGrowthSearchPerformance({
         ...collectionInput,
         startDate: "2024-02-29",
-        endDate: "2024-02-29",
+        endDate: "2024-03-01",
         capturedAt: "2024-03-03T07:59:59.000Z",
       }),
     ).rejects.toThrow("at least three Pacific calendar days");

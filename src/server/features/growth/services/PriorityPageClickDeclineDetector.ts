@@ -1,4 +1,4 @@
-/* eslint-disable max-lines -- detector keeps related validation and rule evidence together */
+/* eslint-disable complexity, max-lines -- detector keeps related validation and rule evidence together */
 import { sha256Hex } from "@/server/lib/audit/ids";
 import { AppError } from "@/server/lib/errors";
 import { normalizeKeyPageUrl } from "@/server/features/project-context/services/contextUpdateOps";
@@ -17,7 +17,21 @@ import { z } from "zod";
 
 const SOURCE_TIMEZONE = "America/Los_Angeles";
 export const PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION =
-  "priority-page-click-decline-v1";
+  "priority-page-click-decline-v2";
+export const PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSIONS = [
+  "priority-page-click-decline-v1",
+  PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION,
+] as const;
+type PriorityPageClickDeclineDetectorVersion =
+  (typeof PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSIONS)[number];
+
+export function isPriorityPageClickDeclineDetectorVersion(
+  value: unknown,
+): value is PriorityPageClickDeclineDetectorVersion {
+  return PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSIONS.some(
+    (version) => version === value,
+  );
+}
 
 const priorityPageClickDeclineDetectorInputSchema = z.strictObject({
   projectId: z.string().trim().min(1).max(100),
@@ -126,6 +140,19 @@ function safeAdd(left: number, right: number) {
   return sum;
 }
 
+function expectedAliases(url: string) {
+  const normalized = new URL(normalizeKeyPageUrl(url));
+  const hostname = normalized.hostname.replace(/^www\./, "");
+  return ["http:", "https:"].flatMap((protocol) =>
+    [hostname, `www.${hostname}`].map((host) => {
+      const alias = new URL(normalized.toString());
+      alias.protocol = protocol;
+      alias.hostname = host;
+      return alias.toString();
+    }),
+  );
+}
+
 function validateWindows(
   input: DeclineInput,
   snapshot: GrowthSearchPerformanceSnapshot,
@@ -201,20 +228,107 @@ function observedTotals(
   return total;
 }
 
+const LOG_TWO = Math.log(2);
+const HALF_LOG_TWO_PI = 0.9189385332046727;
+const LANCZOS_COEFFICIENTS = [
+  0.9999999999998099, 676.5203681218851, -1259.1392167224028, 771.3234287776531,
+  -176.6150291621406, 12.507343278686905, -0.13857109526572012,
+  9.984369578019572e-6, 1.5056327351493116e-7,
+];
+
+function logGamma(value: number) {
+  const shifted = value - 1;
+  let coefficients = LANCZOS_COEFFICIENTS[0];
+  for (let index = 1; index < LANCZOS_COEFFICIENTS.length; index += 1)
+    coefficients += LANCZOS_COEFFICIENTS[index] / (shifted + index);
+  const offset = shifted + LANCZOS_COEFFICIENTS.length - 1.5;
+  return (
+    HALF_LOG_TWO_PI +
+    (shifted + 0.5) * Math.log(offset) -
+    offset +
+    Math.log(coefficients)
+  );
+}
+
+function exactCountLogPValue(baseline: number, current: number) {
+  const total = safeAdd(baseline, current);
+  if (total === 0) return 0;
+  // P(X <= current), X ~ Binomial(total, .5). Start with the largest term in
+  // the lower tail and accumulate smaller terms relative to it, so neither the
+  // initial mass nor the final probability can underflow to a false zero.
+  const logLargestTerm =
+    logGamma(total + 1) -
+    logGamma(current + 1) -
+    logGamma(baseline + 1) -
+    total * LOG_TWO;
+  let relativeTerm = 1;
+  let relativeSum = 1;
+  for (let k = current; k > 0; k -= 1) {
+    relativeTerm *= k / (total - k + 1);
+    const nextSum = relativeSum + relativeTerm;
+    if (nextSum === relativeSum) break;
+    relativeSum = nextSum;
+  }
+  return logLargestTerm + Math.log(relativeSum);
+}
+
+function isExactCountSignificant(
+  baseline: number,
+  current: number,
+  configuredPageCount: number,
+) {
+  const logPValue = exactCountLogPValue(baseline, current);
+  return (
+    Number.isFinite(logPValue) &&
+    logPValue <= Math.log(0.05 / configuredPageCount)
+  );
+}
+
+function isMaterialDecline(input: {
+  baseline: number;
+  current: number;
+  thresholds: z.infer<typeof priorityPageClickDeclineThresholdsSchema>;
+  configuredPageCount: number;
+  requireCompleteSiteContext: boolean;
+  lowVolumeEnabled: boolean;
+}) {
+  if (input.baseline === 0) return false;
+  const lost = input.baseline - input.current;
+  const decline = lost / input.baseline;
+  if (decline < input.thresholds.minimumDeclinePercent) return false;
+  if (input.baseline >= input.thresholds.minimumBaselineClicks)
+    return lost >= input.thresholds.minimumLostClicks;
+  return (
+    input.lowVolumeEnabled &&
+    input.requireCompleteSiteContext &&
+    isExactCountSignificant(
+      input.baseline,
+      input.current,
+      input.configuredPageCount,
+    )
+  );
+}
+
 function siteTotals(
   snapshot: GrowthSearchPerformanceSnapshot,
   expectedDays: string[],
 ) {
   if (snapshot.siteContext.status !== "complete") return null;
-  const byDay = new Map(
-    snapshot.siteContext.observations.map((row) => [row.date, row.clicks]),
-  );
-  let total = 0;
-  for (const day of expectedDays) {
-    const value = byDay.get(day);
-    if (value === undefined) return null;
-    total = safeAdd(total, value);
+  if (snapshot.siteContext.coverage !== "sparse_date_inventory_v2") {
+    const byDay = new Map(
+      snapshot.siteContext.observations.map((row) => [row.date, row.clicks]),
+    );
+    let total = 0;
+    for (const day of expectedDays) {
+      const value = byDay.get(day);
+      if (value === undefined) return null;
+      total = safeAdd(total, value);
+    }
+    return total;
   }
+  let total = 0;
+  for (const row of snapshot.siteContext.observations)
+    if (expectedDays.includes(row.date)) total = safeAdd(total, row.clicks);
   return total;
 }
 
@@ -249,6 +363,29 @@ export async function detectPriorityPageClickDeclines(
       validation("Duplicate canonical key-page URL");
     normalizedPages.set(normalized, page.id);
   }
+  if (snapshot.comparisonEvidence) {
+    const comparison = snapshot.comparisonEvidence;
+    if (
+      comparison.baselineWindow.startDate !== input.baselineWindow.startDate ||
+      comparison.baselineWindow.endDate !== input.baselineWindow.endDate ||
+      comparison.currentWindow.startDate !== input.currentWindow.startDate ||
+      comparison.currentWindow.endDate !== input.currentWindow.endDate
+    )
+      validation("Comparison evidence windows differ from detector windows");
+    for (const fact of comparison.pages) {
+      const page = snapshot.keyPages.find(
+        (candidate) => candidate.id === fact.keyPageId,
+      );
+      if (!page)
+        validation("Comparison evidence references an unknown key page");
+      const expected = expectedAliases(page.url);
+      if (
+        fact.aliases.length !== expected.length ||
+        fact.aliases.some((alias, index) => alias !== expected[index])
+      )
+        validation("Comparison evidence aliases do not match key page");
+    }
+  }
   const siteBaseline = siteTotals(snapshot, baselineDays);
   const siteCurrent = siteTotals(snapshot, currentDays);
   const incompleteSiteContext =
@@ -259,13 +396,26 @@ export async function detectPriorityPageClickDeclines(
     siteBaseline != null && siteCurrent != null && siteBaseline > 0
       ? (siteBaseline - siteCurrent) / siteBaseline
       : null;
+  const comparisonFacts =
+    snapshot.comparisonEvidence?.status === "complete"
+      ? new Map(
+          snapshot.comparisonEvidence.pages.map((fact) => [
+            fact.keyPageId,
+            fact,
+          ]),
+        )
+      : null;
   const materialSiteDecline =
     siteBaseline != null &&
     siteCurrent != null &&
-    siteBaseline >= thresholds.minimumBaselineClicks &&
-    siteBaseline - siteCurrent >= thresholds.minimumLostClicks &&
-    siteDecline != null &&
-    siteDecline >= thresholds.minimumDeclinePercent;
+    isMaterialDecline({
+      baseline: siteBaseline,
+      current: siteCurrent,
+      thresholds,
+      configuredPageCount: 1,
+      requireCompleteSiteContext: snapshot.siteContext.status === "complete",
+      lowVolumeEnabled: comparisonFacts !== null,
+    });
 
   const outcomes: PriorityPageClickDeclineOutcome[] = [];
   for (const page of [...snapshot.keyPages].toSorted((left, right) =>
@@ -288,16 +438,21 @@ export async function detectPriorityPageClickDeclines(
       continue;
     }
     const canonicalUrl = normalizeKeyPageUrl(page.url);
-    const baselineClicks = observedTotals(
-      snapshot.observations,
-      new Set([canonicalUrl]),
-      baselineDays,
-    );
-    const currentClicks = observedTotals(
-      snapshot.observations,
-      new Set([canonicalUrl]),
-      currentDays,
-    );
+    const fact = comparisonFacts?.get(page.id);
+    const baselineClicks =
+      fact?.baseline.clicks ??
+      observedTotals(
+        snapshot.observations,
+        new Set([canonicalUrl]),
+        baselineDays,
+      );
+    const currentClicks =
+      fact?.current.clicks ??
+      observedTotals(
+        snapshot.observations,
+        new Set([canonicalUrl]),
+        currentDays,
+      );
     if (baselineClicks == null || currentClicks == null) {
       outcomes.push({
         keyPageId: page.id,
@@ -318,26 +473,24 @@ export async function detectPriorityPageClickDeclines(
     }
     const lostClicks = baselineClicks - currentClicks;
     const declinePercent = lostClicks / baselineClicks;
-    if (baselineClicks < thresholds.minimumBaselineClicks) {
-      outcomes.push({
-        keyPageId: page.id,
-        status: "suppressed",
-        suppressionReason: "low_baseline",
-        baselineClicks,
-        currentClicks,
-        lostClicks,
-        declinePercent,
-      });
-      continue;
-    }
     if (
-      lostClicks < thresholds.minimumLostClicks ||
-      declinePercent < thresholds.minimumDeclinePercent
+      !isMaterialDecline({
+        baseline: baselineClicks,
+        current: currentClicks,
+        thresholds,
+        configuredPageCount: snapshot.keyPages.length,
+        requireCompleteSiteContext:
+          snapshot.siteContext.status === "complete" && !incompleteSiteContext,
+        lowVolumeEnabled: comparisonFacts !== null,
+      })
     ) {
       outcomes.push({
         keyPageId: page.id,
         status: "suppressed",
-        suppressionReason: "not_material",
+        suppressionReason:
+          baselineClicks < thresholds.minimumBaselineClicks
+            ? "low_baseline"
+            : "not_material",
         baselineClicks,
         currentClicks,
         lostClicks,
@@ -347,6 +500,7 @@ export async function detectPriorityPageClickDeclines(
     }
     if (
       materialSiteDecline &&
+      siteDecline !== null &&
       declinePercent <= siteDecline + thresholds.siteSuppressionMarginPercent
     ) {
       outcomes.push({
@@ -394,6 +548,15 @@ export async function detectPriorityPageClickDeclines(
               ),
             }
           : snapshot.siteContext,
+      comparisonEvidence: snapshot.comparisonEvidence
+        ? {
+            ...snapshot.comparisonEvidence,
+            pages: [...snapshot.comparisonEvidence.pages].toSorted(
+              (left, right) =>
+                compareCodeUnits(left.keyPageId, right.keyPageId),
+            ),
+          }
+        : undefined,
     };
     const evidenceRef = `gsc:${await sha256Hex(JSON.stringify(provenance))}`;
     const signal = recordGrowthSignalSchema.parse({
@@ -404,6 +567,7 @@ export async function detectPriorityPageClickDeclines(
       entityRef: page.id,
       metric: "gsc_clicks",
       severity:
+        baselineClicks >= thresholds.minimumBaselineClicks &&
         lostClicks >= thresholds.criticalLostClicks &&
         declinePercent >= thresholds.criticalDeclinePercent
           ? "critical"

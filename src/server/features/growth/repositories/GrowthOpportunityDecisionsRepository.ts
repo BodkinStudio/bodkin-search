@@ -113,7 +113,10 @@ function legacyGraphGuard(tx: BatchExecutor, input: LegacyGraphQualification) {
     eq(growthRecommendations.category, "investigation"),
     eq(growthRuns.runType, "manual_analysis"),
     sql`${growthRuns.cadenceSlot} LIKE 'priority-page-check:%'`,
-    eq(growthRuns.detectorVersion, "priority-page-click-decline-v1"),
+    inArray(growthRuns.detectorVersion, [
+      "priority-page-click-decline-v1",
+      "priority-page-click-decline-v2",
+    ]),
     eq(growthRuns.analysisVersion, "priority-page-investigation-v1"),
     sql`${growthRuns.status} IN ('completed', 'completed_with_errors')`,
     eq(growthSignals.signalType, "priority_page_click_decline"),

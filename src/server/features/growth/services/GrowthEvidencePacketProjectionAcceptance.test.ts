@@ -295,7 +295,7 @@ describe("BG-0204 independent safe-projection acceptance", () => {
     async (field) => {
       const input = source();
       if (field === "version")
-        input.run.detectorVersion = "priority-page-click-decline-v2";
+        input.run.detectorVersion = "priority-page-click-decline-v3";
       if (field === "metric") input.signal.metric = "gsc_impressions";
       if (field === "evidenceKind")
         input.signal.evidenceKind = "provider_payload";

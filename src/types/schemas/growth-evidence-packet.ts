@@ -31,7 +31,10 @@ export const growthEvidencePacketSchema = z.strictObject({
     signalId: id,
     runId: id,
     evidenceReference: z.string().regex(/^gsc:[a-f0-9]{64}$/),
-    detectorVersion: z.literal("priority-page-click-decline-v1"),
+    detectorVersion: z.union([
+      z.literal("priority-page-click-decline-v1"),
+      z.literal("priority-page-click-decline-v2"),
+    ]),
   }),
   observation: z.strictObject({
     capturedAt: timestamp,
