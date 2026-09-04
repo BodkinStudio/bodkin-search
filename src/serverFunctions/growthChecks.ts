@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { GrowthPriorityPageCheckService } from "@/server/features/growth/services/GrowthPriorityPageCheckService";
 import { GrowthStrikingDistanceCheckService } from "@/server/features/growth/services/GrowthStrikingDistanceCheckService";
 import { GrowthLowCtrCheckService } from "@/server/features/growth/services/GrowthLowCtrCheckService";
+import { GrowthPersistentRankDropCheckService } from "@/server/features/growth/services/GrowthPersistentRankDropCheckService";
 import { requireProjectContext } from "./middleware";
 import {
   getGrowthCheckEvidenceSchema,
@@ -39,6 +40,17 @@ export const runGrowthLowCtrCheck = createServerFn({ method: "POST" })
   .validator(runGrowthCheckSchema)
   .handler(async ({ data, context }) =>
     GrowthLowCtrCheckService.runCheck({
+      projectId: context.projectId,
+      requestKey: data.requestKey,
+    }),
+  );
+export const runGrowthPersistentRankDropCheck = createServerFn({
+  method: "POST",
+})
+  .middleware(requireProjectContext)
+  .validator(runGrowthCheckSchema)
+  .handler(async ({ data, context }) =>
+    GrowthPersistentRankDropCheckService.runCheck({
       projectId: context.projectId,
       requestKey: data.requestKey,
     }),

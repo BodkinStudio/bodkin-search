@@ -1281,3 +1281,49 @@ observed CTR decline, never a cause or promised uplift.
 
 Expected-CTR curves, persistent low CTR, segmentation, controller merging and
 scheduled execution remain separate decisions.
+
+---
+
+## ADR-052 - Persistent tracked-rank drops require three degraded checks
+
+**Status:** Accepted
+
+### Decision
+
+- One explicit authenticated `persistent-tracked-rank-drop-v1` manual Run uses
+  its own `persistent-rank-drop-check:` request slot. It reads saved rank data
+  and never starts a provider check.
+- The detector reads the latest four completed non-subset runs for each active
+  rank configuration. The same active keyword and device must have a snapshot
+  in all four runs. The first snapshot must contain a ranked URL that matches
+  one configured priority page. Each of the next three snapshots must be at
+  least three positions worse than that baseline.
+- A not-found rank is stored and displayed as outside the configuration's
+  tracked depth. The Growth Signal uses depth plus one only as a numeric lower
+  bound for comparison. It does not claim that value as the exact rank.
+- The detector selects at most three candidates across the project. It orders
+  them by latest loss, priority-page commercial weight and stable keyword,
+  device and configuration tie-breaks.
+- Each candidate creates one `tracked_rank_drop` Signal. Its `rank_snapshot`
+  evidence reference contains the tracked depth and four canonical snapshot
+  IDs. Investigation reads fetch those rows again and verify their project,
+  configuration, full-run
+  status, keyword, device, order, page and numeric facts before displaying the
+  four-check sequence.
+- Dedupe is scoped to project, configuration, tracked keyword, device and exact
+  normalized priority page. Version 1 controllers do not release. Review,
+  approval and Work use the existing Recommendation and Action paths.
+
+### Consequence
+
+Growth can identify a repeated rank loss without reacting to a single volatile
+check or adding another evidence table. The result remains an investigation
+prompt. It does not diagnose the cause or promise a ranking recovery.
+
+This implements the third detector in BG-0402. Monthly orchestration still does
+not invoke it.
+
+### Deferred
+
+Scheduled execution, alerts, elapsed-time persistence rules, cross-device
+grouping, controller release and statistical trend models remain separate work.

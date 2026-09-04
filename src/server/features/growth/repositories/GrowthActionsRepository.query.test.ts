@@ -898,4 +898,39 @@ describe("GrowthActionsRepository D1 aggregate writes", () => {
     );
     await expect(listWork()).resolves.toEqual([]);
   });
+
+  it("qualifies persistent rank-drop Work through its exact one-signal graph", async () => {
+    await client.executeMultiple(`
+      INSERT INTO growth_runs (id,project_id,run_type,trigger,status,cadence_slot,period_start,period_end,started_at,completed_at,detector_version,analysis_version)
+      VALUES ('rank_drop_work_run','project_1','manual_analysis','manual','completed','persistent-rank-drop-check:work','2026-08-01','2026-08-22','2026-09-01T10:00:00.000Z','2026-09-01T10:01:00.000Z','persistent-tracked-rank-drop-v1','persistent-tracked-rank-drop-investigation-v1');
+      INSERT INTO growth_signals (id,project_id,run_id,signal_type,entity_type,entity_ref,metric,severity,confidence,period_start,period_end,baseline_value,current_value,delta_value,evidence_kind,evidence_ref,captured_at)
+      VALUES ('rank_drop_work_signal','project_1','rank_drop_work_run','tracked_rank_drop','tracked_keyword','keyword_1','organic_rank_position_floor','warning',.9,'2026-08-01','2026-08-22',4,9,5,'rank_snapshot','rank_snapshot:v1:20:1,2,3,4','2026-09-01T10:00:00.000Z');
+      INSERT INTO growth_insights (id,project_id,run_id,creation_key,fact_hash,title,explanation,hypothesis,confidence)
+      VALUES ('rank_drop_work_insight','project_1','rank_drop_work_run','persistent-tracked-rank-drop-investigation-v1:insight:rank_drop_work_signal','${"7".repeat(64)}','Observed rank drop','Observed facts.','Unknown cause.',0);
+      INSERT INTO growth_insight_signals (project_id,run_id,insight_id,signal_id)
+      VALUES ('project_1','rank_drop_work_run','rank_drop_work_insight','rank_drop_work_signal');
+      INSERT INTO growth_recommendations (id,project_id,run_id,creation_key,fact_hash,title,rationale,category,impact,commercial_relevance,effort,urgency,confidence,priority_score,status,review_version)
+      VALUES ('rank_drop_work_recommendation','project_1','rank_drop_work_run','persistent-tracked-rank-drop-investigation-v1:recommendation:rank_drop_work_signal','${"8".repeat(64)}','Investigate rank drop','Cause unknown.','investigation',1,1,1,1,0,0,'accepted',1);
+      INSERT INTO growth_recommendation_insights (project_id,run_id,recommendation_id,insight_id)
+      VALUES ('project_1','rank_drop_work_run','rank_drop_work_recommendation','rank_drop_work_insight');
+      INSERT INTO growth_actions (id,project_id,recommendation_id,creation_key,fact_hash,title,description,category,priority_score,status,state_version,due_at,approved_at,created_at,updated_at)
+      VALUES ('rank_drop_work_action','project_1','rank_drop_work_recommendation','persistent-tracked-rank-drop-investigation-v1:action:rank_drop_work_signal','${"9".repeat(64)}','Investigate rank drop','Cause unknown.','investigation',0,'approved',0,'2026-09-10T00:00:00.000Z','2026-09-01T10:02:00.000Z','2026-09-01T10:02:00.000Z','2026-09-01T10:02:00.000Z');
+    `);
+    const listWork = () =>
+      GrowthActionsRepository.listInvestigationWork(
+        "project_1",
+        1,
+        "rank_drop_work_action",
+      );
+    await expect(listWork()).resolves.toEqual([
+      expect.objectContaining({
+        id: "rank_drop_work_action",
+        runId: "rank_drop_work_run",
+      }),
+    ]);
+    await client.execute(
+      "UPDATE growth_signals SET delta_value = 4 WHERE id = 'rank_drop_work_signal'",
+    );
+    await expect(listWork()).resolves.toEqual([]);
+  });
 });

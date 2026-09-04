@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { formatGrowthPreviewDate } from "./GrowthPreviewPresentation";
 import { GrowthCheckDetail } from "./GrowthCheckDetail";
+import { GrowthPersistentRankDropCheck } from "./GrowthPersistentRankDropCheck";
 import { runGrowthCheckSchema } from "@/types/schemas/growth-checks";
 import {
   getGrowthCheckRun,
@@ -619,6 +620,10 @@ export function GrowthPriorityPageChecks({
           </div>
         ) : null}
       </div>
+      <GrowthPersistentRankDropCheck
+        projectId={projectId}
+        keyPageCount={data.keyPageCount}
+      />
       {requestKey && !start.isPending ? (
         <p role="status" className="mt-3 text-sm text-base-content/70">
           A previous request has no confirmed outcome yet. Retry it to retrieve

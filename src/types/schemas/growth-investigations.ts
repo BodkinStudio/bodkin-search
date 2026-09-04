@@ -145,6 +145,22 @@ const growthInvestigationControllerViewSchema = z.strictObject({
           ctr: z.number().finite(),
         }),
       }),
+      z.strictObject({
+        kind: z.literal("persistent_tracked_rank_drop"),
+        keyword: z.string().min(1).max(500),
+        device: z.enum(["desktop", "mobile"]),
+        page: z.string().url().max(2048),
+        site: z.string().min(1).max(2000),
+        serpDepth: z.number().int().min(1).max(1000),
+        checks: z
+          .array(
+            z.strictObject({
+              checkedAt: canonicalTimestamp,
+              position: z.number().int().positive().nullable(),
+            }),
+          )
+          .length(4),
+      }),
     ])
     .optional(),
 });

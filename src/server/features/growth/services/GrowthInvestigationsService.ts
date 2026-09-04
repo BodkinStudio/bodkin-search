@@ -15,6 +15,7 @@ import { GrowthActionsRepository } from "../repositories/GrowthActionsRepository
 import { GrowthInsightsRepository } from "../repositories/GrowthInsightsRepository";
 import { GrowthOpportunityDecisionsRepository } from "../repositories/GrowthOpportunityDecisionsRepository";
 import { GrowthRunsRepository } from "../repositories/GrowthRunsRepository";
+import { normalizeKeyPageUrl } from "@/server/features/project-context/services/contextUpdateOps";
 import { GrowthActionsService } from "./GrowthActionsService";
 import { GrowthInsightsService } from "./GrowthInsightsService";
 import { investigationKeys } from "./GrowthInvestigationTemplate";
@@ -28,6 +29,10 @@ import {
 } from "./GrowthInvestigationTemplateDescriptor";
 import { matchesStrikingDistanceEvidenceRef } from "./StrikingDistanceQueryDetector";
 import { matchesLowCtrEvidenceRef } from "./HighImpressionLowCtrDetector";
+import {
+  parsePersistentRankDropEvidenceRef,
+  PERSISTENT_RANK_DROP_POLICY,
+} from "./PersistentTrackedRankDropDetector";
 import type { GrowthTargetNormalizationMode } from "./GrowthTargetNormalizer";
 
 const WORK_LIMIT = 50;
@@ -50,6 +55,13 @@ function canonicalReviewTimestamp(value: string | null) {
     ? `${value.replace(" ", "T")}Z`
     : value;
   return canonicalTimestamp(normalized, "Recommendation snooze timestamp");
+}
+
+function canonicalRankTimestamp(value: string, label: string) {
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)
+    ? `${value.replace(" ", "T")}Z`
+    : value;
+  return canonicalTimestamp(normalized, label);
 }
 
 function preceding28DayPeriod(currentStart: string) {
@@ -75,6 +87,148 @@ async function source(projectId: string, signalId: string) {
   if (!descriptor)
     throw new AppError("NOT_FOUND", "Growth investigation source not found");
   return { signal, run, descriptor };
+}
+
+type RecommendationGraph = NonNullable<
+  Awaited<ReturnType<typeof GrowthInsightsService.getRecommendation>>
+>;
+type InsightGraph = NonNullable<
+  Awaited<ReturnType<typeof GrowthInsightsService.getInsight>>
+>;
+
+async function qualifiedPersistentRankDropGraph(
+  projectId: string,
+  signalId: string,
+  graph: RecommendationGraph,
+  insight: InsightGraph,
+) {
+  const { RankTrackingRepository } =
+    await import("@/server/features/rank-tracking/repositories/RankTrackingRepository");
+  const { getSnapshotsByIds } =
+    await import("@/server/features/rank-tracking/repositories/snapshotQueries");
+  if (insight.signalIds.length !== 1 || insight.signalIds[0] !== signalId)
+    return null;
+  const controller = await GrowthRunsRepository.getSignal(projectId, signalId);
+  const evidenceRef = controller
+    ? parsePersistentRankDropEvidenceRef(controller.evidenceRef)
+    : null;
+  if (!controller || !evidenceRef) return null;
+  const snapshots = await getSnapshotsByIds(evidenceRef.snapshotIds);
+  const byId = new Map(snapshots.map((snapshot) => [snapshot.id, snapshot]));
+  const ordered = evidenceRef.snapshotIds.map((id) => byId.get(id));
+  if (ordered.some((snapshot) => !snapshot)) return null;
+  const rows = ordered.filter(
+    (snapshot): snapshot is NonNullable<typeof snapshot> => Boolean(snapshot),
+  );
+  const runs = await Promise.all(
+    rows.map((snapshot) => RankTrackingRepository.getRunById(snapshot.runId)),
+  );
+  if (runs.some((rankRun) => !rankRun)) return null;
+  const rankRuns = runs.filter(
+    (rankRun): rankRun is NonNullable<typeof rankRun> => Boolean(rankRun),
+  );
+  const configId = rankRuns[0]?.configId;
+  const config = configId
+    ? await RankTrackingRepository.getConfigById({ configId, projectId })
+    : null;
+  const keyword = graph.targets.find(
+    (target) => target.targetType === "keyword",
+  );
+  const page = graph.targets.find((target) => target.targetType === "url");
+  const site = graph.targets.find((target) => target.targetType === "site");
+  const targetKinds = new Set(graph.targets.map((target) => target.targetType));
+  const device = rows[0]?.device;
+  const baseline = rows[0]?.position;
+  const normalizedKeyword = keyword?.targetValue
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+  let baselineUrl: string | null = null;
+  try {
+    baselineUrl = rows[0]?.url ? normalizeKeyPageUrl(rows[0].url) : null;
+  } catch {
+    return null;
+  }
+  if (
+    !config ||
+    !keyword ||
+    !page ||
+    !site ||
+    graph.targets.length !== 3 ||
+    !targetKinds.has("keyword") ||
+    !targetKinds.has("url") ||
+    !targetKinds.has("site") ||
+    !device ||
+    baseline === null ||
+    baselineUrl !== page.targetValue ||
+    rows.some(
+      (snapshot) =>
+        (snapshot.position !== null &&
+          (!Number.isInteger(snapshot.position) ||
+            snapshot.position < 1 ||
+            snapshot.position > evidenceRef.serpDepth)) ||
+        snapshot.trackingKeywordId !== controller.entityRef ||
+        snapshot.device !== device ||
+        snapshot.keyword.trim().replace(/\s+/g, " ").toLowerCase() !==
+          normalizedKeyword,
+    ) ||
+    rankRuns.some(
+      (rankRun, index) =>
+        rankRun.id !== rows[index].runId ||
+        rankRun.projectId !== projectId ||
+        rankRun.configId !== config.id ||
+        rankRun.status !== "completed" ||
+        rankRun.isSubsetRun,
+    ) ||
+    rankRuns.some(
+      (rankRun, index) =>
+        index > 0 && rankRuns[index - 1].startedAt > rankRun.startedAt,
+    )
+  )
+    return null;
+  const floors = rows
+    .slice(1)
+    .map((snapshot) => snapshot.position ?? evidenceRef.serpDepth + 1);
+  const latest = floors.at(-1);
+  const periodStart = canonicalRankTimestamp(
+    rankRuns[0].startedAt,
+    "Rank baseline timestamp",
+  ).slice(0, 10);
+  const periodEnd = canonicalRankTimestamp(
+    rankRuns.at(-1)!.startedAt,
+    "Latest rank timestamp",
+  ).slice(0, 10);
+  if (
+    latest === undefined ||
+    floors.some(
+      (position) =>
+        position - baseline < PERSISTENT_RANK_DROP_POLICY.minimumPositionLoss,
+    ) ||
+    controller.baselineValue !== baseline ||
+    controller.currentValue !== latest ||
+    controller.deltaValue !== latest - baseline ||
+    controller.periodStart !== periodStart ||
+    controller.periodEnd !== periodEnd
+  )
+    return null;
+  return {
+    graph,
+    evidence: {
+      kind: "persistent_tracked_rank_drop" as const,
+      keyword: keyword.targetValue,
+      device,
+      page: page.targetValue,
+      site: site.targetValue,
+      serpDepth: evidenceRef.serpDepth,
+      checks: rankRuns.map((rankRun, index) => ({
+        checkedAt: canonicalRankTimestamp(
+          rankRun.startedAt,
+          "Rank check timestamp",
+        ),
+        position: rows[index].position,
+      })),
+    },
+  };
 }
 
 async function qualifiedGraph(
@@ -110,6 +264,14 @@ async function qualifiedGraph(
   )
     return null;
   if (descriptor.family === "priority_page") return { graph, evidence: null };
+
+  if (descriptor.family === "persistent_rank_drop")
+    return qualifiedPersistentRankDropGraph(
+      projectId,
+      signalId,
+      graph,
+      insight,
+    );
   const expectedFactCount = 1 + descriptor.companionMetrics.length;
   if (
     insight.signalIds.length !== expectedFactCount ||
@@ -535,7 +697,8 @@ async function approveInvestigation(input: {
   };
   const targetNormalizationMode: GrowthTargetNormalizationMode | undefined =
     saved.descriptor.family === "striking_distance" ||
-    saved.descriptor.family === "low_ctr"
+    saved.descriptor.family === "low_ctr" ||
+    saved.descriptor.family === "persistent_rank_drop"
       ? "key_page_identity"
       : undefined;
 

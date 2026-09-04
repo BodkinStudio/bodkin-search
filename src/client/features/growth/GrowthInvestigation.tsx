@@ -30,8 +30,16 @@ type GrowthInvestigationControllerView = Extract<
   GrowthInvestigationView,
   { relationship: "controller" }
 >;
-type StrikingDistanceEvidenceSummary = NonNullable<
+type EvidenceSummary = NonNullable<
   GrowthInvestigationControllerView["evidenceSummary"]
+>;
+type QueryEvidenceSummary = Exclude<
+  EvidenceSummary,
+  { kind: "persistent_tracked_rank_drop" }
+>;
+type RankDropEvidenceSummary = Extract<
+  EvidenceSummary,
+  { kind: "persistent_tracked_rank_drop" }
 >;
 
 function formatEvidenceValue(value: number, maximumFractionDigits: number) {
@@ -46,8 +54,8 @@ function GrowthInvestigationEvidencePeriod({
   facts,
 }: {
   label: string;
-  period: StrikingDistanceEvidenceSummary["baselinePeriod"];
-  facts: StrikingDistanceEvidenceSummary["baseline"];
+  period: QueryEvidenceSummary["baselinePeriod"];
+  facts: QueryEvidenceSummary["baseline"];
 }) {
   return (
     <section
@@ -96,7 +104,7 @@ function GrowthInvestigationEvidencePeriod({
 function GrowthStrikingDistanceEvidence({
   evidence,
 }: {
-  evidence: StrikingDistanceEvidenceSummary;
+  evidence: QueryEvidenceSummary;
 }) {
   return (
     <section
@@ -130,6 +138,55 @@ function GrowthStrikingDistanceEvidence({
           facts={evidence.current}
         />
       </div>
+    </section>
+  );
+}
+
+function GrowthPersistentRankDropEvidence({
+  evidence,
+}: {
+  evidence: RankDropEvidenceSummary;
+}) {
+  return (
+    <section
+      aria-label="Saved persistent rank-drop evidence"
+      className="rounded-md bg-base-200/60 p-3"
+    >
+      <h5 className="font-semibold">Saved rank history</h5>
+      <dl className="mt-2 grid gap-2 sm:grid-cols-2">
+        <div>
+          <dt className="text-xs text-base-content/70">Keyword</dt>
+          <dd className="font-medium">{evidence.keyword}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-base-content/70">Device</dt>
+          <dd className="capitalize">{evidence.device}</dd>
+        </div>
+        <div className="sm:col-span-2">
+          <dt className="text-xs text-base-content/70">Priority page</dt>
+          <dd>{evidence.page}</dd>
+        </div>
+      </dl>
+      <ol className="mt-3 grid gap-2 sm:grid-cols-4">
+        {evidence.checks.map((check, index) => (
+          <li
+            key={check.checkedAt}
+            className="rounded-md border border-base-300 p-3"
+          >
+            <p className="text-xs text-base-content/70">
+              {index === 0 ? "Baseline" : `Later check ${index}`}
+            </p>
+            <p className="font-medium">
+              {check.position === null
+                ? `Outside top ${evidence.serpDepth}`
+                : `Position ${check.position}`}
+            </p>
+            <p className="text-xs text-base-content/70">
+              {formatGrowthPreviewDate(check.checkedAt.slice(0, 10))}
+            </p>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }
@@ -341,7 +398,9 @@ export function GrowthInvestigationReview({
         Rule-based investigation. No AI was used.
       </p>
       <p className="whitespace-pre-wrap">{saved.rationale}</p>
-      {saved.evidenceSummary ? (
+      {saved.evidenceSummary?.kind === "persistent_tracked_rank_drop" ? (
+        <GrowthPersistentRankDropEvidence evidence={saved.evidenceSummary} />
+      ) : saved.evidenceSummary ? (
         <GrowthStrikingDistanceEvidence evidence={saved.evidenceSummary} />
       ) : null}
       <ul className="space-y-1 text-base-content/70">
@@ -378,7 +437,8 @@ export function GrowthInvestigationReview({
           <p className="text-base-content/70">
             This suggestion covers later checks for the same saved{" "}
             {saved.evidenceSummary?.kind === "striking_distance_query" ||
-            saved.evidenceSummary?.kind === "high_impression_low_ctr_query"
+            saved.evidenceSummary?.kind === "high_impression_low_ctr_query" ||
+            saved.evidenceSummary?.kind === "persistent_tracked_rank_drop"
               ? "query and page"
               : "page"}
             .{" "}

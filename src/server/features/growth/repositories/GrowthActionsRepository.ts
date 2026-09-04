@@ -25,6 +25,7 @@ import {
   priorityPageInvestigationDescriptor,
   strikingDistanceInvestigationDescriptor,
   lowCtrInvestigationDescriptor,
+  persistentRankDropInvestigationDescriptor,
   type GrowthInvestigationTemplateDescriptor,
 } from "../services/GrowthInvestigationTemplateDescriptor";
 
@@ -285,6 +286,16 @@ function lowCtrGraphGuard() {
   );
 }
 
+function persistentRankDropGraphGuard() {
+  const descriptor = persistentRankDropInvestigationDescriptor;
+  return and(
+    sql`${growthSignals.deltaValue} = ${growthSignals.currentValue} - ${growthSignals.baselineValue}`,
+    sql`(SELECT count(*) FROM growth_recommendation_insights rank_drop_recommendation_insights WHERE rank_drop_recommendation_insights.project_id = growth_recommendations.project_id AND rank_drop_recommendation_insights.run_id = growth_recommendations.run_id AND rank_drop_recommendation_insights.recommendation_id = growth_recommendations.id) = 1`,
+    sql`EXISTS (SELECT 1 FROM growth_insights rank_drop_insight WHERE rank_drop_insight.project_id = growth_recommendations.project_id AND rank_drop_insight.run_id = growth_recommendations.run_id AND rank_drop_insight.id = ${growthRecommendationInsights.insightId} AND rank_drop_insight.creation_key = ${`${descriptor.templateVersion}:insight:`} || ${growthInsightSignals.signalId})`,
+    sql`(SELECT count(*) FROM growth_insight_signals rank_drop_signals WHERE rank_drop_signals.project_id = growth_recommendations.project_id AND rank_drop_signals.run_id = growth_recommendations.run_id AND rank_drop_signals.insight_id = ${growthRecommendationInsights.insightId}) = 1`,
+  );
+}
+
 async function listInvestigationWork(
   projectId: string,
   limit: number,
@@ -367,6 +378,13 @@ async function listInvestigationWork(
           and(
             investigationWorkGuard(lowCtrInvestigationDescriptor, true),
             lowCtrGraphGuard(),
+          ),
+          and(
+            investigationWorkGuard(
+              persistentRankDropInvestigationDescriptor,
+              true,
+            ),
+            persistentRankDropGraphGuard(),
           ),
         ),
       ),

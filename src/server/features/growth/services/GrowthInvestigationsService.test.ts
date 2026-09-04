@@ -14,6 +14,9 @@ const repositories = vi.hoisted(() => ({
   listInvestigationWork: vi.fn(),
   listActionTargetsForActions: vi.fn(),
   listRecentActionEvents: vi.fn(),
+  getSnapshotsByIds: vi.fn(),
+  getRankRunById: vi.fn(),
+  getRankConfigById: vi.fn(),
 }));
 const services = vi.hoisted(() => ({
   getRecommendation: vi.fn(),
@@ -64,6 +67,18 @@ vi.mock("./GrowthActionsService", () => ({
     approveProposedRecommendation: services.approveProposedRecommendation,
     transitionAction: services.transitionAction,
   },
+}));
+vi.mock(
+  "@/server/features/rank-tracking/repositories/RankTrackingRepository",
+  () => ({
+    RankTrackingRepository: {
+      getRunById: repositories.getRankRunById,
+      getConfigById: repositories.getRankConfigById,
+    },
+  }),
+);
+vi.mock("@/server/features/rank-tracking/repositories/snapshotQueries", () => ({
+  getSnapshotsByIds: repositories.getSnapshotsByIds,
 }));
 
 import { GrowthInvestigationsService } from "./GrowthInvestigationsService";
@@ -427,6 +442,124 @@ describe("GrowthInvestigationsService", () => {
       0,
       "key_page_identity",
     );
+  });
+  it("rehydrates and validates four canonical rank snapshots", async () => {
+    const rankSignal = {
+      ...signal,
+      id: "rank_signal",
+      runId: "rank_growth_run",
+      signalType: "tracked_rank_drop",
+      entityType: "tracked_keyword",
+      entityRef: "keyword_1",
+      metric: "organic_rank_position_floor",
+      evidenceKind: "rank_snapshot",
+      evidenceRef: "rank_snapshot:v1:20:1,2,3,4",
+      periodStart: "2026-08-01",
+      periodEnd: "2026-08-22",
+      baselineValue: 4,
+      currentValue: 21,
+      deltaValue: 17,
+    };
+    const rankGrowthRun = {
+      ...run,
+      id: "rank_growth_run",
+      cadenceSlot: "persistent-rank-drop-check:one",
+      detectorVersion: "persistent-tracked-rank-drop-v1",
+      analysisVersion: "persistent-tracked-rank-drop-investigation-v1",
+    };
+    repositories.getSignal.mockResolvedValue(rankSignal);
+    repositories.getRun.mockResolvedValue(rankGrowthRun);
+    repositories.getDecisionControllerSource.mockResolvedValue({
+      relationship: "controller",
+      recommendationId: "rank_recommendation",
+      controllerRunId: rankGrowthRun.id,
+      controllerSignalId: rankSignal.id,
+      suppressionReason: null,
+      policyVersion: "persistent-rank-drop-repeat-suppression-v1",
+      controllerReleasedAt: null,
+    });
+    services.getRecommendation.mockResolvedValue({
+      ...graph,
+      recommendation: {
+        ...graph.recommendation,
+        id: "rank_recommendation",
+        creationKey:
+          "persistent-tracked-rank-drop-investigation-v1:recommendation:rank_signal",
+      },
+      targets: [
+        { targetType: "keyword", targetValue: "commercial query" },
+        { targetType: "url", targetValue: "https://example.com/pricing" },
+        { targetType: "site", targetValue: "example.com" },
+      ],
+    });
+    services.getInsight.mockResolvedValue({
+      insight: {
+        id: "rank_insight",
+        creationKey:
+          "persistent-tracked-rank-drop-investigation-v1:insight:rank_signal",
+      },
+      signalIds: [rankSignal.id],
+    });
+    repositories.getSnapshotsByIds.mockResolvedValue(
+      [4, 9, 10, null].map((position, index) => ({
+        id: index + 1,
+        runId: `rank_run_${index + 1}`,
+        trackingKeywordId: "keyword_1",
+        keyword: "commercial query",
+        device: "desktop",
+        position,
+        url: "https://example.com/pricing",
+      })),
+    );
+    repositories.getRankRunById.mockImplementation(async (runId: string) => {
+      const index = Number(runId.at(-1));
+      return {
+        id: runId,
+        projectId: "project_1",
+        configId: "config_1",
+        status: "completed",
+        isSubsetRun: false,
+        startedAt: `2026-08-${String(1 + (index - 1) * 7).padStart(2, "0")}T00:00:00.000Z`,
+      };
+    });
+    repositories.getRankConfigById.mockResolvedValue({
+      id: "config_1",
+      projectId: "project_1",
+      serpDepth: 50,
+    });
+    repositories.getActionByKey.mockResolvedValue(null);
+
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", rankSignal.id),
+    ).resolves.toMatchObject({
+      relationship: "controller",
+      evidenceSummary: {
+        kind: "persistent_tracked_rank_drop",
+        keyword: "commercial query",
+        device: "desktop",
+        serpDepth: 20,
+        checks: [
+          { position: 4 },
+          { position: 9 },
+          { position: 10 },
+          { position: null },
+        ],
+      },
+    });
+    repositories.getSnapshotsByIds.mockResolvedValueOnce(
+      [4, 6, 10, null].map((position, index) => ({
+        id: index + 1,
+        runId: `rank_run_${index + 1}`,
+        trackingKeywordId: "keyword_1",
+        keyword: "commercial query",
+        device: "desktop",
+        position,
+        url: "https://example.com/pricing",
+      })),
+    );
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", rankSignal.id),
+    ).resolves.toBeNull();
   });
   it.each([
     ["v1", "priority-page-click-decline-v1"],

@@ -15,9 +15,13 @@ export const harness = {
   lowCtrMutation: undefined as
     | undefined
     | Record<string, (value: unknown) => unknown>,
+  persistentRankDropMutation: undefined as
+    | undefined
+    | Record<string, (value: unknown) => unknown>,
   mutate: vi.fn(),
   strikingMutate: vi.fn(),
   lowCtrMutate: vi.fn(),
+  persistentRankDropMutate: vi.fn(),
   invalidate: vi.fn(),
   storage: new Map<string, string>(),
   storageWriteFails: false,
@@ -27,6 +31,8 @@ export const harness = {
   strikingIsPending: false,
   lowCtrIsError: false,
   lowCtrIsPending: false,
+  persistentRankDropIsError: false,
+  persistentRankDropIsPending: false,
   sequence: 0,
 };
 
@@ -56,7 +62,11 @@ vi.mock("@tanstack/react-query", () => ({
       ? {
           isPending: false,
           isError: false,
-          data: { setup: harness.setup, runs: [] },
+          data: {
+            setup: harness.setup,
+            keyPageCount: harness.setup === "missing_key_pages" ? 0 : 1,
+            runs: [],
+          },
           refetch: vi.fn(),
         }
       : {
@@ -69,26 +79,33 @@ vi.mock("@tanstack/react-query", () => ({
     const index = harness.mutationCursor++;
     if (index === 0) harness.mutation = options;
     else if (index === 1) harness.strikingMutation = options;
-    else harness.lowCtrMutation = options;
+    else if (index === 2) harness.lowCtrMutation = options;
+    else harness.persistentRankDropMutation = options;
     return {
       mutate:
         index === 0
           ? harness.mutate
           : index === 1
             ? harness.strikingMutate
-            : harness.lowCtrMutate,
+            : index === 2
+              ? harness.lowCtrMutate
+              : harness.persistentRankDropMutate,
       isPending:
         index === 0
           ? false
           : index === 1
             ? harness.strikingIsPending
-            : harness.lowCtrIsPending,
+            : index === 2
+              ? harness.lowCtrIsPending
+              : harness.persistentRankDropIsPending,
       isError:
         index === 0
           ? harness.isError
           : index === 1
             ? harness.strikingIsError
-            : harness.lowCtrIsError,
+            : index === 2
+              ? harness.lowCtrIsError
+              : harness.persistentRankDropIsError,
       error: new Error("safe test error"),
     };
   },
@@ -101,6 +118,7 @@ vi.mock("@/serverFunctions/growthChecks", () => ({
   runGrowthCheck: vi.fn(),
   runGrowthStrikingDistanceCheck: vi.fn(),
   runGrowthLowCtrCheck: vi.fn(),
+  runGrowthPersistentRankDropCheck: vi.fn(),
 }));
 vi.mock("@/serverFunctions/growthInvestigations", () => ({
   getGrowthInvestigation: vi.fn(),
@@ -109,6 +127,7 @@ vi.mock("@/serverFunctions/growthInvestigations", () => ({
 }));
 
 import { GrowthPriorityPageChecks } from "./GrowthPriorityPageChecks";
+import { GrowthPersistentRankDropCheck } from "./GrowthPersistentRankDropCheck";
 
 export function findButton(
   node: ReactNode,
@@ -153,6 +172,15 @@ export function render(projectId = "project_1") {
   });
 }
 
+export function renderPersistentRankDropCheck(projectId = "project_1") {
+  harness.cursor = 0;
+  harness.mutationCursor = 3;
+  return GrowthPersistentRankDropCheck({
+    projectId,
+    keyPageCount: harness.setup === "missing_key_pages" ? 0 : 1,
+  });
+}
+
 export function click(tree: ReactNode, label: string) {
   const button = findButton(tree, label);
   expect(button, label).not.toBeNull();
@@ -165,6 +193,7 @@ export function resetHarness() {
   harness.mutate.mockReset();
   harness.strikingMutate.mockReset();
   harness.lowCtrMutate.mockReset();
+  harness.persistentRankDropMutate.mockReset();
   harness.invalidate.mockReset();
   harness.storageWriteFails = false;
   harness.setup = "ready";
@@ -173,6 +202,8 @@ export function resetHarness() {
   harness.strikingIsPending = false;
   harness.lowCtrIsError = false;
   harness.lowCtrIsPending = false;
+  harness.persistentRankDropIsError = false;
+  harness.persistentRankDropIsPending = false;
   harness.sequence = 0;
   vi.stubGlobal("crypto", {
     randomUUID: () => `request_${++harness.sequence}`,

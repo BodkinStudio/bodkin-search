@@ -86,6 +86,28 @@ It has its own retry identity and does not appear in the saved decline-check
 history. Like ranking opportunities, it needs a connected real project for a
 live end-to-end result.
 
+## Find persistent rank drops
+
+**Find persistent rank drops** reads saved rank-tracking history. It does not
+start a rank check or spend provider credits. A tracked keyword qualifies only
+when the latest four completed full checks contain the same keyword and device,
+the first check ranked a configured priority page, and each of the next three
+checks is at least three positions worse than that baseline.
+
+The check treats a missing rank as outside the configuration's tracked depth.
+The saved evidence keeps that value as “outside top N” rather than assigning an
+exact rank. Open a saved suggestion under **Opportunities** to inspect the
+keyword, device, priority page and all four check dates before deciding whether
+to investigate. The detector reports the observed sequence without claiming a
+cause.
+
+At most three drops are considered per run. A project needs a priority page, an
+active rank-tracking configuration and four completed full checks. Subset and
+failed runs do not count. Repeating the same unresolved configuration, keyword,
+device and page combination links the new Signal to the existing suggestion.
+The action has its own retry identity and works without a Search Console
+connection.
+
 ## Saved opportunities
 
 The **Opportunities** section appears directly below the monthly summary. It

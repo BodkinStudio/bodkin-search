@@ -4,6 +4,7 @@ import {
   priorityPageInvestigationDescriptor,
   strikingDistanceInvestigationDescriptor,
   lowCtrInvestigationDescriptor,
+  persistentRankDropInvestigationDescriptor,
 } from "./GrowthInvestigationTemplateDescriptor";
 
 export const GROWTH_INVESTIGATION_TEMPLATE_VERSION =
@@ -207,6 +208,77 @@ export function lowCtrInvestigationTemplate(input: {
       steps: [
         "Review saved Search Console query and page evidence.",
         "Inspect the target page and competing search results.",
+        "Decide whether a website change is warranted before proposing one.",
+      ],
+      model: null,
+      promptVersion: null,
+    },
+  };
+}
+
+export const PERSISTENT_RANK_DROP_INVESTIGATION_TEMPLATE_VERSION =
+  persistentRankDropInvestigationDescriptor.templateVersion;
+
+export function persistentRankDropInvestigationTemplate(input: {
+  projectId: string;
+  runId: string;
+  signal: SavedSignal;
+  keyword: string;
+  device: "desktop" | "mobile";
+  page: string;
+  site: string;
+  commercialWeight: number | null;
+  serpDepth: number;
+  positions: Array<number | null>;
+}) {
+  const keys = investigationKeysForDescriptor(
+    persistentRankDropInvestigationDescriptor,
+    input.signal.id,
+  );
+  const shown = input.positions.map((position) =>
+    position === null
+      ? `outside the top ${input.serpDepth}`
+      : `position ${position}`,
+  );
+  const observed = `The tracked keyword “${input.keyword}” on ${input.device} moved from ${shown[0]} to ${shown.slice(1).join(", then ")} across three consecutive later checks.`;
+  return {
+    insight: {
+      projectId: input.projectId,
+      runId: input.runId,
+      creationKey: keys.insight,
+      title: "Observed persistent tracked-rank drop",
+      explanation: observed,
+      hypothesis:
+        "The cause is unknown. This rule-based observation requires investigation before any change is proposed.",
+      confidence: 0,
+      signalIds: [input.signal.id],
+      model: null,
+      promptVersion: null,
+    },
+    recommendation: {
+      projectId: input.projectId,
+      runId: input.runId,
+      creationKey: keys.recommendation,
+      title: "Investigate a persistent tracked-rank drop",
+      rationale: `${observed} Review the affected page and search results before deciding whether a website change is warranted; this is an investigation suggestion, not a diagnosis or promised recovery.`,
+      category: "investigation",
+      impact: 1,
+      commercialRelevance: Math.min(
+        5,
+        Math.max(1, input.commercialWeight ?? 1),
+      ),
+      effort: 1,
+      urgency: input.signal.severity === "critical" ? 2 : 1,
+      confidence: 0,
+      priorityScore: 0,
+      targets: [
+        { type: "keyword" as const, value: input.keyword },
+        { type: "url" as const, value: input.page },
+        { type: "site" as const, value: input.site },
+      ],
+      steps: [
+        "Review the four saved rank snapshots and the affected priority page.",
+        "Inspect recent page, indexing and search-result changes for the keyword.",
         "Decide whether a website change is warranted before proposing one.",
       ],
       model: null,

@@ -12,6 +12,7 @@ import {
 } from "vitest";
 import { rankTrackingConfigs } from "@/db/schema";
 import type * as RankTrackingRepositoryModule from "./RankTrackingRepository";
+import type * as SnapshotQueriesModule from "./snapshotQueries";
 
 // Real in-memory SQLite so the due-query ordering, the manual-interval filter,
 // and claimDueConfig's compare-and-set run against actual SQL — the parts the
@@ -24,6 +25,7 @@ vi.mock("cloudflare:workers", () => ({
 let client: Client;
 let testDb: ReturnType<typeof drizzle>;
 let RankTrackingRepository: typeof RankTrackingRepositoryModule.RankTrackingRepository;
+let snapshotQueries: typeof SnapshotQueriesModule;
 
 beforeAll(async () => {
   client = createClient({ url: "file::memory:" });
@@ -66,9 +68,33 @@ beforeAll(async () => {
       cpc REAL,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE rank_check_runs (
+      id TEXT PRIMARY KEY,
+      config_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      keywords_total INTEGER NOT NULL DEFAULT 0,
+      keywords_checked INTEGER NOT NULL DEFAULT 0,
+      is_subset_run INTEGER NOT NULL DEFAULT 0,
+      error_message TEXT,
+      started_at TEXT NOT NULL,
+      completed_at TEXT
+    );
+    CREATE TABLE rank_snapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      run_id TEXT NOT NULL,
+      tracking_keyword_id TEXT NOT NULL,
+      keyword TEXT NOT NULL,
+      device TEXT NOT NULL,
+      position INTEGER,
+      url TEXT,
+      serp_features TEXT,
+      checked_at TEXT NOT NULL
+    );
   `);
 
   ({ RankTrackingRepository } = await import("./RankTrackingRepository"));
+  snapshotQueries = await import("./snapshotQueries");
 });
 
 afterAll(() => {
@@ -77,6 +103,8 @@ afterAll(() => {
 
 beforeEach(async () => {
   await client.executeMultiple(`
+    DELETE FROM rank_snapshots;
+    DELETE FROM rank_check_runs;
     DELETE FROM rank_tracking_keywords;
     DELETE FROM rank_tracking_configs;
     DELETE FROM projects;
@@ -274,5 +302,36 @@ describe("getKeywordCountsForConfigs", () => {
     expect(await RankTrackingRepository.getKeywordCountsForConfigs([])).toEqual(
       new Map(),
     );
+  });
+});
+
+describe("persistent rank-drop history reads", () => {
+  it("returns only recent completed full runs and the requested snapshots", async () => {
+    await seedProject("proj_1");
+    await seedConfig({ id: "cfg_1" });
+    await client.executeMultiple(`
+      INSERT INTO rank_check_runs (id,config_id,project_id,status,is_subset_run,started_at) VALUES
+        ('old','cfg_1','proj_1','completed',0,'2026-07-01T00:00:00.000Z'),
+        ('full_1','cfg_1','proj_1','completed',0,'2026-08-01T00:00:00.000Z'),
+        ('subset','cfg_1','proj_1','completed',1,'2026-08-02T00:00:00.000Z'),
+        ('failed','cfg_1','proj_1','failed',0,'2026-08-03T00:00:00.000Z'),
+        ('full_2','cfg_1','proj_1','completed',0,'2026-08-04T00:00:00.000Z');
+      INSERT INTO rank_snapshots (id,run_id,tracking_keyword_id,keyword,device,position,url,checked_at) VALUES
+        (1,'full_1','kw','query','desktop',4,'https://example.com','2026-08-01T00:00:01.000Z'),
+        (2,'subset','kw','query','desktop',5,'https://example.com','2026-08-02T00:00:01.000Z'),
+        (3,'full_2','kw','query','desktop',8,'https://example.com','2026-08-04T00:00:01.000Z');
+    `);
+    const runs = await snapshotQueries.getRecentCompletedFullRuns("cfg_1", 2);
+    expect(runs.map(({ id }) => id)).toEqual(["full_2", "full_1"]);
+    await expect(
+      snapshotQueries.getSnapshotsForRuns(runs.map(({ id }) => id)),
+    ).resolves.toEqual([
+      expect.objectContaining({ id: 1, runId: "full_1" }),
+      expect.objectContaining({ id: 3, runId: "full_2" }),
+    ]);
+    await expect(snapshotQueries.getSnapshotsByIds([3, 1])).resolves.toEqual([
+      expect.objectContaining({ id: 1 }),
+      expect.objectContaining({ id: 3 }),
+    ]);
   });
 });

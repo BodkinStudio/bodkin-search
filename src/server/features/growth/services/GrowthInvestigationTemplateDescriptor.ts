@@ -1,7 +1,11 @@
 import type { RecordGrowthSignalInput } from "@/types/schemas/growth";
 
 export type GrowthInvestigationTemplateDescriptor = {
-  family: "priority_page" | "striking_distance" | "low_ctr";
+  family:
+    | "priority_page"
+    | "striking_distance"
+    | "low_ctr"
+    | "persistent_rank_drop";
   templateVersion: string;
   run: {
     cadenceSlotPrefix: string;
@@ -75,10 +79,29 @@ export const lowCtrInvestigationDescriptor = {
   releasesControllers: false,
 } as const satisfies GrowthInvestigationTemplateDescriptor;
 
+export const persistentRankDropInvestigationDescriptor = {
+  family: "persistent_rank_drop",
+  templateVersion: "persistent-tracked-rank-drop-investigation-v1",
+  run: {
+    cadenceSlotPrefix: "persistent-rank-drop-check:",
+    detectorVersions: ["persistent-tracked-rank-drop-v1"],
+  },
+  controller: {
+    signalType: "tracked_rank_drop",
+    entityType: "tracked_keyword",
+    metric: "organic_rank_position_floor",
+    evidenceKind: "rank_snapshot",
+  },
+  companionMetrics: [],
+  actionKeyPrefix: "persistent-tracked-rank-drop-investigation-v1:action:",
+  releasesControllers: false,
+} as const satisfies GrowthInvestigationTemplateDescriptor;
+
 const growthInvestigationDescriptors = [
   priorityPageInvestigationDescriptor,
   strikingDistanceInvestigationDescriptor,
   lowCtrInvestigationDescriptor,
+  persistentRankDropInvestigationDescriptor,
 ] as const;
 
 export function investigationKeysForDescriptor(
