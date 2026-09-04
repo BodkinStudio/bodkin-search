@@ -63,6 +63,29 @@ the decline check, and ranking-opportunity Runs are deliberately not mixed into
 the saved decline history. The disposable preview has no Google credentials,
 so this action requires a connected real project for end-to-end verification.
 
+## Find low-CTR opportunities
+
+The next row, **Find low-CTR opportunities**, looks for queries on configured
+priority pages that still rank from position 1 through 4 but are attracting a
+meaningfully smaller share of clicks than in the preceding 28 days. Both final
+28-day periods must contain at least 100 impressions for the exact query/page
+pair, the average position cannot have worsened, and CTR must have fallen by at
+least one percentage point and 25% relative to its own earlier rate.
+
+This project-specific comparison deliberately avoids a generic expected-CTR
+curve. A qualifying query saves CTR, clicks, impressions and average position
+as one four-fact evidence set. Open the suggestion under **Opportunities** to
+compare both periods and decide whether the page and search results warrant an
+investigation. The detector does not claim that a title, snippet or page change
+caused the decline.
+
+The check considers at most three candidates, fails closed when its bounded
+Search Console inventory is incomplete, and reuses an unresolved suggestion
+for the same query and exact priority page rather than creating duplicate Work.
+It has its own retry identity and does not appear in the saved decline-check
+history. Like ranking opportunities, it needs a connected real project for a
+live end-to-end result.
+
 ## Saved opportunities
 
 The **Opportunities** section appears directly below the monthly summary. It
@@ -106,4 +129,4 @@ View change log opens a manual record of work on configured priority pages. Choo
 
 The Monthly review card can prepare one explicit review attempt by composing the existing priority-page check, current due-Measurement queue and immutable monthly report builder. The card asks for inline confirmation before dispatch. Each attempt has its own browser-session retry key and `monthly_review` Run. An uncertain request can be replayed exactly or replaced only through the separate Start new review action. The detector remains a separate child Run, due Measurements remain human review work, and only an exact-period report counts as a successful report phase.
 
-The result shows the authoritative review period and status. A fresh response also shows the priority-page check, due-Measurement and monthly-summary outcomes; an exact replay deliberately shows only the saved coordinator status rather than reconstructing phase detail from current state. The card does not run on a schedule, resume an interrupted process, evaluate Measurements, publish or share a report, invoke the separate ranking-opportunity detector or generate AI interpretation.
+The result shows the authoritative review period and status. A fresh response also shows the priority-page check, due-Measurement and monthly-summary outcomes; an exact replay deliberately shows only the saved coordinator status rather than reconstructing phase detail from current state. The card does not run on a schedule, resume an interrupted process, evaluate Measurements, publish or share a report, invoke the separate ranking-opportunity or low-CTR detectors, or generate AI interpretation.

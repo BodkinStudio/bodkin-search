@@ -134,6 +134,73 @@ describe("Growth investigation schemas", () => {
     ).toThrow();
   });
 
+  it("requires CTR for low-CTR evidence and excludes it from striking evidence", () => {
+    const sharedEvidence = {
+      query: "pricing software",
+      page: "https://example.com/pricing",
+      site: "sc-domain:example.com",
+      baselinePeriod: { start: "2026-07-01", end: "2026-07-28" },
+      currentPeriod: { start: "2026-07-29", end: "2026-08-25" },
+    };
+    const lowCtrEvidence = {
+      ...sharedEvidence,
+      kind: "high_impression_low_ctr_query" as const,
+      baseline: {
+        position: 3.8,
+        impressions: 800,
+        clicks: 100,
+        ctr: 0.125,
+      },
+      current: {
+        position: 3.4,
+        impressions: 1_000,
+        clicks: 75,
+        ctr: 0.075,
+      },
+    };
+    expect(
+      growthInvestigationViewSchema.parse({
+        ...view,
+        templateVersion: "high-impression-low-ctr-investigation-v1",
+        evidenceSummary: lowCtrEvidence,
+      }),
+    ).toMatchObject({ evidenceSummary: lowCtrEvidence });
+    expect(() =>
+      growthInvestigationViewSchema.parse({
+        ...view,
+        templateVersion: "high-impression-low-ctr-investigation-v1",
+        evidenceSummary: {
+          ...lowCtrEvidence,
+          current: { position: 3.4, impressions: 1_000, clicks: 75 },
+        },
+      }),
+    ).toThrow();
+
+    const strikingEvidence = {
+      ...sharedEvidence,
+      kind: "striking_distance_query" as const,
+      baseline: { position: 14.2, impressions: 86, clicks: 3 },
+      current: { position: 8.4, impressions: 1_250, clicks: 27 },
+    };
+    expect(
+      growthInvestigationViewSchema.parse({
+        ...view,
+        templateVersion: "striking-distance-investigation-v1",
+        evidenceSummary: strikingEvidence,
+      }),
+    ).toMatchObject({ evidenceSummary: strikingEvidence });
+    expect(() =>
+      growthInvestigationViewSchema.parse({
+        ...view,
+        templateVersion: "striking-distance-investigation-v1",
+        evidenceSummary: {
+          ...strikingEvidence,
+          baseline: { ...strikingEvidence.baseline, ctr: 0.03 },
+        },
+      }),
+    ).toThrow();
+  });
+
   it("requires canonical review metadata only for its matching status", () => {
     expect(
       growthInvestigationViewSchema.parse({

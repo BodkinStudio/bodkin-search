@@ -155,6 +155,142 @@ beforeEach(() => {
 // authorization cannot drift between controller and suppressed identities.
 // eslint-disable-next-line max-lines-per-function
 describe("GrowthInvestigationsService", () => {
+  it("accepts exactly four aligned low-CTR facts and rejects incomplete, extra, wrong, or tampered evidence", async () => {
+    const { lowCtrEvidenceRef } =
+      await import("./HighImpressionLowCtrDetector");
+    const evidenceRef = await lowCtrEvidenceRef({
+      projectId: "project_1",
+      site: "example.com",
+      query: "web design bath",
+      page: "https://example.com/pricing",
+      capturedAt: "2026-09-02T10:00:00.000Z",
+      baselineWindow: { startDate: "2026-07-07", endDate: "2026-08-03" },
+      currentWindow: { startDate: "2026-08-04", endDate: "2026-08-31" },
+      baseline: { position: 2, impressions: 100, clicks: 4, ctr: 0.04 },
+      current: { position: 2, impressions: 100, clicks: 3, ctr: 0.03 },
+    });
+    const lowCtrRun = {
+      ...run,
+      id: "low_ctr_run",
+      cadenceSlot: "low-ctr-check:one",
+      detectorVersion: "high-impression-low-ctr-v1",
+      analysisVersion: "high-impression-low-ctr-investigation-v1",
+    };
+    const ctr = {
+      ...signal,
+      id: "low_ctr",
+      runId: lowCtrRun.id,
+      signalType: "ctr_below_expected",
+      entityType: "search_query",
+      entityRef: "web design bath",
+      metric: "gsc_ctr",
+      periodStart: "2026-08-04",
+      periodEnd: "2026-08-31",
+      baselineValue: 0.04,
+      currentValue: 0.03,
+      deltaValue: 0.03 - 0.04,
+      evidenceRef,
+      capturedAt: "2026-09-02T10:00:00.000Z",
+    };
+    const clicks = {
+      ...ctr,
+      id: "low_clicks",
+      metric: "gsc_clicks",
+      baselineValue: 4,
+      currentValue: 3,
+      deltaValue: -1,
+    };
+    const impressions = {
+      ...ctr,
+      id: "low_impressions",
+      metric: "gsc_impressions",
+      baselineValue: 100,
+      currentValue: 100,
+      deltaValue: 0,
+    };
+    const position = {
+      ...ctr,
+      id: "low_position",
+      metric: "gsc_average_position",
+      baselineValue: 2,
+      currentValue: 2,
+      deltaValue: 0,
+    };
+    const facts = [ctr, clicks, impressions, position];
+    repositories.getSignal.mockResolvedValue(ctr);
+    repositories.getRun.mockResolvedValue(lowCtrRun);
+    repositories.getDecisionControllerSource.mockResolvedValue({
+      relationship: "controller",
+      recommendationId: "low_recommendation",
+      controllerRunId: lowCtrRun.id,
+      controllerSignalId: ctr.id,
+      suppressionReason: null,
+      policyVersion: "high-impression-low-ctr-repeat-suppression-v1",
+      controllerReleasedAt: null,
+    });
+    services.getRecommendation.mockResolvedValue({
+      ...graph,
+      recommendation: {
+        ...graph.recommendation,
+        id: "low_recommendation",
+        creationKey:
+          "high-impression-low-ctr-investigation-v1:recommendation:low_ctr",
+      },
+      targets: [
+        { targetType: "keyword", targetValue: "web design bath" },
+        { targetType: "url", targetValue: "https://example.com/pricing" },
+        { targetType: "site", targetValue: "example.com" },
+      ],
+    });
+    services.getInsight.mockResolvedValue({
+      insight: {
+        id: "low_insight",
+        creationKey: "high-impression-low-ctr-investigation-v1:insight:low_ctr",
+      },
+      signalIds: facts.map((fact) => fact.id),
+    });
+    repositories.listSignals.mockResolvedValue(facts);
+    repositories.getActionByKey.mockResolvedValue(null);
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", ctr.id),
+    ).resolves.toMatchObject({
+      relationship: "controller",
+      evidenceSummary: {
+        kind: "high_impression_low_ctr_query",
+        baseline: { ctr: 0.04, clicks: 4, impressions: 100, position: 2 },
+        current: { ctr: 0.03, clicks: 3, impressions: 100, position: 2 },
+      },
+    });
+    for (const invalid of [
+      facts.slice(0, 3),
+      [ctr, clicks, impressions, { ...position, metric: "gsc_clicks" }],
+      [
+        { ...ctr, currentValue: 0.02, deltaValue: -0.02 },
+        clicks,
+        impressions,
+        position,
+      ],
+    ]) {
+      repositories.listSignals.mockResolvedValue(invalid);
+      await expect(
+        GrowthInvestigationsService.getInvestigation("project_1", ctr.id),
+      ).resolves.toBeNull();
+    }
+    services.getInsight.mockResolvedValue({
+      insight: {
+        id: "low_insight",
+        creationKey: "high-impression-low-ctr-investigation-v1:insight:low_ctr",
+      },
+      signalIds: [...facts.map((fact) => fact.id), "extra"],
+    });
+    repositories.listSignals.mockResolvedValue([
+      ...facts,
+      { ...ctr, id: "extra" },
+    ]);
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", ctr.id),
+    ).resolves.toBeNull();
+  });
   it("reconstructs three-fact striking-distance evidence and approves qualifying Work", async () => {
     const { strikingDistanceEvidenceRef } =
       await import("./StrikingDistanceQueryDetector");

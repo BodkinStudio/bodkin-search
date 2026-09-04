@@ -1,7 +1,7 @@
 import type { RecordGrowthSignalInput } from "@/types/schemas/growth";
 
 export type GrowthInvestigationTemplateDescriptor = {
-  family: "priority_page" | "striking_distance";
+  family: "priority_page" | "striking_distance" | "low_ctr";
   templateVersion: string;
   run: {
     cadenceSlotPrefix: string;
@@ -57,9 +57,28 @@ export const strikingDistanceInvestigationDescriptor = {
   releasesControllers: false,
 } as const satisfies GrowthInvestigationTemplateDescriptor;
 
+export const lowCtrInvestigationDescriptor = {
+  family: "low_ctr",
+  templateVersion: "high-impression-low-ctr-investigation-v1",
+  run: {
+    cadenceSlotPrefix: "low-ctr-check:",
+    detectorVersions: ["high-impression-low-ctr-v1"],
+  },
+  controller: {
+    signalType: "ctr_below_expected",
+    entityType: "search_query",
+    metric: "gsc_ctr",
+    evidenceKind: "gsc_period",
+  },
+  companionMetrics: ["gsc_clicks", "gsc_impressions", "gsc_average_position"],
+  actionKeyPrefix: "high-impression-low-ctr-investigation-v1:action:",
+  releasesControllers: false,
+} as const satisfies GrowthInvestigationTemplateDescriptor;
+
 const growthInvestigationDescriptors = [
   priorityPageInvestigationDescriptor,
   strikingDistanceInvestigationDescriptor,
+  lowCtrInvestigationDescriptor,
 ] as const;
 
 export function investigationKeysForDescriptor(

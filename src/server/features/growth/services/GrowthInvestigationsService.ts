@@ -27,6 +27,7 @@ import {
   type GrowthInvestigationTemplateDescriptor,
 } from "./GrowthInvestigationTemplateDescriptor";
 import { matchesStrikingDistanceEvidenceRef } from "./StrikingDistanceQueryDetector";
+import { matchesLowCtrEvidenceRef } from "./HighImpressionLowCtrDetector";
 import type { GrowthTargetNormalizationMode } from "./GrowthTargetNormalizer";
 
 const WORK_LIMIT = 50;
@@ -109,13 +110,17 @@ async function qualifiedGraph(
   )
     return null;
   if (descriptor.family === "priority_page") return { graph, evidence: null };
-  if (insight.signalIds.length !== 3 || !insight.signalIds.includes(signalId))
+  const expectedFactCount = 1 + descriptor.companionMetrics.length;
+  if (
+    insight.signalIds.length !== expectedFactCount ||
+    !insight.signalIds.includes(signalId)
+  )
     return null;
   const signals = await GrowthRunsRepository.listSignals(projectId, runId);
   const facts = insight.signalIds
     .map((id) => signals.find((signal) => signal.id === id))
     .filter((signal): signal is NonNullable<typeof signal> => Boolean(signal));
-  if (facts.length !== 3) return null;
+  if (facts.length !== expectedFactCount) return null;
   const byMetric = new Map(facts.map((fact) => [fact.metric, fact]));
   const expectedMetrics = [
     descriptor.controller.metric,
@@ -129,9 +134,16 @@ async function qualifiedGraph(
   )
     return null;
   const position = byMetric.get("gsc_average_position");
-  const impressions = byMetric.get(descriptor.controller.metric);
+  const impressions = byMetric.get("gsc_impressions");
   const clicks = byMetric.get("gsc_clicks");
-  if (!position || !impressions || !clicks) return null;
+  const ctr = byMetric.get("gsc_ctr");
+  if (
+    !position ||
+    !impressions ||
+    !clicks ||
+    (descriptor.family === "low_ctr" && !ctr)
+  )
+    return null;
   const first = impressions;
   if (
     facts.some(
@@ -168,40 +180,74 @@ async function qualifiedGraph(
   )
     return null;
   if (
-    !(await matchesStrikingDistanceEvidenceRef(
-      {
-        projectId,
-        site: site.targetValue,
-        query: first.entityRef,
-        page: page.targetValue,
-        capturedAt: first.capturedAt,
-        baselineWindow: {
-          startDate: baselinePeriod.start,
-          endDate: baselinePeriod.end,
-        },
-        currentWindow: {
-          startDate: first.periodStart,
-          endDate: first.periodEnd,
-        },
-        baseline: {
-          position: position.baselineValue,
-          impressions: impressions.baselineValue,
-          clicks: clicks.baselineValue,
-        },
-        current: {
-          position: position.currentValue,
-          impressions: impressions.currentValue,
-          clicks: clicks.currentValue,
-        },
-      },
-      first.evidenceRef,
-    ))
+    !(descriptor.family === "low_ctr"
+      ? await matchesLowCtrEvidenceRef(
+          {
+            projectId,
+            site: site.targetValue,
+            query: first.entityRef,
+            page: page.targetValue,
+            capturedAt: first.capturedAt,
+            baselineWindow: {
+              startDate: baselinePeriod.start,
+              endDate: baselinePeriod.end,
+            },
+            currentWindow: {
+              startDate: first.periodStart,
+              endDate: first.periodEnd,
+            },
+            baseline: {
+              position: position.baselineValue,
+              impressions: impressions.baselineValue,
+              clicks: clicks.baselineValue,
+              ctr: ctr!.baselineValue,
+            },
+            current: {
+              position: position.currentValue,
+              impressions: impressions.currentValue,
+              clicks: clicks.currentValue,
+              ctr: ctr!.currentValue,
+            },
+          },
+          first.evidenceRef,
+        )
+      : await matchesStrikingDistanceEvidenceRef(
+          {
+            projectId,
+            site: site.targetValue,
+            query: first.entityRef,
+            page: page.targetValue,
+            capturedAt: first.capturedAt,
+            baselineWindow: {
+              startDate: baselinePeriod.start,
+              endDate: baselinePeriod.end,
+            },
+            currentWindow: {
+              startDate: first.periodStart,
+              endDate: first.periodEnd,
+            },
+            baseline: {
+              position: position.baselineValue,
+              impressions: impressions.baselineValue,
+              clicks: clicks.baselineValue,
+            },
+            current: {
+              position: position.currentValue,
+              impressions: impressions.currentValue,
+              clicks: clicks.currentValue,
+            },
+          },
+          first.evidenceRef,
+        ))
   )
     return null;
   return {
     graph,
     evidence: {
-      kind: "striking_distance_query" as const,
+      kind:
+        descriptor.family === "low_ctr"
+          ? ("high_impression_low_ctr_query" as const)
+          : ("striking_distance_query" as const),
       query: first.entityRef,
       page: page.targetValue,
       site: site.targetValue,
@@ -211,11 +257,13 @@ async function qualifiedGraph(
         position: position.baselineValue,
         impressions: impressions.baselineValue,
         clicks: clicks.baselineValue,
+        ...(ctr ? { ctr: ctr.baselineValue } : {}),
       },
       current: {
         position: position.currentValue,
         impressions: impressions.currentValue,
         clicks: clicks.currentValue,
+        ...(ctr ? { ctr: ctr.currentValue } : {}),
       },
     },
   };
@@ -486,7 +534,8 @@ async function approveInvestigation(input: {
     actorId: input.actorId,
   };
   const targetNormalizationMode: GrowthTargetNormalizationMode | undefined =
-    saved.descriptor.family === "striking_distance"
+    saved.descriptor.family === "striking_distance" ||
+    saved.descriptor.family === "low_ctr"
       ? "key_page_identity"
       : undefined;
 

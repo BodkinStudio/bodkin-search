@@ -59,7 +59,17 @@ function GrowthInvestigationEvidencePeriod({
         {formatGrowthPreviewDate(period.start)} –{" "}
         {formatGrowthPreviewDate(period.end)}
       </p>
-      <dl className="mt-2 grid grid-cols-3 gap-2">
+      <dl
+        className={`mt-2 grid gap-2 ${"ctr" in facts ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}
+      >
+        {"ctr" in facts ? (
+          <div>
+            <dt className="text-xs text-base-content/70">CTR</dt>
+            <dd className="font-medium">
+              {formatEvidenceValue(facts.ctr * 100, 1)}%
+            </dd>
+          </div>
+        ) : null}
         <div>
           <dt className="text-xs text-base-content/70">Position</dt>
           <dd className="font-medium">
@@ -331,7 +341,7 @@ export function GrowthInvestigationReview({
         Rule-based investigation. No AI was used.
       </p>
       <p className="whitespace-pre-wrap">{saved.rationale}</p>
-      {saved.evidenceSummary?.kind === "striking_distance_query" ? (
+      {saved.evidenceSummary ? (
         <GrowthStrikingDistanceEvidence evidence={saved.evidenceSummary} />
       ) : null}
       <ul className="space-y-1 text-base-content/70">
@@ -367,7 +377,8 @@ export function GrowthInvestigationReview({
         <>
           <p className="text-base-content/70">
             This suggestion covers later checks for the same saved{" "}
-            {saved.evidenceSummary?.kind === "striking_distance_query"
+            {saved.evidenceSummary?.kind === "striking_distance_query" ||
+            saved.evidenceSummary?.kind === "high_impression_low_ctr_query"
               ? "query and page"
               : "page"}
             .{" "}

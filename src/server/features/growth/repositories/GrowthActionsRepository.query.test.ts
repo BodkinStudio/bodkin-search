@@ -789,4 +789,113 @@ describe("GrowthActionsRepository D1 aggregate writes", () => {
       ),
     ).resolves.toEqual([]);
   });
+
+  it("qualifies low-CTR Work only through its exact aligned four-fact graph", async () => {
+    await client.executeMultiple(`
+      INSERT INTO growth_runs (id, project_id, run_type, trigger, status, cadence_slot, period_start, period_end, started_at, completed_at, detector_version, analysis_version)
+      VALUES ('low_ctr_work_run', 'project_1', 'manual_analysis', 'manual', 'completed', 'low-ctr-check:work', '2026-07-07', '2026-08-31', '2026-09-01T10:00:00.000Z', '2026-09-01T10:01:00.000Z', 'high-impression-low-ctr-v1', 'high-impression-low-ctr-investigation-v1');
+      INSERT INTO growth_signals (id, project_id, run_id, signal_type, entity_type, entity_ref, metric, severity, confidence, period_start, period_end, baseline_value, current_value, delta_value, evidence_kind, evidence_ref, captured_at) VALUES
+      ('low_ctr_work_ctr','project_1','low_ctr_work_run','ctr_below_expected','search_query','pricing software','gsc_ctr','warning',.8,'2026-08-04','2026-08-31',.125,.0625,-.0625,'gsc_period','gsc_low_ctr_v1:test','2026-09-01T10:00:00.000Z'),
+      ('low_ctr_work_clicks','project_1','low_ctr_work_run','ctr_below_expected','search_query','pricing software','gsc_clicks','warning',.8,'2026-08-04','2026-08-31',100,50,-50,'gsc_period','gsc_low_ctr_v1:test','2026-09-01T10:00:00.000Z'),
+      ('low_ctr_work_impressions','project_1','low_ctr_work_run','ctr_below_expected','search_query','pricing software','gsc_impressions','warning',.8,'2026-08-04','2026-08-31',800,800,0,'gsc_period','gsc_low_ctr_v1:test','2026-09-01T10:00:00.000Z'),
+      ('low_ctr_work_position','project_1','low_ctr_work_run','ctr_below_expected','search_query','pricing software','gsc_average_position','warning',.8,'2026-08-04','2026-08-31',4,3.5,-.5,'gsc_period','gsc_low_ctr_v1:test','2026-09-01T10:00:00.000Z');
+      INSERT INTO growth_insights (id,project_id,run_id,creation_key,fact_hash,title,explanation,hypothesis,confidence) VALUES ('low_ctr_work_insight','project_1','low_ctr_work_run','high-impression-low-ctr-investigation-v1:insight:low_ctr_work_ctr','${"4".repeat(64)}','Observed CTR decline','Observed facts.','Unknown cause.',0);
+      INSERT INTO growth_insight_signals (project_id,run_id,insight_id,signal_id) VALUES
+      ('project_1','low_ctr_work_run','low_ctr_work_insight','low_ctr_work_ctr'),
+      ('project_1','low_ctr_work_run','low_ctr_work_insight','low_ctr_work_clicks'),
+      ('project_1','low_ctr_work_run','low_ctr_work_insight','low_ctr_work_impressions'),
+      ('project_1','low_ctr_work_run','low_ctr_work_insight','low_ctr_work_position');
+      INSERT INTO growth_recommendations (id,project_id,run_id,creation_key,fact_hash,title,rationale,category,impact,commercial_relevance,effort,urgency,confidence,priority_score,status,review_version) VALUES ('low_ctr_work_recommendation','project_1','low_ctr_work_run','high-impression-low-ctr-investigation-v1:recommendation:low_ctr_work_ctr','${"5".repeat(64)}','Investigate CTR decline','Cause unknown.','investigation',1,1,1,1,0,0,'accepted',1);
+      INSERT INTO growth_recommendation_insights (project_id,run_id,recommendation_id,insight_id) VALUES ('project_1','low_ctr_work_run','low_ctr_work_recommendation','low_ctr_work_insight');
+      INSERT INTO growth_recommendation_targets (project_id,run_id,recommendation_id,target_type,target_value) VALUES
+      ('project_1','low_ctr_work_run','low_ctr_work_recommendation','keyword','pricing software'),
+      ('project_1','low_ctr_work_run','low_ctr_work_recommendation','url','https://example.com/pricing'),
+      ('project_1','low_ctr_work_run','low_ctr_work_recommendation','site','sc-domain:example.com');
+      INSERT INTO growth_actions (id,project_id,recommendation_id,creation_key,fact_hash,title,description,category,priority_score,status,state_version,due_at,approved_at,created_at,updated_at) VALUES ('low_ctr_work_action','project_1','low_ctr_work_recommendation','high-impression-low-ctr-investigation-v1:action:low_ctr_work_ctr','${"6".repeat(64)}','Investigate CTR decline','Cause unknown.','investigation',0,'approved',0,'2026-09-10T00:00:00.000Z','2026-09-01T10:02:00.000Z','2026-09-01T10:02:00.000Z','2026-09-01T10:02:00.000Z');
+      INSERT INTO growth_action_targets (project_id,action_id,target_type,target_value) VALUES
+      ('project_1','low_ctr_work_action','keyword','pricing software'),
+      ('project_1','low_ctr_work_action','url','https://example.com/pricing'),
+      ('project_1','low_ctr_work_action','site','sc-domain:example.com');
+    `);
+    const listWork = () =>
+      GrowthActionsRepository.listInvestigationWork(
+        "project_1",
+        1,
+        "low_ctr_work_action",
+      );
+    await expect(listWork()).resolves.toEqual([
+      expect.objectContaining({
+        id: "low_ctr_work_action",
+        runId: "low_ctr_work_run",
+      }),
+    ]);
+    await expect(
+      GrowthActionsRepository.listActionTargetsForActions("project_1", [
+        "low_ctr_work_action",
+      ]),
+    ).resolves.toEqual([
+      {
+        actionId: "low_ctr_work_action",
+        targetType: "keyword",
+        targetValue: "pricing software",
+      },
+      {
+        actionId: "low_ctr_work_action",
+        targetType: "site",
+        targetValue: "sc-domain:example.com",
+      },
+      {
+        actionId: "low_ctr_work_action",
+        targetType: "url",
+        targetValue: "https://example.com/pricing",
+      },
+    ]);
+
+    await client.execute(
+      "DELETE FROM growth_insight_signals WHERE signal_id = 'low_ctr_work_clicks'",
+    );
+    await expect(listWork()).resolves.toEqual([]);
+    await client.execute(
+      "INSERT INTO growth_insight_signals (project_id,run_id,insight_id,signal_id) VALUES ('project_1','low_ctr_work_run','low_ctr_work_insight','low_ctr_work_clicks')",
+    );
+
+    await client.executeMultiple(`
+      INSERT INTO growth_signals (id, project_id, run_id, signal_type, entity_type, entity_ref, metric, severity, confidence, period_start, period_end, baseline_value, current_value, delta_value, evidence_kind, evidence_ref, captured_at)
+      VALUES ('low_ctr_work_extra','project_1','low_ctr_work_run','ctr_below_expected','search_query','pricing software','unrelated_metric','warning',.8,'2026-08-04','2026-08-31',1,2,1,'gsc_period','gsc_low_ctr_v1:test','2026-09-01T10:00:00.000Z');
+      INSERT INTO growth_insight_signals (project_id,run_id,insight_id,signal_id) VALUES ('project_1','low_ctr_work_run','low_ctr_work_insight','low_ctr_work_extra');
+    `);
+    await expect(listWork()).resolves.toEqual([]);
+    await client.execute(
+      "DELETE FROM growth_signals WHERE id = 'low_ctr_work_extra'",
+    );
+
+    await client.execute(
+      "UPDATE growth_signals SET metric = 'unrelated_metric' WHERE id = 'low_ctr_work_impressions'",
+    );
+    await expect(listWork()).resolves.toEqual([]);
+    await client.execute(
+      "UPDATE growth_signals SET metric = 'gsc_impressions' WHERE id = 'low_ctr_work_impressions'",
+    );
+
+    await client.execute(
+      "UPDATE growth_signals SET entity_ref = 'other query' WHERE id = 'low_ctr_work_clicks'",
+    );
+    await expect(listWork()).resolves.toEqual([]);
+    await client.execute(
+      "UPDATE growth_signals SET entity_ref = 'pricing software' WHERE id = 'low_ctr_work_clicks'",
+    );
+
+    await client.execute(
+      "UPDATE growth_signals SET evidence_ref = 'gsc_low_ctr_v1:other' WHERE id = 'low_ctr_work_position'",
+    );
+    await expect(listWork()).resolves.toEqual([]);
+    await client.execute(
+      "UPDATE growth_signals SET evidence_ref = 'gsc_low_ctr_v1:test' WHERE id = 'low_ctr_work_position'",
+    );
+
+    await client.execute(
+      "UPDATE growth_signals SET delta_value = -49 WHERE id = 'low_ctr_work_clicks'",
+    );
+    await expect(listWork()).resolves.toEqual([]);
+  });
 });

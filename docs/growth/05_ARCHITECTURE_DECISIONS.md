@@ -1247,3 +1247,37 @@ still unproven.
 High-impression/low-CTR detection, tracked-rank drops, audit and measurement-due
 detectors, controller release rules, scheduled orchestration, provider-cost
 inspection, alerts and AI-assisted diagnosis remain separate decisions.
+
+---
+
+## ADR-051 - High-impression low-CTR opportunities use exact prior query evidence
+
+**Status:** Accepted
+
+### Decision
+
+- One explicit authenticated `high-impression-low-ctr-v1` manual Run uses its own
+  `low-ctr-check:` request slot and reuses the exhaustive paired Search Console
+  inventory from striking-distance collection.
+- A configured key-page query/page coordinate must exist in both adjacent final
+  28-day windows, have at least 100 impressions in each, retain a current
+  average position from 1 through 4 inclusive without worsening, and lose at
+  least 0.01 absolute CTR and 25% relative CTR from its exact prior period.
+- At most three candidates are ordered by estimated missed clicks, current
+  impressions and stable query/page tie-breaks. Each stores CTR, clicks,
+  impressions and position with a common evidence reference; `ctr_below_expected`
+  / `gsc_ctr` is the sole controller.
+- Dedupe is scoped to project, normalized query and exact normalized key-page
+  URL in a separate low-CTR family. Controllers are not released in v1. Review
+  and Work qualification verify the exact four-fact, common-evidence graph.
+
+### Consequence
+
+This adds a conservative, reviewable second BG-0402 detector without a schema,
+provider, auth, scheduling or controller-release change. It reports only an
+observed CTR decline, never a cause or promised uplift.
+
+### Deferred
+
+Expected-CTR curves, persistent low CTR, segmentation, controller merging and
+scheduled execution remain separate decisions.

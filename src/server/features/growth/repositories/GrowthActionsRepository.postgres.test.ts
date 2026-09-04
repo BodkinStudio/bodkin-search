@@ -76,6 +76,133 @@ async function seedAcceptedRecommendation(input: {
   `;
 }
 
+async function verifyAlignedLowCtrWork() {
+  const suffix = crypto.randomUUID();
+  const organizationId = `growth_low_ctr_org_${suffix}`;
+  const projectId = `growth_low_ctr_project_${suffix}`;
+  const runId = `growth_low_ctr_run_${suffix}`;
+  const ctrId = `growth_low_ctr_signal_ctr_${suffix}`;
+  const clicksId = `growth_low_ctr_signal_clicks_${suffix}`;
+  const impressionsId = `growth_low_ctr_signal_impressions_${suffix}`;
+  const positionId = `growth_low_ctr_signal_position_${suffix}`;
+  const insightId = `growth_low_ctr_insight_${suffix}`;
+  const recommendationId = `growth_low_ctr_recommendation_${suffix}`;
+  const actionId = `growth_low_ctr_action_${suffix}`;
+  const evidenceRef = `gsc_low_ctr_v1:${suffix}`;
+
+  try {
+    await seedProject(projectId, organizationId, `low-ctr-${suffix}`);
+    await sql`
+      INSERT INTO growth_runs (
+        id, project_id, run_type, trigger, status, cadence_slot,
+        period_start, period_end, started_at, completed_at,
+        detector_version, analysis_version
+      ) VALUES (
+        ${runId}, ${projectId}, 'manual_analysis', 'manual', 'completed',
+        ${`low-ctr-check:${suffix}`}, '2026-07-07', '2026-08-31',
+        '2026-09-01T10:00:00.000Z', '2026-09-01T10:01:00.000Z',
+        'high-impression-low-ctr-v1',
+        'high-impression-low-ctr-investigation-v1'
+      )
+    `;
+    await sql`
+      INSERT INTO growth_signals (
+        id, project_id, run_id, signal_type, entity_type, entity_ref,
+        metric, severity, confidence, period_start, period_end,
+        baseline_value, current_value, delta_value, evidence_kind,
+        evidence_ref, captured_at
+      ) VALUES
+        (${ctrId}, ${projectId}, ${runId}, 'ctr_below_expected',
+          'search_query', 'pricing software', 'gsc_ctr', 'warning', .8,
+          '2026-08-04', '2026-08-31', .125, .0625, -.0625,
+          'gsc_period', ${evidenceRef}, '2026-09-01T10:00:00.000Z'),
+        (${clicksId}, ${projectId}, ${runId}, 'ctr_below_expected',
+          'search_query', 'pricing software', 'gsc_clicks', 'warning', .8,
+          '2026-08-04', '2026-08-31', 100, 50, -50,
+          'gsc_period', ${evidenceRef}, '2026-09-01T10:00:00.000Z'),
+        (${impressionsId}, ${projectId}, ${runId}, 'ctr_below_expected',
+          'search_query', 'pricing software', 'gsc_impressions', 'warning',
+          .8, '2026-08-04', '2026-08-31', 800, 800, 0,
+          'gsc_period', ${evidenceRef}, '2026-09-01T10:00:00.000Z'),
+        (${positionId}, ${projectId}, ${runId}, 'ctr_below_expected',
+          'search_query', 'pricing software', 'gsc_average_position',
+          'warning', .8, '2026-08-04', '2026-08-31', 4, 3.5, -.5,
+          'gsc_period', ${evidenceRef}, '2026-09-01T10:00:00.000Z')
+    `;
+    await sql`
+      INSERT INTO growth_insights (
+        id, project_id, run_id, creation_key, fact_hash, title,
+        explanation, hypothesis, confidence
+      ) VALUES (
+        ${insightId}, ${projectId}, ${runId},
+        ${`high-impression-low-ctr-investigation-v1:insight:${ctrId}`},
+        ${"4".repeat(64)}, 'Observed CTR decline', 'Observed facts.',
+        'Unknown cause.', 0
+      )
+    `;
+    await sql`
+      INSERT INTO growth_insight_signals (
+        project_id, run_id, insight_id, signal_id
+      ) VALUES
+        (${projectId}, ${runId}, ${insightId}, ${ctrId}),
+        (${projectId}, ${runId}, ${insightId}, ${clicksId}),
+        (${projectId}, ${runId}, ${insightId}, ${impressionsId}),
+        (${projectId}, ${runId}, ${insightId}, ${positionId})
+    `;
+    await sql`
+      INSERT INTO growth_recommendations (
+        id, project_id, run_id, creation_key, fact_hash, title, rationale,
+        category, impact, commercial_relevance, effort, urgency, confidence,
+        priority_score, status, review_version
+      ) VALUES (
+        ${recommendationId}, ${projectId}, ${runId},
+        ${`high-impression-low-ctr-investigation-v1:recommendation:${ctrId}`},
+        ${"5".repeat(64)}, 'Investigate CTR decline', 'Cause unknown.',
+        'investigation', 1, 1, 1, 1, 0, 0, 'accepted', 1
+      )
+    `;
+    await sql`
+      INSERT INTO growth_recommendation_insights (
+        project_id, run_id, recommendation_id, insight_id
+      ) VALUES (${projectId}, ${runId}, ${recommendationId}, ${insightId})
+    `;
+    await sql`
+      INSERT INTO growth_actions (
+        id, project_id, recommendation_id, creation_key, fact_hash, title,
+        description, category, priority_score, status, state_version,
+        due_at, approved_at, created_at, updated_at
+      ) VALUES (
+        ${actionId}, ${projectId}, ${recommendationId},
+        ${`high-impression-low-ctr-investigation-v1:action:${ctrId}`},
+        ${"6".repeat(64)}, 'Investigate CTR decline', 'Cause unknown.',
+        'investigation', 0, 'approved', 0, '2026-09-10T00:00:00.000Z',
+        '2026-09-01T10:02:00.000Z', '2026-09-01T10:02:00.000Z',
+        '2026-09-01T10:02:00.000Z'
+      )
+    `;
+
+    await expect(
+      withPgClient(() =>
+        GrowthActionsRepository.listInvestigationWork(projectId, 1, actionId),
+      ),
+    ).resolves.toEqual([expect.objectContaining({ id: actionId, runId })]);
+
+    await sql`
+      UPDATE growth_signals
+      SET evidence_ref = ${`${evidenceRef}:drift`}
+      WHERE project_id = ${projectId} AND id = ${positionId}
+    `;
+    await expect(
+      withPgClient(() =>
+        GrowthActionsRepository.listInvestigationWork(projectId, 1, actionId),
+      ),
+    ).resolves.toEqual([]);
+  } finally {
+    await sql`DELETE FROM projects WHERE id = ${projectId}`;
+    await sql`DELETE FROM organization WHERE id = ${organizationId}`;
+  }
+}
+
 describePostgres("GrowthActionsRepository Postgres", () => {
   beforeAll(async () => {
     // TEST_POSTGRES_DATABASE_URL explicitly opts into a disposable migrated
@@ -387,6 +514,12 @@ describePostgres("GrowthActionsRepository Postgres", () => {
         await sql`DELETE FROM organization WHERE id = ${organizationId}`;
       }
     },
+    15_000,
+  );
+
+  it(
+    "qualifies aligned low-CTR Work and rejects evidence drift",
+    verifyAlignedLowCtrWork,
     15_000,
   );
 });

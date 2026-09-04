@@ -3,6 +3,7 @@ import {
   investigationKeysForDescriptor,
   priorityPageInvestigationDescriptor,
   strikingDistanceInvestigationDescriptor,
+  lowCtrInvestigationDescriptor,
 } from "./GrowthInvestigationTemplateDescriptor";
 
 export const GROWTH_INVESTIGATION_TEMPLATE_VERSION =
@@ -134,6 +135,78 @@ export function strikingDistanceInvestigationTemplate(input: {
       steps: [
         "Review saved Search Console query and page evidence.",
         "Inspect the target page, search intent and competing results.",
+        "Decide whether a website change is warranted before proposing one.",
+      ],
+      model: null,
+      promptVersion: null,
+    },
+  };
+}
+
+export const LOW_CTR_INVESTIGATION_TEMPLATE_VERSION =
+  lowCtrInvestigationDescriptor.templateVersion;
+export function lowCtrInvestigationTemplate(input: {
+  projectId: string;
+  runId: string;
+  signals: {
+    ctr: SavedSignal;
+    averagePosition: SavedSignal;
+    impressions: SavedSignal;
+    clicks: SavedSignal;
+  };
+  query: string;
+  page: string;
+  site: string;
+  commercialWeight: number | null;
+}) {
+  const keys = investigationKeysForDescriptor(
+    lowCtrInvestigationDescriptor,
+    input.signals.ctr.id,
+  );
+  const observed = `The query “${input.query}” had CTR ${(input.signals.ctr.baselineValue * 100).toFixed(1)}% in the preceding period and ${(input.signals.ctr.currentValue * 100).toFixed(1)}% (${input.signals.clicks.currentValue} clicks from ${input.signals.impressions.currentValue} impressions) at average position ${input.signals.averagePosition.currentValue.toFixed(1)} from ${input.signals.ctr.periodStart} to ${input.signals.ctr.periodEnd}.`;
+  return {
+    insight: {
+      projectId: input.projectId,
+      runId: input.runId,
+      creationKey: keys.insight,
+      title: "Observed high-impression CTR decline",
+      explanation: observed,
+      hypothesis:
+        "The cause is unknown. This rule-based observation requires investigation before any change is proposed.",
+      confidence: 0,
+      signalIds: [
+        input.signals.ctr.id,
+        input.signals.clicks.id,
+        input.signals.impressions.id,
+        input.signals.averagePosition.id,
+      ],
+      model: null,
+      promptVersion: null,
+    },
+    recommendation: {
+      projectId: input.projectId,
+      runId: input.runId,
+      creationKey: keys.recommendation,
+      title: "Investigate a high-impression CTR decline",
+      rationale: `${observed} Review the query and affected page before deciding whether a website change is warranted; this is an investigation suggestion, not a diagnosis or promised uplift.`,
+      category: "investigation",
+      impact: 1,
+      commercialRelevance: Math.min(
+        5,
+        Math.max(1, input.commercialWeight ?? 1),
+      ),
+      effort: 1,
+      urgency: 1,
+      confidence: 0,
+      priorityScore: 0,
+      targets: [
+        { type: "keyword" as const, value: input.query },
+        { type: "url" as const, value: input.page },
+        { type: "site" as const, value: input.site },
+      ],
+      steps: [
+        "Review saved Search Console query and page evidence.",
+        "Inspect the target page and competing search results.",
         "Decide whether a website change is warranted before proposing one.",
       ],
       model: null,

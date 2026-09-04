@@ -11,11 +11,13 @@ import {
   getGrowthChecksOverview,
   runGrowthCheck,
   runGrowthStrikingDistanceCheck,
+  runGrowthLowCtrCheck,
 } from "@/serverFunctions/growthChecks";
 
 type GrowthStrikingDistanceCheckResult = Awaited<
   ReturnType<typeof runGrowthStrikingDistanceCheck>
 >;
+type GrowthLowCtrCheckResult = Awaited<ReturnType<typeof runGrowthLowCtrCheck>>;
 
 function newGrowthCheckRequestKey() {
   return crypto.randomUUID().replaceAll("-", "");
@@ -27,6 +29,9 @@ function pendingCheckStorageKey(projectId: string) {
 
 function pendingStrikingDistanceStorageKey(projectId: string) {
   return `growth:striking-distance-check:${projectId}`;
+}
+function pendingLowCtrStorageKey(projectId: string) {
+  return `growth:low-ctr-check:${projectId}`;
 }
 
 function readPendingCheck(projectId: string) {
@@ -48,6 +53,17 @@ function readPendingStrikingDistanceCheck(projectId: string) {
       window.sessionStorage.getItem(
         pendingStrikingDistanceStorageKey(projectId),
       ),
+    );
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+function readPendingLowCtrCheck(projectId: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    const parsed = runGrowthCheckSchema.shape.requestKey.safeParse(
+      window.sessionStorage.getItem(pendingLowCtrStorageKey(projectId)),
     );
     return parsed.success ? parsed.data : null;
   } catch {
@@ -130,6 +146,74 @@ function GrowthStrikingDistanceCheckStatus({
     </p>
   );
 }
+function GrowthLowCtrCheckStatus({
+  result,
+}: {
+  result: GrowthLowCtrCheckResult;
+}) {
+  const prefix = result.replayed ? "Retrieved the saved result. " : "";
+  const summary = `Found ${result.candidateCount} eligible low-CTR ${result.candidateCount === 1 ? "opportunity" : "opportunities"}. Newly saved: ${result.savedOpportunityCount}. Already covered: ${result.alreadyCoveredCount}.`;
+  const hasReviewableResult =
+    result.savedOpportunityCount > 0 || result.alreadyCoveredCount > 0;
+  const reviewLink = hasReviewableResult ? (
+    <>
+      {" "}
+      <a className="link font-medium" href="#growth-opportunities">
+        Review saved opportunities
+      </a>
+      .
+    </>
+  ) : null;
+  if (result.run.status === "running")
+    return (
+      <p role="status" className="text-sm text-base-content/70">
+        {prefix}This low-CTR check is still running. Retry the saved request to
+        retrieve its outcome.
+      </p>
+    );
+  if (result.run.status === "failed")
+    return (
+      <div role="alert" className="alert alert-error py-3 text-sm">
+        <span>
+          {prefix}The low-CTR check failed.{" "}
+          {result.run.failureMessage ?? "No low-CTR opportunity was saved."}
+        </span>
+      </div>
+    );
+  if (result.run.status === "completed_with_errors")
+    return (
+      <div role="alert" className="alert alert-warning py-3 text-sm">
+        <span>
+          {prefix}
+          {result.run.failureCode === "INCOMPLETE_QUERY_INVENTORY"
+            ? "Search Console query data was incomplete, so no low-CTR opportunity was saved."
+            : `${result.run.failureMessage ?? "Some suggestions could not be saved."} ${summary}`}
+          {reviewLink}
+        </span>
+      </div>
+    );
+  if (!result.candidateCount)
+    return (
+      <p role="status" className="text-sm text-base-content/70">
+        {prefix}No eligible low-CTR opportunities were found in the complete
+        Search Console inventory. No new suggestion was saved.
+      </p>
+    );
+  return (
+    <p role="status" className="text-sm text-base-content/70">
+      {prefix}
+      {summary}
+      {reviewLink}
+    </p>
+  );
+}
+
+function shouldShowLowCtrResult(
+  result: GrowthLowCtrCheckResult | null,
+  pending: boolean,
+): result is GrowthLowCtrCheckResult {
+  return result !== null && !pending;
+}
 
 // eslint-disable-next-line max-lines-per-function -- the established card owns both retry-safe checks and decline history
 export function GrowthPriorityPageChecks({
@@ -153,6 +237,14 @@ export function GrowthPriorityPageChecks({
     useState<string | null>(null);
   const [strikingDistanceResult, setStrikingDistanceResult] =
     useState<GrowthStrikingDistanceCheckResult | null>(null);
+  const [lowCtrRequestKey, setLowCtrRequestKey] = useState(() =>
+    readPendingLowCtrCheck(projectId),
+  );
+  const [lowCtrResult, setLowCtrResult] =
+    useState<GrowthLowCtrCheckResult | null>(null);
+  const [lowCtrStorageError, setLowCtrStorageError] = useState<string | null>(
+    null,
+  );
   const overview = useQuery({
     queryKey: ["growthChecks", projectId],
     queryFn: () => getGrowthChecksOverview({ data: { projectId } }),
@@ -214,6 +306,32 @@ export function GrowthPriorityPageChecks({
       }
     },
   });
+  const findLowCtr = useMutation({
+    mutationFn: (key: string) =>
+      runGrowthLowCtrCheck({ data: { projectId, requestKey: key } }),
+    onSuccess: (result) => {
+      setLowCtrResult(result);
+      if (result.run.status !== "running") {
+        try {
+          window.sessionStorage.removeItem(pendingLowCtrStorageKey(projectId));
+        } catch {
+          // A stale terminal identity is safe to replay after a reload.
+        }
+        setLowCtrRequestKey(null);
+      }
+      if (
+        result.run.status === "completed" ||
+        result.run.status === "completed_with_errors"
+      ) {
+        void client.invalidateQueries({
+          queryKey: ["growthPriorityRecommendations", projectId],
+        });
+        void client.invalidateQueries({
+          queryKey: ["growthProjectSummary", projectId],
+        });
+      }
+    },
+  });
   const refresh = () => {
     void overview.refetch();
     if (selectedRunId) void run.refetch();
@@ -252,6 +370,21 @@ export function GrowthPriorityPageChecks({
     setStrikingDistanceResult(null);
     setStrikingDistanceRequestKey(key);
     findStrikingDistance.mutate(key);
+  };
+  const submitLowCtr = (newAttempt = false) => {
+    const key = (!newAttempt && lowCtrRequestKey) || newGrowthCheckRequestKey();
+    try {
+      window.sessionStorage.setItem(pendingLowCtrStorageKey(projectId), key);
+    } catch {
+      setLowCtrStorageError(
+        "Allow browser session storage before finding low-CTR opportunities so a retry can be recovered after a reload.",
+      );
+      return;
+    }
+    setLowCtrStorageError(null);
+    setLowCtrResult(null);
+    setLowCtrRequestKey(key);
+    findLowCtr.mutate(key);
   };
 
   if (overview.isPending)
@@ -412,6 +545,77 @@ export function GrowthPriorityPageChecks({
             <GrowthStrikingDistanceCheckStatus
               result={strikingDistanceResult}
             />
+          </div>
+        ) : null}
+      </div>
+      <div className="mt-4 border-t border-base-300 pt-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold">Find low-CTR opportunities</h3>
+            <p className="mt-1 max-w-prose text-sm text-base-content/70">
+              Find priority-page queries with at least 100 impressions in each
+              28-day period that remain in the top four but lost at least one
+              percentage point and 25% of their prior click-through rate.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              aria-busy={findLowCtr.isPending}
+              disabled={data.setup !== "ready" || findLowCtr.isPending}
+              onClick={() => submitLowCtr()}
+            >
+              {findLowCtr.isPending
+                ? "Checking click-through rates…"
+                : lowCtrRequestKey
+                  ? "Retry low-CTR request"
+                  : "Find low-CTR opportunities"}
+            </button>
+            {lowCtrRequestKey ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={data.setup !== "ready" || findLowCtr.isPending}
+                onClick={() => submitLowCtr(true)}
+              >
+                Start new low-CTR check
+              </button>
+            ) : null}
+          </div>
+        </div>
+        {findLowCtr.isPending ? (
+          <p
+            role="status"
+            aria-busy="true"
+            className="mt-3 text-sm text-base-content/70"
+          >
+            Checking click-through rates…
+          </p>
+        ) : lowCtrRequestKey && !lowCtrResult ? (
+          <p role="status" className="mt-3 text-sm text-base-content/70">
+            A previous low-CTR request has no confirmed outcome yet. Retry it or
+            explicitly start a separate check.
+          </p>
+        ) : null}
+        {findLowCtr.isError ? (
+          <div role="alert" className="alert alert-error mt-3 py-3 text-sm">
+            <span>
+              {getStandardErrorMessage(
+                findLowCtr.error,
+                "Low-CTR opportunities could not be checked. Retry this request or start a new explicit check.",
+              )}
+            </span>
+          </div>
+        ) : null}
+        {lowCtrStorageError ? (
+          <p role="alert" className="mt-3 text-sm text-error">
+            {lowCtrStorageError}
+          </p>
+        ) : null}
+        {shouldShowLowCtrResult(lowCtrResult, findLowCtr.isPending) ? (
+          <div className="mt-3">
+            <GrowthLowCtrCheckStatus result={lowCtrResult} />
           </div>
         ) : null}
       </div>

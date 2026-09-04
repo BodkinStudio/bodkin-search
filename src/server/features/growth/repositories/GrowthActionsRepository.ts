@@ -24,6 +24,7 @@ import {
 import {
   priorityPageInvestigationDescriptor,
   strikingDistanceInvestigationDescriptor,
+  lowCtrInvestigationDescriptor,
   type GrowthInvestigationTemplateDescriptor,
 } from "../services/GrowthInvestigationTemplateDescriptor";
 
@@ -222,7 +223,9 @@ function investigationWorkGuard(
   );
 }
 
-function strikingCompanionGuard(metric: "gsc_clicks" | "gsc_average_position") {
+function strikingCompanionGuard(
+  metric: "gsc_clicks" | "gsc_impressions" | "gsc_average_position",
+) {
   return sql`EXISTS (
     SELECT 1 FROM growth_insight_signals striking_companion_links
     JOIN growth_signals striking_companion
@@ -265,6 +268,19 @@ function strikingGraphGuard() {
         AND striking_signals.run_id = growth_recommendations.run_id
         AND striking_signals.insight_id = ${growthRecommendationInsights.insightId}) = ${1 + descriptor.companionMetrics.length}`,
     strikingCompanionGuard("gsc_clicks"),
+    strikingCompanionGuard("gsc_average_position"),
+  );
+}
+
+function lowCtrGraphGuard() {
+  const descriptor = lowCtrInvestigationDescriptor;
+  return and(
+    sql`${growthSignals.deltaValue} = ${growthSignals.currentValue} - ${growthSignals.baselineValue}`,
+    sql`(SELECT count(*) FROM growth_recommendation_insights low_ctr_recommendation_insights WHERE low_ctr_recommendation_insights.project_id = growth_recommendations.project_id AND low_ctr_recommendation_insights.run_id = growth_recommendations.run_id AND low_ctr_recommendation_insights.recommendation_id = growth_recommendations.id) = 1`,
+    sql`EXISTS (SELECT 1 FROM growth_insights low_ctr_insight WHERE low_ctr_insight.project_id = growth_recommendations.project_id AND low_ctr_insight.run_id = growth_recommendations.run_id AND low_ctr_insight.id = ${growthRecommendationInsights.insightId} AND low_ctr_insight.creation_key = ${`${descriptor.templateVersion}:insight:`} || ${growthInsightSignals.signalId})`,
+    sql`(SELECT count(*) FROM growth_insight_signals low_ctr_signals WHERE low_ctr_signals.project_id = growth_recommendations.project_id AND low_ctr_signals.run_id = growth_recommendations.run_id AND low_ctr_signals.insight_id = ${growthRecommendationInsights.insightId}) = ${1 + descriptor.companionMetrics.length}`,
+    strikingCompanionGuard("gsc_clicks"),
+    strikingCompanionGuard("gsc_impressions"),
     strikingCompanionGuard("gsc_average_position"),
   );
 }
@@ -347,6 +363,10 @@ async function listInvestigationWork(
               true,
             ),
             strikingGraphGuard(),
+          ),
+          and(
+            investigationWorkGuard(lowCtrInvestigationDescriptor, true),
+            lowCtrGraphGuard(),
           ),
         ),
       ),

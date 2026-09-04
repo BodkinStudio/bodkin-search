@@ -118,7 +118,7 @@ describe("Growth investigation rendered contract", () => {
     expect(html).not.toContain("Expected uplift");
   });
 
-  it("shows typed query evidence only for a striking-distance controller", () => {
+  it("shows typed query evidence for a striking-distance controller", () => {
     const client = queryClient();
     client.setQueryData(["growthInvestigation", "project_1", "signal_1"], {
       ...proposal,
@@ -150,6 +150,41 @@ describe("Growth investigation rendered contract", () => {
     expect(html).toContain(
       "This suggestion covers later checks for the same saved query and page",
     );
+    expect(html).not.toContain("CTR");
+  });
+
+  it("visibly formats the saved baseline and current CTR evidence", () => {
+    const client = queryClient();
+    client.setQueryData(["growthInvestigation", "project_1", "signal_1"], {
+      ...proposal,
+      templateVersion: "high-impression-low-ctr-investigation-v1",
+      evidenceSummary: {
+        kind: "high_impression_low_ctr_query",
+        query: "pricing software",
+        page: "https://example.com/pricing",
+        site: "sc-domain:example.com",
+        baselinePeriod: { start: "2026-07-01", end: "2026-07-28" },
+        currentPeriod: { start: "2026-07-29", end: "2026-08-25" },
+        baseline: {
+          position: 3.8,
+          impressions: 800,
+          clicks: 100,
+          ctr: 0.125,
+        },
+        current: {
+          position: 3.4,
+          impressions: 1_000,
+          clicks: 75,
+          ctr: 0.075,
+        },
+      },
+    } satisfies GrowthInvestigationView);
+    const html = render(client);
+    expect(html).toContain('aria-label="Preceding 28 days evidence"');
+    expect(html).toContain('aria-label="Current 28 days evidence"');
+    expect(html.match(/<dt[^>]*>CTR<\/dt>/g)).toHaveLength(2);
+    expect(html).toContain("12.5%");
+    expect(html).toContain("7.5%");
   });
 
   it("does not add a ranking-evidence summary to legacy controllers", () => {

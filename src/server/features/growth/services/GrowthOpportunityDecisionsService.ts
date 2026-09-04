@@ -27,6 +27,7 @@ import {
   priorityPageInvestigationDescriptor,
   strikingDistanceInvestigationDescriptor,
 } from "./GrowthInvestigationTemplateDescriptor";
+import { recordLowCtrInvestigation } from "./GrowthLowCtrOpportunityDecisionsService";
 
 function ids(values: string[]) {
   return [...new Set(values)].toSorted();
@@ -399,5 +400,6 @@ async function recordStrikingDistanceInvestigation(input: {
 export const GrowthOpportunityDecisionsService = {
   recordPriorityPageInvestigation,
   recordStrikingDistanceInvestigation,
+  recordLowCtrInvestigation,
   getDecision: GrowthOpportunityDecisionsRepository.getSignalDecision,
 } as const;
