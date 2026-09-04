@@ -3,6 +3,7 @@ import { GrowthPriorityPageCheckService } from "@/server/features/growth/service
 import { GrowthStrikingDistanceCheckService } from "@/server/features/growth/services/GrowthStrikingDistanceCheckService";
 import { GrowthLowCtrCheckService } from "@/server/features/growth/services/GrowthLowCtrCheckService";
 import { GrowthPersistentRankDropCheckService } from "@/server/features/growth/services/GrowthPersistentRankDropCheckService";
+import { GrowthCriticalAuditIssueCheckService } from "@/server/features/growth/services/GrowthCriticalAuditIssueCheckService";
 import { requireProjectContext } from "./middleware";
 import {
   getGrowthCheckEvidenceSchema,
@@ -51,6 +52,17 @@ export const runGrowthPersistentRankDropCheck = createServerFn({
   .validator(runGrowthCheckSchema)
   .handler(async ({ data, context }) =>
     GrowthPersistentRankDropCheckService.runCheck({
+      projectId: context.projectId,
+      requestKey: data.requestKey,
+    }),
+  );
+export const runGrowthCriticalAuditIssueCheck = createServerFn({
+  method: "POST",
+})
+  .middleware(requireProjectContext)
+  .validator(runGrowthCheckSchema)
+  .handler(async ({ data, context }) =>
+    GrowthCriticalAuditIssueCheckService.runCheck({
       projectId: context.projectId,
       requestKey: data.requestKey,
     }),

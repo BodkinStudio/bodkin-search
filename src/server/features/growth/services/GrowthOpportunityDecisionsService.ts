@@ -29,6 +29,7 @@ import {
 } from "./GrowthInvestigationTemplateDescriptor";
 import { recordLowCtrInvestigation } from "./GrowthLowCtrOpportunityDecisionsService";
 import { recordPersistentRankDropInvestigation } from "./GrowthPersistentRankDropOpportunityDecisionsService";
+import { recordCriticalAuditIssueInvestigation } from "./GrowthCriticalAuditIssueOpportunityDecisionsService";
 
 function ids(values: string[]) {
   return [...new Set(values)].toSorted();
@@ -403,5 +404,6 @@ export const GrowthOpportunityDecisionsService = {
   recordStrikingDistanceInvestigation,
   recordLowCtrInvestigation,
   recordPersistentRankDropInvestigation,
+  recordCriticalAuditIssueInvestigation,
   getDecision: GrowthOpportunityDecisionsRepository.getSignalDecision,
 } as const;

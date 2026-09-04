@@ -161,6 +161,15 @@ const growthInvestigationControllerViewSchema = z.strictObject({
           )
           .length(4),
       }),
+      z.strictObject({
+        kind: z.literal("new_critical_audit_issue"),
+        issueType: z.string().min(1).max(100),
+        title: z.string().min(1).max(300),
+        page: z.string().url().max(2048),
+        targetUrl: z.string().url().max(2048).nullable(),
+        baselineAuditAt: canonicalTimestamp,
+        currentAuditAt: canonicalTimestamp,
+      }),
     ])
     .optional(),
 });

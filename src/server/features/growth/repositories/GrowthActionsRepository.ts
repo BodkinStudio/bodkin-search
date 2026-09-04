@@ -26,6 +26,7 @@ import {
   strikingDistanceInvestigationDescriptor,
   lowCtrInvestigationDescriptor,
   persistentRankDropInvestigationDescriptor,
+  newCriticalAuditIssueInvestigationDescriptor,
   type GrowthInvestigationTemplateDescriptor,
 } from "../services/GrowthInvestigationTemplateDescriptor";
 
@@ -296,6 +297,19 @@ function persistentRankDropGraphGuard() {
   );
 }
 
+function criticalAuditIssueGraphGuard() {
+  const descriptor = newCriticalAuditIssueInvestigationDescriptor;
+  return and(
+    sql`${growthSignals.baselineValue} = 0`,
+    sql`${growthSignals.currentValue} = 1`,
+    sql`${growthSignals.deltaValue} = 1`,
+    sql`${growthSignals.severity} = 'critical'`,
+    sql`(SELECT count(*) FROM growth_recommendation_insights audit_issue_recommendation_insights WHERE audit_issue_recommendation_insights.project_id = growth_recommendations.project_id AND audit_issue_recommendation_insights.run_id = growth_recommendations.run_id AND audit_issue_recommendation_insights.recommendation_id = growth_recommendations.id) = 1`,
+    sql`EXISTS (SELECT 1 FROM growth_insights audit_issue_insight WHERE audit_issue_insight.project_id = growth_recommendations.project_id AND audit_issue_insight.run_id = growth_recommendations.run_id AND audit_issue_insight.id = ${growthRecommendationInsights.insightId} AND audit_issue_insight.creation_key = ${`${descriptor.templateVersion}:insight:`} || ${growthInsightSignals.signalId})`,
+    sql`(SELECT count(*) FROM growth_insight_signals audit_issue_signals WHERE audit_issue_signals.project_id = growth_recommendations.project_id AND audit_issue_signals.run_id = growth_recommendations.run_id AND audit_issue_signals.insight_id = ${growthRecommendationInsights.insightId}) = 1`,
+  );
+}
+
 async function listInvestigationWork(
   projectId: string,
   limit: number,
@@ -385,6 +399,13 @@ async function listInvestigationWork(
               true,
             ),
             persistentRankDropGraphGuard(),
+          ),
+          and(
+            investigationWorkGuard(
+              newCriticalAuditIssueInvestigationDescriptor,
+              true,
+            ),
+            criticalAuditIssueGraphGuard(),
           ),
         ),
       ),

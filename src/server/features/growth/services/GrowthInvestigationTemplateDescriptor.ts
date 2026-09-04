@@ -5,7 +5,8 @@ export type GrowthInvestigationTemplateDescriptor = {
     | "priority_page"
     | "striking_distance"
     | "low_ctr"
-    | "persistent_rank_drop";
+    | "persistent_rank_drop"
+    | "new_critical_audit_issue";
   templateVersion: string;
   run: {
     cadenceSlotPrefix: string;
@@ -97,11 +98,30 @@ export const persistentRankDropInvestigationDescriptor = {
   releasesControllers: false,
 } as const satisfies GrowthInvestigationTemplateDescriptor;
 
+export const newCriticalAuditIssueInvestigationDescriptor = {
+  family: "new_critical_audit_issue",
+  templateVersion: "new-critical-audit-issue-investigation-v1",
+  run: {
+    cadenceSlotPrefix: "critical-audit-issue-check:",
+    detectorVersions: ["new-critical-audit-issue-v1"],
+  },
+  controller: {
+    signalType: "new_critical_audit_issue",
+    entityType: "audit_issue",
+    metric: "critical_audit_issue_presence",
+    evidenceKind: "audit_result",
+  },
+  companionMetrics: [],
+  actionKeyPrefix: "new-critical-audit-issue-investigation-v1:action:",
+  releasesControllers: false,
+} as const satisfies GrowthInvestigationTemplateDescriptor;
+
 const growthInvestigationDescriptors = [
   priorityPageInvestigationDescriptor,
   strikingDistanceInvestigationDescriptor,
   lowCtrInvestigationDescriptor,
   persistentRankDropInvestigationDescriptor,
+  newCriticalAuditIssueInvestigationDescriptor,
 ] as const;
 
 export function investigationKeysForDescriptor(

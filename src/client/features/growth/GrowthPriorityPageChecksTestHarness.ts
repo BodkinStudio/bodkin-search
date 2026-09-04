@@ -18,10 +18,14 @@ export const harness = {
   persistentRankDropMutation: undefined as
     | undefined
     | Record<string, (value: unknown) => unknown>,
+  criticalAuditIssueMutation: undefined as
+    | undefined
+    | Record<string, (value: unknown) => unknown>,
   mutate: vi.fn(),
   strikingMutate: vi.fn(),
   lowCtrMutate: vi.fn(),
   persistentRankDropMutate: vi.fn(),
+  criticalAuditIssueMutate: vi.fn(),
   invalidate: vi.fn(),
   storage: new Map<string, string>(),
   storageWriteFails: false,
@@ -33,6 +37,8 @@ export const harness = {
   lowCtrIsPending: false,
   persistentRankDropIsError: false,
   persistentRankDropIsPending: false,
+  criticalAuditIssueIsError: false,
+  criticalAuditIssueIsPending: false,
   sequence: 0,
 };
 
@@ -80,7 +86,8 @@ vi.mock("@tanstack/react-query", () => ({
     if (index === 0) harness.mutation = options;
     else if (index === 1) harness.strikingMutation = options;
     else if (index === 2) harness.lowCtrMutation = options;
-    else harness.persistentRankDropMutation = options;
+    else if (index === 3) harness.persistentRankDropMutation = options;
+    else harness.criticalAuditIssueMutation = options;
     return {
       mutate:
         index === 0
@@ -89,7 +96,9 @@ vi.mock("@tanstack/react-query", () => ({
             ? harness.strikingMutate
             : index === 2
               ? harness.lowCtrMutate
-              : harness.persistentRankDropMutate,
+              : index === 3
+                ? harness.persistentRankDropMutate
+                : harness.criticalAuditIssueMutate,
       isPending:
         index === 0
           ? false
@@ -97,7 +106,9 @@ vi.mock("@tanstack/react-query", () => ({
             ? harness.strikingIsPending
             : index === 2
               ? harness.lowCtrIsPending
-              : harness.persistentRankDropIsPending,
+              : index === 3
+                ? harness.persistentRankDropIsPending
+                : harness.criticalAuditIssueIsPending,
       isError:
         index === 0
           ? harness.isError
@@ -105,7 +116,9 @@ vi.mock("@tanstack/react-query", () => ({
             ? harness.strikingIsError
             : index === 2
               ? harness.lowCtrIsError
-              : harness.persistentRankDropIsError,
+              : index === 3
+                ? harness.persistentRankDropIsError
+                : harness.criticalAuditIssueIsError,
       error: new Error("safe test error"),
     };
   },
@@ -119,6 +132,7 @@ vi.mock("@/serverFunctions/growthChecks", () => ({
   runGrowthStrikingDistanceCheck: vi.fn(),
   runGrowthLowCtrCheck: vi.fn(),
   runGrowthPersistentRankDropCheck: vi.fn(),
+  runGrowthCriticalAuditIssueCheck: vi.fn(),
 }));
 vi.mock("@/serverFunctions/growthInvestigations", () => ({
   getGrowthInvestigation: vi.fn(),
@@ -128,6 +142,7 @@ vi.mock("@/serverFunctions/growthInvestigations", () => ({
 
 import { GrowthPriorityPageChecks } from "./GrowthPriorityPageChecks";
 import { GrowthPersistentRankDropCheck } from "./GrowthPersistentRankDropCheck";
+import { GrowthCriticalAuditIssueCheck } from "./GrowthCriticalAuditIssueCheck";
 
 export function findButton(
   node: ReactNode,
@@ -181,6 +196,12 @@ export function renderPersistentRankDropCheck(projectId = "project_1") {
   });
 }
 
+export function renderCriticalAuditIssueCheck(projectId = "project_1") {
+  harness.cursor = 0;
+  harness.mutationCursor = 4;
+  return GrowthCriticalAuditIssueCheck({ projectId });
+}
+
 export function click(tree: ReactNode, label: string) {
   const button = findButton(tree, label);
   expect(button, label).not.toBeNull();
@@ -194,6 +215,7 @@ export function resetHarness() {
   harness.strikingMutate.mockReset();
   harness.lowCtrMutate.mockReset();
   harness.persistentRankDropMutate.mockReset();
+  harness.criticalAuditIssueMutate.mockReset();
   harness.invalidate.mockReset();
   harness.storageWriteFails = false;
   harness.setup = "ready";
@@ -204,6 +226,8 @@ export function resetHarness() {
   harness.lowCtrIsPending = false;
   harness.persistentRankDropIsError = false;
   harness.persistentRankDropIsPending = false;
+  harness.criticalAuditIssueIsError = false;
+  harness.criticalAuditIssueIsPending = false;
   harness.sequence = 0;
   vi.stubGlobal("crypto", {
     randomUUID: () => `request_${++harness.sequence}`,

@@ -108,6 +108,26 @@ device and page combination links the new Signal to the existing suggestion.
 The action has its own retry identity and works without a Search Console
 connection.
 
+## Find new critical audit issues
+
+**Find new critical audit issues** compares saved site audits. It does not start
+a crawl or use audit capacity. The latest completed audit is compared with the
+latest earlier completed audit that used the same crawl start and page limit.
+You need that compatible pair before the check can determine what is new.
+
+The detector looks only at critical audit issues. Missing titles, server errors
+and blocked pages are identified by issue type and affected page. Broken
+internal links also include the broken target, so separate destinations on one
+page stay separate. Status-code changes alone do not create another issue.
+
+At most three new issues are considered per run. Open a saved suggestion under
+**Opportunities** to see the affected page, broken target when applicable, and
+both audit dates. The review path reloads the saved audits and confirms that the
+issue was absent from the baseline. Repeating the same unresolved issue links
+the new Signal to its existing suggestion instead of creating duplicate Work.
+The check has its own retry identity and does not require Search Console, rank
+tracking or configured priority pages.
+
 ## Saved opportunities
 
 The **Opportunities** section appears directly below the monthly summary. It

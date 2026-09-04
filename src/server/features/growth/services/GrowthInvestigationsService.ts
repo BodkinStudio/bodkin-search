@@ -33,7 +33,15 @@ import {
   parsePersistentRankDropEvidenceRef,
   PERSISTENT_RANK_DROP_POLICY,
 } from "./PersistentTrackedRankDropDetector";
-import type { GrowthTargetNormalizationMode } from "./GrowthTargetNormalizer";
+import {
+  areAuditsComparable,
+  criticalAuditIssueIdentity,
+  parseNewCriticalAuditIssueEvidenceRef,
+} from "./NewCriticalAuditIssueDetector";
+import {
+  normalizeGrowthTargets,
+  type GrowthTargetNormalizationMode,
+} from "./GrowthTargetNormalizer";
 
 const WORK_LIMIT = 50;
 
@@ -231,6 +239,117 @@ async function qualifiedPersistentRankDropGraph(
   };
 }
 
+async function qualifiedCriticalAuditIssueGraph(
+  projectId: string,
+  signalId: string,
+  graph: RecommendationGraph,
+  insight: InsightGraph,
+) {
+  const { AuditRepository } =
+    await import("@/server/features/audit/repositories/AuditRepository");
+  if (insight.signalIds.length !== 1 || insight.signalIds[0] !== signalId)
+    return null;
+  const controller = await GrowthRunsRepository.getSignal(projectId, signalId);
+  const evidence = controller
+    ? parseNewCriticalAuditIssueEvidenceRef(controller.evidenceRef)
+    : null;
+  if (!controller || !evidence) return null;
+  const [baselineAudit, currentAudit, baselineIssues, currentIssues, domain] =
+    await Promise.all([
+      AuditRepository.getAuditForProject(evidence.baselineAuditId, projectId),
+      AuditRepository.getAuditForProject(evidence.currentAuditId, projectId),
+      AuditRepository.getIssuesForAudit(evidence.baselineAuditId, {
+        severity: "critical",
+      }),
+      AuditRepository.getIssuesForAudit(evidence.currentAuditId, {
+        severity: "critical",
+      }),
+      GrowthInsightsRepository.projectDomain(projectId),
+    ]);
+  if (
+    !baselineAudit ||
+    !currentAudit ||
+    baselineAudit.status !== "completed" ||
+    currentAudit.status !== "completed" ||
+    !domain
+  )
+    return null;
+  const currentIssue = currentIssues.find(({ id }) => id === evidence.issueId);
+  if (!currentIssue || currentIssue.auditId !== currentAudit.id) return null;
+  let identity: ReturnType<typeof criticalAuditIssueIdentity>;
+  let baselineKeys: Set<string>;
+  try {
+    if (!areAuditsComparable(baselineAudit, currentAudit)) return null;
+    identity = criticalAuditIssueIdentity(currentIssue);
+    baselineKeys = new Set(
+      baselineIssues.map(
+        (issue) => criticalAuditIssueIdentity(issue).stableKey,
+      ),
+    );
+  } catch {
+    return null;
+  }
+  const baselineAt = canonicalRankTimestamp(
+    baselineAudit.startedAt,
+    "Baseline audit timestamp",
+  );
+  const currentAt = canonicalRankTimestamp(
+    currentAudit.startedAt,
+    "Current audit timestamp",
+  );
+  let page: string;
+  let expectedSite: string;
+  try {
+    page = normalizeKeyPageUrl(identity.pageUrl);
+    const expectedTargets = normalizeGrowthTargets(
+      domain,
+      [
+        { type: "url", value: identity.pageUrl },
+        { type: "site", value: domain },
+      ],
+      "key_page_identity",
+    );
+    const site = expectedTargets.find((target) => target.targetType === "site");
+    if (!site) return null;
+    expectedSite = site.targetValue;
+  } catch {
+    return null;
+  }
+  const pageTarget = graph.targets.find(
+    (target) => target.targetType === "url",
+  );
+  const siteTarget = graph.targets.find(
+    (target) => target.targetType === "site",
+  );
+  if (
+    baselineAt >= currentAt ||
+    baselineKeys.has(identity.stableKey) ||
+    graph.targets.length !== 2 ||
+    pageTarget?.targetValue !== page ||
+    siteTarget?.targetValue !== expectedSite ||
+    controller.entityRef !== currentIssue.id ||
+    controller.severity !== "critical" ||
+    controller.baselineValue !== 0 ||
+    controller.currentValue !== 1 ||
+    controller.deltaValue !== 1 ||
+    controller.periodStart !== baselineAt.slice(0, 10) ||
+    controller.periodEnd !== currentAt.slice(0, 10)
+  )
+    return null;
+  return {
+    graph,
+    evidence: {
+      kind: "new_critical_audit_issue" as const,
+      issueType: identity.issueType,
+      title: identity.title,
+      page,
+      targetUrl: identity.targetUrl,
+      baselineAuditAt: baselineAt,
+      currentAuditAt: currentAt,
+    },
+  };
+}
+
 async function qualifiedGraph(
   projectId: string,
   runId: string,
@@ -267,6 +386,13 @@ async function qualifiedGraph(
 
   if (descriptor.family === "persistent_rank_drop")
     return qualifiedPersistentRankDropGraph(
+      projectId,
+      signalId,
+      graph,
+      insight,
+    );
+  if (descriptor.family === "new_critical_audit_issue")
+    return qualifiedCriticalAuditIssueGraph(
       projectId,
       signalId,
       graph,
@@ -698,7 +824,8 @@ async function approveInvestigation(input: {
   const targetNormalizationMode: GrowthTargetNormalizationMode | undefined =
     saved.descriptor.family === "striking_distance" ||
     saved.descriptor.family === "low_ctr" ||
-    saved.descriptor.family === "persistent_rank_drop"
+    saved.descriptor.family === "persistent_rank_drop" ||
+    saved.descriptor.family === "new_critical_audit_issue"
       ? "key_page_identity"
       : undefined;
 

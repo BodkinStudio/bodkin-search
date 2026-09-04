@@ -1327,3 +1327,52 @@ not invoke it.
 
 Scheduled execution, alerts, elapsed-time persistence rules, cross-device
 grouping, controller release and statistical trend models remain separate work.
+
+---
+
+## ADR-053 - New critical audit issues compare compatible saved crawls
+
+**Status:** Accepted
+
+### Decision
+
+- One explicit authenticated `new-critical-audit-issue-v1` manual Run uses its
+  own `critical-audit-issue-check:` request slot. It reads saved audits and does
+  not start a crawl or consume audit capacity.
+- The latest completed audit is the current observation. Its baseline is the
+  latest earlier completed audit with the same canonical crawl start and
+  `maxPages` limit. Lighthouse strategy does not affect crawl-issue
+  comparability. Missing or malformed comparison history produces a limited or
+  failed Run without saving candidates.
+- The detector considers rows whose stored and registered severity is critical.
+  Issue identity combines type and normalized affected page. Broken internal
+  links also include the normalized target URL, because two broken destinations
+  on one page require separate work. Volatile status codes do not change the
+  identity.
+- An identity present in the current audit and absent from the baseline is new.
+  The detector orders identities by type, page and broken target, then keeps at
+  most three.
+- Each candidate creates one `new_critical_audit_issue` Signal. Its
+  `audit_result` reference contains the baseline audit, current audit and current
+  issue IDs. Investigation reads fetch both audits and their critical issues,
+  verify scope and chronology, and prove baseline absence before displaying the
+  comparison.
+- Dedupe is scoped to project and stable issue identity. Version 1 controllers
+  do not release. Review, approval and Work reuse the existing Recommendation
+  and Action paths.
+
+### Consequence
+
+Growth can flag a newly observed critical crawl problem without rerunning a paid
+audit or treating every repeated issue as new. The saved recommendation remains
+an investigation prompt; it does not diagnose the cause or claim the issue is
+still present after the saved current audit.
+
+This implements the fourth detector in BG-0402. Monthly orchestration still
+does not invoke it.
+
+### Deferred
+
+Scheduled audits, alert delivery, cadence policy, controller release, issue
+resolution tracking and comparisons across changed crawl limits remain separate
+work.

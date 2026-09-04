@@ -5,6 +5,7 @@ import {
   strikingDistanceInvestigationDescriptor,
   lowCtrInvestigationDescriptor,
   persistentRankDropInvestigationDescriptor,
+  newCriticalAuditIssueInvestigationDescriptor,
 } from "./GrowthInvestigationTemplateDescriptor";
 
 export const GROWTH_INVESTIGATION_TEMPLATE_VERSION =
@@ -280,6 +281,70 @@ export function persistentRankDropInvestigationTemplate(input: {
         "Review the four saved rank snapshots and the affected priority page.",
         "Inspect recent page, indexing and search-result changes for the keyword.",
         "Decide whether a website change is warranted before proposing one.",
+      ],
+      model: null,
+      promptVersion: null,
+    },
+  };
+}
+
+export const NEW_CRITICAL_AUDIT_ISSUE_INVESTIGATION_TEMPLATE_VERSION =
+  newCriticalAuditIssueInvestigationDescriptor.templateVersion;
+
+export function newCriticalAuditIssueInvestigationTemplate(input: {
+  projectId: string;
+  runId: string;
+  signal: SavedSignal;
+  issueTitle: string;
+  issueExplanation: string;
+  howToFix: string;
+  page: string;
+  site: string;
+  targetUrl: string | null;
+}) {
+  const keys = investigationKeysForDescriptor(
+    newCriticalAuditIssueInvestigationDescriptor,
+    input.signal.id,
+  );
+  const target = input.targetUrl
+    ? ` The broken target is ${input.targetUrl}.`
+    : "";
+  const observed = `${input.issueTitle} first appears on ${input.page} in the latest comparable saved audit.${target}`;
+  return {
+    insight: {
+      projectId: input.projectId,
+      runId: input.runId,
+      creationKey: keys.insight,
+      title: `Observed new critical audit issue: ${input.issueTitle}`,
+      explanation: `${observed} ${input.issueExplanation}`,
+      hypothesis:
+        "The cause is unknown. This rule-based comparison requires investigation before any change is proposed.",
+      confidence: 0,
+      signalIds: [input.signal.id],
+      model: null,
+      promptVersion: null,
+    },
+    recommendation: {
+      projectId: input.projectId,
+      runId: input.runId,
+      creationKey: keys.recommendation,
+      title: `Investigate new critical audit issue: ${input.issueTitle}`,
+      rationale: `${observed} This is a deterministic investigation suggestion, not a diagnosis or promised outcome.`,
+      category: "investigation",
+      impact: 2,
+      commercialRelevance: 1,
+      effort: 1,
+      urgency: 2,
+      confidence: 0,
+      priorityScore: 0,
+      targets: [
+        { type: "url" as const, value: input.page },
+        { type: "site" as const, value: input.site },
+      ],
+      steps: [
+        "Review the saved baseline and current audit evidence for this page.",
+        input.howToFix,
+        "Confirm the issue is resolved in a later audit before closing the work.",
       ],
       model: null,
       promptVersion: null,

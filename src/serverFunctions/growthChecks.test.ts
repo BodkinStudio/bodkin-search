@@ -19,6 +19,7 @@ const service = vi.hoisted(() => ({
 const strikingService = vi.hoisted(() => ({ runCheck: vi.fn() }));
 const lowCtrService = vi.hoisted(() => ({ runCheck: vi.fn() }));
 const persistentRankDropService = vi.hoisted(() => ({ runCheck: vi.fn() }));
+const criticalAuditIssueService = vi.hoisted(() => ({ runCheck: vi.fn() }));
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => ({
     middleware: (value: unknown) => {
@@ -63,6 +64,10 @@ vi.mock(
   "@/server/features/growth/services/GrowthStrikingDistanceCheckService",
   () => ({ GrowthStrikingDistanceCheckService: strikingService }),
 );
+vi.mock(
+  "@/server/features/growth/services/GrowthCriticalAuditIssueCheckService",
+  () => ({ GrowthCriticalAuditIssueCheckService: criticalAuditIssueService }),
+);
 
 import {
   getGrowthCheckEvidence,
@@ -72,6 +77,7 @@ import {
   runGrowthStrikingDistanceCheck,
   runGrowthLowCtrCheck,
   runGrowthPersistentRankDropCheck,
+  runGrowthCriticalAuditIssueCheck,
 } from "./growthChecks";
 
 describe("Growth checks server functions", () => {
@@ -83,6 +89,7 @@ describe("Growth checks server functions", () => {
     strikingService.runCheck.mockResolvedValue({});
     lowCtrService.runCheck.mockResolvedValue({});
     persistentRankDropService.runCheck.mockResolvedValue({});
+    criticalAuditIssueService.runCheck.mockResolvedValue({});
     const context = {
       projectId: "project_authorized",
       organizationId: "organization_authorized",
@@ -108,6 +115,7 @@ describe("Growth checks server functions", () => {
     await runGrowthStrikingDistanceCheck(checkRequest);
     await runGrowthLowCtrCheck(checkRequest);
     await runGrowthPersistentRankDropCheck(checkRequest);
+    await runGrowthCriticalAuditIssueCheck(checkRequest);
     await getGrowthCheckRun(runRequest);
     await getGrowthCheckEvidence(evidenceRequest);
     expect(service.getOverview).toHaveBeenCalledWith("project_authorized");
@@ -124,6 +132,10 @@ describe("Growth checks server functions", () => {
       requestKey: "retry_1",
     });
     expect(persistentRankDropService.runCheck).toHaveBeenCalledWith({
+      projectId: "project_authorized",
+      requestKey: "retry_1",
+    });
+    expect(criticalAuditIssueService.runCheck).toHaveBeenCalledWith({
       projectId: "project_authorized",
       requestKey: "retry_1",
     });

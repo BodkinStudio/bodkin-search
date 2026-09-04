@@ -933,4 +933,39 @@ describe("GrowthActionsRepository D1 aggregate writes", () => {
     );
     await expect(listWork()).resolves.toEqual([]);
   });
+
+  it("qualifies new critical audit issue Work through its exact one-signal graph", async () => {
+    await client.executeMultiple(`
+      INSERT INTO growth_runs (id,project_id,run_type,trigger,status,cadence_slot,period_start,period_end,started_at,completed_at,detector_version,analysis_version)
+      VALUES ('audit_issue_work_run','project_1','manual_analysis','manual','completed','critical-audit-issue-check:work','2026-08-01','2026-09-01','2026-09-02T10:00:00.000Z','2026-09-02T10:01:00.000Z','new-critical-audit-issue-v1','new-critical-audit-issue-investigation-v1');
+      INSERT INTO growth_signals (id,project_id,run_id,signal_type,entity_type,entity_ref,metric,severity,confidence,period_start,period_end,baseline_value,current_value,delta_value,evidence_kind,evidence_ref,captured_at)
+      VALUES ('audit_issue_work_signal','project_1','audit_issue_work_run','new_critical_audit_issue','audit_issue','issue_new','critical_audit_issue_presence','critical',1,'2026-08-01','2026-09-01',0,1,1,'audit_result','audit_result:v1:audit_old:audit_new:issue_new','2026-09-02T10:00:00.000Z');
+      INSERT INTO growth_insights (id,project_id,run_id,creation_key,fact_hash,title,explanation,hypothesis,confidence)
+      VALUES ('audit_issue_work_insight','project_1','audit_issue_work_run','new-critical-audit-issue-investigation-v1:insight:audit_issue_work_signal','${"a".repeat(64)}','Observed critical audit issue','Observed facts.','Unknown cause.',0);
+      INSERT INTO growth_insight_signals (project_id,run_id,insight_id,signal_id)
+      VALUES ('project_1','audit_issue_work_run','audit_issue_work_insight','audit_issue_work_signal');
+      INSERT INTO growth_recommendations (id,project_id,run_id,creation_key,fact_hash,title,rationale,category,impact,commercial_relevance,effort,urgency,confidence,priority_score,status,review_version)
+      VALUES ('audit_issue_work_recommendation','project_1','audit_issue_work_run','new-critical-audit-issue-investigation-v1:recommendation:audit_issue_work_signal','${"b".repeat(64)}','Investigate critical audit issue','Cause unknown.','investigation',2,1,1,2,0,0,'accepted',1);
+      INSERT INTO growth_recommendation_insights (project_id,run_id,recommendation_id,insight_id)
+      VALUES ('project_1','audit_issue_work_run','audit_issue_work_recommendation','audit_issue_work_insight');
+      INSERT INTO growth_actions (id,project_id,recommendation_id,creation_key,fact_hash,title,description,category,priority_score,status,state_version,due_at,approved_at,created_at,updated_at)
+      VALUES ('audit_issue_work_action','project_1','audit_issue_work_recommendation','new-critical-audit-issue-investigation-v1:action:audit_issue_work_signal','${"c".repeat(64)}','Investigate critical audit issue','Cause unknown.','investigation',0,'approved',0,'2026-09-10T00:00:00.000Z','2026-09-02T10:02:00.000Z','2026-09-02T10:02:00.000Z','2026-09-02T10:02:00.000Z');
+    `);
+    const listWork = () =>
+      GrowthActionsRepository.listInvestigationWork(
+        "project_1",
+        1,
+        "audit_issue_work_action",
+      );
+    await expect(listWork()).resolves.toEqual([
+      expect.objectContaining({
+        id: "audit_issue_work_action",
+        runId: "audit_issue_work_run",
+      }),
+    ]);
+    await client.execute(
+      "UPDATE growth_signals SET severity = 'warning' WHERE id = 'audit_issue_work_signal'",
+    );
+    await expect(listWork()).resolves.toEqual([]);
+  });
 });

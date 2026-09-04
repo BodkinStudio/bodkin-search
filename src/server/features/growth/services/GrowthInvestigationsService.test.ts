@@ -17,6 +17,9 @@ const repositories = vi.hoisted(() => ({
   getSnapshotsByIds: vi.fn(),
   getRankRunById: vi.fn(),
   getRankConfigById: vi.fn(),
+  getAuditForProject: vi.fn(),
+  getIssuesForAudit: vi.fn(),
+  projectDomain: vi.fn(),
 }));
 const services = vi.hoisted(() => ({
   getRecommendation: vi.fn(),
@@ -37,6 +40,7 @@ vi.mock("../repositories/GrowthRunsRepository", () => ({
 vi.mock("../repositories/GrowthInsightsRepository", () => ({
   GrowthInsightsRepository: {
     findRecommendationForSignal: repositories.findRecommendationForSignal,
+    projectDomain: repositories.projectDomain,
   },
 }));
 vi.mock("../repositories/GrowthOpportunityDecisionsRepository", () => ({
@@ -79,6 +83,12 @@ vi.mock(
 );
 vi.mock("@/server/features/rank-tracking/repositories/snapshotQueries", () => ({
   getSnapshotsByIds: repositories.getSnapshotsByIds,
+}));
+vi.mock("@/server/features/audit/repositories/AuditRepository", () => ({
+  AuditRepository: {
+    getAuditForProject: repositories.getAuditForProject,
+    getIssuesForAudit: repositories.getIssuesForAudit,
+  },
 }));
 
 import { GrowthInvestigationsService } from "./GrowthInvestigationsService";
@@ -138,6 +148,7 @@ const action = {
 beforeEach(() => {
   vi.resetAllMocks();
   repositories.getSignal.mockResolvedValue(signal);
+  repositories.projectDomain.mockResolvedValue("example.com");
   repositories.listSignals.mockResolvedValue([signal]);
   repositories.getRun.mockResolvedValue(run);
   repositories.findRecommendationForSignal.mockResolvedValue({
@@ -559,6 +570,112 @@ describe("GrowthInvestigationsService", () => {
     );
     await expect(
       GrowthInvestigationsService.getInvestigation("project_1", rankSignal.id),
+    ).resolves.toBeNull();
+  });
+  it("rehydrates both audits and proves a critical issue is new", async () => {
+    const auditSignal = {
+      ...signal,
+      id: "audit_signal",
+      runId: "audit_growth_run",
+      signalType: "new_critical_audit_issue",
+      entityType: "audit_issue",
+      entityRef: "issue_new",
+      metric: "critical_audit_issue_presence",
+      severity: "critical",
+      evidenceKind: "audit_result",
+      evidenceRef: "audit_result:v1:audit_old:audit_new:issue_new",
+      periodStart: "2026-08-01",
+      periodEnd: "2026-09-01",
+      baselineValue: 0,
+      currentValue: 1,
+      deltaValue: 1,
+    };
+    repositories.getSignal.mockResolvedValue(auditSignal);
+    repositories.getRun.mockResolvedValue({
+      ...run,
+      id: "audit_growth_run",
+      cadenceSlot: "critical-audit-issue-check:one",
+      detectorVersion: "new-critical-audit-issue-v1",
+      analysisVersion: "new-critical-audit-issue-investigation-v1",
+    });
+    repositories.getDecisionControllerSource.mockResolvedValue({
+      relationship: "controller",
+      recommendationId: "audit_recommendation",
+      controllerRunId: "audit_growth_run",
+      controllerSignalId: "audit_signal",
+      suppressionReason: null,
+      policyVersion: "new-critical-audit-issue-repeat-suppression-v1",
+      controllerReleasedAt: null,
+    });
+    services.getRecommendation.mockResolvedValue({
+      ...graph,
+      recommendation: {
+        ...graph.recommendation,
+        id: "audit_recommendation",
+        creationKey:
+          "new-critical-audit-issue-investigation-v1:recommendation:audit_signal",
+      },
+      targets: [
+        { targetType: "site", targetValue: "example.com" },
+        { targetType: "url", targetValue: "https://example.com/pricing" },
+      ],
+    });
+    services.getInsight.mockResolvedValue({
+      insight: {
+        id: "audit_insight",
+        creationKey:
+          "new-critical-audit-issue-investigation-v1:insight:audit_signal",
+      },
+      signalIds: ["audit_signal"],
+    });
+    const auditConfig = JSON.stringify({
+      maxPages: 100,
+      lighthouseStrategy: "none",
+    });
+    repositories.getAuditForProject.mockImplementation(
+      async (auditId: string) => ({
+        id: auditId,
+        projectId: "project_1",
+        startUrl: "https://example.com/",
+        status: "completed",
+        config: auditConfig,
+        startedAt:
+          auditId === "audit_old"
+            ? "2026-08-01T00:00:00.000Z"
+            : "2026-09-01T00:00:00.000Z",
+      }),
+    );
+    const currentIssue = {
+      id: "issue_new",
+      auditId: "audit_new",
+      pageUrl: "https://example.com/pricing",
+      issueType: "missing-title",
+      severity: "critical",
+      detailsJson: null,
+    };
+    repositories.getIssuesForAudit.mockImplementation(async (auditId) =>
+      auditId === "audit_new" ? [currentIssue] : [],
+    );
+    repositories.getActionByKey.mockResolvedValue(null);
+
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", auditSignal.id),
+    ).resolves.toMatchObject({
+      relationship: "controller",
+      evidenceSummary: {
+        kind: "new_critical_audit_issue",
+        issueType: "missing-title",
+        title: "Missing title tag",
+        page: "https://example.com/pricing",
+        baselineAuditAt: "2026-08-01T00:00:00.000Z",
+        currentAuditAt: "2026-09-01T00:00:00.000Z",
+      },
+    });
+    repositories.getIssuesForAudit.mockImplementationOnce(async () => [
+      { ...currentIssue, auditId: "audit_old", id: "issue_old" },
+    ]);
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", auditSignal.id),
     ).resolves.toBeNull();
   });
   it.each([

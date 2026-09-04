@@ -6,6 +6,7 @@ import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { formatGrowthPreviewDate } from "./GrowthPreviewPresentation";
 import { GrowthCheckDetail } from "./GrowthCheckDetail";
 import { GrowthPersistentRankDropCheck } from "./GrowthPersistentRankDropCheck";
+import { GrowthCriticalAuditIssueCheck } from "./GrowthCriticalAuditIssueCheck";
 import { runGrowthCheckSchema } from "@/types/schemas/growth-checks";
 import {
   getGrowthCheckRun,
@@ -624,6 +625,7 @@ export function GrowthPriorityPageChecks({
         projectId={projectId}
         keyPageCount={data.keyPageCount}
       />
+      <GrowthCriticalAuditIssueCheck projectId={projectId} />
       {requestKey && !start.isPending ? (
         <p role="status" className="mt-3 text-sm text-base-content/70">
           A previous request has no confirmed outcome yet. Retry it to retrieve

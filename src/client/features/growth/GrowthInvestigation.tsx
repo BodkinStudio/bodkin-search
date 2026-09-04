@@ -35,12 +35,31 @@ type EvidenceSummary = NonNullable<
 >;
 type QueryEvidenceSummary = Exclude<
   EvidenceSummary,
-  { kind: "persistent_tracked_rank_drop" }
+  | { kind: "persistent_tracked_rank_drop" }
+  | { kind: "new_critical_audit_issue" }
 >;
 type RankDropEvidenceSummary = Extract<
   EvidenceSummary,
   { kind: "persistent_tracked_rank_drop" }
 >;
+type AuditIssueEvidenceSummary = Extract<
+  EvidenceSummary,
+  { kind: "new_critical_audit_issue" }
+>;
+
+function coveredEvidenceLabel(evidence: EvidenceSummary | undefined) {
+  if (evidence?.kind === "new_critical_audit_issue")
+    return evidence.targetUrl
+      ? "audit issue, affected page and broken target"
+      : "audit issue and affected page";
+  if (
+    evidence?.kind === "striking_distance_query" ||
+    evidence?.kind === "high_impression_low_ctr_query" ||
+    evidence?.kind === "persistent_tracked_rank_drop"
+  )
+    return "query and page";
+  return "page";
+}
 
 function formatEvidenceValue(value: number, maximumFractionDigits: number) {
   return new Intl.NumberFormat("en-GB", { maximumFractionDigits }).format(
@@ -187,6 +206,49 @@ function GrowthPersistentRankDropEvidence({
           </li>
         ))}
       </ol>
+    </section>
+  );
+}
+
+function GrowthCriticalAuditIssueEvidence({
+  evidence,
+}: {
+  evidence: AuditIssueEvidenceSummary;
+}) {
+  return (
+    <section
+      aria-label="Saved critical audit issue evidence"
+      className="rounded-md bg-base-200/60 p-3"
+    >
+      <h5 className="font-semibold">Saved audit comparison</h5>
+      <dl className="mt-2 grid gap-2 sm:grid-cols-2">
+        <div>
+          <dt className="text-xs text-base-content/70">Issue</dt>
+          <dd className="font-medium">{evidence.title}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-base-content/70">Affected page</dt>
+          <dd>{evidence.page}</dd>
+        </div>
+        {evidence.targetUrl ? (
+          <div className="sm:col-span-2">
+            <dt className="text-xs text-base-content/70">Broken target</dt>
+            <dd>{evidence.targetUrl}</dd>
+          </div>
+        ) : null}
+        <div>
+          <dt className="text-xs text-base-content/70">Previous audit</dt>
+          <dd>
+            {formatGrowthPreviewDate(evidence.baselineAuditAt.slice(0, 10))}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-base-content/70">Latest audit</dt>
+          <dd>
+            {formatGrowthPreviewDate(evidence.currentAuditAt.slice(0, 10))}
+          </dd>
+        </div>
+      </dl>
     </section>
   );
 }
@@ -400,6 +462,8 @@ export function GrowthInvestigationReview({
       <p className="whitespace-pre-wrap">{saved.rationale}</p>
       {saved.evidenceSummary?.kind === "persistent_tracked_rank_drop" ? (
         <GrowthPersistentRankDropEvidence evidence={saved.evidenceSummary} />
+      ) : saved.evidenceSummary?.kind === "new_critical_audit_issue" ? (
+        <GrowthCriticalAuditIssueEvidence evidence={saved.evidenceSummary} />
       ) : saved.evidenceSummary ? (
         <GrowthStrikingDistanceEvidence evidence={saved.evidenceSummary} />
       ) : null}
@@ -436,12 +500,7 @@ export function GrowthInvestigationReview({
         <>
           <p className="text-base-content/70">
             This suggestion covers later checks for the same saved{" "}
-            {saved.evidenceSummary?.kind === "striking_distance_query" ||
-            saved.evidenceSummary?.kind === "high_impression_low_ctr_query" ||
-            saved.evidenceSummary?.kind === "persistent_tracked_rank_drop"
-              ? "query and page"
-              : "page"}
-            .{" "}
+            {coveredEvidenceLabel(saved.evidenceSummary)}.{" "}
             <a className="link" href="#growth-work">
               Check existing work
             </a>{" "}
