@@ -17,6 +17,7 @@ import {
 import { Ga4Card } from "@/client/features/dashboard/Ga4Card";
 import { YouTubeCard } from "@/client/features/dashboard/YouTubeCard";
 import { YouTubeContentCard } from "@/client/features/dashboard/YouTubeContentCard";
+import { LinkedInPageContentCard } from "@/client/features/dashboard/LinkedInPageContentCard";
 import { McpConnectCard } from "@/client/features/dashboard/McpConnectCard";
 import { WorkspaceMergeBanner } from "@/client/features/dashboard/WorkspaceMergeBanner";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
@@ -363,6 +364,11 @@ export function DashboardPage({ projectId }: { projectId: string }) {
                   },
                 ]
               : []),
+            {
+              key: "linkedin-page-content",
+              hasData: false,
+              node: <LinkedInPageContentCard projectId={projectId} />,
+            },
             {
               key: "audit",
               hasData: overview?.audit != null,

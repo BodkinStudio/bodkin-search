@@ -7,6 +7,7 @@ export * from "./billing.schema";
 export * from "./ga4.schema";
 export * from "./gsc.schema";
 export * from "./youtube.schema";
+export * from "./linkedin.schema";
 export * from "./telemetry.schema";
 export * from "./growth.schema";
 export * from "./growth-insights.schema";

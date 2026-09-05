@@ -39,6 +39,10 @@ import {
   getYouTubeTrafficSourcesTool,
   getYouTubeVideoPerformanceTool,
 } from "@/server/mcp/tools/youtube-analytics-tools";
+import {
+  getLinkedInPageOverviewTool,
+  getLinkedInPostPerformanceTool,
+} from "@/server/mcp/tools/linkedin-page-content-tools";
 import { createProjectTool } from "@/server/mcp/tools/create-project";
 import { listProjectsTool } from "@/server/mcp/tools/list-projects";
 import {
@@ -213,6 +217,8 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
   register(getYouTubeChannelOverviewTool);
   register(getYouTubeVideoPerformanceTool);
   register(getYouTubeTrafficSourcesTool);
+  register(getLinkedInPageOverviewTool);
+  register(getLinkedInPostPerformanceTool);
   register(runSiteAuditTool);
   register(getAuditStatusTool);
   register(getAuditIssuesTool);

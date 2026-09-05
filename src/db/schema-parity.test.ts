@@ -13,6 +13,7 @@ import * as sqliteBilling from "./billing.schema";
 import * as sqliteGa4 from "./ga4.schema";
 import * as sqliteGsc from "./gsc.schema";
 import * as sqliteYouTube from "./youtube.schema";
+import * as sqliteLinkedIn from "./linkedin.schema";
 import * as sqliteTelemetry from "./telemetry.schema";
 import * as sqliteGrowth from "./growth.schema";
 import * as sqliteGrowthInsights from "./growth-insights.schema";
@@ -29,6 +30,7 @@ import * as pgBilling from "./pg/billing.schema";
 import * as pgGa4 from "./pg/ga4.schema";
 import * as pgGsc from "./pg/gsc.schema";
 import * as pgYouTube from "./pg/youtube.schema";
+import * as pgLinkedIn from "./pg/linkedin.schema";
 import * as pgTelemetry from "./pg/telemetry.schema";
 import * as pgGrowth from "./pg/growth.schema";
 import * as pgGrowthInsights from "./pg/growth-insights.schema";
@@ -166,6 +168,7 @@ const sqliteAppTables = tablesFrom(
   sqliteGa4,
   sqliteGsc,
   sqliteYouTube,
+  sqliteLinkedIn,
   sqliteTelemetry,
   sqliteGrowth,
   sqliteGrowthInsights,
@@ -183,6 +186,7 @@ const pgAppTables = tablesFrom(
   pgGa4,
   pgGsc,
   pgYouTube,
+  pgLinkedIn,
   pgTelemetry,
   pgGrowth,
   pgGrowthInsights,

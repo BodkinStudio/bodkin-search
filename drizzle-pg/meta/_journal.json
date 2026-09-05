@@ -260,6 +260,13 @@
       "when": 1788627314327,
       "tag": "0036_safe_adam_destine",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1788638087456,
+      "tag": "0037_slimy_tinkerer",
+      "breakpoints": true
     }
   ]
 }

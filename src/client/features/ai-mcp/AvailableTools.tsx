@@ -11,6 +11,21 @@ type ToolCategory = {
 
 const toolCategories: ToolCategory[] = [
   {
+    label: "LinkedIn Page Content",
+    tools: [
+      {
+        name: "get_linkedin_page_overview",
+        title: "Get LinkedIn Page overview",
+        description: "Read the latest manually imported Page Content summary.",
+      },
+      {
+        name: "get_linkedin_post_performance",
+        title: "Get LinkedIn post performance",
+        description: "Read up to 10 posts from the latest Page Content import.",
+      },
+    ],
+  },
+  {
     label: "YouTube Analytics",
     tools: [
       {
