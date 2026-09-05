@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const repository = vi.hoisted(() => ({ listRecentRuns: vi.fn() }));
+const repository = vi.hoisted(() => ({
+  listRecentRuns: vi.fn(),
+  listRecentCalibrationRecommendations: vi.fn(),
+}));
 vi.mock("../repositories/GrowthRunInspectorRepository", () => ({
   GrowthRunInspectorRepository: repository,
 }));
@@ -30,8 +33,25 @@ function row(index: number, overrides: Record<string, unknown> = {}) {
   };
 }
 
+function calibrationRow(
+  index: number,
+  status: string,
+  dismissalReason: string | null = null,
+  detectorVersion = "persistent-tracked-rank-drop-v1",
+) {
+  return {
+    id: `recommendation_${index}`,
+    detectorVersion,
+    status,
+    dismissalReason,
+  };
+}
+
 describe("GrowthRunInspectorService", () => {
-  beforeEach(() => vi.resetAllMocks());
+  beforeEach(() => {
+    vi.resetAllMocks();
+    repository.listRecentCalibrationRecommendations.mockResolvedValue([]);
+  });
 
   it("normalizes counts and computes terminal and running durations", async () => {
     repository.listRecentRuns.mockResolvedValue([
@@ -50,6 +70,14 @@ describe("GrowthRunInspectorService", () => {
     ).resolves.toMatchObject({
       asOf: "2026-09-02T12:00:00.000Z",
       hasMore: false,
+      calibration: {
+        overall: {
+          sampled: 0,
+          classified: 0,
+          classificationCoverage: null,
+          falsePositiveRate: null,
+        },
+      },
       runs: [
         {
           durationMs: 1_500,
@@ -74,6 +102,16 @@ describe("GrowthRunInspectorService", () => {
       new Date("2026-09-02T12:00:00.000Z"),
     );
     expect(repository.listRecentRuns).toHaveBeenCalledWith("project_1", 21);
+    expect(
+      repository.listRecentCalibrationRecommendations,
+    ).toHaveBeenCalledWith(
+      "project_1",
+      expect.arrayContaining([
+        "persistent-tracked-rank-drop-v1",
+        "new-critical-audit-issue-v1",
+      ]),
+      201,
+    );
     expect(result.runs).toHaveLength(20);
     expect(result.hasMore).toBe(true);
   });
@@ -92,5 +130,62 @@ describe("GrowthRunInspectorService", () => {
         new Date("2026-09-02T12:00:00.000Z"),
       ),
     ).resolves.toMatchObject({ runs: [{ durationMs: 0 }] });
+  });
+
+  it("separates signal-quality false positives from other review outcomes", async () => {
+    repository.listRecentRuns.mockResolvedValue([]);
+    repository.listRecentCalibrationRecommendations.mockResolvedValue([
+      calibrationRow(1, "accepted"),
+      calibrationRow(2, "dismissed", "irrelevant"),
+      calibrationRow(3, "dismissed", "insufficient_evidence"),
+      calibrationRow(4, "dismissed", "wrong_diagnosis"),
+      calibrationRow(5, "dismissed", "already_planned"),
+      calibrationRow(6, "dismissed", "duplicate"),
+      calibrationRow(7, "proposed"),
+      calibrationRow(8, "snoozed"),
+      calibrationRow(9, "merged", null, "new-critical-audit-issue-v1"),
+      calibrationRow(10, "superseded", null, "new-critical-audit-issue-v1"),
+    ]);
+    const result = await GrowthRunInspectorService.getRunInspector(
+      "project_1",
+      new Date("2026-09-02T12:00:00.000Z"),
+    );
+    expect(result.calibration.overall).toMatchObject({
+      sampled: 10,
+      accepted: 1,
+      signalQualityFalsePositives: 3,
+      otherDismissals: 2,
+      unresolved: 2,
+      reconciled: 2,
+      classified: 4,
+      classificationCoverage: 0.4,
+      falsePositiveRate: 0.75,
+      dismissalReasons: {
+        irrelevant: 1,
+        insufficient_evidence: 1,
+        wrong_diagnosis: 1,
+        already_planned: 1,
+        duplicate: 1,
+      },
+    });
+    expect(result.calibration.detectors).toHaveLength(2);
+  });
+
+  it("caps calibration at two hundred and reports overflow", async () => {
+    repository.listRecentRuns.mockResolvedValue([]);
+    repository.listRecentCalibrationRecommendations.mockResolvedValue(
+      Array.from({ length: 201 }, (_, index) =>
+        calibrationRow(index, "accepted"),
+      ),
+    );
+    const result = await GrowthRunInspectorService.getRunInspector(
+      "project_1",
+      new Date("2026-09-02T12:00:00.000Z"),
+    );
+    expect(result.calibration).toMatchObject({
+      hasMore: true,
+      overall: { sampled: 200, accepted: 200, classificationCoverage: 1 },
+      detectors: [{ sampled: 200, classificationCoverage: 1 }],
+    });
   });
 });

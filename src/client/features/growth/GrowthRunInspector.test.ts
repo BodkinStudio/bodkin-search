@@ -26,6 +26,7 @@ vi.mock("@/serverFunctions/growthRunInspector", () => ({
 }));
 
 import {
+  GrowthMonitorCalibration,
   GrowthRunInspector,
   GrowthRunInspectorResults,
   formatGrowthRunDuration,
@@ -33,6 +34,55 @@ import {
 
 const data: GrowthRunInspectorDto = {
   asOf: "2026-09-02T12:00:00.000Z",
+  calibration: {
+    limit: 200,
+    hasMore: true,
+    overall: {
+      sampled: 6,
+      accepted: 1,
+      signalQualityFalsePositives: 2,
+      otherDismissals: 1,
+      unresolved: 1,
+      reconciled: 1,
+      classified: 3,
+      classificationCoverage: 0.5,
+      falsePositiveRate: 2 / 3,
+      dismissalReasons: {
+        irrelevant: 1,
+        already_planned: 0,
+        not_commercially_important: 0,
+        insufficient_evidence: 1,
+        wrong_diagnosis: 0,
+        too_much_effort: 0,
+        duplicate: 1,
+        defer: 0,
+      },
+    },
+    detectors: [
+      {
+        detectorVersion: "persistent-tracked-rank-drop-v1",
+        sampled: 6,
+        accepted: 1,
+        signalQualityFalsePositives: 2,
+        otherDismissals: 1,
+        unresolved: 1,
+        reconciled: 1,
+        classified: 3,
+        classificationCoverage: 0.5,
+        falsePositiveRate: 2 / 3,
+        dismissalReasons: {
+          irrelevant: 1,
+          already_planned: 0,
+          not_commercially_important: 0,
+          insufficient_evidence: 1,
+          wrong_diagnosis: 0,
+          too_much_effort: 0,
+          duplicate: 1,
+          defer: 0,
+        },
+      },
+    ],
+  },
   limit: 20,
   hasMore: true,
   runs: [
@@ -99,6 +149,63 @@ describe("GrowthRunInspector", () => {
     expect(html).toContain("Saved safe failure");
     expect(html).toContain("Linked Actions");
     expect(html).toContain(">3<");
+  });
+
+  it("renders bounded calibration without claiming a release decision", () => {
+    const html = renderToStaticMarkup(
+      createElement(GrowthMonitorCalibration, {
+        calibration: data.calibration,
+      }),
+    );
+    expect(html).toContain("Daily-monitor calibration");
+    expect(html).toContain("This cohort is capped");
+    expect(html).toContain("66.7%");
+    expect(html).toContain("Classification coverage");
+    expect(html).toContain("50%");
+    expect(html).toContain("persistent-tracked-rank-drop-v1");
+    expect(html).toContain('scope="col"');
+    expect(html).toContain('scope="row"');
+    expect(html).toContain("Irrelevant 1");
+    expect(html).toContain("Insufficient evidence 1");
+    expect(html).toContain("Duplicate 1");
+    expect(html).toContain("No automatic release threshold");
+  });
+
+  it("shows unavailable calibration when there is no sample", () => {
+    const zero = {
+      sampled: 0,
+      accepted: 0,
+      signalQualityFalsePositives: 0,
+      otherDismissals: 0,
+      unresolved: 0,
+      reconciled: 0,
+      classified: 0,
+      classificationCoverage: null,
+      falsePositiveRate: null,
+      dismissalReasons: {
+        irrelevant: 0,
+        already_planned: 0,
+        not_commercially_important: 0,
+        insufficient_evidence: 0,
+        wrong_diagnosis: 0,
+        too_much_effort: 0,
+        duplicate: 0,
+        defer: 0,
+      },
+    };
+    const html = renderToStaticMarkup(
+      createElement(GrowthMonitorCalibration, {
+        calibration: {
+          limit: 200,
+          hasMore: false,
+          overall: zero,
+          detectors: [],
+        },
+      }),
+    );
+    expect(html).toContain("No candidate investigation recommendations");
+    expect(html).toContain("classification coverage");
+    expect(html).toContain("observed rate are unavailable");
   });
 
   it("renders empty, loading and retryable error states", () => {

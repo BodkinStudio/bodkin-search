@@ -1,5 +1,7 @@
-import { and, countDistinct, desc, eq } from "drizzle-orm";
+import { and, countDistinct, desc, eq, inArray, sql } from "drizzle-orm";
+import type { SQLWrapper } from "drizzle-orm";
 import { db } from "@/db";
+import { getDatabaseProvider } from "@/db/provider";
 import {
   growthActions,
   growthInsights,
@@ -7,6 +9,18 @@ import {
   growthRuns,
   growthSignals,
 } from "@/db/schema";
+
+function codeUnitId(column: SQLWrapper) {
+  return getDatabaseProvider() === "postgres"
+    ? sql`${column} COLLATE "C"`
+    : sql`${column} COLLATE BINARY`;
+}
+
+function chronological(column: SQLWrapper) {
+  return getDatabaseProvider() === "postgres"
+    ? sql`${column}`
+    : sql`strftime('%Y-%m-%dT%H:%M:%fZ', ${column})`;
+}
 
 async function listRecentRuns(projectId: string, limit: number) {
   const recentRuns = db
@@ -100,4 +114,40 @@ async function listRecentRuns(projectId: string, limit: number) {
     .orderBy(desc(recentRuns.startedAt), desc(recentRuns.id));
 }
 
-export const GrowthRunInspectorRepository = { listRecentRuns } as const;
+async function listRecentCalibrationRecommendations(
+  projectId: string,
+  detectorVersions: readonly string[],
+  limit: number,
+) {
+  const createdAt = chronological(growthRecommendations.createdAt);
+  const recommendationId = codeUnitId(growthRecommendations.id);
+  return db
+    .select({
+      id: growthRecommendations.id,
+      detectorVersion: growthRuns.detectorVersion,
+      status: growthRecommendations.status,
+      dismissalReason: growthRecommendations.dismissalReason,
+    })
+    .from(growthRecommendations)
+    .innerJoin(
+      growthRuns,
+      and(
+        eq(growthRuns.projectId, growthRecommendations.projectId),
+        eq(growthRuns.id, growthRecommendations.runId),
+      ),
+    )
+    .where(
+      and(
+        eq(growthRecommendations.projectId, projectId),
+        eq(growthRecommendations.category, "investigation"),
+        inArray(growthRuns.detectorVersion, [...detectorVersions]),
+      ),
+    )
+    .orderBy(desc(createdAt), desc(recommendationId))
+    .limit(limit);
+}
+
+export const GrowthRunInspectorRepository = {
+  listRecentRuns,
+  listRecentCalibrationRecommendations,
+} as const;

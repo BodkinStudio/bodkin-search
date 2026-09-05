@@ -31,7 +31,11 @@ beforeAll(async () => {
     );
     CREATE TABLE growth_signals (id text PRIMARY KEY, project_id text NOT NULL, run_id text NOT NULL);
     CREATE TABLE growth_insights (id text PRIMARY KEY, project_id text NOT NULL, run_id text NOT NULL);
-    CREATE TABLE growth_recommendations (id text PRIMARY KEY, project_id text NOT NULL, run_id text NOT NULL);
+    CREATE TABLE growth_recommendations (
+      id text PRIMARY KEY, project_id text NOT NULL, run_id text NOT NULL,
+      category text NOT NULL, status text NOT NULL, dismissal_reason text,
+      created_at text NOT NULL
+    );
     CREATE TABLE growth_actions (id text PRIMARY KEY, project_id text NOT NULL, recommendation_id text NOT NULL);
 
     INSERT INTO growth_runs VALUES
@@ -45,8 +49,16 @@ beforeAll(async () => {
     INSERT INTO growth_insights VALUES
       ('insight_1','project_1','run_z'), ('insight_2','project_1','run_z');
     INSERT INTO growth_recommendations VALUES
-      ('recommendation_1','project_1','run_z'), ('recommendation_2','project_1','run_z'),
-      ('recommendation_foreign','project_2','run_z');
+      ('recommendation_1','project_1','run_z','investigation','accepted',NULL,'2026-09-04T00:00:00.000Z'),
+      ('recommendation_2','project_1','run_z','investigation','dismissed','irrelevant','2026-09-04T00:00:00.000Z'),
+      ('recommendation_space_late','project_1','run_old','investigation','accepted',NULL,'2026-09-05 23:00:00'),
+      ('recommendation_iso_early','project_1','run_old','investigation','accepted',NULL,'2026-09-05T01:00:00.000Z'),
+      ('recommendation_tie_a','project_1','run_old','investigation','accepted',NULL,'2026-09-06T01:00:00.000Z'),
+      ('recommendation_tie_z','project_1','run_old','investigation','accepted',NULL,'2026-09-06 01:00:00'),
+      ('recommendation_old','project_1','run_old','investigation','proposed',NULL,'2026-08-01T00:00:00.000Z'),
+      ('recommendation_weekly','project_1','run_a','investigation','accepted',NULL,'2026-09-05T00:00:00.000Z'),
+      ('recommendation_foreign','project_2','run_z','investigation','accepted',NULL,'2026-09-06T00:00:00.000Z'),
+      ('recommendation_foreign_real','project_2','run_foreign','investigation','accepted',NULL,'2026-09-06T00:00:00.000Z');
     INSERT INTO growth_actions VALUES
       ('action_1','project_1','recommendation_1'),
       ('action_2','project_1','recommendation_2'),
@@ -74,5 +86,25 @@ describe("GrowthRunInspectorRepository", () => {
     expect(query.indexOf("limit ?")).toBeLessThan(
       query.indexOf('left join "growth_signals"'),
     );
+  });
+
+  it("normalizes mixed timestamps before bounding with stable ties and project isolation", async () => {
+    const rows = await repository.listRecentCalibrationRecommendations(
+      "project_1",
+      ["detector-v1"],
+      4,
+    );
+    expect(rows.map(({ id }) => id)).toEqual([
+      "recommendation_tie_z",
+      "recommendation_tie_a",
+      "recommendation_space_late",
+      "recommendation_iso_early",
+    ]);
+    expect(rows).toHaveLength(4);
+    expect(
+      rows.every(({ detectorVersion }) => detectorVersion === "detector-v1"),
+    ).toBe(true);
+    expect(rows.some(({ id }) => id.includes("foreign"))).toBe(false);
+    expect(rows.some(({ id }) => id === "recommendation_weekly")).toBe(false);
   });
 });

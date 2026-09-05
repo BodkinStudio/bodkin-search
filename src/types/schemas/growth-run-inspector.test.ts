@@ -21,8 +21,36 @@ const run = {
   entities: { signals: 1, insights: 0, recommendations: 0, linkedActions: 0 },
 } as const;
 
+const calibrationCounts = {
+  sampled: 1,
+  accepted: 1,
+  signalQualityFalsePositives: 0,
+  otherDismissals: 0,
+  unresolved: 0,
+  reconciled: 0,
+  classified: 1,
+  classificationCoverage: 1,
+  falsePositiveRate: 0,
+  dismissalReasons: {
+    irrelevant: 0,
+    already_planned: 0,
+    not_commercially_important: 0,
+    insufficient_evidence: 0,
+    wrong_diagnosis: 0,
+    too_much_effort: 0,
+    duplicate: 0,
+    defer: 0,
+  },
+} as const;
+
 const response = {
   asOf: "2026-09-02T00:00:00.000Z",
+  calibration: {
+    limit: 200,
+    hasMore: false,
+    overall: calibrationCounts,
+    detectors: [{ detectorVersion: "detector-v1", ...calibrationCounts }],
+  },
   limit: 20,
   hasMore: false,
   runs: [run],
@@ -34,6 +62,27 @@ describe("growthRunInspector schemas", () => {
       growthRunInspectorRequestSchema.parse({ projectId: "project_1" }),
     ).toEqual({ projectId: "project_1" });
     expect(growthRunInspectorDtoSchema.parse(response)).toEqual(response);
+  });
+
+  it("accepts unavailable coverage and rate for an empty cohort", () => {
+    const emptyCounts = {
+      ...calibrationCounts,
+      sampled: 0,
+      accepted: 0,
+      classified: 0,
+      classificationCoverage: null,
+      falsePositiveRate: null,
+    };
+    expect(
+      growthRunInspectorDtoSchema.safeParse({
+        ...response,
+        calibration: {
+          ...response.calibration,
+          overall: emptyCounts,
+          detectors: [],
+        },
+      }).success,
+    ).toBe(true);
   });
 
   it("rejects unknown request and response fields", () => {
@@ -57,6 +106,18 @@ describe("growthRunInspector schemas", () => {
           ...run,
           id: `run_${index}`,
         })),
+      }).success,
+    ).toBe(false);
+    expect(
+      growthRunInspectorDtoSchema.safeParse({
+        ...response,
+        calibration: {
+          ...response.calibration,
+          overall: {
+            ...response.calibration.overall,
+            classificationCoverage: 0.5,
+          },
+        },
       }).success,
     ).toBe(false);
   });
@@ -99,6 +160,75 @@ describe("growthRunInspector schemas", () => {
       growthRunInspectorDtoSchema.safeParse({
         ...response,
         runs: [{ ...run, entities: { ...run.entities, recommendations: 1.5 } }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects inconsistent calibration totals, rates and detector groups", () => {
+    const detector = {
+      detectorVersion: "detector-v1",
+      ...response.calibration.overall,
+    };
+    expect(
+      growthRunInspectorDtoSchema.safeParse({
+        ...response,
+        calibration: {
+          ...response.calibration,
+          overall: { ...response.calibration.overall, sampled: 2 },
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      growthRunInspectorDtoSchema.safeParse({
+        ...response,
+        calibration: {
+          ...response.calibration,
+          overall: {
+            ...response.calibration.overall,
+            falsePositiveRate: 0.5,
+          },
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      growthRunInspectorDtoSchema.safeParse({
+        ...response,
+        calibration: {
+          ...response.calibration,
+          overall: {
+            ...response.calibration.overall,
+            sampled: 2,
+            accepted: 2,
+            classified: 2,
+            classificationCoverage: 1,
+          },
+          detectors: [detector, detector],
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      growthRunInspectorDtoSchema.safeParse({
+        ...response,
+        calibration: {
+          ...response.calibration,
+          overall: {
+            ...response.calibration.overall,
+            sampled: 0,
+            accepted: 0,
+            classified: 0,
+            classificationCoverage: null,
+            falsePositiveRate: null,
+          },
+          detectors: Array.from({ length: 201 }, (_, index) => ({
+            ...detector,
+            detectorVersion: `detector-${index}`,
+            sampled: 0,
+            accepted: 0,
+            classified: 0,
+            classificationCoverage: null,
+            falsePositiveRate: null,
+          })),
+        },
       }).success,
     ).toBe(false);
   });

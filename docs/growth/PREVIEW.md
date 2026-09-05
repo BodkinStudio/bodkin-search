@@ -205,3 +205,19 @@ The inspector is read-only and project-scoped. It does not expose evidence
 references, cadence identities, prompts or provider payloads, and opening it
 does not start or resume work. When more than 20 Runs exist, the view says that
 older history is not shown.
+
+The inspector also shows **Daily-monitor calibration** from up to the latest 200
+investigation Recommendations created by the current priority-page click
+decline, persistent tracked-rank drop and new critical audit issue detector
+versions. It reports the bounded cohort overall and by persisted detector
+version, including classification coverage: classified decisions divided by
+the whole sampled cohort. Coverage is unavailable until a sample exists.
+
+The observed signal-quality false-positive rate uses accepted investigations
+and dismissals marked “irrelevant”, “insufficient evidence” or “wrong
+diagnosis”. Other dismissal reasons, unresolved reviews and reconciled
+Recommendations are shown separately and do not enter that rate. This is a
+human-review proxy rather than ground truth; the view deliberately does not set
+an acceptable threshold or declare the daily monitor ready. When more than 200
+eligible Recommendations exist, it says that older outcomes are outside the
+cohort.

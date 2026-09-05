@@ -24,6 +24,17 @@ const STATUS_LABELS: Record<
   failed: "Failed",
 };
 
+const DISMISSAL_REASON_LABELS = [
+  ["irrelevant", "Irrelevant"],
+  ["already_planned", "Already planned"],
+  ["not_commercially_important", "Not commercially important"],
+  ["insufficient_evidence", "Insufficient evidence"],
+  ["wrong_diagnosis", "Wrong diagnosis"],
+  ["too_much_effort", "Too much effort"],
+  ["duplicate", "Duplicate"],
+  ["defer", "Deferred"],
+] as const;
+
 export function formatGrowthRunDuration(durationMs: number) {
   if (durationMs < 1_000) return "<1s";
   const seconds = Math.floor(durationMs / 1_000);
@@ -42,6 +53,129 @@ function formatTimestamp(value: string) {
     timeStyle: "short",
     timeZone: "UTC",
   }).format(new Date(value));
+}
+
+function formatPercentage(value: number | null) {
+  if (value === null) return "Unavailable";
+  return new Intl.NumberFormat("en-GB", {
+    style: "percent",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+export function GrowthMonitorCalibration({
+  calibration,
+}: {
+  calibration: GrowthRunInspectorDto["calibration"];
+}) {
+  const counts = calibration.overall;
+  const reasons = DISMISSAL_REASON_LABELS.filter(
+    ([reason]) => counts.dismissalReasons[reason] > 0,
+  );
+  return (
+    <section aria-labelledby="growth-monitor-calibration-heading">
+      <h2 id="growth-monitor-calibration-heading" className="font-medium">
+        Daily-monitor calibration
+      </h2>
+      <p className="mt-1 max-w-prose text-sm text-base-content/70">
+        Review outcomes for up to the latest {calibration.limit}{" "}
+        candidate-detector investigations. Only irrelevant,
+        insufficient-evidence and wrong-diagnosis dismissals are treated as
+        signal-quality false positives; accepted investigations are the
+        comparison group.
+      </p>
+      {calibration.hasMore ? (
+        <p className="mt-2 text-sm text-base-content/70">
+          This cohort is capped; older candidate investigations are not shown.
+        </p>
+      ) : null}
+      {counts.sampled === 0 ? (
+        <p className="mt-3 text-sm text-base-content/70">
+          No candidate investigation recommendations have been recorded yet, so
+          classification coverage and the observed rate are unavailable.
+        </p>
+      ) : (
+        <>
+          <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              ["Sampled", counts.sampled],
+              ["Classified", counts.classified],
+              [
+                "Classification coverage",
+                formatPercentage(counts.classificationCoverage),
+              ],
+              ["Accepted", counts.accepted],
+              ["False positives", counts.signalQualityFalsePositives],
+              ["Observed rate", formatPercentage(counts.falsePositiveRate)],
+              ["Other dismissals", counts.otherDismissals],
+              ["Awaiting review", counts.unresolved],
+              ["Reconciled", counts.reconciled],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-md bg-base-200 px-3 py-2">
+                <dt className="text-xs text-base-content/65">{label}</dt>
+                <dd className="font-medium tabular-nums">{value}</dd>
+              </div>
+            ))}
+          </dl>
+          <div className="mt-3 overflow-x-auto">
+            <table className="table table-sm">
+              <caption className="sr-only">
+                Calibration outcomes by persisted detector version
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Detector</th>
+                  <th scope="col">Sampled</th>
+                  <th scope="col">Classified</th>
+                  <th scope="col">Classification coverage</th>
+                  <th scope="col">Accepted</th>
+                  <th scope="col">False positives</th>
+                  <th scope="col">Other dismissals</th>
+                  <th scope="col">Awaiting review</th>
+                  <th scope="col">Reconciled</th>
+                  <th scope="col">Observed rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {calibration.detectors.map((detector) => (
+                  <tr key={detector.detectorVersion}>
+                    <th scope="row" className="font-mono text-xs font-normal">
+                      {detector.detectorVersion}
+                    </th>
+                    <td>{detector.sampled}</td>
+                    <td>{detector.classified}</td>
+                    <td>{formatPercentage(detector.classificationCoverage)}</td>
+                    <td>{detector.accepted}</td>
+                    <td>{detector.signalQualityFalsePositives}</td>
+                    <td>{detector.otherDismissals}</td>
+                    <td>{detector.unresolved}</td>
+                    <td>{detector.reconciled}</td>
+                    <td>{formatPercentage(detector.falsePositiveRate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {reasons.length ? (
+            <p className="mt-2 text-xs text-base-content/65">
+              Dismissal labels in this cohort:{" "}
+              {reasons
+                .map(
+                  ([reason, label]) =>
+                    `${label} ${counts.dismissalReasons[reason]}`,
+                )
+                .join(", ")}
+              .
+            </p>
+          ) : null}
+        </>
+      )}
+      <p className="mt-2 text-xs text-base-content/65">
+        This is a review proxy, not ground truth. No automatic release threshold
+        is applied.
+      </p>
+    </section>
+  );
 }
 
 function EntityCounts({
@@ -72,20 +206,21 @@ export function GrowthRunInspectorResults({
 }: {
   data: GrowthRunInspectorDto;
 }) {
-  if (data.runs.length === 0)
-    return (
-      <p className="mt-4 text-sm text-base-content/70">
-        No Growth runs have been recorded for this project.
-      </p>
-    );
   return (
     <div className="mt-4">
+      <GrowthMonitorCalibration calibration={data.calibration} />
+      <h2 className="mt-6 font-medium">Recent runs</h2>
+      {data.runs.length === 0 ? (
+        <p className="mt-2 text-sm text-base-content/70">
+          No Growth runs have been recorded for this project.
+        </p>
+      ) : null}
       {data.hasMore ? (
         <p className="mb-3 text-sm text-base-content/70">
           Showing the latest {data.limit} runs. Older runs are not shown.
         </p>
       ) : null}
-      <ol className="space-y-3">
+      <ol className="mt-3 space-y-3">
         {data.runs.map((run) => (
           <li key={run.id}>
             <article className="rounded-lg border border-base-300 p-4">

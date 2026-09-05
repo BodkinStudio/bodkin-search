@@ -1571,3 +1571,49 @@ cycles.
 Pagination, individual Run drill-down, evidence inspection, Run controls,
 notification delivery, daily critical monitoring and Gate 4 operational
 evidence remain separate work.
+
+---
+
+## ADR-058 - Daily-monitor release evidence uses an explicit review proxy
+
+**Status:** Accepted
+
+### Decision
+
+- The Run inspector includes a project-scoped calibration cohort for the
+  current priority-page click-decline, persistent tracked-rank-drop and new
+  critical-audit-issue detector versions that could feed a future daily
+  monitor.
+- The cohort contains at most the latest 200 investigation Recommendations,
+  ordered by creation time and Recommendation ID. The response discloses
+  overflow and groups outcomes by the exact persisted detector version so a
+  policy revision cannot silently inherit another version's result.
+- Accepted investigations form the positive comparison group. Only dismissals
+  marked “irrelevant”, “insufficient evidence” or “wrong diagnosis” are treated
+  as signal-quality false positives. Operational dismissals, unresolved
+  reviews and merged or superseded Recommendations remain visible but outside
+  the rate denominator.
+- A zero-denominator rate is unavailable, not zero. The strict response
+  validates all totals, dismissal-reason counts, detector-group sums, rate
+  arithmetic and classification coverage before rendering. Coverage is
+  classified decisions divided by the whole sample and is unavailable when
+  the sample is empty.
+- The metric is explicitly a current human-review proxy, not ground truth. It
+  does not set an acceptable threshold, release BG-0405 or start any monitoring
+  work.
+
+### Consequence
+
+The false-positive prerequisite for daily monitoring is now observable without
+a schema migration or manual database analysis. Maintainers can see whether
+enough investigations have been classified and judge detector versions
+separately before choosing a release threshold.
+
+BG-0405 remains gated until a maintainer accepts the observed rate and sample
+coverage. Gate 4 still requires two consecutive real monthly cycles.
+
+### Deferred
+
+The acceptable threshold, minimum classified sample, immutable review-event
+history, daily scheduling, suppression and debounce policy, notifications and
+Gate 4 operational evidence remain separate work.
