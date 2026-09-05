@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const repository = vi.hoisted(() => ({
   listRecentRuns: vi.fn(),
   listRecentCalibrationRecommendations: vi.fn(),
+  listRecentMonthlyCycles: vi.fn(),
 }));
 vi.mock("../repositories/GrowthRunInspectorRepository", () => ({
   GrowthRunInspectorRepository: repository,
@@ -51,6 +52,7 @@ describe("GrowthRunInspectorService", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     repository.listRecentCalibrationRecommendations.mockResolvedValue([]);
+    repository.listRecentMonthlyCycles.mockResolvedValue([]);
   });
 
   it("normalizes counts and computes terminal and running durations", async () => {
@@ -77,6 +79,11 @@ describe("GrowthRunInspectorService", () => {
           classificationCoverage: null,
           falsePositiveRate: null,
         },
+      },
+      monthlyCycleEvidence: {
+        distinctPeriods: 0,
+        latestPeriodsAdjacent: null,
+        cycles: [],
       },
       runs: [
         {
@@ -188,4 +195,108 @@ describe("GrowthRunInspectorService", () => {
       detectors: [{ sampled: 200, classificationCoverage: 1 }],
     });
   });
+
+  it("keeps repeated monthly rows while deriving distinct period continuity", async () => {
+    repository.listRecentRuns.mockResolvedValue([]);
+    repository.listRecentMonthlyCycles.mockResolvedValue([
+      monthlyCycleRow("monthly_3", "2026-08-01", "2026-08-31"),
+      monthlyCycleRow("monthly_2", "2026-08-01", "2026-08-31"),
+      monthlyCycleRow("monthly_1", "2026-07-01", "2026-07-31", {
+        childId: null,
+        reportStatus: null,
+      }),
+    ]);
+    const result = await GrowthRunInspectorService.getRunInspector(
+      "project_1",
+      new Date("2026-09-02T12:00:00.000Z"),
+    );
+    expect(repository.listRecentMonthlyCycles).toHaveBeenCalledWith(
+      "project_1",
+      expect.arrayContaining([
+        "priority-page-click-decline-v1",
+        "priority-page-click-decline-v2",
+      ]),
+      7,
+    );
+    expect(result.monthlyCycleEvidence).toMatchObject({
+      distinctPeriods: 2,
+      latestPeriodsAdjacent: true,
+      cycles: [
+        {
+          parent: { id: "monthly_3" },
+          recommendations: {
+            accepted: 1,
+            dismissed: 1,
+            duplicateDismissals: 1,
+            unresolved: 1,
+            reconciled: 1,
+          },
+        },
+        { parent: { id: "monthly_2" } },
+        { child: null, report: null },
+      ],
+    });
+  });
+
+  it("caps monthly evidence and reports a gap between the latest periods", async () => {
+    repository.listRecentRuns.mockResolvedValue([]);
+    repository.listRecentMonthlyCycles.mockResolvedValue([
+      monthlyCycleRow("monthly_7", "2026-08-01", "2026-08-31"),
+      monthlyCycleRow("monthly_6", "2026-06-01", "2026-06-30"),
+      monthlyCycleRow("monthly_5", "2026-05-01", "2026-05-31"),
+      monthlyCycleRow("monthly_4", "2026-04-01", "2026-04-30"),
+      monthlyCycleRow("monthly_3", "2026-03-01", "2026-03-31"),
+      monthlyCycleRow("monthly_2", "2026-02-01", "2026-02-28"),
+      monthlyCycleRow("monthly_1", "2026-01-01", "2026-01-31"),
+    ]);
+    const result = await GrowthRunInspectorService.getRunInspector(
+      "project_1",
+      new Date("2026-09-02T12:00:00.000Z"),
+    );
+    expect(result.monthlyCycleEvidence).toMatchObject({
+      hasMore: true,
+      distinctPeriods: 6,
+      latestPeriodsAdjacent: false,
+    });
+    expect(result.monthlyCycleEvidence.cycles).toHaveLength(6);
+  });
 });
+
+function monthlyCycleRow(
+  parentId: string,
+  periodStart: string,
+  periodEnd: string,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    parentId,
+    parentTrigger: "scheduled",
+    parentStatus: "completed",
+    parentPeriodStart: periodStart,
+    parentPeriodEnd: periodEnd,
+    parentStartedAt: "2026-09-01T00:00:00.000Z",
+    parentCompletedAt: "2026-09-01T00:00:01.000Z",
+    parentFailureCode: null,
+    parentFailureMessage: null,
+    childId: `${parentId}_child`,
+    childTrigger: "scheduled",
+    childStatus: "completed",
+    childPeriodStart: periodStart,
+    childPeriodEnd: periodEnd,
+    childStartedAt: "2026-09-01T00:00:00.000Z",
+    childCompletedAt: "2026-09-01T00:00:01.000Z",
+    childFailureCode: null,
+    childFailureMessage: null,
+    reportStatus: "draft",
+    reportTimezone: "UTC",
+    reportDataCutoffAt: "2026-09-01T00:00:00.000Z",
+    reportGeneratedAt: "2026-09-01T00:00:01.000Z",
+    reportCreatedByType: "system",
+    acceptedCount: 1,
+    dismissedCount: 1,
+    duplicateDismissalCount: 1,
+    unresolvedCount: 1,
+    reconciledCount: 1,
+    ...overrides,
+  };
+}

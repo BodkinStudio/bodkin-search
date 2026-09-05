@@ -221,3 +221,17 @@ human-review proxy rather than ground truth; the view deliberately does not set
 an acceptable threshold or declare the daily monitor ready. When more than 200
 eligible Recommendations exist, it says that older outcomes are outside the
 cohort.
+
+The same inspector includes a separate **Monthly-cycle evidence** dossier. It
+shows at most the six most recently started `growth-monthly-review-v1` Runs,
+without collapsing retries that share a reporting period. For every visible
+row it reads only the exact `priority-page-check:monthly_<parent-run-id>` child
+Run, the exact project-scoped monthly report for the same period at version 1,
+and the saved review outcomes for that child Run's Recommendations. It states
+how many distinct monthly periods are visible and whether the latest two are
+calendar-adjacent; fewer than two periods is explicitly insufficient evidence.
+
+This is persisted operational evidence, not a Gate 4 pass/fail decision. A
+missing child, report or Recommendation is shown as absent, and the saved data
+does not capture substantial manual preparation. Human review and live
+validation remain required.

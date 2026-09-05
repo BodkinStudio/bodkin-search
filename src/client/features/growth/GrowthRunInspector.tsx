@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- the inspector's bounded diagnostic views share one lazy disclosure boundary */
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getGrowthRunInspector } from "@/serverFunctions/growthRunInspector";
@@ -201,6 +202,139 @@ function EntityCounts({
   );
 }
 
+function GrowthMonthlyCycleEvidence({
+  evidence,
+}: {
+  evidence: GrowthRunInspectorDto["monthlyCycleEvidence"];
+}) {
+  const continuity =
+    evidence.latestPeriodsAdjacent === null
+      ? "Insufficient evidence: fewer than two distinct monthly periods are visible."
+      : evidence.latestPeriodsAdjacent
+        ? "The latest two distinct visible monthly periods are calendar-adjacent."
+        : "The latest two distinct visible monthly periods are not calendar-adjacent.";
+  return (
+    <section className="mt-6" aria-labelledby="monthly-cycle-evidence-heading">
+      <h2 id="monthly-cycle-evidence-heading" className="font-medium">
+        Monthly-cycle evidence
+      </h2>
+      <p className="mt-2 max-w-prose text-sm text-base-content/70">
+        Saved evidence from monthly review runs, their exact priority-page child
+        runs, version-one reports and child recommendation reviews.
+      </p>
+      <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+        <div className="rounded-md bg-base-200 px-3 py-2">
+          <dt className="text-xs text-base-content/65">
+            Distinct periods visible
+          </dt>
+          <dd className="font-medium tabular-nums">
+            {evidence.distinctPeriods}
+          </dd>
+        </div>
+        <div className="rounded-md bg-base-200 px-3 py-2">
+          <dt className="text-xs text-base-content/65">Period continuity</dt>
+          <dd>{continuity}</dd>
+        </div>
+      </dl>
+      {evidence.hasMore ? (
+        <p className="mt-3 text-sm text-base-content/70">
+          Showing the latest {evidence.limit} monthly review runs. Older cycles
+          are not shown.
+        </p>
+      ) : null}
+      {evidence.cycles.length === 0 ? (
+        <p className="mt-3 text-sm text-base-content/70">
+          No saved monthly review cycles are available for this project.
+        </p>
+      ) : (
+        <div className="mt-3 overflow-x-auto">
+          <table className="table table-sm">
+            <caption className="sr-only">
+              Saved monthly review cycle evidence
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Monthly period</th>
+                <th scope="col">Parent review</th>
+                <th scope="col">Priority-page child</th>
+                <th scope="col">Version-one report provenance</th>
+                <th scope="col">Child recommendation reviews</th>
+              </tr>
+            </thead>
+            <tbody>
+              {evidence.cycles.map((cycle) => (
+                <tr key={cycle.parent.id}>
+                  <th scope="row">
+                    {cycle.parent.periodStart}–{cycle.parent.periodEnd}
+                  </th>
+                  <td>
+                    <p>{STATUS_LABELS[cycle.parent.status]}</p>
+                    <p className="text-xs text-base-content/65">
+                      {cycle.parent.trigger === "scheduled"
+                        ? "Scheduled"
+                        : "Manual"}
+                    </p>
+                    {cycle.parent.failure ? (
+                      <p className="mt-1 text-xs text-warning">
+                        {cycle.parent.failure.code}:{" "}
+                        {cycle.parent.failure.message}
+                      </p>
+                    ) : null}
+                  </td>
+                  <td>
+                    {cycle.child ? (
+                      <>
+                        <p>{STATUS_LABELS[cycle.child.status]}</p>
+                        {cycle.child.failure ? (
+                          <p className="mt-1 text-xs text-warning">
+                            {cycle.child.failure.code}:{" "}
+                            {cycle.child.failure.message}
+                          </p>
+                        ) : null}
+                      </>
+                    ) : (
+                      "No exact child run saved"
+                    )}
+                  </td>
+                  <td>
+                    {cycle.report ? (
+                      <>
+                        <p>
+                          {cycle.report.status === "published"
+                            ? "Published"
+                            : "Draft"}
+                        </p>
+                        <p className="text-xs text-base-content/65">
+                          {cycle.report.createdByType} provenance, generated{" "}
+                          {formatTimestamp(cycle.report.generatedAt)}
+                        </p>
+                      </>
+                    ) : (
+                      "No exact version-one report saved"
+                    )}
+                  </td>
+                  <td>
+                    Accepted {cycle.recommendations.accepted}; dismissed{" "}
+                    {cycle.recommendations.dismissed}; duplicate dismissals{" "}
+                    {cycle.recommendations.duplicateDismissals}; awaiting review{" "}
+                    {cycle.recommendations.unresolved}; reconciled{" "}
+                    {cycle.recommendations.reconciled}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="mt-3 max-w-prose text-xs text-base-content/65">
+        This dossier is persisted operational evidence, not a Gate 4 verdict.
+        Substantial manual preparation is not captured and still requires human
+        and live validation.
+      </p>
+    </section>
+  );
+}
+
 export function GrowthRunInspectorResults({
   data,
 }: {
@@ -209,6 +343,7 @@ export function GrowthRunInspectorResults({
   return (
     <div className="mt-4">
       <GrowthMonitorCalibration calibration={data.calibration} />
+      <GrowthMonthlyCycleEvidence evidence={data.monthlyCycleEvidence} />
       <h2 className="mt-6 font-medium">Recent runs</h2>
       {data.runs.length === 0 ? (
         <p className="mt-2 text-sm text-base-content/70">

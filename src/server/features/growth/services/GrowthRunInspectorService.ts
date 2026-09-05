@@ -12,6 +12,7 @@ import { PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSIONS } from "./PriorityPageCli
 
 const LIMIT = 20;
 const CALIBRATION_LIMIT = 200;
+const MONTHLY_CYCLE_LIMIT = 6;
 const CALIBRATION_DETECTOR_VERSIONS = [
   ...PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSIONS,
   PERSISTENT_TRACKED_RANK_DROP_DETECTOR_VERSION,
@@ -26,6 +27,9 @@ type CalibrationRow = Awaited<
   >
 >[number];
 type DismissalReason = (typeof GROWTH_CALIBRATION_DISMISSAL_REASONS)[number];
+type MonthlyCycleRow = Awaited<
+  ReturnType<typeof GrowthRunInspectorRepository.listRecentMonthlyCycles>
+>[number];
 
 function durationMs(startedAt: string, completedAt: string | null, asOf: Date) {
   const start = new Date(startedAt).valueOf();
@@ -126,23 +130,115 @@ function buildCalibration(rows: CalibrationRow[]) {
   };
 }
 
+function cycleFailure(code: string | null, message: string | null) {
+  return code && message ? { code, message } : null;
+}
+
+function cycleRun(row: MonthlyCycleRow, prefix: "parent" | "child") {
+  const values = {
+    id: row[`${prefix}Id`],
+    trigger: row[`${prefix}Trigger`],
+    status: row[`${prefix}Status`],
+    periodStart: row[`${prefix}PeriodStart`],
+    periodEnd: row[`${prefix}PeriodEnd`],
+    startedAt: row[`${prefix}StartedAt`],
+    completedAt: row[`${prefix}CompletedAt`],
+    failureCode: row[`${prefix}FailureCode`],
+    failureMessage: row[`${prefix}FailureMessage`],
+  };
+  if (values.id === null) return null;
+  return {
+    id: values.id,
+    trigger: values.trigger!,
+    status: values.status!,
+    periodStart: values.periodStart!,
+    periodEnd: values.periodEnd!,
+    startedAt: values.startedAt!,
+    completedAt: values.completedAt,
+    failure: cycleFailure(values.failureCode, values.failureMessage),
+  };
+}
+
+function nextCalendarDate(value: string) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function buildMonthlyCycleEvidence(rows: MonthlyCycleRow[]) {
+  const cycles = rows.slice(0, MONTHLY_CYCLE_LIMIT).map((row) => {
+    const parent = cycleRun(row, "parent");
+    if (!parent)
+      throw new AppError("CONFLICT", "Saved monthly review run is incomplete");
+    return {
+      parent,
+      child: cycleRun(row, "child"),
+      report:
+        row.reportStatus === null
+          ? null
+          : {
+              status: row.reportStatus,
+              reportTimezone: row.reportTimezone!,
+              dataCutoffAt: row.reportDataCutoffAt!,
+              generatedAt: row.reportGeneratedAt!,
+              createdByType: row.reportCreatedByType!,
+            },
+      recommendations: {
+        accepted: entityCount(row.acceptedCount),
+        dismissed: entityCount(row.dismissedCount),
+        duplicateDismissals: entityCount(row.duplicateDismissalCount),
+        unresolved: entityCount(row.unresolvedCount),
+        reconciled: entityCount(row.reconciledCount),
+      },
+    };
+  });
+  const periods = [
+    ...new Map(
+      cycles.map(({ parent }) => [
+        `${parent.periodStart}:${parent.periodEnd}`,
+        { start: parent.periodStart, end: parent.periodEnd },
+      ]),
+    ).values(),
+  ].toSorted(
+    (left, right) =>
+      right.start.localeCompare(left.start) ||
+      right.end.localeCompare(left.end),
+  );
+  return {
+    limit: MONTHLY_CYCLE_LIMIT,
+    hasMore: rows.length > MONTHLY_CYCLE_LIMIT,
+    distinctPeriods: periods.length,
+    latestPeriodsAdjacent:
+      periods.length < 2
+        ? null
+        : nextCalendarDate(periods[1].end) === periods[0].start,
+    cycles,
+  };
+}
+
 async function getRunInspector(
   projectId: string,
   now = new Date(),
 ): Promise<GrowthRunInspectorDto> {
   if (Number.isNaN(now.valueOf()))
     throw new AppError("VALIDATION_ERROR", "Run inspector clock is invalid");
-  const [rows, calibrationRows] = await Promise.all([
+  const [rows, calibrationRows, monthlyCycleRows] = await Promise.all([
     GrowthRunInspectorRepository.listRecentRuns(projectId, LIMIT + 1),
     GrowthRunInspectorRepository.listRecentCalibrationRecommendations(
       projectId,
       CALIBRATION_DETECTOR_VERSIONS,
       CALIBRATION_LIMIT + 1,
     ),
+    GrowthRunInspectorRepository.listRecentMonthlyCycles(
+      projectId,
+      PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSIONS,
+      MONTHLY_CYCLE_LIMIT + 1,
+    ),
   ]);
   return growthRunInspectorDtoSchema.parse({
     asOf: now.toISOString(),
     calibration: buildCalibration(calibrationRows),
+    monthlyCycleEvidence: buildMonthlyCycleEvidence(monthlyCycleRows),
     limit: LIMIT,
     hasMore: rows.length > LIMIT,
     runs: rows.slice(0, LIMIT).map((run) => ({

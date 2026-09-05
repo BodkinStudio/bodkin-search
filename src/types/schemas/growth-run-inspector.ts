@@ -215,9 +215,128 @@ const inspectedRunSchema = z
       });
   });
 
+const cycleFailureSchema = z
+  .strictObject({ code: id, message: z.string().trim().min(1).max(1000) })
+  .nullable();
+const monthlyCycleRunSchema = z
+  .strictObject({
+    id,
+    trigger: z.enum(["manual", "scheduled"]),
+    status: z.enum(GROWTH_RUN_STATUSES),
+    periodStart: z.string().date(),
+    periodEnd: z.string().date(),
+    startedAt: timestamp,
+    completedAt: timestamp.nullable(),
+    failure: cycleFailureSchema,
+  })
+  .superRefine((run, context) => {
+    const terminal = run.status !== "running";
+    if (terminal !== (run.completedAt !== null))
+      context.addIssue({
+        code: "custom",
+        path: ["completedAt"],
+        message: "Completion time must match the run status",
+      });
+    const failed =
+      run.status === "failed" || run.status === "completed_with_errors";
+    if (failed !== (run.failure !== null))
+      context.addIssue({
+        code: "custom",
+        path: ["failure"],
+        message: "Failure details must match the run status",
+      });
+  });
+const monthlyCycleRecommendationOutcomesSchema = z
+  .strictObject({
+    accepted: count,
+    dismissed: count,
+    duplicateDismissals: count,
+    unresolved: count,
+    reconciled: count,
+  })
+  .superRefine((value, context) => {
+    if (value.duplicateDismissals > value.dismissed)
+      context.addIssue({
+        code: "custom",
+        path: ["duplicateDismissals"],
+        message: "Duplicate dismissals cannot exceed dismissals",
+      });
+  });
+const monthlyCycleSchema = z.strictObject({
+  parent: monthlyCycleRunSchema,
+  child: monthlyCycleRunSchema.nullable(),
+  report: z
+    .strictObject({
+      status: z.enum(["draft", "published"]),
+      reportTimezone: z.string().trim().min(1).max(100),
+      dataCutoffAt: timestamp,
+      generatedAt: timestamp,
+      createdByType: z.enum(["user", "agent", "system"]),
+    })
+    .nullable(),
+  recommendations: monthlyCycleRecommendationOutcomesSchema,
+});
+function nextCalendarDate(value: string) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+const monthlyCycleEvidenceSchema = z
+  .strictObject({
+    limit: z.literal(6),
+    hasMore: z.boolean(),
+    distinctPeriods: count.max(6),
+    latestPeriodsAdjacent: z.boolean().nullable(),
+    cycles: z.array(monthlyCycleSchema).max(6),
+  })
+  .superRefine((value, context) => {
+    if (
+      value.distinctPeriods !==
+      new Set(
+        value.cycles.map(
+          ({ parent }) => `${parent.periodStart}:${parent.periodEnd}`,
+        ),
+      ).size
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["distinctPeriods"],
+        message: "Distinct periods are inconsistent",
+      });
+    const periods = [
+      ...new Map(
+        value.cycles.map(({ parent }) => [
+          `${parent.periodStart}:${parent.periodEnd}`,
+          parent,
+        ]),
+      ).values(),
+    ].toSorted(
+      (left, right) =>
+        right.periodStart.localeCompare(left.periodStart) ||
+        right.periodEnd.localeCompare(left.periodEnd),
+    );
+    if (value.distinctPeriods < 2 && value.latestPeriodsAdjacent !== null)
+      context.addIssue({
+        code: "custom",
+        path: ["latestPeriodsAdjacent"],
+        message: "Period continuity requires two periods",
+      });
+    if (periods.length >= 2) {
+      const expected =
+        nextCalendarDate(periods[1].periodEnd) === periods[0].periodStart;
+      if (value.latestPeriodsAdjacent !== expected)
+        context.addIssue({
+          code: "custom",
+          path: ["latestPeriodsAdjacent"],
+          message: "Period continuity is inconsistent",
+        });
+    }
+  });
+
 export const growthRunInspectorDtoSchema = z.strictObject({
   asOf: timestamp,
   calibration: growthMonitorCalibrationSchema,
+  monthlyCycleEvidence: monthlyCycleEvidenceSchema,
   limit: z.literal(20),
   hasMore: z.boolean(),
   runs: z.array(inspectedRunSchema).max(20),

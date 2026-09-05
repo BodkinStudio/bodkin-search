@@ -83,6 +83,35 @@ const data: GrowthRunInspectorDto = {
       },
     ],
   },
+  monthlyCycleEvidence: {
+    limit: 6,
+    hasMore: true,
+    distinctPeriods: 1,
+    latestPeriodsAdjacent: null,
+    cycles: [
+      {
+        parent: {
+          id: "monthly_1",
+          trigger: "scheduled",
+          status: "failed",
+          periodStart: "2026-08-01",
+          periodEnd: "2026-08-31",
+          startedAt: "2026-09-01T00:00:00.000Z",
+          completedAt: "2026-09-01T00:01:05.000Z",
+          failure: { code: "MONTHLY_REVIEW_FAILED", message: "Saved failure" },
+        },
+        child: null,
+        report: null,
+        recommendations: {
+          accepted: 1,
+          dismissed: 2,
+          duplicateDismissals: 1,
+          unresolved: 3,
+          reconciled: 4,
+        },
+      },
+    ],
+  },
   limit: 20,
   hasMore: true,
   runs: [
@@ -169,6 +198,48 @@ describe("GrowthRunInspector", () => {
     expect(html).toContain("Insufficient evidence 1");
     expect(html).toContain("Duplicate 1");
     expect(html).toContain("No automatic release threshold");
+  });
+
+  it("renders bounded monthly-cycle evidence and its human decision boundary", () => {
+    const html = renderToStaticMarkup(
+      createElement(GrowthRunInspectorResults, { data }),
+    );
+    expect(html).toContain("Monthly-cycle evidence");
+    expect(html).toContain("Insufficient evidence");
+    expect(html).toContain("Showing the latest 6 monthly review runs");
+    expect(html).toContain("MONTHLY_REVIEW_FAILED");
+    expect(html).toContain("No exact child run saved");
+    expect(html).toContain("No exact version-one report saved");
+    expect(html).toContain("duplicate dismissals 1");
+    expect(html).toContain("Substantial manual preparation is not captured");
+    expect(html).toContain('scope="col"');
+    expect(html).toContain('scope="row"');
+
+    const adjacentHtml = renderToStaticMarkup(
+      createElement(GrowthRunInspectorResults, {
+        data: {
+          ...data,
+          monthlyCycleEvidence: {
+            ...data.monthlyCycleEvidence,
+            distinctPeriods: 2,
+            latestPeriodsAdjacent: true,
+            cycles: [
+              ...data.monthlyCycleEvidence.cycles,
+              {
+                ...data.monthlyCycleEvidence.cycles[0],
+                parent: {
+                  ...data.monthlyCycleEvidence.cycles[0].parent,
+                  id: "monthly_previous",
+                  periodStart: "2026-07-01",
+                  periodEnd: "2026-07-31",
+                },
+              },
+            ],
+          },
+        },
+      }),
+    );
+    expect(adjacentHtml).toContain("are calendar-adjacent");
   });
 
   it("shows unavailable calibration when there is no sample", () => {

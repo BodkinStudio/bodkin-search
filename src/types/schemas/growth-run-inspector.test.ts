@@ -51,6 +51,35 @@ const response = {
     overall: calibrationCounts,
     detectors: [{ detectorVersion: "detector-v1", ...calibrationCounts }],
   },
+  monthlyCycleEvidence: {
+    limit: 6,
+    hasMore: false,
+    distinctPeriods: 1,
+    latestPeriodsAdjacent: null,
+    cycles: [
+      {
+        parent: {
+          id: "monthly_1",
+          trigger: "scheduled",
+          status: "completed",
+          periodStart: "2026-08-01",
+          periodEnd: "2026-08-31",
+          startedAt: "2026-09-01T00:00:00.000Z",
+          completedAt: "2026-09-01T00:00:01.000Z",
+          failure: null,
+        },
+        child: null,
+        report: null,
+        recommendations: {
+          accepted: 0,
+          dismissed: 0,
+          duplicateDismissals: 0,
+          unresolved: 0,
+          reconciled: 0,
+        },
+      },
+    ],
+  },
   limit: 20,
   hasMore: false,
   runs: [run],
@@ -117,6 +146,85 @@ describe("growthRunInspector schemas", () => {
             ...response.calibration.overall,
             classificationCoverage: 0.5,
           },
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects malformed monthly-cycle totals, continuity and bounds", () => {
+    expect(
+      growthRunInspectorDtoSchema.safeParse({
+        ...response,
+        monthlyCycleEvidence: {
+          ...response.monthlyCycleEvidence,
+          cycles: [
+            response.monthlyCycleEvidence.cycles[0],
+            {
+              ...response.monthlyCycleEvidence.cycles[0],
+              parent: {
+                ...response.monthlyCycleEvidence.cycles[0].parent,
+                id: "monthly_incomplete_previous",
+                periodStart: "2026-07-01",
+                periodEnd: "2026-07-15",
+              },
+            },
+          ],
+          distinctPeriods: 2,
+          latestPeriodsAdjacent: true,
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      growthRunInspectorDtoSchema.safeParse({
+        ...response,
+        monthlyCycleEvidence: {
+          ...response.monthlyCycleEvidence,
+          cycles: Array.from(
+            { length: 7 },
+            () => response.monthlyCycleEvidence.cycles[0],
+          ),
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      growthRunInspectorDtoSchema.safeParse({
+        ...response,
+        monthlyCycleEvidence: {
+          ...response.monthlyCycleEvidence,
+          cycles: [
+            response.monthlyCycleEvidence.cycles[0],
+            {
+              ...response.monthlyCycleEvidence.cycles[0],
+              parent: {
+                ...response.monthlyCycleEvidence.cycles[0].parent,
+                id: "monthly_2",
+                periodStart: "2026-07-01",
+                periodEnd: "2026-07-31",
+              },
+            },
+          ],
+          distinctPeriods: 2,
+          latestPeriodsAdjacent: false,
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      growthRunInspectorDtoSchema.safeParse({
+        ...response,
+        monthlyCycleEvidence: {
+          ...response.monthlyCycleEvidence,
+          cycles: [
+            {
+              ...response.monthlyCycleEvidence.cycles[0],
+              recommendations: {
+                accepted: 0,
+                dismissed: 0,
+                duplicateDismissals: 1,
+                unresolved: 0,
+                reconciled: 0,
+              },
+            },
+          ],
         },
       }).success,
     ).toBe(false);

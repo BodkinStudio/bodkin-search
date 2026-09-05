@@ -1617,3 +1617,43 @@ coverage. Gate 4 still requires two consecutive real monthly cycles.
 The acceptable threshold, minimum classified sample, immutable review-event
 history, daily scheduling, suppression and debounce policy, notifications and
 Gate 4 operational evidence remain separate work.
+
+---
+
+## ADR-059 - Monthly-cycle evidence remains diagnostic, bounded and non-decisive
+
+**Status:** Accepted
+
+### Decision
+
+- The existing authenticated Run inspector reads at most six recent
+  `growth-monthly-review-v1` Runs plus one overflow row. It keeps every visible
+  parent Run, including retries for a shared period, while separately deriving
+  the number of distinct period coordinates and adjacency of the latest two.
+- A parent is associated only with its exact project-scoped
+  `priority-page-check:monthly_<parent-run-id>` child Run. The dossier reads
+  only the version-one monthly report with matching project and period
+  coordinates, and aggregates only Recommendations created by that child Run.
+- Parent and child statuses, saved failures, automation trigger, report status
+  and creator provenance, duplicate dismissals, unresolved reviews and other
+  review outcomes are evidence fields. Missing saved artifacts remain visible
+  absences rather than inferred successes.
+- The strict response contract validates bounded rows, distinct-period totals,
+  calendar continuity and duplicate-dismissal arithmetic. The native
+  `details`/`summary` remains the sole lazy interaction boundary.
+
+### Consequence
+
+Maintainers can inspect the persisted shape of recent monthly execution
+without database access, workflow controls or a new readiness policy. The
+read is project-scoped, bounded and portable between SQLite/D1 and Postgres.
+
+This documents evidence that may inform Gate 4, but does not pass Gate 4.
+Substantial manual preparation is not persisted, so human judgement and live
+validation are still required.
+
+### Deferred
+
+Automated readiness verdicts, historical artifact reconstruction, provider
+calls, workflow controls, scheduling changes, notifications and later roadmap
+phases remain out of scope.
