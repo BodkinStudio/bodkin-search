@@ -23,6 +23,9 @@ vi.mock("@/serverFunctions/growthChangeLog", () => ({
   getGrowthChangeLog: vi.fn(),
   recordGrowthPageChange: vi.fn(),
 }));
+vi.mock("@/serverFunctions/growthRunInspector", () => ({
+  getGrowthRunInspector: vi.fn(),
+}));
 vi.mock("@/serverFunctions/growthInvestigations", () => ({
   getGrowthInvestigation: vi.fn(),
   approveGrowthInvestigation: vi.fn(),
@@ -88,6 +91,8 @@ describe("GrowthPreview rendered contract", () => {
     expect(html).toContain('href="#growth-monthly-summary"');
     expect(html).toContain('href="#growth-monthly-review"');
     expect(html).toContain("Change log");
+    expect(html).toContain("Run inspector");
+    expect(html).toContain('href="#growth-run-inspector"');
     expect(html).toContain("Loading saved work");
     expect(html).toContain('href="#growth-work"');
     expect(html).toContain("Loading saved changes");

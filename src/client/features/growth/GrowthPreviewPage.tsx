@@ -11,6 +11,7 @@ import { GrowthOpportunities } from "./GrowthOpportunities";
 import { GrowthOperatingOverview } from "./GrowthOperatingOverview";
 import { GrowthLiveReadiness } from "./GrowthLiveReadiness";
 import { GrowthMonthlyReview } from "./GrowthMonthlyReview";
+import { GrowthRunInspector } from "./GrowthRunInspector";
 
 export function GrowthPreviewPage({ projectId }: { projectId: string }) {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -54,6 +55,9 @@ export function GrowthPreviewPage({ projectId }: { projectId: string }) {
             <a href="#growth-change-log" className="link">
               View change log
             </a>
+            <a href="#growth-run-inspector" className="link">
+              Inspect runs
+            </a>
           </nav>
         </header>
 
@@ -73,6 +77,7 @@ export function GrowthPreviewPage({ projectId }: { projectId: string }) {
         />
         <GrowthWork projectId={projectId} onOpenCheck={setSelectedRunId} />
         <GrowthChangeLog projectId={projectId} />
+        <GrowthRunInspector projectId={projectId} />
 
         <details className="rounded-lg border border-base-300 bg-base-100 px-4 py-3">
           <summary className="cursor-pointer font-medium">

@@ -1528,3 +1528,46 @@ consecutive real monthly cycles.
 Weekly report publication or delivery, notifications, historical summary
 snapshots, automatic Measurement evaluation, daily critical monitoring,
 Docker cron delivery and Gate 4 operational evidence remain separate work.
+
+---
+
+## ADR-057 - Run inspection is bounded, read-only and project-scoped
+
+**Status:** Accepted
+
+### Decision
+
+- The Growth preview includes a collapsed developer-facing inspector for the
+  20 most recent Runs in the authorized project. Opening the native disclosure
+  starts the read; a closed inspector does not query the server.
+- One repository query returns Runs in stable recent-first order and joins
+  project-scoped Signals, Insights, Recommendations and Actions. Distinct
+  counts prevent join multiplication. The Action count is labelled as linked
+  Actions because an Action may be approved after its originating Run.
+- The response exposes operational fields needed to diagnose execution:
+  identity and type, trigger, status, period, timestamps and duration,
+  detector and analysis versions, stored provider cost, saved failure details
+  and entity counts. It does not expose prompts, model configuration, evidence
+  payloads, cadence slots or provider credentials.
+- The service uses one response clock for in-progress durations, persisted
+  completion time for terminal durations and clamps clock-skewed values to
+  zero. Database count values are normalized at the service boundary and the
+  complete response is strictly validated before it reaches the client.
+- The inspector is diagnostic only. It cannot start, retry, cancel, delete or
+  otherwise mutate a Run.
+
+### Consequence
+
+Developers can inspect recent Growth execution from the existing authenticated
+preview without database access or a new administration surface. The bounded
+read has predictable cost and remains compatible with SQLite and Postgres.
+
+This implements BG-0406. BG-0405 remains gated on an acceptable measured
+false-positive rate, and Gate 4 still requires two consecutive real monthly
+cycles.
+
+### Deferred
+
+Pagination, individual Run drill-down, evidence inspection, Run controls,
+notification delivery, daily critical monitoring and Gate 4 operational
+evidence remain separate work.

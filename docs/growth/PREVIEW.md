@@ -191,3 +191,17 @@ notification. Its Action and due-Measurement counts are current at execution
 time rather than a frozen historical snapshot. The disposable preview has no
 weekly-review UI; verify the scheduling and result contracts through the
 automated repository tests.
+
+## Inspect recent Growth runs
+
+Open **Run inspector** near the end of the authenticated Growth page to load the
+latest 20 saved Runs for that project. The collapsed developer view shows each
+Run's status, period, duration, trigger, detector and analysis versions, saved
+failure details, provider cost in stored minor units and distinct counts of
+Signals, Insights, Recommendations and linked Actions. Linked Actions may have
+been approved after the source Run completed.
+
+The inspector is read-only and project-scoped. It does not expose evidence
+references, cadence identities, prompts or provider payloads, and opening it
+does not start or resume work. When more than 20 Runs exist, the view says that
+older history is not shown.
