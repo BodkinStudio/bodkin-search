@@ -1,7 +1,13 @@
 import { and, desc, eq, like, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { getDatabaseProvider } from "@/db/provider";
-import { growthRuns, growthSignals, projects } from "@/db/schema";
+import {
+  growthActions,
+  growthMeasurementPlans,
+  growthRuns,
+  growthSignals,
+  projects,
+} from "@/db/schema";
 import type {
   CreateManualGrowthRunInput,
   RecordGrowthSignalInput,
@@ -188,6 +194,36 @@ async function listSignals(projectId: string, runId: string) {
     .orderBy(growthSignals.createdAt, growthSignals.id);
 }
 
+function signalInsertProjection(
+  input: RecordGrowthSignalInput,
+  id: string,
+  createdAt: string,
+) {
+  return {
+    id: sql<string>`${id}`.as("id"),
+    projectId: sql<string>`${input.projectId}`.as("project_id"),
+    runId: sql<string>`${input.runId}`.as("run_id"),
+    signalType: sql<string>`${input.signalType}`.as("signal_type"),
+    entityType: sql<string>`${input.entityType}`.as("entity_type"),
+    entityRef: sql<string>`${input.entityRef}`.as("entity_ref"),
+    metric: sql<string>`${input.metric}`.as("metric"),
+    severity: sql<string>`${input.severity}`.as("severity"),
+    confidence: sql<number>`${input.confidence}`.as("confidence"),
+    periodStart: sql<string>`${input.periodStart}`.as("period_start"),
+    periodEnd: sql<string>`${input.periodEnd}`.as("period_end"),
+    baselineValue: sql<number>`${input.baselineValue}`.as("baseline_value"),
+    currentValue: sql<number>`${input.currentValue}`.as("current_value"),
+    deltaValue: sql<number>`${input.deltaValue}`.as("delta_value"),
+    deltaPercent: sql<number | null>`${input.deltaPercent ?? null}`.as(
+      "delta_percent",
+    ),
+    evidenceKind: sql<string>`${input.evidenceKind}`.as("evidence_kind"),
+    evidenceRef: sql<string>`${input.evidenceRef}`.as("evidence_ref"),
+    capturedAt: sql<string>`${input.capturedAt}`.as("captured_at"),
+    createdAt: sql<string>`${createdAt}`.as("created_at"),
+  };
+}
+
 /**
  * Conditional INSERT keeps signal recording coupled to a running run in one
  * statement on both providers. A terminal transition that wins first prevents
@@ -199,29 +235,7 @@ async function tryRecordSignalWhileRunIsRunning(
 ) {
   const now = new Date().toISOString();
   const source = db
-    .select({
-      id: sql<string>`${id}`.as("id"),
-      projectId: sql<string>`${input.projectId}`.as("project_id"),
-      runId: sql<string>`${input.runId}`.as("run_id"),
-      signalType: sql<string>`${input.signalType}`.as("signal_type"),
-      entityType: sql<string>`${input.entityType}`.as("entity_type"),
-      entityRef: sql<string>`${input.entityRef}`.as("entity_ref"),
-      metric: sql<string>`${input.metric}`.as("metric"),
-      severity: sql<string>`${input.severity}`.as("severity"),
-      confidence: sql<number>`${input.confidence}`.as("confidence"),
-      periodStart: sql<string>`${input.periodStart}`.as("period_start"),
-      periodEnd: sql<string>`${input.periodEnd}`.as("period_end"),
-      baselineValue: sql<number>`${input.baselineValue}`.as("baseline_value"),
-      currentValue: sql<number>`${input.currentValue}`.as("current_value"),
-      deltaValue: sql<number>`${input.deltaValue}`.as("delta_value"),
-      deltaPercent: sql<number | null>`${input.deltaPercent ?? null}`.as(
-        "delta_percent",
-      ),
-      evidenceKind: sql<string>`${input.evidenceKind}`.as("evidence_kind"),
-      evidenceRef: sql<string>`${input.evidenceRef}`.as("evidence_ref"),
-      capturedAt: sql<string>`${input.capturedAt}`.as("captured_at"),
-      createdAt: sql<string>`${now}`.as("created_at"),
-    })
+    .select(signalInsertProjection(input, id, now))
     .from(growthRuns)
     .where(
       and(
@@ -234,6 +248,62 @@ async function tryRecordSignalWhileRunIsRunning(
   // branch. FOR SHARE conflicts with the terminal UPDATE's row lock.
   const postgresSource =
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the provider guard below is the runtime proof for this deliberately narrower surface
+    source as unknown as { for: (strength: "share") => typeof source };
+  const lockedSource =
+    getDatabaseProvider() === "postgres" ? postgresSource.for("share") : source;
+  await db
+    .insert(growthSignals)
+    .select(lockedSource)
+    .onConflictDoNothing({ target: growthSignals.id });
+}
+
+/**
+ * Records a due Signal only while its Run, active Plan and exact measuring
+ * Action version still agree. The joined rows are locked on Postgres so an
+ * Action transition and this immutable fact cannot both claim to win first.
+ */
+async function tryRecordMeasurementDueSignalWhileEligible(
+  input: RecordGrowthSignalInput,
+  id: string,
+  eligibility: {
+    measurementPlanId: string;
+    actionId: string;
+    actionVersion: number;
+  },
+) {
+  const now = new Date().toISOString();
+  const source = db
+    .select(signalInsertProjection(input, id, now))
+    .from(growthRuns)
+    .innerJoin(
+      growthMeasurementPlans,
+      and(
+        eq(growthMeasurementPlans.projectId, input.projectId),
+        eq(growthMeasurementPlans.id, eligibility.measurementPlanId),
+        eq(growthMeasurementPlans.actionId, eligibility.actionId),
+        eq(growthMeasurementPlans.actionVersion, eligibility.actionVersion),
+        eq(growthMeasurementPlans.status, "active"),
+      ),
+    )
+    .innerJoin(
+      growthActions,
+      and(
+        eq(growthActions.projectId, growthMeasurementPlans.projectId),
+        eq(growthActions.id, growthMeasurementPlans.actionId),
+        eq(growthActions.status, "measuring"),
+        eq(growthActions.stateVersion, growthMeasurementPlans.actionVersion),
+      ),
+    )
+    .where(
+      and(
+        eq(growthRuns.id, input.runId),
+        eq(growthRuns.projectId, input.projectId),
+        eq(growthRuns.status, "running"),
+      ),
+    );
+  // The provider guard is the runtime proof for this narrow Drizzle surface.
+  const postgresSource =
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Drizzle's D1 type does not expose Postgres row locks
     source as unknown as { for: (strength: "share") => typeof source };
   const lockedSource =
     getDatabaseProvider() === "postgres" ? postgresSource.for("share") : source;
@@ -256,4 +326,5 @@ export const GrowthRunsRepository = {
   getSignal,
   listSignals,
   tryRecordSignalWhileRunIsRunning,
+  tryRecordMeasurementDueSignalWhileEligible,
 } as const;

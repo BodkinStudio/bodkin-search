@@ -154,6 +154,13 @@ export function nextCalendarDate(value: string) {
   return date.toISOString().slice(0, 10);
 }
 
+export function growthMeasurementSourceAvailableOn(endDate: string) {
+  let availableOn = endDate;
+  for (let day = 0; day < 3; day += 1)
+    availableOn = nextCalendarDate(availableOn);
+  return availableOn;
+}
+
 type MissingPrimaryEvidenceCoordinate = {
   metricId: string;
   periodType: GrowthMeasurementPeriodType;

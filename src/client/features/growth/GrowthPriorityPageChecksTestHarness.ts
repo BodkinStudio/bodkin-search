@@ -21,11 +21,15 @@ export const harness = {
   criticalAuditIssueMutation: undefined as
     | undefined
     | Record<string, (value: unknown) => unknown>,
+  measurementDueMutation: undefined as
+    | undefined
+    | Record<string, (value: unknown) => unknown>,
   mutate: vi.fn(),
   strikingMutate: vi.fn(),
   lowCtrMutate: vi.fn(),
   persistentRankDropMutate: vi.fn(),
   criticalAuditIssueMutate: vi.fn(),
+  measurementDueMutate: vi.fn(),
   invalidate: vi.fn(),
   storage: new Map<string, string>(),
   storageWriteFails: false,
@@ -39,6 +43,8 @@ export const harness = {
   persistentRankDropIsPending: false,
   criticalAuditIssueIsError: false,
   criticalAuditIssueIsPending: false,
+  measurementDueIsError: false,
+  measurementDueIsPending: false,
   sequence: 0,
 };
 
@@ -87,7 +93,8 @@ vi.mock("@tanstack/react-query", () => ({
     else if (index === 1) harness.strikingMutation = options;
     else if (index === 2) harness.lowCtrMutation = options;
     else if (index === 3) harness.persistentRankDropMutation = options;
-    else harness.criticalAuditIssueMutation = options;
+    else if (index === 4) harness.criticalAuditIssueMutation = options;
+    else harness.measurementDueMutation = options;
     return {
       mutate:
         index === 0
@@ -98,7 +105,9 @@ vi.mock("@tanstack/react-query", () => ({
               ? harness.lowCtrMutate
               : index === 3
                 ? harness.persistentRankDropMutate
-                : harness.criticalAuditIssueMutate,
+                : index === 4
+                  ? harness.criticalAuditIssueMutate
+                  : harness.measurementDueMutate,
       isPending:
         index === 0
           ? false
@@ -108,7 +117,9 @@ vi.mock("@tanstack/react-query", () => ({
               ? harness.lowCtrIsPending
               : index === 3
                 ? harness.persistentRankDropIsPending
-                : harness.criticalAuditIssueIsPending,
+                : index === 4
+                  ? harness.criticalAuditIssueIsPending
+                  : harness.measurementDueIsPending,
       isError:
         index === 0
           ? harness.isError
@@ -118,7 +129,9 @@ vi.mock("@tanstack/react-query", () => ({
               ? harness.lowCtrIsError
               : index === 3
                 ? harness.persistentRankDropIsError
-                : harness.criticalAuditIssueIsError,
+                : index === 4
+                  ? harness.criticalAuditIssueIsError
+                  : harness.measurementDueIsError,
       error: new Error("safe test error"),
     };
   },
@@ -133,6 +146,7 @@ vi.mock("@/serverFunctions/growthChecks", () => ({
   runGrowthLowCtrCheck: vi.fn(),
   runGrowthPersistentRankDropCheck: vi.fn(),
   runGrowthCriticalAuditIssueCheck: vi.fn(),
+  runGrowthMeasurementDueCheck: vi.fn(),
 }));
 vi.mock("@/serverFunctions/growthInvestigations", () => ({
   getGrowthInvestigation: vi.fn(),
@@ -143,6 +157,7 @@ vi.mock("@/serverFunctions/growthInvestigations", () => ({
 import { GrowthPriorityPageChecks } from "./GrowthPriorityPageChecks";
 import { GrowthPersistentRankDropCheck } from "./GrowthPersistentRankDropCheck";
 import { GrowthCriticalAuditIssueCheck } from "./GrowthCriticalAuditIssueCheck";
+import { GrowthMeasurementDueCheck } from "./GrowthMeasurementDueCheck";
 
 export function findButton(
   node: ReactNode,
@@ -202,6 +217,12 @@ export function renderCriticalAuditIssueCheck(projectId = "project_1") {
   return GrowthCriticalAuditIssueCheck({ projectId });
 }
 
+export function renderMeasurementDueCheck(projectId = "project_1") {
+  harness.cursor = 0;
+  harness.mutationCursor = 5;
+  return GrowthMeasurementDueCheck({ projectId });
+}
+
 export function click(tree: ReactNode, label: string) {
   const button = findButton(tree, label);
   expect(button, label).not.toBeNull();
@@ -216,6 +237,7 @@ export function resetHarness() {
   harness.lowCtrMutate.mockReset();
   harness.persistentRankDropMutate.mockReset();
   harness.criticalAuditIssueMutate.mockReset();
+  harness.measurementDueMutate.mockReset();
   harness.invalidate.mockReset();
   harness.storageWriteFails = false;
   harness.setup = "ready";
@@ -228,6 +250,8 @@ export function resetHarness() {
   harness.persistentRankDropIsPending = false;
   harness.criticalAuditIssueIsError = false;
   harness.criticalAuditIssueIsPending = false;
+  harness.measurementDueIsError = false;
+  harness.measurementDueIsPending = false;
   harness.sequence = 0;
   vi.stubGlobal("crypto", {
     randomUUID: () => `request_${++harness.sequence}`,

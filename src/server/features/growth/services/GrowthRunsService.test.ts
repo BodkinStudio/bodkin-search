@@ -11,6 +11,7 @@ const repository = vi.hoisted(() => ({
   getSignal: vi.fn(),
   listSignals: vi.fn(),
   tryRecordSignalWhileRunIsRunning: vi.fn(),
+  tryRecordMeasurementDueSignalWhileEligible: vi.fn(),
 }));
 
 vi.mock("../repositories/GrowthRunsRepository", () => ({
@@ -286,5 +287,44 @@ describe("GrowthRunsService", () => {
     await GrowthRunsService.recordSignal(second);
     expect(ids).toHaveLength(2);
     expect(ids[0]).not.toBe(ids[1]);
+  });
+
+  it("returns null when write-time Measurement eligibility no longer matches", async () => {
+    const signal = {
+      projectId: "project_1",
+      runId: "run_1",
+      signalType: "action_measurement_due",
+      entityType: "growth_action",
+      entityRef: "action_1",
+      metric: "measurement_review_due",
+      severity: "info" as const,
+      confidence: 1,
+      periodStart: "2026-09-01",
+      periodEnd: "2026-09-01",
+      baselineValue: 0,
+      currentValue: 1,
+      deltaValue: 1,
+      deltaPercent: null,
+      evidenceKind: "manual_observation" as const,
+      evidenceRef: "manual_observation:v1:measurement_due:plan_1:1:2026-09-04",
+      capturedAt: "2026-09-04T07:00:00.000Z",
+    };
+    repository.getSignal.mockResolvedValue(null);
+    repository.getRun.mockResolvedValue(runningRun);
+
+    await expect(
+      GrowthRunsService.recordMeasurementDueSignal(signal, {
+        measurementPlanId: "plan_1",
+        actionId: "action_1",
+        actionVersion: 1,
+      }),
+    ).resolves.toBeNull();
+    expect(
+      repository.tryRecordMeasurementDueSignalWhileEligible,
+    ).toHaveBeenCalledWith(signal, expect.any(String), {
+      measurementPlanId: "plan_1",
+      actionId: "action_1",
+      actionVersion: 1,
+    });
   });
 });

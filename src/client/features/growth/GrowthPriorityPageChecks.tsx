@@ -7,6 +7,7 @@ import { formatGrowthPreviewDate } from "./GrowthPreviewPresentation";
 import { GrowthCheckDetail } from "./GrowthCheckDetail";
 import { GrowthPersistentRankDropCheck } from "./GrowthPersistentRankDropCheck";
 import { GrowthCriticalAuditIssueCheck } from "./GrowthCriticalAuditIssueCheck";
+import { GrowthMeasurementDueCheck } from "./GrowthMeasurementDueCheck";
 import { runGrowthCheckSchema } from "@/types/schemas/growth-checks";
 import {
   getGrowthCheckRun,
@@ -396,7 +397,7 @@ export function GrowthPriorityPageChecks({
         className="rounded-lg border border-base-300 bg-base-100 p-5"
       >
         <h2 id="growth-live-check-title" className="text-lg font-semibold">
-          Check priority pages
+          Growth checks
         </h2>
         <p role="status" aria-busy="true">
           Loading saved priority-page checks…
@@ -410,7 +411,7 @@ export function GrowthPriorityPageChecks({
         className="alert alert-error flex-wrap"
       >
         <h2 id="growth-live-check-title" className="font-semibold">
-          Check priority pages
+          Growth checks
         </h2>
         <p>Saved priority-page checks could not be loaded.</p>
         <button
@@ -431,7 +432,7 @@ export function GrowthPriorityPageChecks({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 id="growth-live-check-title" className="text-lg font-semibold">
-            Check priority pages
+            Growth checks
           </h2>
           <p className="mt-1 max-w-prose text-sm text-base-content/70">
             Compare two adjacent 28-day Search Console windows. Results use
@@ -626,6 +627,7 @@ export function GrowthPriorityPageChecks({
         keyPageCount={data.keyPageCount}
       />
       <GrowthCriticalAuditIssueCheck projectId={projectId} />
+      <GrowthMeasurementDueCheck projectId={projectId} />
       {requestKey && !start.isPending ? (
         <p role="status" className="mt-3 text-sm text-base-content/70">
           A previous request has no confirmed outcome yet. Retry it to retrieve

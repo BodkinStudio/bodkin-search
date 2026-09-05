@@ -71,7 +71,7 @@ describe("GrowthPreview rendered contract", () => {
         }),
       ),
     );
-    expect(html).toContain("Check priority pages");
+    expect(html).toContain("Growth checks");
     expect(html).toContain("Monthly summary");
     expect(html).toContain("Growth at a glance");
     expect(html).toContain("Monthly review");

@@ -1376,3 +1376,51 @@ does not invoke it.
 Scheduled audits, alert delivery, cadence policy, controller release, issue
 resolution tracking and comparisons across changed crawl limits remain separate
 work.
+
+---
+
+## ADR-054 - Measurement-due Signals wait for source availability
+
+**Status:** Accepted
+
+### Decision
+
+- One explicit authenticated `measurement-due-v1` manual Run uses the existing
+  `measurement_review` type and its own `measurement-due-check:` request slot.
+  It reads active Measurement Plans and linked Actions. It does not call Search
+  Console, collect observations or consume credits.
+- The final required period ends at `longMeasurementEnd` when the Plan has a
+  long window, and at `measurementEnd` otherwise. A Plan becomes due when that
+  date is at least three calendar days behind the current
+  `America/Los_Angeles` source date, matching the existing Search Console
+  collection rule.
+- The linked Action must still be `measuring` at the Plan's saved Action
+  version. The Signal insert rechecks and locks the running Run, active Plan and
+  exact Action state in one provider-aware statement. Missing, moved,
+  concurrently changed or version-mismatched Actions do not produce a Signal.
+  Their presence makes the Run partial so a user can inspect Work.
+- The scan reads at most 51 active Plans. A 51-row result withholds all output
+  and marks the Run partial; a complete scan records at most 50 Signals in
+  source-availability and Plan-ID order.
+- Each eligible Plan creates one `action_measurement_due` workflow Signal for
+  its existing Action. The scalar value is a Boolean transition from zero to
+  one at the final period date. Its `manual_observation` reference binds the
+  Plan ID, Action version and source-availability date. This reuses the closed
+  ADR-022 registry for a saved operational fact instead of treating an internal
+  Plan as provider evidence.
+- The Signal does not create an Insight, Recommendation or Action. The existing
+  measuring Action owns the work, and the current due queue remains the place
+  to collect evidence and finish human review.
+
+### Consequence
+
+Growth can persist that a Measurement reached its review threshold without
+claiming that evidence was collected or that the outcome is known. This
+implements the fifth BG-0402 detector. The detectors remain manual until
+scheduled orchestration is implemented.
+
+### Deferred
+
+Scheduled measurement checks, notifications, stale-due escalation, provider
+health, automatic evidence collection and cross-source freshness rules remain
+separate work.

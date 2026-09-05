@@ -179,20 +179,7 @@ function failRun(input: CompleteGrowthRunWithErrorsInput) {
 }
 
 async function recordSignal(input: RecordGrowthSignalInput) {
-  const id = (
-    await sha256Hex(
-      JSON.stringify([
-        input.projectId,
-        input.runId,
-        input.signalType,
-        input.entityType,
-        input.entityRef,
-        input.metric,
-        input.periodStart,
-        input.periodEnd,
-      ]),
-    )
-  ).slice(0, 36);
+  const id = await signalId(input);
   await GrowthRunsRepository.tryRecordSignalWhileRunIsRunning(input, id);
   const row = await GrowthRunsRepository.getSignal(input.projectId, id);
   if (sameSignalFact(row, input)) return row;
@@ -210,6 +197,65 @@ async function recordSignal(input: RecordGrowthSignalInput) {
   );
 }
 
+async function signalId(input: RecordGrowthSignalInput) {
+  return (
+    await sha256Hex(
+      JSON.stringify([
+        input.projectId,
+        input.runId,
+        input.signalType,
+        input.entityType,
+        input.entityRef,
+        input.metric,
+        input.periodStart,
+        input.periodEnd,
+      ]),
+    )
+  ).slice(0, 36);
+}
+
+async function recordMeasurementDueSignal(
+  input: RecordGrowthSignalInput,
+  eligibility: {
+    measurementPlanId: string;
+    actionId: string;
+    actionVersion: number;
+  },
+) {
+  if (
+    input.signalType !== "action_measurement_due" ||
+    input.entityType !== "growth_action" ||
+    input.entityRef !== eligibility.actionId ||
+    input.metric !== "measurement_review_due" ||
+    input.evidenceKind !== "manual_observation"
+  )
+    throw new AppError(
+      "VALIDATION_ERROR",
+      "Measurement due Signal coordinates are invalid",
+    );
+  const id = await signalId(input);
+  await GrowthRunsRepository.tryRecordMeasurementDueSignalWhileEligible(
+    input,
+    id,
+    eligibility,
+  );
+  const row = await GrowthRunsRepository.getSignal(input.projectId, id);
+  if (sameSignalFact(row, input)) return row;
+  if (row)
+    throw new AppError(
+      "CONFLICT",
+      "Growth Signal identity conflicts with an immutable fact",
+    );
+  const run = await GrowthRunsRepository.getRun(input.projectId, input.runId);
+  if (!run) throw new AppError("NOT_FOUND", "Growth run not found");
+  if (run.status !== "running")
+    throw new AppError(
+      "CONFLICT",
+      "Growth Signals can only be recorded for a running run",
+    );
+  return null;
+}
+
 export const GrowthRunsService = {
   createManualRun,
   claimManualRun,
@@ -223,5 +269,6 @@ export const GrowthRunsService = {
   completeRunWithErrors,
   failRun,
   recordSignal,
+  recordMeasurementDueSignal,
   listSignals,
 } as const;

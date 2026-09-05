@@ -5,7 +5,11 @@ import type {
 } from "@/types/schemas/growth-measurements";
 import type { CollectGrowthWorkMeasurementInput } from "@/types/schemas/growth-work";
 import { GrowthMeasurementsRepository } from "../repositories/GrowthMeasurementsRepository";
-import { calendarDateInTimezone } from "./GrowthMeasurementFacts";
+import {
+  calendarDateInTimezone,
+  growthMeasurementSourceAvailableOn,
+} from "./GrowthMeasurementFacts";
+export { growthMeasurementSourceAvailableOn } from "./GrowthMeasurementFacts";
 import { projectFrozenGrowthSearchPerformanceFacts } from "./GrowthMeasurementGscProjector";
 import { GrowthMeasurementsService } from "./GrowthMeasurementsService";
 import {
@@ -14,7 +18,6 @@ import {
 } from "./GrowthSearchPerformanceAdapter";
 import { getQualifiedWork } from "./GrowthInvestigationsService";
 
-const DAY_MS = 86_400_000;
 const GSC_SOURCE_TIMEZONE = "America/Los_Angeles";
 const GSC_EVIDENCE_PATTERN = /^gsc:measurement:v1:([a-f0-9]{64}):[a-f0-9]{64}$/;
 
@@ -23,13 +26,14 @@ export function growthMeasurementGscPropertyHash(evidenceRef: string) {
 }
 
 function shiftUtcDate(date: string, days: number) {
-  return new Date(Date.parse(`${date}T00:00:00.000Z`) + days * DAY_MS)
-    .toISOString()
-    .slice(0, 10);
-}
-
-export function growthMeasurementSourceAvailableOn(endDate: string) {
-  return shiftUtcDate(endDate, 3);
+  let shifted = date;
+  const direction = days < 0 ? -1 : 1;
+  for (let count = 0; count < Math.abs(days); count += 1) {
+    const parsed = new Date(`${shifted}T00:00:00.000Z`);
+    parsed.setUTCDate(parsed.getUTCDate() + direction);
+    shifted = parsed.toISOString().slice(0, 10);
+  }
+  return shifted;
 }
 
 export function growthMeasurementCollectionPeriods(plan: {
