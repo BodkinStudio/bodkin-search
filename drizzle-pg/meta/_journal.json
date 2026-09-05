@@ -239,6 +239,20 @@
       "when": 1788596131215,
       "tag": "0033_old_dreadnoughts",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1788616584481,
+      "tag": "0034_quiet_lake",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1788616655565,
+      "tag": "0035_overconfident_sharon_carter",
+      "breakpoints": true
     }
   ]
 }

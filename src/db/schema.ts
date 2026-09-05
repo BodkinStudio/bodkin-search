@@ -133,6 +133,7 @@ export const {
   telemetryState,
   growthProjectSettings,
   growthRuns,
+  growthMonthlyCycleOperatorObservations,
   growthSignals,
   growthInsights,
   growthInsightSignals,

@@ -1657,3 +1657,27 @@ validation are still required.
 Automated readiness verdicts, historical artifact reconstruction, provider
 calls, workflow controls, scheduling changes, notifications and later roadmap
 phases remain out of scope.
+
+---
+
+## ADR-060 - Monthly operator observations are append-only human evidence
+
+**Status:** Accepted
+
+### Decision
+
+- A project member may append a human assertion only to an exact terminal
+  `growth-monthly-review-v1` Run in that authorized project.
+- Each record stores preparation burden, failure explanation, duplicate-spam
+  observation, an optional bounded note, reviewer provenance and server time.
+  A project-scoped request UUID makes exact retries idempotent; changed content
+  for the same key conflicts, while a fresh key creates another immutable row.
+- The bounded inspector reads only the latest observation for each of its at
+  most six already-visible parent Runs, ordered by server time then record ID.
+  Reviewer IDs and request keys never cross the client boundary.
+
+### Consequence
+
+The dossier can show operator-recorded context without fabricating verification
+or declaring a Gate 4 result. It remains deliberately bounded and preserves
+separate retry rows for one monthly period.

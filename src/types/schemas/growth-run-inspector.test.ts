@@ -77,6 +77,7 @@ const response = {
           unresolved: 0,
           reconciled: 0,
         },
+        operatorObservation: null,
       },
     ],
   },
@@ -222,6 +223,41 @@ describe("growthRunInspector schemas", () => {
                 duplicateDismissals: 1,
                 unresolved: 0,
                 reconciled: 0,
+              },
+            },
+          ],
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requires strict bounded operator evidence without reviewer identity", () => {
+    const cycle = response.monthlyCycleEvidence.cycles[0];
+    const { operatorObservation: _, ...withoutObservation } = cycle;
+    expect(
+      growthRunInspectorDtoSchema.safeParse({
+        ...response,
+        monthlyCycleEvidence: {
+          ...response.monthlyCycleEvidence,
+          cycles: [withoutObservation],
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      growthRunInspectorDtoSchema.safeParse({
+        ...response,
+        monthlyCycleEvidence: {
+          ...response.monthlyCycleEvidence,
+          cycles: [
+            {
+              ...cycle,
+              operatorObservation: {
+                preparation: "minor",
+                failure: "explained",
+                duplicateSpam: "not_observed",
+                note: "Operator checked the source inputs.",
+                createdAt: "2026-09-05T12:00:00.000Z",
+                reviewerId: "must-not-cross-the-boundary",
               },
             },
           ],

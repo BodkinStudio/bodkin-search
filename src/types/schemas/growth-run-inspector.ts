@@ -4,6 +4,11 @@ import {
   GROWTH_RUN_STATUSES,
   GROWTH_RUN_TYPES,
 } from "./growth";
+import {
+  GROWTH_MONTHLY_CYCLE_DUPLICATE_SPAM,
+  GROWTH_MONTHLY_CYCLE_FAILURE,
+  GROWTH_MONTHLY_CYCLE_PREPARATION,
+} from "./growth-monthly-cycle-operator-observations";
 
 const id = z.string().trim().min(1).max(100);
 const timestamp = z.string().datetime({ offset: true });
@@ -275,6 +280,15 @@ const monthlyCycleSchema = z.strictObject({
     })
     .nullable(),
   recommendations: monthlyCycleRecommendationOutcomesSchema,
+  operatorObservation: z
+    .strictObject({
+      preparation: z.enum(GROWTH_MONTHLY_CYCLE_PREPARATION),
+      failure: z.enum(GROWTH_MONTHLY_CYCLE_FAILURE),
+      duplicateSpam: z.enum(GROWTH_MONTHLY_CYCLE_DUPLICATE_SPAM),
+      note: z.string().trim().min(1).max(2000).nullable(),
+      createdAt: timestamp,
+    })
+    .nullable(),
 });
 function nextCalendarDate(value: string) {
   const date = new Date(`${value}T00:00:00.000Z`);

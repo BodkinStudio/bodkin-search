@@ -1,7 +1,10 @@
 /* eslint-disable max-lines -- the inspector's bounded diagnostic views share one lazy disclosure boundary */
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getGrowthRunInspector } from "@/serverFunctions/growthRunInspector";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  appendGrowthMonthlyCycleOperatorObservation,
+  getGrowthRunInspector,
+} from "@/serverFunctions/growthRunInspector";
 import type { GrowthRunInspectorDto } from "@/types/schemas/growth-run-inspector";
 
 const RUN_TYPE_LABELS: Record<
@@ -35,6 +38,37 @@ const DISMISSAL_REASON_LABELS = [
   ["duplicate", "Duplicate"],
   ["defer", "Deferred"],
 ] as const;
+
+const PREPARATION_LABELS = {
+  not_assessed: "Not assessed",
+  none: "None",
+  minor: "Minor",
+  substantial: "Substantial",
+} as const;
+const FAILURE_LABELS = {
+  not_assessed: "Not assessed",
+  none_observed: "None observed",
+  explained: "Explained",
+  unexplained: "Unexplained",
+} as const;
+const DUPLICATE_SPAM_LABELS = {
+  not_assessed: "Not assessed",
+  not_observed: "Not observed",
+  observed: "Observed",
+} as const;
+
+function valueFromOptions<T extends Record<string, string>>(
+  options: T,
+  value: string,
+): keyof T {
+  return value in options
+    ? (value as keyof T)
+    : (Object.keys(options)[0] as keyof T);
+}
+
+export function createMonthlyCycleObservationRequestKey() {
+  return crypto.randomUUID();
+}
 
 export function formatGrowthRunDuration(durationMs: number) {
   if (durationMs < 1_000) return "<1s";
@@ -256,6 +290,7 @@ function GrowthMonthlyCycleEvidence({
               <tr>
                 <th scope="col">Monthly period</th>
                 <th scope="col">Parent review</th>
+                <th scope="col">Latest operator observation</th>
                 <th scope="col">Priority-page child</th>
                 <th scope="col">Version-one report provenance</th>
                 <th scope="col">Child recommendation reviews</th>
@@ -280,6 +315,43 @@ function GrowthMonthlyCycleEvidence({
                         {cycle.parent.failure.message}
                       </p>
                     ) : null}
+                  </td>
+                  <td>
+                    {cycle.operatorObservation ? (
+                      <>
+                        <p>
+                          Preparation:{" "}
+                          {
+                            PREPARATION_LABELS[
+                              cycle.operatorObservation.preparation
+                            ]
+                          }
+                        </p>
+                        <p>
+                          Failures:{" "}
+                          {FAILURE_LABELS[cycle.operatorObservation.failure]}
+                        </p>
+                        <p>
+                          Duplicate spam:{" "}
+                          {
+                            DUPLICATE_SPAM_LABELS[
+                              cycle.operatorObservation.duplicateSpam
+                            ]
+                          }
+                        </p>
+                        {cycle.operatorObservation.note ? (
+                          <p className="mt-1 text-xs text-base-content/65">
+                            {cycle.operatorObservation.note}
+                          </p>
+                        ) : null}
+                        <p className="mt-1 text-xs text-base-content/65">
+                          Recorded{" "}
+                          {formatTimestamp(cycle.operatorObservation.createdAt)}
+                        </p>
+                      </>
+                    ) : (
+                      "No operator observation recorded"
+                    )}
                   </td>
                   <td>
                     {cycle.child ? (
@@ -327,11 +399,170 @@ function GrowthMonthlyCycleEvidence({
         </div>
       )}
       <p className="mt-3 max-w-prose text-xs text-base-content/65">
-        This dossier is persisted operational evidence, not a Gate 4 verdict.
-        Substantial manual preparation is not captured and still requires human
-        and live validation.
+        This dossier includes human-recorded assertions, not verified facts or a
+        Gate 4 verdict. It still requires human and live validation.
       </p>
     </section>
+  );
+}
+
+function GrowthMonthlyCycleObservationForm({
+  data,
+  onSaved,
+}: {
+  data: GrowthRunInspectorDto;
+  onSaved: () => Promise<unknown>;
+}) {
+  const terminalCycles = data.monthlyCycleEvidence.cycles.filter(
+    ({ parent }) => parent.status !== "running",
+  );
+  const [runId, setRunId] = useState(terminalCycles[0]?.parent.id ?? "");
+  const [preparation, setPreparation] =
+    useState<keyof typeof PREPARATION_LABELS>("not_assessed");
+  const [failure, setFailure] =
+    useState<keyof typeof FAILURE_LABELS>("not_assessed");
+  const [duplicateSpam, setDuplicateSpam] =
+    useState<keyof typeof DUPLICATE_SPAM_LABELS>("not_assessed");
+  const [note, setNote] = useState("");
+  const [requestKey, setRequestKey] = useState(
+    createMonthlyCycleObservationRequestKey,
+  );
+  const mutation = useMutation({
+    mutationFn: () =>
+      appendGrowthMonthlyCycleOperatorObservation({
+        data: {
+          runId,
+          requestKey,
+          preparation,
+          failure,
+          duplicateSpam,
+          note: note.trim() || null,
+        },
+      }),
+    onSuccess: async () => {
+      setRequestKey(createMonthlyCycleObservationRequestKey());
+      await onSaved();
+    },
+  });
+  if (!terminalCycles.length) return null;
+  const errorId = "growth-monthly-cycle-observation-error";
+  return (
+    <form
+      className="mt-4 rounded-md border border-base-300 p-3"
+      aria-busy={mutation.isPending}
+      onSubmit={(event) => {
+        event.preventDefault();
+        mutation.mutate();
+      }}
+    >
+      <h3 className="font-medium">Record operator observation</h3>
+      <p className="mt-1 text-sm text-base-content/70">
+        These are human assertions about one completed visible cycle, not an
+        automated decision.
+      </p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <label className="form-control">
+          <span className="label-text">Target cycle</span>
+          <select
+            className="select select-bordered"
+            value={runId}
+            onChange={(event) => setRunId(event.target.value)}
+            disabled={mutation.isPending}
+          >
+            {terminalCycles.map(({ parent }) => (
+              <option key={parent.id} value={parent.id}>
+                {parent.periodStart}–{parent.periodEnd} (
+                {STATUS_LABELS[parent.status]})
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="form-control">
+          <span className="label-text">Manual preparation</span>
+          <select
+            className="select select-bordered"
+            value={preparation}
+            onChange={(event) =>
+              setPreparation(
+                valueFromOptions(PREPARATION_LABELS, event.target.value),
+              )
+            }
+            disabled={mutation.isPending}
+          >
+            {Object.entries(PREPARATION_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="form-control">
+          <span className="label-text">Failure explanation</span>
+          <select
+            className="select select-bordered"
+            value={failure}
+            onChange={(event) =>
+              setFailure(valueFromOptions(FAILURE_LABELS, event.target.value))
+            }
+            disabled={mutation.isPending}
+          >
+            {Object.entries(FAILURE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="form-control">
+          <span className="label-text">Duplicate recommendation spam</span>
+          <select
+            className="select select-bordered"
+            value={duplicateSpam}
+            onChange={(event) =>
+              setDuplicateSpam(
+                valueFromOptions(DUPLICATE_SPAM_LABELS, event.target.value),
+              )
+            }
+            disabled={mutation.isPending}
+          >
+            {Object.entries(DUPLICATE_SPAM_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <label className="form-control mt-3">
+        <span className="label-text">Optional note</span>
+        <textarea
+          className="textarea textarea-bordered"
+          value={note}
+          maxLength={2000}
+          onChange={(event) => setNote(event.target.value)}
+          disabled={mutation.isPending}
+        />
+      </label>
+      {mutation.isError ? (
+        <p id={errorId} role="alert" className="mt-2 text-sm text-error">
+          The operator observation could not be saved. Try again.
+        </p>
+      ) : null}
+      {mutation.isSuccess ? (
+        <p role="status" className="mt-2 text-sm">
+          Operator observation saved and dossier refreshed.
+        </p>
+      ) : null}
+      <button
+        type="submit"
+        className="btn btn-primary btn-sm mt-3"
+        disabled={mutation.isPending}
+      >
+        {mutation.isPending
+          ? "Saving observation…"
+          : "Save operator observation"}
+      </button>
+    </form>
   );
 }
 
@@ -478,7 +709,15 @@ export function GrowthRunInspector({ projectId }: { projectId: string }) {
             </button>
           </div>
         ) : null}
-        {query.data ? <GrowthRunInspectorResults data={query.data} /> : null}
+        {query.data ? (
+          <>
+            <GrowthRunInspectorResults data={query.data} />
+            <GrowthMonthlyCycleObservationForm
+              data={query.data}
+              onSaved={() => query.refetch()}
+            />
+          </>
+        ) : null}
       </div>
     </details>
   );

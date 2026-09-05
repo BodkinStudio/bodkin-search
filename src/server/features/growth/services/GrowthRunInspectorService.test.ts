@@ -8,6 +8,15 @@ const repository = vi.hoisted(() => ({
 vi.mock("../repositories/GrowthRunInspectorRepository", () => ({
   GrowthRunInspectorRepository: repository,
 }));
+const observationsRepository = vi.hoisted(() => ({
+  listLatestForRuns: vi.fn(),
+}));
+vi.mock(
+  "../repositories/GrowthMonthlyCycleOperatorObservationsRepository",
+  () => ({
+    GrowthMonthlyCycleOperatorObservationsRepository: observationsRepository,
+  }),
+);
 
 import { GrowthRunInspectorService } from "./GrowthRunInspectorService";
 
@@ -53,6 +62,7 @@ describe("GrowthRunInspectorService", () => {
     vi.resetAllMocks();
     repository.listRecentCalibrationRecommendations.mockResolvedValue([]);
     repository.listRecentMonthlyCycles.mockResolvedValue([]);
+    observationsRepository.listLatestForRuns.mockResolvedValue([]);
   });
 
   it("normalizes counts and computes terminal and running durations", async () => {
@@ -206,6 +216,20 @@ describe("GrowthRunInspectorService", () => {
         reportStatus: null,
       }),
     ]);
+    observationsRepository.listLatestForRuns.mockResolvedValue([
+      {
+        id: "observation_1",
+        projectId: "project_1",
+        runId: "monthly_3",
+        requestKey: "11111111-1111-4111-8111-111111111111",
+        preparation: "minor",
+        failure: "explained",
+        duplicateSpam: "not_observed",
+        note: "Checked by the operator.",
+        reviewerId: "private_user_id",
+        createdAt: "2026-09-02T11:00:00.000Z",
+      },
+    ]);
     const result = await GrowthRunInspectorService.getRunInspector(
       "project_1",
       new Date("2026-09-02T12:00:00.000Z"),
@@ -231,11 +255,23 @@ describe("GrowthRunInspectorService", () => {
             unresolved: 1,
             reconciled: 1,
           },
+          operatorObservation: {
+            preparation: "minor",
+            failure: "explained",
+            duplicateSpam: "not_observed",
+            note: "Checked by the operator.",
+            createdAt: "2026-09-02T11:00:00.000Z",
+          },
         },
         { parent: { id: "monthly_2" } },
         { child: null, report: null },
       ],
     });
+    expect(observationsRepository.listLatestForRuns).toHaveBeenCalledWith(
+      "project_1",
+      ["monthly_3", "monthly_2", "monthly_1"],
+    );
+    expect(JSON.stringify(result)).not.toContain("private_user_id");
   });
 
   it("caps monthly evidence and reports a gap between the latest periods", async () => {
@@ -259,6 +295,17 @@ describe("GrowthRunInspectorService", () => {
       latestPeriodsAdjacent: false,
     });
     expect(result.monthlyCycleEvidence.cycles).toHaveLength(6);
+    expect(observationsRepository.listLatestForRuns).toHaveBeenCalledWith(
+      "project_1",
+      [
+        "monthly_7",
+        "monthly_6",
+        "monthly_5",
+        "monthly_4",
+        "monthly_3",
+        "monthly_2",
+      ],
+    );
   });
 });
 

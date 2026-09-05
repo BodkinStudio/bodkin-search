@@ -235,3 +235,10 @@ This is persisted operational evidence, not a Gate 4 pass/fail decision. A
 missing child, report or Recommendation is shown as absent, and the saved data
 does not capture substantial manual preparation. Human review and live
 validation remain required.
+
+Completed visible monthly cycles can also receive an **operator observation**.
+Choose the target cycle and explicitly record preparation burden, failure
+explanation and duplicate recommendation spam, with an optional note. This is
+an append-only human assertion, not verified fact or an automatic Gate 4
+decision. A save refreshes the bounded dossier, which shows only the latest
+observation per visible cycle and never exposes reviewer identity.

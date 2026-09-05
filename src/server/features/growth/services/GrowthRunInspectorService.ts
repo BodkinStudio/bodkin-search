@@ -6,6 +6,7 @@ import {
   type GrowthRunInspectorDto,
 } from "@/types/schemas/growth-run-inspector";
 import { GrowthRunInspectorRepository } from "../repositories/GrowthRunInspectorRepository";
+import { GrowthMonthlyCycleOperatorObservationsRepository } from "../repositories/GrowthMonthlyCycleOperatorObservationsRepository";
 import { NEW_CRITICAL_AUDIT_ISSUE_DETECTOR_VERSION } from "./NewCriticalAuditIssueDetector";
 import { PERSISTENT_TRACKED_RANK_DROP_DETECTOR_VERSION } from "./PersistentTrackedRankDropDetector";
 import { PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSIONS } from "./PriorityPageClickDeclineDetector";
@@ -165,7 +166,17 @@ function nextCalendarDate(value: string) {
   return date.toISOString().slice(0, 10);
 }
 
-function buildMonthlyCycleEvidence(rows: MonthlyCycleRow[]) {
+function buildMonthlyCycleEvidence(
+  rows: MonthlyCycleRow[],
+  observations: Awaited<
+    ReturnType<
+      typeof GrowthMonthlyCycleOperatorObservationsRepository.listLatestForRuns
+    >
+  >,
+) {
+  const observationByRun = new Map(
+    observations.map((observation) => [observation.runId, observation]),
+  );
   const cycles = rows.slice(0, MONTHLY_CYCLE_LIMIT).map((row) => {
     const parent = cycleRun(row, "parent");
     if (!parent)
@@ -190,6 +201,18 @@ function buildMonthlyCycleEvidence(rows: MonthlyCycleRow[]) {
         unresolved: entityCount(row.unresolvedCount),
         reconciled: entityCount(row.reconciledCount),
       },
+      operatorObservation: (() => {
+        const observation = observationByRun.get(parent.id);
+        return observation
+          ? {
+              preparation: observation.preparation,
+              failure: observation.failure,
+              duplicateSpam: observation.duplicateSpam,
+              note: observation.note,
+              createdAt: observation.createdAt,
+            }
+          : null;
+      })(),
     };
   });
   const periods = [
@@ -235,10 +258,22 @@ async function getRunInspector(
       MONTHLY_CYCLE_LIMIT + 1,
     ),
   ]);
+  const visibleMonthlyCycleRows = monthlyCycleRows.slice(
+    0,
+    MONTHLY_CYCLE_LIMIT,
+  );
+  const observations =
+    await GrowthMonthlyCycleOperatorObservationsRepository.listLatestForRuns(
+      projectId,
+      visibleMonthlyCycleRows.map(({ parentId }) => parentId),
+    );
   return growthRunInspectorDtoSchema.parse({
     asOf: now.toISOString(),
     calibration: buildCalibration(calibrationRows),
-    monthlyCycleEvidence: buildMonthlyCycleEvidence(monthlyCycleRows),
+    monthlyCycleEvidence: buildMonthlyCycleEvidence(
+      monthlyCycleRows,
+      observations,
+    ),
     limit: LIMIT,
     hasMore: rows.length > LIMIT,
     runs: rows.slice(0, LIMIT).map((run) => ({

@@ -238,3 +238,55 @@ export const growthSignals = sqliteTable(
     ),
   ],
 );
+
+// Immutable, operator-recorded assertions for an exact completed monthly
+// review. A project-scoped request key makes network retries idempotent while
+// allowing later observations with a fresh key.
+export const growthMonthlyCycleOperatorObservations = sqliteTable(
+  "growth_monthly_cycle_operator_observations",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    runId: text("run_id").notNull(),
+    requestKey: text("request_key").notNull(),
+    preparation: text("preparation", {
+      enum: ["not_assessed", "none", "minor", "substantial"],
+    }).notNull(),
+    failure: text("failure", {
+      enum: ["not_assessed", "none_observed", "explained", "unexplained"],
+    }).notNull(),
+    duplicateSpam: text("duplicate_spam", {
+      enum: ["not_assessed", "not_observed", "observed"],
+    }).notNull(),
+    note: text("note"),
+    reviewerId: text("reviewer_id").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.projectId, table.runId],
+      foreignColumns: [growthRuns.projectId, growthRuns.id],
+      name: "growth_monthly_cycle_operator_observations_project_run_fk",
+    }).onDelete("cascade"),
+    unique("growth_monthly_cycle_operator_observations_project_request_key").on(
+      table.projectId,
+      table.requestKey,
+    ),
+    index("growth_monthly_cycle_operator_observations_latest_idx").on(
+      table.projectId,
+      table.runId,
+      table.createdAt,
+      table.id,
+    ),
+    check(
+      "growth_monthly_cycle_operator_observations_text_bounds_check",
+      sql`length(${table.id}) BETWEEN 1 AND 100 AND length(${table.requestKey}) BETWEEN 1 AND 100 AND length(${table.reviewerId}) BETWEEN 1 AND 200 AND (${table.note} IS NULL OR length(${table.note}) BETWEEN 1 AND 2000)`,
+    ),
+    check(
+      "growth_monthly_cycle_operator_observations_values_check",
+      sql`${table.preparation} IN ('not_assessed', 'none', 'minor', 'substantial') AND ${table.failure} IN ('not_assessed', 'none_observed', 'explained', 'unexplained') AND ${table.duplicateSpam} IN ('not_assessed', 'not_observed', 'observed')`,
+    ),
+  ],
+);
