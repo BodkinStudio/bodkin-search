@@ -222,6 +222,30 @@ describe("GrowthMonthlyReportsService", () => {
     expect(reports.createGrowthReport).not.toHaveBeenCalled();
   });
 
+  it("records scheduled report creation with system provenance", async () => {
+    const sections = GROWTH_REPORT_SECTION_TYPES.map((sectionType) => ({
+      sectionType,
+      position: GROWTH_REPORT_SECTION_POSITIONS[sectionType],
+      content: { summary: `${sectionType} summary`, items: [] },
+    }));
+    builder.buildGrowthMonthlyReportSections.mockReturnValue(sections);
+    reports.createGrowthReport.mockResolvedValue(stored);
+
+    await GrowthMonthlyReportsService.buildScheduledGrowthMonthlyReport(
+      current.projectId,
+      current,
+      currentNow,
+    );
+
+    expect(reports.createGrowthReport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        createdByType: "system",
+        createdById: "growth-monthly-scheduler",
+      }),
+      expect.any(Object),
+    );
+  });
+
   it("uses timezone half-open DST boundaries for the current build", async () => {
     settings.getSettings.mockResolvedValue({
       reportTimezone: "Europe/London",

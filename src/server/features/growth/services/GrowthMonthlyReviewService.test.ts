@@ -5,14 +5,24 @@ import { GROWTH_REPORT_SECTION_TYPES } from "@/types/schemas/growth-reports";
 const runs = vi.hoisted(() => ({
   getRunBySlot: vi.fn(),
   claimManualRun: vi.fn(),
+  claimScheduledRun: vi.fn(),
   completeRun: vi.fn(),
   completeRunWithErrors: vi.fn(),
   failRun: vi.fn(),
 }));
-const settings = vi.hoisted(() => ({ getSettings: vi.fn() }));
-const check = vi.hoisted(() => ({ runCheck: vi.fn() }));
+const settings = vi.hoisted(() => ({
+  getSettings: vi.fn(),
+  getSchedulingSettings: vi.fn(),
+}));
+const check = vi.hoisted(() => ({
+  runCheck: vi.fn(),
+  runScheduledCheck: vi.fn(),
+}));
 const due = vi.hoisted(() => ({ getDueMeasurements: vi.fn() }));
-const reports = vi.hoisted(() => ({ buildGrowthMonthlyReport: vi.fn() }));
+const reports = vi.hoisted(() => ({
+  buildGrowthMonthlyReport: vi.fn(),
+  buildScheduledGrowthMonthlyReport: vi.fn(),
+}));
 
 vi.mock("./GrowthRunsService", () => ({ GrowthRunsService: runs }));
 vi.mock("./GrowthSettingsService", () => ({ GrowthSettingsService: settings }));
@@ -130,6 +140,7 @@ describe("GrowthMonthlyReviewService", () => {
     settings.getSettings.mockResolvedValue({
       reportTimezone: "Europe/London",
     });
+    settings.getSchedulingSettings.mockResolvedValue({ settingsRevision: 1 });
     runs.claimManualRun.mockResolvedValue({
       run: parentRun(),
       claimed: true,
@@ -138,13 +149,168 @@ describe("GrowthMonthlyReviewService", () => {
       run: childRun(),
       replayed: false,
     });
+    check.runScheduledCheck.mockResolvedValue({
+      run: childRun(),
+      replayed: false,
+    });
     due.getDueMeasurements.mockResolvedValue(completeDue);
     reports.buildGrowthMonthlyReport.mockResolvedValue(noActivity);
+    reports.buildScheduledGrowthMonthlyReport.mockResolvedValue(noActivity);
     runs.completeRun.mockResolvedValue(terminal("completed"));
     runs.completeRunWithErrors.mockResolvedValue(
       terminal("completed_with_errors"),
     );
     runs.failRun.mockResolvedValue(terminal("failed"));
+  });
+
+  it("claims scheduled provenance and builds the report as the system actor", async () => {
+    const scheduledRun = parentRun({
+      trigger: "scheduled",
+      cadenceSlot: "monthly-review:scheduled:2026-08-01:2026-08-31",
+    });
+    settings.getSettings.mockResolvedValue({
+      persisted: true,
+      growthEnabled: true,
+      reportCadence: "monthly",
+      reportTimezone: "Europe/London",
+      updatedAt: "2026-08-01T00:00:00.000Z",
+    });
+    runs.claimScheduledRun.mockResolvedValue({
+      run: scheduledRun,
+      claimed: true,
+    });
+
+    const result = await GrowthMonthlyReviewService.runScheduledMonthlyReview(
+      {
+        projectId: "project_authorized",
+        cadenceSlot: "monthly-review:scheduled:2026-08-01:2026-08-31",
+        periodStart: "2026-08-01",
+        periodEnd: "2026-08-31",
+        reportTimezone: "Europe/London",
+        scheduledAt: "2026-09-01T00:00:00.000Z",
+        settingsRevision: 1,
+      },
+      now,
+    );
+
+    expect(runs.claimScheduledRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cadenceSlot: "monthly-review:scheduled:2026-08-01:2026-08-31",
+        settingsRevision: 1,
+      }),
+    );
+    expect(reports.buildScheduledGrowthMonthlyReport).toHaveBeenCalledWith(
+      "project_authorized",
+      {
+        projectId: "project_authorized",
+        periodStart: "2026-08-01",
+        periodEnd: "2026-08-31",
+        reportTimezone: "Europe/London",
+      },
+      now,
+    );
+    expect(check.runScheduledCheck).toHaveBeenCalledWith({
+      projectId: "project_authorized",
+      requestKey: "monthly_parent_run",
+      settingsRevision: 1,
+    });
+    expect(check.runCheck).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ replayed: false });
+  });
+
+  it("skips a scheduled claim when its observed settings revision changed", async () => {
+    settings.getSettings.mockResolvedValue({
+      persisted: true,
+      growthEnabled: true,
+      reportCadence: "monthly",
+      reportTimezone: "Europe/London",
+      updatedAt: "2026-08-02T00:00:00.000Z",
+    });
+    settings.getSchedulingSettings.mockResolvedValue({ settingsRevision: 2 });
+
+    await expect(
+      GrowthMonthlyReviewService.runScheduledMonthlyReview({
+        projectId: "project_authorized",
+        cadenceSlot: "monthly-review:scheduled:2026-08-01:2026-08-31",
+        periodStart: "2026-08-01",
+        periodEnd: "2026-08-31",
+        reportTimezone: "Europe/London",
+        scheduledAt: "2026-09-01T00:00:00.000Z",
+        settingsRevision: 1,
+      }),
+    ).resolves.toEqual({ skipped: true, reason: "settings_changed" });
+    expect(runs.claimScheduledRun).not.toHaveBeenCalled();
+    expect(check.runCheck).not.toHaveBeenCalled();
+    expect(check.runScheduledCheck).not.toHaveBeenCalled();
+  });
+
+  it("resumes a compatible scheduled running Run after a Workflow retry", async () => {
+    runs.getRunBySlot.mockResolvedValue(
+      parentRun({
+        trigger: "scheduled",
+        cadenceSlot: "monthly-review:scheduled:2026-08-01:2026-08-31",
+      }),
+    );
+    settings.getSettings.mockResolvedValue({
+      persisted: true,
+      growthEnabled: true,
+      reportCadence: "monthly",
+      reportTimezone: "Europe/London",
+      updatedAt: "2026-08-01T00:00:00.000Z",
+    });
+
+    const result = await GrowthMonthlyReviewService.runScheduledMonthlyReview(
+      {
+        projectId: "project_authorized",
+        cadenceSlot: "monthly-review:scheduled:2026-08-01:2026-08-31",
+        periodStart: "2026-08-01",
+        periodEnd: "2026-08-31",
+        reportTimezone: "Europe/London",
+        scheduledAt: "2026-09-01T00:00:00.000Z",
+        settingsRevision: 1,
+      },
+      now,
+    );
+
+    expect(runs.claimScheduledRun).not.toHaveBeenCalled();
+    expect(check.runScheduledCheck).toHaveBeenCalled();
+    expect(result).toMatchObject({ replayed: false });
+  });
+
+  it("terminalizes a resumed scheduled Run when its settings were disabled", async () => {
+    runs.getRunBySlot.mockResolvedValue(
+      parentRun({
+        trigger: "scheduled",
+        cadenceSlot: "monthly-review:scheduled:2026-08-01:2026-08-31",
+      }),
+    );
+    settings.getSettings.mockResolvedValue({
+      persisted: true,
+      growthEnabled: false,
+      reportCadence: "monthly",
+      reportTimezone: "Europe/London",
+      updatedAt: "2026-08-02T00:00:00.000Z",
+    });
+    runs.failRun.mockResolvedValue(terminal("failed"));
+
+    const result = await GrowthMonthlyReviewService.runScheduledMonthlyReview(
+      {
+        projectId: "project_authorized",
+        cadenceSlot: "monthly-review:scheduled:2026-08-01:2026-08-31",
+        periodStart: "2026-08-01",
+        periodEnd: "2026-08-31",
+        reportTimezone: "Europe/London",
+        scheduledAt: "2026-09-01T00:00:00.000Z",
+        settingsRevision: 1,
+      },
+      now,
+    );
+
+    expect(runs.failRun).toHaveBeenCalledWith(
+      expect.objectContaining({ failureCode: "MONTHLY_REVIEW_FAILED" }),
+    );
+    expect(check.runScheduledCheck).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ replayed: true, run: { status: "failed" } });
   });
 
   it("replays an exact stored running envelope before settings or phase work", async () => {

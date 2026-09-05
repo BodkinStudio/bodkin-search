@@ -1424,3 +1424,59 @@ scheduled orchestration is implemented.
 Scheduled measurement checks, notifications, stale-due escalation, provider
 health, automatic evidence collection and cross-source freshness rules remain
 separate work.
+
+---
+
+## ADR-055 - Monthly reviews use a persisted local-calendar schedule
+
+**Status:** Accepted
+
+### Decision
+
+- A Growth-enabled project with monthly cadence stores one internal
+  `nextMonthlyReviewAt` cursor. The configured report day is interpreted in the
+  configured IANA report timezone. Existing enabled rows with a null cursor are
+  initialised lazily; if this month's report day has passed, the first run is
+  immediately due rather than silently skipping the previous complete month.
+- An hourly Worker cron reads at most 51 due settings rows and admits at most 50. Each project is isolated from the others and the tick has a two-minute
+  admission deadline. Overflow and all claim, dispatch and error counts are
+  emitted in one structured summary; rows not admitted remain due.
+- Before dispatch, the scheduler advances the cursor to the next future local
+  report day with a project, monotonic settings-revision and observed-cursor
+  compare-and-swap that also requires the project to remain unarchived. Every
+  user settings write increments the integer revision, including writes in the
+  same millisecond. A concurrent settings edit or archive wins cleanly. If
+  Workflow creation fails, the scheduler restores the observed cursor only
+  when that same revision still owns the advanced value.
+- Each admitted project-period gets a deterministic Cloudflare Workflow
+  identity and a frozen previous-complete-month coordinate. The Workflow input
+  is strictly validated and its database step opens the established
+  provider-safe Postgres scope. The step has bounded retries and a 15-minute
+  timeout.
+- The existing monthly coordinator owns execution. Scheduled Runs use the
+  natural project, `monthly_review` and period-slot uniqueness with
+  `trigger=scheduled`. A compatible running Run may resume its idempotent child
+  phases after a Workflow retry; manual requests keep their exact-replay-only
+  contract. The exact settings revision must still be enabled and monthly, and
+  the project unarchived, when the first scheduled Run is claimed.
+- A draft created by scheduled execution records `system` provenance with the
+  stable `growth-monthly-scheduler` actor ID. Existing reports, Signals,
+  Recommendations and Actions retain their current immutable/dedupe rules.
+
+### Consequence
+
+Growth can prepare its current monthly review without a signed-in user or a
+second queue framework. The same deployment path provisions the new Workflow
+binding for Wrangler and Alchemy stages. Manual review remains available and
+uses a distinct cadence namespace.
+
+This implements BG-0403, but it does not by itself satisfy Gate 4. Two
+consecutive real unattended cycles still need to demonstrate that scheduling,
+provider availability and dedupe behavior hold in production.
+
+### Deferred
+
+Weekly review, daily critical monitoring, automatic report publication or
+delivery, notification, generic job administration, Docker cron delivery,
+Workflow-instance inspection/restart and Gate 4 operational evidence remain
+separate work.

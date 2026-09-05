@@ -75,9 +75,11 @@ function runSummary(row: Awaited<ReturnType<typeof GrowthRunsService.getRun>>) {
 
 function isPriorityPageCheckRun(
   run: Awaited<ReturnType<typeof GrowthRunsService.getRun>>,
+  trigger?: "manual" | "scheduled",
 ) {
   return (
     run.runType === RUN_TYPE &&
+    (trigger === undefined || run.trigger === trigger) &&
     isPriorityPageClickDeclineDetectorVersion(run.detectorVersion) &&
     run.cadenceSlot.startsWith(CADENCE_SLOT_PREFIX)
   );
@@ -119,6 +121,26 @@ async function getOverview(projectId: string): Promise<GrowthCheckOverview> {
 }
 
 async function runCheck(input: { projectId: string; requestKey: string }) {
+  return executeCheck(input, { trigger: "manual" });
+}
+
+async function runScheduledCheck(input: {
+  projectId: string;
+  requestKey: string;
+  settingsRevision: number;
+}) {
+  return executeCheck(input, {
+    trigger: "scheduled",
+    settingsRevision: input.settingsRevision,
+  });
+}
+
+async function executeCheck(
+  input: { projectId: string; requestKey: string },
+  execution:
+    | { trigger: "manual" }
+    | { trigger: "scheduled"; settingsRevision: number },
+) {
   const cadenceSlot = `${CADENCE_SLOT_PREFIX}${input.requestKey}`;
   const existing = await GrowthRunsRepository.getRunBySlot(
     input.projectId,
@@ -126,7 +148,7 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
     cadenceSlot,
   );
   if (existing) {
-    if (!isPriorityPageCheckRun(existing)) {
+    if (!isPriorityPageCheckRun(existing, execution.trigger)) {
       throw new AppError("CONFLICT", "Growth check request slot is occupied");
     }
     return { run: runSummary(existing), replayed: true };
@@ -150,16 +172,28 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
   const capturedAt = new Date().toISOString();
   const { baselineWindow, currentWindow } =
     priorityPageCheckWindows(capturedAt);
-  const claim = await GrowthRunsService.claimManualRun({
+  const creation = {
     projectId: input.projectId,
     runType: RUN_TYPE,
     cadenceSlot,
     periodStart: baselineWindow.startDate,
     periodEnd: currentWindow.endDate,
     detectorVersion: PRIORITY_PAGE_CLICK_DECLINE_DETECTOR_VERSION,
-  });
+  };
+  const claim =
+    execution.trigger === "scheduled"
+      ? await GrowthRunsService.claimScheduledRun({
+          ...creation,
+          settingsRevision: execution.settingsRevision,
+        })
+      : await GrowthRunsService.claimManualRun(creation);
+  if (!claim.run)
+    throw new AppError(
+      "CONFLICT",
+      "Growth settings changed before the scheduled check started",
+    );
   if (!claim.claimed) {
-    if (!isPriorityPageCheckRun(claim.run)) {
+    if (!isPriorityPageCheckRun(claim.run, execution.trigger)) {
       throw new AppError("CONFLICT", "Growth check request slot is occupied");
     }
     return { run: runSummary(claim.run), replayed: true };
@@ -373,6 +407,7 @@ async function getEvidence(input: {
 export const GrowthPriorityPageCheckService = {
   getOverview,
   runCheck,
+  runScheduledCheck,
   getRunDetail,
   getEvidence,
 } as const;

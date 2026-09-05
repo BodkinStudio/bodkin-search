@@ -4,6 +4,7 @@ import {
   GROWTH_SETTINGS_DEFAULTS,
   type GrowthSettingsInput,
 } from "@/types/schemas/growth";
+import { initialGrowthMonthlyReviewAt } from "./GrowthMonthlySchedule";
 
 type AuthorizedProjectScope = {
   projectId: string;
@@ -12,7 +13,14 @@ type AuthorizedProjectScope = {
 
 export async function getSettings(projectId: string) {
   const row = await GrowthSettingsRepository.getByProjectId(projectId);
-  if (row) return { ...row, persisted: true as const };
+  if (row) {
+    const {
+      nextMonthlyReviewAt: _schedule,
+      settingsRevision: _revision,
+      ...settings
+    } = row;
+    return { ...settings, persisted: true as const };
+  }
 
   return {
     projectId,
@@ -23,9 +31,14 @@ export async function getSettings(projectId: string) {
   };
 }
 
+function getSchedulingSettings(projectId: string) {
+  return GrowthSettingsRepository.getByProjectId(projectId);
+}
+
 export async function updateSettings(
   project: AuthorizedProjectScope,
   input: GrowthSettingsInput,
+  now = new Date(),
 ) {
   if (input.growthEnabled && !project.projectDomain) {
     throw new AppError(
@@ -34,11 +47,41 @@ export async function updateSettings(
     );
   }
 
-  const row = await GrowthSettingsRepository.upsert(project.projectId, input);
-  return { ...row, persisted: true as const };
+  const existing = await GrowthSettingsRepository.getByProjectId(
+    project.projectId,
+  );
+  const keepsMonthlySchedule =
+    input.growthEnabled &&
+    input.reportCadence === "monthly" &&
+    existing?.growthEnabled === true &&
+    existing.reportCadence === "monthly" &&
+    existing.reportTimezone === input.reportTimezone &&
+    existing.reportDay === input.reportDay;
+  const nextMonthlyReviewAt =
+    keepsMonthlySchedule && existing.nextMonthlyReviewAt
+      ? existing.nextMonthlyReviewAt
+      : input.growthEnabled && input.reportCadence === "monthly"
+        ? initialGrowthMonthlyReviewAt(
+            now,
+            input.reportTimezone,
+            input.reportDay,
+          )
+        : null;
+  const row = await GrowthSettingsRepository.upsert(
+    project.projectId,
+    input,
+    nextMonthlyReviewAt,
+  );
+  const {
+    nextMonthlyReviewAt: _schedule,
+    settingsRevision: _revision,
+    ...settings
+  } = row;
+  return { ...settings, persisted: true as const };
 }
 
 export const GrowthSettingsService = {
   getSettings,
+  getSchedulingSettings,
   updateSettings,
 } as const;

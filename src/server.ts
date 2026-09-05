@@ -7,6 +7,7 @@ import { resolveUserContextFromHeaders } from "@/middleware/ensure-user/resolve"
 import { ProjectRepository } from "@/server/features/projects/repositories/ProjectRepository";
 import { SamSessionRepository } from "@/server/features/sam/SamSessionRepository";
 import { runScheduledRankChecks } from "@/server/features/rank-tracking/services/scheduledRankChecks";
+import { runScheduledGrowthMonthlyReviews } from "@/server/features/growth/services/scheduledGrowthMonthlyReviews";
 import { reconcileStaleAudits } from "@/server/features/audit/services/auditReconciler";
 import { getOrCreateOrganizationCustomer } from "@/server/billing/subscription";
 import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
@@ -180,6 +181,7 @@ function handleFetch(
 // Export Workflow classes as named exports
 export { SiteAuditWorkflow } from "./server/workflows/SiteAuditWorkflow";
 export { RankCheckWorkflow } from "./server/workflows/RankCheckWorkflow";
+export { GrowthMonthlyReviewWorkflow } from "./server/workflows/GrowthMonthlyReviewWorkflow";
 // Durable Object class for the onboarding strategy chat (Agents SDK).
 export { OnboardingChatAgent } from "./server/features/onboarding/OnboardingChatAgent";
 // Durable Object class for the SAM in-app agent (Agents SDK).
@@ -189,6 +191,7 @@ export { AuditScratchpad } from "./server/features/audit/AuditScratchpad";
 
 // Daily OAuth KV garbage collection; must match a trigger in wrangler.jsonc.
 const MCP_OAUTH_PURGE_CRON = "17 3 * * *";
+const GROWTH_MONTHLY_REVIEW_CRON = "23 * * * *";
 
 export default {
   fetch,
@@ -210,6 +213,11 @@ export default {
           console.warn("[mcp-oauth] purge did not cover the full keyspace");
         }
       }
+      return;
+    }
+
+    if (controller.cron === GROWTH_MONTHLY_REVIEW_CRON) {
+      await withPgClient(() => runScheduledGrowthMonthlyReviews(env));
       return;
     }
 

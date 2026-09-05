@@ -7,6 +7,7 @@ const repository = vi.hoisted(() => ({
   listRuns: vi.fn(),
   listRecentRuns: vi.fn(),
   tryCreateManualRun: vi.fn(),
+  tryCreateScheduledRun: vi.fn(),
   transitionRunningRun: vi.fn(),
   getSignal: vi.fn(),
   listSignals: vi.fn(),
@@ -92,6 +93,36 @@ describe("GrowthRunsService", () => {
         periodEnd: "2026-08-30",
       }),
     ).resolves.toEqual({ run: runningRun, claimed: false });
+  });
+
+  it("claims a scheduled identity only while its settings version remains eligible", async () => {
+    repository.projectExists.mockResolvedValue(true);
+    repository.tryCreateScheduledRun.mockResolvedValue(true);
+    repository.getRunBySlot.mockResolvedValue({
+      ...runningRun,
+      trigger: "scheduled",
+    });
+
+    await expect(
+      GrowthRunsService.claimScheduledRun({
+        ...creation,
+        settingsRevision: 1,
+      }),
+    ).resolves.toMatchObject({ claimed: true });
+    expect(repository.tryCreateScheduledRun).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: "project_1" }),
+      expect.any(String),
+      1,
+    );
+
+    repository.tryCreateScheduledRun.mockResolvedValue(false);
+    repository.getRunBySlot.mockResolvedValue(null);
+    await expect(
+      GrowthRunsService.claimScheduledRun({
+        ...creation,
+        settingsRevision: 2,
+      }),
+    ).resolves.toEqual({ run: null, claimed: false });
   });
 
   it("rejects immutable cadence-slot drift", async () => {

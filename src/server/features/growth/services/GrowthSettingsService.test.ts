@@ -17,6 +17,8 @@ const persistedRow = {
   ...GROWTH_SETTINGS_DEFAULTS,
   createdAt: "2026-08-29T10:00:00.000Z",
   updatedAt: "2026-08-29T10:00:00.000Z",
+  nextMonthlyReviewAt: null,
+  settingsRevision: 1,
 };
 
 describe("GrowthSettingsService", () => {
@@ -38,8 +40,13 @@ describe("GrowthSettingsService", () => {
   it("returns a stored project row without merging another project's state", async () => {
     mocks.getByProjectId.mockResolvedValue(persistedRow);
 
+    const {
+      nextMonthlyReviewAt: _schedule,
+      settingsRevision: _revision,
+      ...publicRow
+    } = persistedRow;
     await expect(getSettings("project_1")).resolves.toEqual({
-      ...persistedRow,
+      ...publicRow,
       persisted: true,
     });
     expect(mocks.getByProjectId).toHaveBeenCalledWith("project_1");
@@ -64,6 +71,7 @@ describe("GrowthSettingsService", () => {
     expect(mocks.upsert).toHaveBeenCalledWith(
       "project_1",
       GROWTH_SETTINGS_DEFAULTS,
+      null,
     );
   });
 
@@ -74,8 +82,37 @@ describe("GrowthSettingsService", () => {
       updateSettings(
         { projectId: "project_1", projectDomain: "acme.com" },
         input,
+        new Date("2026-09-05T12:00:00.000Z"),
       ),
-    ).resolves.toEqual({ ...persistedRow, persisted: true });
-    expect(mocks.upsert).toHaveBeenCalledWith("project_1", input);
+    ).resolves.toEqual({
+      projectId: persistedRow.projectId,
+      ...GROWTH_SETTINGS_DEFAULTS,
+      createdAt: persistedRow.createdAt,
+      updatedAt: persistedRow.updatedAt,
+      persisted: true,
+    });
+    expect(mocks.upsert).toHaveBeenCalledWith(
+      "project_1",
+      input,
+      "2026-09-01T00:00:00.000Z",
+    );
+  });
+
+  it("preserves an existing monthly cursor when cadence fields do not change", async () => {
+    mocks.getByProjectId.mockResolvedValue({
+      ...persistedRow,
+      growthEnabled: true,
+      nextMonthlyReviewAt: "2026-10-01T00:00:00.000Z",
+    });
+    await updateSettings(
+      { projectId: "project_1", projectDomain: "acme.com" },
+      { ...GROWTH_SETTINGS_DEFAULTS, growthEnabled: true },
+      new Date("2026-09-05T12:00:00.000Z"),
+    );
+    expect(mocks.upsert).toHaveBeenCalledWith(
+      "project_1",
+      expect.any(Object),
+      "2026-10-01T00:00:00.000Z",
+    );
   });
 });

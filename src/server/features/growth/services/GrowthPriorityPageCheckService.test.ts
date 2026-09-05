@@ -1,9 +1,11 @@
+/* eslint-disable max-lines -- this suite keeps the complete manual and scheduled detector contract together */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   connection: vi.fn(),
   keyPages: vi.fn(),
   recent: vi.fn(),
   claim: vi.fn(),
+  claimScheduled: vi.fn(),
   collect: vi.fn(),
   detect: vi.fn(),
   record: vi.fn(),
@@ -36,6 +38,7 @@ vi.mock("./GrowthRunsService", () => ({
   GrowthRunsService: {
     listRecentRunsForDetector: mocks.recent,
     claimManualRun: mocks.claim,
+    claimScheduledRun: mocks.claimScheduled,
     recordSignal: mocks.record,
     completeRun: mocks.complete,
     completeRunWithErrors: mocks.completeErrors,
@@ -81,6 +84,7 @@ import {
 const running = {
   id: "run_1",
   runType: "manual_analysis",
+  trigger: "manual",
   cadenceSlot: "priority-page-check:retry_1",
   detectorVersion: "priority-page-click-decline-v1",
   status: "running",
@@ -154,6 +158,34 @@ describe("Growth priority-page checks", () => {
         }),
       }),
     );
+  });
+
+  it("keeps a scheduled child check on scheduled provenance", async () => {
+    const scheduledRun = { ...running, trigger: "scheduled" };
+    mocks.claimScheduled.mockResolvedValue({
+      run: scheduledRun,
+      claimed: true,
+    });
+    mocks.collect.mockResolvedValue({ keyPages: [] });
+    mocks.detect.mockResolvedValue([]);
+    mocks.complete.mockResolvedValue({
+      ...scheduledRun,
+      status: "completed",
+      completedAt: "2026-08-01T00:01:00.000Z",
+    });
+
+    await GrowthPriorityPageCheckService.runScheduledCheck({
+      projectId: "project_1",
+      requestKey: "monthly_parent_run",
+      settingsRevision: 1,
+    });
+
+    expect(mocks.claimScheduled).toHaveBeenCalledWith(
+      expect.objectContaining({
+        settingsRevision: 1,
+      }),
+    );
+    expect(mocks.claim).not.toHaveBeenCalled();
   });
   it("labels saved count windows and uses the existing safe current-URL projection", async () => {
     mocks.listSignals.mockResolvedValue([

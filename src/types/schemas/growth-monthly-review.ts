@@ -26,6 +26,44 @@ export const runGrowthMonthlyReviewRequestSchema = z.strictObject({
   requestKey,
 });
 
+export const scheduledGrowthMonthlyReviewInputSchema = z
+  .strictObject({
+    projectId: id,
+    cadenceSlot: z.string().trim().min(1).max(200),
+    periodStart: calendarDate,
+    periodEnd: calendarDate,
+    reportTimezone: z
+      .string()
+      .trim()
+      .min(1)
+      .max(100)
+      .refine((value) => {
+        try {
+          new Intl.DateTimeFormat("en", { timeZone: value }).format();
+          return true;
+        } catch {
+          return false;
+        }
+      }, "Use a valid IANA timezone"),
+    scheduledAt: timestamp,
+    settingsRevision: z.number().int().min(1),
+  })
+  .superRefine((value, context) => {
+    if (value.periodStart > value.periodEnd)
+      context.addIssue({
+        code: "custom",
+        path: ["periodEnd"],
+        message: "Period end must be on or after period start",
+      });
+    const expectedSlot = `monthly-review:scheduled:${value.periodStart}:${value.periodEnd}`;
+    if (value.cadenceSlot !== expectedSlot)
+      context.addIssue({
+        code: "custom",
+        path: ["cadenceSlot"],
+        message: "Scheduled cadence slot must match its period",
+      });
+  });
+
 const runCoordinateShape = {
   id,
   periodStart: calendarDate,
@@ -156,4 +194,7 @@ export type RunGrowthMonthlyReviewRequest = z.output<
 >;
 export type GrowthMonthlyReviewResponse = z.output<
   typeof growthMonthlyReviewResponseSchema
+>;
+export type ScheduledGrowthMonthlyReviewInput = z.output<
+  typeof scheduledGrowthMonthlyReviewInputSchema
 >;

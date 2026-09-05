@@ -1,9 +1,10 @@
-import { and, desc, eq, like, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, like, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { getDatabaseProvider } from "@/db/provider";
 import {
   growthActions,
   growthMeasurementPlans,
+  growthProjectSettings,
   growthRuns,
   growthSignals,
   projects,
@@ -97,6 +98,65 @@ async function tryCreateManualRun(
   input: CreateManualGrowthRunInput,
   id: string,
 ) {
+  return tryCreateRun(input, id, "manual");
+}
+
+async function tryCreateScheduledRun(
+  input: CreateManualGrowthRunInput,
+  id: string,
+  settingsRevision: number,
+) {
+  const now = new Date().toISOString();
+  const source = db
+    .select({
+      id: sql<string>`${id}`.as("id"),
+      projectId: sql<string>`${input.projectId}`.as("project_id"),
+      runType: sql<string>`${input.runType}`.as("run_type"),
+      trigger: sql<string>`'scheduled'`.as("trigger"),
+      status: sql<string>`'running'`.as("status"),
+      cadenceSlot: sql<string>`${input.cadenceSlot}`.as("cadence_slot"),
+      periodStart: sql<string>`${input.periodStart}`.as("period_start"),
+      periodEnd: sql<string>`${input.periodEnd}`.as("period_end"),
+      startedAt: sql<string>`${now}`.as("started_at"),
+      completedAt: sql<null>`NULL`.as("completed_at"),
+      detectorVersion: sql<string>`${input.detectorVersion}`.as(
+        "detector_version",
+      ),
+      analysisVersion: sql<string | null>`${input.analysisVersion ?? null}`.as(
+        "analysis_version",
+      ),
+      model: sql<string | null>`${input.model ?? null}`.as("model"),
+      promptVersion: sql<string | null>`${input.promptVersion ?? null}`.as(
+        "prompt_version",
+      ),
+      providerCostMinor: sql<null>`NULL`.as("provider_cost_minor"),
+      failureCode: sql<null>`NULL`.as("failure_code"),
+      failureMessage: sql<null>`NULL`.as("failure_message"),
+    })
+    .from(growthProjectSettings)
+    .innerJoin(projects, eq(projects.id, growthProjectSettings.projectId))
+    .where(
+      and(
+        eq(growthProjectSettings.projectId, input.projectId),
+        eq(growthProjectSettings.growthEnabled, true),
+        eq(growthProjectSettings.reportCadence, "monthly"),
+        eq(growthProjectSettings.settingsRevision, settingsRevision),
+        isNull(projects.archivedAt),
+      ),
+    );
+  const inserted = await db
+    .insert(growthRuns)
+    .select(source)
+    .onConflictDoNothing()
+    .returning({ id: growthRuns.id });
+  return Boolean(inserted[0]);
+}
+
+async function tryCreateRun(
+  input: CreateManualGrowthRunInput,
+  id: string,
+  trigger: "manual" | "scheduled",
+) {
   const now = new Date().toISOString();
   const inserted = await db
     .insert(growthRuns)
@@ -104,7 +164,7 @@ async function tryCreateManualRun(
       id,
       projectId: input.projectId,
       runType: input.runType,
-      trigger: "manual",
+      trigger,
       status: "running",
       cadenceSlot: input.cadenceSlot,
       periodStart: input.periodStart,
@@ -321,6 +381,7 @@ export const GrowthRunsRepository = {
   listRecentRunsForDetector,
   getRunBySlot,
   tryCreateManualRun,
+  tryCreateScheduledRun,
   transitionRunningRun,
   setAnalysisVersionWhileRunning,
   getSignal,

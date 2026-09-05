@@ -97,6 +97,27 @@ async function claimManualRun(input: CreateManualGrowthRunInput) {
   return { run, claimed: inserted };
 }
 
+/** Atomically claims one scheduler-owned cadence identity. */
+async function claimScheduledRun(
+  input: CreateManualGrowthRunInput & { settingsRevision: number },
+) {
+  if (!(await GrowthRunsRepository.projectExists(input.projectId))) {
+    throw new AppError("NOT_FOUND", "Growth project not found");
+  }
+  const inserted = await GrowthRunsRepository.tryCreateScheduledRun(
+    input,
+    crypto.randomUUID(),
+    input.settingsRevision,
+  );
+  const run = await GrowthRunsRepository.getRunBySlot(
+    input.projectId,
+    input.runType,
+    input.cadenceSlot,
+  );
+  if (!run) return { run: null, claimed: false };
+  return { run, claimed: inserted };
+}
+
 async function getRun(projectId: string, runId: string) {
   const row = await GrowthRunsRepository.getRun(projectId, runId);
   if (!row) throw new AppError("NOT_FOUND", "Growth run not found");
@@ -259,6 +280,7 @@ async function recordMeasurementDueSignal(
 export const GrowthRunsService = {
   createManualRun,
   claimManualRun,
+  claimScheduledRun,
   getRun,
   getRunBySlot,
   listRuns,

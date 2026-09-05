@@ -206,6 +206,33 @@ async function buildGrowthMonthlyReport(
   request: { projectId: string } & GrowthMonthlyReportExpectation,
   now = new Date(),
 ): Promise<GrowthMonthlyReportDto> {
+  return buildGrowthMonthlyReportForActor(
+    projectId,
+    { type: "user", id: actorId },
+    request,
+    now,
+  );
+}
+
+async function buildScheduledGrowthMonthlyReport(
+  projectId: string,
+  request: { projectId: string } & GrowthMonthlyReportExpectation,
+  now = new Date(),
+): Promise<GrowthMonthlyReportDto> {
+  return buildGrowthMonthlyReportForActor(
+    projectId,
+    { type: "system", id: "growth-monthly-scheduler" },
+    request,
+    now,
+  );
+}
+
+async function buildGrowthMonthlyReportForActor(
+  projectId: string,
+  actor: { type: "user" | "system"; id: string },
+  request: { projectId: string } & GrowthMonthlyReportExpectation,
+  now: Date,
+): Promise<GrowthMonthlyReportDto> {
   const settings = await GrowthSettingsService.getSettings(projectId);
   const dataCutoffAt = now.toISOString();
   const period = previousCompleteGrowthMonthlyPeriod(
@@ -257,8 +284,8 @@ async function buildGrowthMonthlyReport(
         ...period,
         version: 1,
         dataCutoffAt,
-        createdByType: "user",
-        createdById: actorId,
+        createdByType: actor.type,
+        createdById: actor.id,
         sections,
       },
       {
@@ -336,6 +363,7 @@ async function publishGrowthMonthlyReport(
 export const GrowthMonthlyReportsService = {
   getGrowthMonthlyReport,
   buildGrowthMonthlyReport,
+  buildScheduledGrowthMonthlyReport,
   getGrowthMonthlyPublicationStatus,
   publishGrowthMonthlyReport,
   GROWTH_MONTHLY_REPORT_BUILDER_VERSION,

@@ -22,6 +22,7 @@ declare namespace Cloudflare {
 		POSTHOG_PUBLIC_KEY: string;
 		SITE_AUDIT_WORKFLOW: Workflow<Parameters<import("./src/server").SiteAuditWorkflow['run']>[0]['payload']>;
 		RANK_CHECK_WORKFLOW: Workflow<Parameters<import("./src/server").RankCheckWorkflow['run']>[0]['payload']>;
+		GROWTH_MONTHLY_REVIEW_WORKFLOW: Workflow<Parameters<import("./src/server").GrowthMonthlyReviewWorkflow['run']>[0]['payload']>;
 	}
 }
 interface Env extends Cloudflare.Env {}

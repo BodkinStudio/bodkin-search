@@ -30,6 +30,12 @@ export const growthProjectSettings = sqliteTable(
       .notNull()
       .default("monthly"),
     reportDay: integer("report_day").notNull().default(1),
+    // Internal scheduler cursor. Null is also the lazy-backfill state for
+    // Growth settings created before scheduled monthly reviews shipped.
+    nextMonthlyReviewAt: text("next_monthly_review_at"),
+    // Monotonic scheduler concurrency token. Timestamps are not safe version
+    // identifiers because distinct writes can occur in the same millisecond.
+    settingsRevision: integer("settings_revision").notNull().default(1),
     defaultBaselineDays: integer("default_baseline_days").notNull().default(28),
     defaultCooldownDays: integer("default_cooldown_days").notNull().default(7),
     defaultPrimaryWindowDays: integer("default_primary_window_days")
@@ -48,6 +54,16 @@ export const growthProjectSettings = sqliteTable(
     check(
       "growth_project_settings_report_schedule_check",
       sql`(${table.reportCadence} = 'weekly' AND ${table.reportDay} BETWEEN 1 AND 7) OR (${table.reportCadence} = 'monthly' AND ${table.reportDay} BETWEEN 1 AND 28)`,
+    ),
+    index("growth_project_settings_monthly_due_idx").on(
+      table.growthEnabled,
+      table.reportCadence,
+      table.nextMonthlyReviewAt,
+      table.projectId,
+    ),
+    check(
+      "growth_project_settings_revision_check",
+      sql`${table.settingsRevision} >= 1`,
     ),
     check(
       "growth_project_settings_baseline_days_check",

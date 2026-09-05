@@ -30,6 +30,11 @@
       "binding": "RANK_CHECK_WORKFLOW",
       "class_name": "RankCheckWorkflow",
     },
+    {
+      "name": "growth-monthly-review-workflow",
+      "binding": "GROWTH_MONTHLY_REVIEW_WORKFLOW",
+      "class_name": "GrowthMonthlyReviewWorkflow",
+    },
   ],
   // Durable Object backing the onboarding strategy chat (Agents SDK
   // AIChatAgent). One instance per project; messages persist in the DO's
@@ -72,9 +77,10 @@
     },
   ],
   "triggers": {
-    // Every 5 min: rank checks + stale-audit reconcile. Daily: OAuth KV GC.
+    // Every 5 min: rank checks + stale-audit reconcile. Hourly: due Growth
+    // monthly reviews. Daily: OAuth KV GC.
     // Dispatched on controller.cron in src/server.ts `scheduled`.
-    "crons": ["*/5 * * * *", "17 3 * * *"],
+    "crons": ["*/5 * * * *", "23 * * * *", "17 3 * * *"],
   },
   // This config serves local dev and Docker self-host only. All Cloudflare
   // deployments — previews, prod, self-host — go through Alchemy

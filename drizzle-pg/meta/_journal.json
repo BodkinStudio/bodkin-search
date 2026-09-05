@@ -218,6 +218,20 @@
       "when": 1788312274151,
       "tag": "0030_sweet_random",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1788591300713,
+      "tag": "0031_modern_doorman",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1788594118414,
+      "tag": "0032_pale_talon",
+      "breakpoints": true
     }
   ]
 }

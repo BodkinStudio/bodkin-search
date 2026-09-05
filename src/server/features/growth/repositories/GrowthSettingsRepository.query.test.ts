@@ -30,13 +30,15 @@ beforeAll(async () => {
   // project-memory schema, including the key-page table rebuild/backfill.
   await client.executeMultiple(
     [
-      `CREATE TABLE projects (id text PRIMARY KEY);`,
+      `CREATE TABLE projects (id text PRIMARY KEY, archived_at text);`,
       `INSERT INTO projects (id) VALUES ('proj_legacy');`,
       ...readFileSync("drizzle/0042_project_memory.sql", "utf8")
         .split("--> statement-breakpoint")
         .filter((statement) => !statement.includes("DROP TABLE")),
       `INSERT INTO project_key_pages (id, project_id, url, role, topic, notes, updated_at, updated_by) VALUES ('page_legacy', 'proj_legacy', 'https://acme.com/legacy', 'money', NULL, NULL, '2026-08-01T00:00:00.000Z', 'user');`,
       readFileSync("drizzle/0043_wild_proteus.sql", "utf8"),
+      readFileSync("drizzle/0053_sweet_ben_grimm.sql", "utf8"),
+      readFileSync("drizzle/0054_simple_sunspot.sql", "utf8"),
     ].join("\n"),
   );
 
@@ -61,6 +63,7 @@ beforeEach(async () => {
   await client.executeMultiple(`
     DELETE FROM growth_project_settings;
     INSERT OR IGNORE INTO projects (id) VALUES ('proj_1'), ('proj_2');
+    UPDATE projects SET archived_at = NULL WHERE id IN ('proj_1', 'proj_2');
   `);
 });
 
@@ -94,6 +97,7 @@ describe("GrowthSettingsRepository", () => {
         reportTimezone: "Europe/London",
         createdAt: "2026-08-29T10:00:00.000Z",
         updatedAt: "2026-08-30T10:00:00.000Z",
+        settingsRevision: 2,
       }),
     );
   });
@@ -121,5 +125,90 @@ describe("GrowthSettingsRepository", () => {
     await expect(
       GrowthSettingsRepository.getByProjectId("proj_1"),
     ).resolves.toBeNull();
+  });
+
+  it("lists only active due monthly projects and claims with schedule/version CAS", async () => {
+    await GrowthSettingsRepository.upsert(
+      "proj_1",
+      { ...GROWTH_SETTINGS_DEFAULTS, growthEnabled: true },
+      "2026-09-01T00:00:00.000Z",
+    );
+    const row = await GrowthSettingsRepository.getByProjectId("proj_1");
+    const due = await GrowthSettingsRepository.listDueMonthlyReviews(
+      "2026-09-01T00:00:00.000Z",
+      10,
+    );
+    expect(due).toEqual([
+      expect.objectContaining({
+        projectId: "proj_1",
+        nextMonthlyReviewAt: "2026-09-01T00:00:00.000Z",
+      }),
+    ]);
+
+    await expect(
+      GrowthSettingsRepository.claimMonthlyReviewSchedule({
+        projectId: "proj_1",
+        settingsRevision: row!.settingsRevision,
+        observedAt: "2026-09-01T00:00:00.000Z",
+        nextAt: "2026-10-01T00:00:00.000Z",
+      }),
+    ).resolves.toBe(true);
+    await expect(
+      GrowthSettingsRepository.claimMonthlyReviewSchedule({
+        projectId: "proj_1",
+        settingsRevision: row!.settingsRevision,
+        observedAt: "2026-09-01T00:00:00.000Z",
+        nextAt: "2026-11-01T00:00:00.000Z",
+      }),
+    ).resolves.toBe(false);
+    await expect(
+      GrowthSettingsRepository.listDueMonthlyReviews(
+        "2026-09-01T00:00:00.000Z",
+        10,
+      ),
+    ).resolves.toEqual([]);
+  });
+
+  it("increments a monotonic revision when settings writes share a timestamp", async () => {
+    vi.setSystemTime("2026-09-01T00:00:00.000Z");
+    await GrowthSettingsRepository.upsert("proj_1", GROWTH_SETTINGS_DEFAULTS);
+    const first = await GrowthSettingsRepository.getByProjectId("proj_1");
+    await GrowthSettingsRepository.upsert("proj_1", {
+      ...GROWTH_SETTINGS_DEFAULTS,
+      growthEnabled: true,
+    });
+    const second = await GrowthSettingsRepository.getByProjectId("proj_1");
+
+    expect(second?.updatedAt).toBe(first?.updatedAt);
+    expect(second?.settingsRevision).toBe((first?.settingsRevision ?? 0) + 1);
+    await expect(
+      GrowthSettingsRepository.claimMonthlyReviewSchedule({
+        projectId: "proj_1",
+        settingsRevision: first!.settingsRevision,
+        observedAt: null,
+        nextAt: "2026-10-01T00:00:00.000Z",
+      }),
+    ).resolves.toBe(false);
+  });
+
+  it("rejects a schedule claim when the project was archived after selection", async () => {
+    await GrowthSettingsRepository.upsert(
+      "proj_1",
+      { ...GROWTH_SETTINGS_DEFAULTS, growthEnabled: true },
+      "2026-09-01T00:00:00.000Z",
+    );
+    const row = await GrowthSettingsRepository.getByProjectId("proj_1");
+    await client.execute(
+      "UPDATE projects SET archived_at = '2026-09-01T00:00:01.000Z' WHERE id = 'proj_1'",
+    );
+
+    await expect(
+      GrowthSettingsRepository.claimMonthlyReviewSchedule({
+        projectId: "proj_1",
+        settingsRevision: row!.settingsRevision,
+        observedAt: "2026-09-01T00:00:00.000Z",
+        nextAt: "2026-10-01T00:00:00.000Z",
+      }),
+    ).resolves.toBe(false);
   });
 });

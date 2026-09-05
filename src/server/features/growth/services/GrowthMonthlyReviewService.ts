@@ -3,9 +3,11 @@ import {
   growthMonthlyReviewResponseSchema,
   type GrowthMonthlyReviewResponse,
   type RunGrowthMonthlyReviewRequest,
+  type ScheduledGrowthMonthlyReviewInput,
 } from "@/types/schemas/growth-monthly-review";
 import { GrowthDueMeasurementsService } from "./GrowthDueMeasurementsService";
 import { previousCompleteGrowthMonthlyPeriod } from "./GrowthMonthlyReportPeriod";
+import { growthMonthlyReviewCoordinate } from "./GrowthMonthlySchedule";
 import { GrowthMonthlyReportsService } from "./GrowthMonthlyReportsService";
 import { GrowthPriorityPageCheckService } from "./GrowthPriorityPageCheckService";
 import { GrowthRunsService } from "./GrowthRunsService";
@@ -20,6 +22,11 @@ const PARTIAL_MESSAGE =
 const FAILED_CODE = "MONTHLY_REVIEW_FAILED";
 const FAILED_MESSAGE = "Monthly review could not complete any phase.";
 
+type ScheduledSkip = { skipped: true; reason: "settings_changed" };
+type Execution =
+  | { trigger: "manual"; actorId: string; requestKey: string }
+  | ({ trigger: "scheduled" } & ScheduledGrowthMonthlyReviewInput);
+
 type StoredRun = NonNullable<
   Awaited<ReturnType<typeof GrowthRunsService.getRunBySlot>>
 >;
@@ -30,6 +37,11 @@ type InitialMonthlyReviewResponse = Extract<
   GrowthMonthlyReviewResponse,
   { replayed: false }
 >;
+type Settings = Awaited<ReturnType<typeof GrowthSettingsService.getSettings>>;
+type SchedulingSettings = Awaited<
+  ReturnType<typeof GrowthSettingsService.getSchedulingSettings>
+>;
+type Period = { periodStart: string; periodEnd: string };
 
 function runSummary(run: StoredRun) {
   return {
@@ -55,12 +67,19 @@ function checkRunSummary(run: CheckResult["run"]) {
   };
 }
 
-function isMonthlyReviewRun(run: StoredRun, cadenceSlot: string) {
+function isMonthlyReviewRun(
+  run: StoredRun,
+  execution: Execution,
+  cadenceSlot: string,
+) {
   return (
     run.runType === RUN_TYPE &&
-    run.trigger === "manual" &&
+    run.trigger === execution.trigger &&
     run.detectorVersion === GROWTH_MONTHLY_REVIEW_VERSION &&
-    run.cadenceSlot === cadenceSlot
+    run.cadenceSlot === cadenceSlot &&
+    (execution.trigger === "manual" ||
+      (run.periodStart === execution.periodStart &&
+        run.periodEnd === execution.periodEnd))
   );
 }
 
@@ -92,45 +111,208 @@ function exactReportCoordinate(
   );
 }
 
+function validateScheduledCoordinate(execution: Execution) {
+  if (execution.trigger !== "scheduled") return;
+  const coordinate = growthMonthlyReviewCoordinate(
+    execution.scheduledAt,
+    execution.reportTimezone,
+  );
+  if (
+    coordinate.cadenceSlot !== execution.cadenceSlot ||
+    coordinate.periodStart !== execution.periodStart ||
+    coordinate.periodEnd !== execution.periodEnd
+  )
+    throw new AppError(
+      "VALIDATION_ERROR",
+      "Scheduled monthly review coordinate is invalid",
+    );
+}
+
+function scheduledSettingsChanged(
+  execution: Execution,
+  settings: Settings,
+  schedulingSettings: SchedulingSettings,
+) {
+  return (
+    execution.trigger === "scheduled" &&
+    (!settings.persisted ||
+      !settings.growthEnabled ||
+      settings.reportCadence !== "monthly" ||
+      settings.reportTimezone !== execution.reportTimezone ||
+      schedulingSettings?.settingsRevision !== execution.settingsRevision)
+  );
+}
+
+function reviewPeriod(execution: Execution, settings: Settings, now: Date) {
+  return execution.trigger === "scheduled"
+    ? { periodStart: execution.periodStart, periodEnd: execution.periodEnd }
+    : previousCompleteGrowthMonthlyPeriod(
+        now.toISOString(),
+        settings.reportTimezone,
+      );
+}
+
+async function claimReviewRun(input: {
+  projectId: string;
+  execution: Execution;
+  existing: StoredRun | null;
+  cadenceSlot: string;
+  period: Period;
+}) {
+  if (input.existing) return { run: input.existing, claimed: false };
+  const creation = {
+    projectId: input.projectId,
+    runType: RUN_TYPE,
+    cadenceSlot: input.cadenceSlot,
+    ...input.period,
+    detectorVersion: GROWTH_MONTHLY_REVIEW_VERSION,
+  };
+  return input.execution.trigger === "scheduled"
+    ? GrowthRunsService.claimScheduledRun({
+        ...creation,
+        settingsRevision: input.execution.settingsRevision,
+      })
+    : GrowthRunsService.claimManualRun(creation);
+}
+
+function runPriorityPagePhase(
+  projectId: string,
+  runId: string,
+  execution: Execution,
+) {
+  const input = { projectId, requestKey: `monthly_${runId}` };
+  return execution.trigger === "scheduled"
+    ? GrowthPriorityPageCheckService.runScheduledCheck({
+        ...input,
+        settingsRevision: execution.settingsRevision,
+      })
+    : GrowthPriorityPageCheckService.runCheck(input);
+}
+
+function buildMonthlyReport(
+  projectId: string,
+  expectation: {
+    projectId: string;
+    periodStart: string;
+    periodEnd: string;
+    reportTimezone: string;
+  },
+  execution: Execution,
+  now: Date,
+) {
+  return execution.trigger === "scheduled"
+    ? GrowthMonthlyReportsService.buildScheduledGrowthMonthlyReport(
+        projectId,
+        expectation,
+        now,
+      )
+    : GrowthMonthlyReportsService.buildGrowthMonthlyReport(
+        projectId,
+        execution.actorId,
+        expectation,
+        now,
+      );
+}
+
 async function runMonthlyReview(
   projectId: string,
   actorId: string,
   request: RunGrowthMonthlyReviewRequest,
   now = new Date(),
 ): Promise<GrowthMonthlyReviewResponse> {
+  const result = await executeMonthlyReview(
+    projectId,
+    { trigger: "manual", actorId, requestKey: request.requestKey },
+    now,
+  );
+  if ("skipped" in result)
+    throw new AppError("INTERNAL_ERROR", "Manual monthly review was skipped");
+  return result;
+}
+
+async function runScheduledMonthlyReview(
+  input: ScheduledGrowthMonthlyReviewInput,
+  now = new Date(),
+): Promise<GrowthMonthlyReviewResponse | ScheduledSkip> {
+  return executeMonthlyReview(
+    input.projectId,
+    { trigger: "scheduled", ...input },
+    now,
+  );
+}
+
+async function executeMonthlyReview(
+  projectId: string,
+  execution: Execution,
+  now: Date,
+): Promise<GrowthMonthlyReviewResponse | ScheduledSkip> {
   if (Number.isNaN(now.valueOf()))
     throw new AppError("VALIDATION_ERROR", "Monthly review clock is invalid");
 
-  const cadenceSlot = `${CADENCE_SLOT_PREFIX}${request.requestKey}`;
+  validateScheduledCoordinate(execution);
+
+  const cadenceSlot =
+    execution.trigger === "manual"
+      ? `${CADENCE_SLOT_PREFIX}${execution.requestKey}`
+      : execution.cadenceSlot;
   const existing = await GrowthRunsService.getRunBySlot(
     projectId,
     RUN_TYPE,
     cadenceSlot,
   );
   if (existing) {
-    if (!isMonthlyReviewRun(existing, cadenceSlot)) conflict();
-    return replay(existing);
+    if (!isMonthlyReviewRun(existing, execution, cadenceSlot)) conflict();
+    // Manual requests are exact replay only. A scheduled Workflow may re-enter
+    // after a persisted step retry, so its compatible running Run resumes the
+    // idempotent child phases below.
+    if (execution.trigger === "manual" || existing.status !== "running")
+      return replay(existing);
   }
 
   const settings = await GrowthSettingsService.getSettings(projectId);
-  const period = previousCompleteGrowthMonthlyPeriod(
-    now.toISOString(),
-    settings.reportTimezone,
+  const schedulingSettings =
+    execution.trigger === "scheduled"
+      ? await GrowthSettingsService.getSchedulingSettings(projectId)
+      : null;
+  const settingsChanged = scheduledSettingsChanged(
+    execution,
+    settings,
+    schedulingSettings,
   );
+  if (existing && settingsChanged) {
+    const terminal = await GrowthRunsService.failRun({
+      projectId,
+      runId: existing.id,
+      failureCode: FAILED_CODE,
+      failureMessage: FAILED_MESSAGE,
+    });
+    return replay(terminal);
+  }
+  if (!existing && settingsChanged)
+    return { skipped: true, reason: "settings_changed" };
+  const period = reviewPeriod(execution, settings, now);
   const expectation = {
     projectId,
     ...period,
-    reportTimezone: settings.reportTimezone,
+    reportTimezone:
+      execution.trigger === "scheduled"
+        ? execution.reportTimezone
+        : settings.reportTimezone,
   };
-  const claim = await GrowthRunsService.claimManualRun({
+  const claim = await claimReviewRun({
     projectId,
-    runType: RUN_TYPE,
+    execution,
+    existing,
     cadenceSlot,
-    ...period,
-    detectorVersion: GROWTH_MONTHLY_REVIEW_VERSION,
+    period,
   });
-  if (!isMonthlyReviewRun(claim.run, cadenceSlot)) conflict();
-  if (!claim.claimed) return replay(claim.run);
+  if (!claim.run) return { skipped: true, reason: "settings_changed" };
+  if (!isMonthlyReviewRun(claim.run, execution, cadenceSlot)) conflict();
+  if (
+    !claim.claimed &&
+    (execution.trigger === "manual" || claim.run.status !== "running")
+  )
+    return replay(claim.run);
 
   const warnings: InitialMonthlyReviewResponse["warnings"] = [];
   let usefulPhases = 0;
@@ -143,10 +325,7 @@ async function runMonthlyReview(
   > | null = null;
 
   try {
-    check = await GrowthPriorityPageCheckService.runCheck({
-      projectId,
-      requestKey: `monthly_${claim.run.id}`,
-    });
+    check = await runPriorityPagePhase(projectId, claim.run.id, execution);
     if (check.run.status === "running") {
       warnings.push("PRIORITY_PAGE_CHECK_RUNNING");
     } else if (check.run.status === "completed_with_errors") {
@@ -179,10 +358,10 @@ async function runMonthlyReview(
     }
 
     try {
-      const built = await GrowthMonthlyReportsService.buildGrowthMonthlyReport(
+      const built = await buildMonthlyReport(
         projectId,
-        actorId,
         expectation,
+        execution,
         now,
       );
       if (
@@ -239,4 +418,7 @@ async function runMonthlyReview(
   });
 }
 
-export const GrowthMonthlyReviewService = { runMonthlyReview } as const;
+export const GrowthMonthlyReviewService = {
+  runMonthlyReview,
+  runScheduledMonthlyReview,
+} as const;

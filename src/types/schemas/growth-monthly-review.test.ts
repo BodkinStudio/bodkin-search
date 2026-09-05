@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   growthMonthlyReviewResponseSchema,
   runGrowthMonthlyReviewRequestSchema,
+  scheduledGrowthMonthlyReviewInputSchema,
 } from "./growth-monthly-review";
 
 const timestamp = "2026-09-01T08:00:00.000Z";
@@ -84,6 +85,39 @@ describe("runGrowthMonthlyReviewRequestSchema", () => {
       expect(
         runGrowthMonthlyReviewRequestSchema.safeParse(request).success,
       ).toBe(false);
+  });
+});
+
+describe("scheduledGrowthMonthlyReviewInputSchema", () => {
+  const scheduled = {
+    projectId: "project_1",
+    cadenceSlot: "monthly-review:scheduled:2026-08-01:2026-08-31",
+    periodStart: "2026-08-01",
+    periodEnd: "2026-08-31",
+    reportTimezone: "Europe/London",
+    scheduledAt: "2026-09-01T00:00:00.000Z",
+    settingsRevision: 1,
+  };
+
+  it("accepts one exact frozen schedule coordinate", () => {
+    expect(scheduledGrowthMonthlyReviewInputSchema.parse(scheduled)).toEqual(
+      scheduled,
+    );
+  });
+
+  it.each([
+    { cadenceSlot: "monthly-review:scheduled:other" },
+    { periodEnd: "2026-07-31" },
+    { reportTimezone: "Not/A_Zone" },
+    { scheduledAt: "tomorrow" },
+    { settingsRevision: 0 },
+  ])("rejects invalid Workflow payload drift (%o)", (drift) => {
+    expect(
+      scheduledGrowthMonthlyReviewInputSchema.safeParse({
+        ...scheduled,
+        ...drift,
+      }).success,
+    ).toBe(false);
   });
 });
 

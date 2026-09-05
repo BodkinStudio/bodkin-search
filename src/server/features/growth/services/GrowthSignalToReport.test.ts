@@ -156,6 +156,8 @@ beforeAll(async () => {
       migration("drizzle/0048_dry_kate_bishop.sql"),
       migration("drizzle/0049_gray_hedge_knight.sql"),
       migration("drizzle/0051_noisy_agent_zero.sql"),
+      migration("drizzle/0053_sweet_ben_grimm.sql"),
+      migration("drizzle/0054_simple_sunspot.sql"),
       `INSERT INTO growth_project_settings
        (project_id, growth_enabled, report_timezone, report_cadence, report_day)
        VALUES ('phase1_project', 1, 'Europe/London', 'monthly', 1);`,
