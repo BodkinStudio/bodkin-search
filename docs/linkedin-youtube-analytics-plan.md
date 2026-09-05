@@ -1,14 +1,14 @@
 # LinkedIn and YouTube analytics roadmap plan
 
-Status: active roadmap; YouTube connection foundation implemented
+Status: active roadmap; YouTube connection and channel overview implemented
 
 ## Implemented first slice
 
-The first YouTube milestone is intentionally limited to a separate read-only OAuth grant, channel discovery, and one selected channel per project. It uses `youtube.readonly` only; reporting, video data, LinkedIn, and additional scopes remain planned work.
+The delivered YouTube foundation uses a separate read-only OAuth grant, channel discovery, and one selected channel per project. The channel overview uses `youtube.readonly` and `yt-analytics.readonly` to compare current channel metrics with the preceding period of the same length in the dashboard and MCP. Video performance, traffic sources, and LinkedIn remain planned work.
 
 ## Decisions
 
-YouTube ships first as a connection-only foundation and supports self-hosted OAuth. Analytics, dashboard surfaces, and MCP remain the next YouTube milestone. LinkedIn work is scoped to Pages rather than personal profiles and remains dependent on LinkedIn approval.
+YouTube now supports a read-only channel overview through self-hosted OAuth. LinkedIn Page analytics is the next integration milestone; development can proceed while production rollout remains dependent on LinkedIn approval.
 
 ## Product goal
 

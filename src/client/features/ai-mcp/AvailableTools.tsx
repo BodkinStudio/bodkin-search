@@ -11,6 +11,17 @@ type ToolCategory = {
 
 const toolCategories: ToolCategory[] = [
   {
+    label: "YouTube Analytics",
+    tools: [
+      {
+        name: "get_youtube_channel_overview",
+        title: "Get YouTube channel overview",
+        description:
+          "Read channel views, watch time, engagement, and subscriber change.",
+      },
+    ],
+  },
+  {
     label: "Project Context",
     tools: [
       {

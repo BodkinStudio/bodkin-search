@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- verifies the connection card's stateful UI in one fixture. */
 import { createElement, type ReactNode } from "react";
 import type * as ReactModule from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -9,17 +10,14 @@ type QueryResult = {
   isError?: boolean;
   refetch?: ReturnType<typeof vi.fn>;
 };
-
 function isCallback(value: unknown): value is () => unknown {
   return typeof value === "function";
 }
-
 function isStateUpdater(
   value: unknown,
 ): value is (previous: unknown) => unknown {
   return typeof value === "function";
 }
-
 function callback(
   mutation: Record<string, unknown> | undefined,
   name: "mutationFn" | "onSuccess" | "onError",
@@ -28,7 +26,6 @@ function callback(
   if (!isCallback(value)) throw new Error(`Missing mutation ${name}`);
   return value;
 }
-
 const state = vi.hoisted(() => ({
   queries: [] as QueryResult[],
   mutations: [] as Array<Record<string, unknown>>,
@@ -41,7 +38,6 @@ const state = vi.hoisted(() => ({
   setYouTubeChannel: vi.fn(),
   disconnectYouTube: vi.fn(),
 }));
-
 vi.mock("react", async (importOriginal) => {
   const react = await importOriginal<typeof ReactModule>();
   return {
@@ -63,7 +59,6 @@ vi.mock("react", async (importOriginal) => {
     useEffect: (effect: () => void) => effect(),
   };
 });
-
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => state.queries.shift() ?? {},
   useQueryClient: () => ({ invalidateQueries: state.invalidations }),
@@ -158,7 +153,7 @@ beforeEach(() => {
 });
 
 describe("YouTubeConnectionCard", () => {
-  it("renders checking, setup, and no-grant states without claiming analytics reports", () => {
+  it("renders checking, setup, and no-grant states with accurate analytics copy", () => {
     expect(render({ isLoading: true })).toContain(
       "Checking YouTube connection",
     );
@@ -173,7 +168,7 @@ describe("YouTubeConnectionCard", () => {
       },
     });
     expect(noGrant).toContain("Connect with Google");
-    expect(noGrant).toContain("Analytics reporting is not enabled yet.");
+    expect(noGrant).toContain("view read-only channel analytics");
   });
 
   it("renders a labelled native picker with account optgroups and preselects the saved channel", () => {
@@ -196,6 +191,39 @@ describe("YouTubeConnectionCard", () => {
     expect(markup).toContain("Save channel");
     expect(markup).toContain("Connect another Google account");
     expect(markup).toContain("Cancel");
+  });
+
+  it("asks an older grant to reconnect before analytics can run", () => {
+    const markup = render({
+      data: {
+        googleOAuthConfigured: true,
+        connected: true,
+        analyticsReady: false,
+        currentUserCanReconnect: true,
+        channelTitle: "Studio Channel",
+        channelCustomUrl: "@studio",
+        channelId: "channel-1",
+      },
+    });
+    expect(markup).toContain("Reconnect with Google");
+    expect(markup).toContain("enable YouTube Analytics reporting");
+  });
+
+  it("does not offer an ineffective reconnect for another member's grant", () => {
+    const markup = render({
+      data: {
+        googleOAuthConfigured: true,
+        connected: true,
+        analyticsReady: false,
+        currentUserCanReconnect: false,
+        channelTitle: "Studio Channel",
+        channelCustomUrl: "@studio",
+        channelId: "channel-1",
+      },
+    });
+    expect(markup).toContain("Ask the person who connected this channel");
+    expect(markup).not.toContain(">Reconnect with Google<");
+    expect(markup).toContain("Change channel");
   });
 
   it("submits the saved-channel preselection after the effect-driven rerender", async () => {
@@ -269,6 +297,7 @@ describe("YouTubeConnectionCard", () => {
       data: {
         googleOAuthConfigured: true,
         connected: true,
+        analyticsReady: true,
         channelTitle: "Studio Channel",
         channelCustomUrl: "@studio",
         channelId: "channel-1",
@@ -303,6 +332,7 @@ describe("YouTubeConnectionCard", () => {
       data: {
         googleOAuthConfigured: true,
         connected: true,
+        analyticsReady: true,
         channelTitle: "Studio Channel",
         channelCustomUrl: "@studio",
         channelId: "channel-1",
@@ -365,6 +395,9 @@ describe("YouTubeConnectionCard", () => {
     });
     expect(state.invalidations).toHaveBeenCalledWith({
       queryKey: ["youtubeChannels", "project-1"],
+    });
+    expect(state.invalidations).toHaveBeenCalledWith({
+      queryKey: ["youtubeAnalytics", "project-1"],
     });
   });
 

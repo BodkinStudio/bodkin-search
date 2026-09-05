@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- connection states and accessible picker live together. */
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { IntegrationConnectionCard } from "@/client/features/integrations/IntegrationConnectionCard";
@@ -9,6 +10,8 @@ import {
   setYouTubeChannel,
 } from "@/serverFunctions/youtube";
 import { GoogleOAuthSetupWarning } from "@/client/features/integrations/GoogleOAuthSetupWarning";
+import { YouTubeAnalyticsStatus } from "@/client/features/youtube/YouTubeAnalyticsStatus";
+import { unavailableMessage } from "@/client/features/youtube/youtubeConnectionMessages";
 import { YOUTUBE_SELF_HOSTED_SETUP_DOCS_URL } from "@/shared/youtube";
 
 type Channel = {
@@ -31,7 +34,6 @@ type Account = {
   channels: Channel[];
 };
 type Selection = { accountId: string; channelId: string };
-
 export function YouTubeConnectionCard({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   const [picking, setPicking] = React.useState(false);
@@ -97,6 +99,12 @@ export function YouTubeConnectionCard({ projectId }: { projectId: string }) {
         queryClient.invalidateQueries({
           queryKey: ["youtubeChannels", projectId],
         }),
+        queryClient.invalidateQueries({
+          queryKey: ["youtubeAnalytics", projectId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["dashboardActivation", projectId],
+        }),
       ]);
     },
     onError: () =>
@@ -117,6 +125,12 @@ export function YouTubeConnectionCard({ projectId }: { projectId: string }) {
         }),
         queryClient.invalidateQueries({
           queryKey: ["youtubeChannels", projectId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["youtubeAnalytics", projectId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["dashboardActivation", projectId],
         }),
       ]);
     },
@@ -169,6 +183,11 @@ export function YouTubeConnectionCard({ projectId }: { projectId: string }) {
               {data.channelCustomUrl ?? data.channelId}
               {data.connectedByEmail ? ` · ${data.connectedByEmail}` : ""}
             </p>
+            <YouTubeAnalyticsStatus
+              analyticsReady={data.analyticsReady}
+              canReconnect={data.currentUserCanReconnect}
+              disabled={remove.isPending}
+            />
             <button
               type="button"
               className="btn btn-ghost btn-sm"
@@ -216,8 +235,8 @@ export function YouTubeConnectionCard({ projectId }: { projectId: string }) {
         ) : (
           <>
             <p className="text-sm">
-              Connect a YouTube channel for this project. Analytics reporting is
-              not enabled yet.
+              Connect a YouTube channel for this project to view read-only
+              channel analytics in OpenSEO and MCP.
             </p>
             <button
               type="button"
@@ -383,22 +402,4 @@ function Picker({
       </div>
     </>
   );
-}
-
-function unavailableMessage(accounts: Account[]) {
-  const failures = new Set(
-    accounts.flatMap((account) =>
-      account.unavailable ? [account.unavailable] : [],
-    ),
-  );
-  if (failures.has("quota")) {
-    return "YouTube's quota or rate limit prevented some channels from loading. Try again later.";
-  }
-  if (failures.has("forbidden")) {
-    return "Some channels could not load. Check that the YouTube Data API is enabled and the Google account has access.";
-  }
-  if (failures.has("malformed")) {
-    return "YouTube returned an invalid channel response. Try again later.";
-  }
-  return "YouTube is temporarily unavailable for some Google accounts. Try again later.";
 }

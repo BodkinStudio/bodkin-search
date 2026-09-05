@@ -105,4 +105,82 @@ describe("YouTube client", () => {
     );
     await expect(client().getUserInfoEmail()).resolves.toBeNull();
   });
+  it("maps an aborted Analytics request to a safe transport failure", async () => {
+    const aborted = new Error("request included private context");
+    aborted.name = "AbortError";
+    mocks.fetch.mockRejectedValue(aborted);
+    await expect(
+      client().queryAnalytics({
+        channelId: "UC",
+        startDate: "2026-01-01",
+        endDate: "2026-01-01",
+        metrics: ["views"],
+      }),
+    ).rejects.toMatchObject({ failure: "transport", status: 0 });
+  });
+  it("uses the selected channel and Analytics query parameters without another token", async () => {
+    mocks.fetch.mockResolvedValue(
+      response({
+        columnHeaders: [
+          { name: "views", columnType: "METRIC", dataType: "INTEGER" },
+        ],
+      }),
+    );
+    await client().queryAnalytics({
+      channelId: "UC-selected",
+      startDate: "2026-01-01",
+      endDate: "2026-01-28",
+      metrics: ["views"],
+    });
+    const [url, options] = mocks.fetch.mock.calls[0] ?? [];
+    expect(url).toBe(
+      "https://youtubeanalytics.googleapis.com/v2/reports?ids=channel%3D%3DUC-selected&startDate=2026-01-01&endDate=2026-01-28&metrics=views",
+    );
+    expect(options).toEqual({
+      headers: { Authorization: "Bearer secret-token" },
+    });
+  });
+  it("bounds retry information and only exposes normalized provider reasons", async () => {
+    mocks.fetch.mockResolvedValue(
+      response(
+        {
+          error: {
+            status: "PERMISSION_DENIED",
+            errors: [{ reason: "accessNotConfigured" }],
+            message: "secret",
+          },
+        },
+        403,
+        { "retry-after": "999999" },
+      ),
+    );
+    await expect(
+      client().queryAnalytics({
+        channelId: "UC",
+        startDate: "2026-01-01",
+        endDate: "2026-01-01",
+        metrics: ["views"],
+      }),
+    ).rejects.toMatchObject({
+      failure: "forbidden",
+      retryAfterSeconds: 86_400,
+      upstreamReason: "SERVICE_DISABLED",
+    });
+  });
+  it("does not mistake a generic permission status for missing OAuth scope", async () => {
+    mocks.fetch.mockResolvedValue(
+      response({ error: { status: "PERMISSION_DENIED" } }, 403),
+    );
+    await expect(
+      client().queryAnalytics({
+        channelId: "UC",
+        startDate: "2026-01-01",
+        endDate: "2026-01-01",
+        metrics: ["views"],
+      }),
+    ).rejects.toMatchObject({
+      failure: "forbidden",
+      upstreamReason: null,
+    });
+  });
 });

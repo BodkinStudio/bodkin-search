@@ -7,7 +7,7 @@ import {
 import { YouTubeService } from "./YouTubeService";
 
 const mocks = vi.hoisted(() => ({
-  grants: [] as Array<{ accountId: string }>,
+  grants: [] as Array<{ accountId: string; scope?: string | null }>,
   listChannels: vi.fn(),
   email: vi.fn(),
   upsert: vi.fn(),
@@ -184,5 +184,34 @@ describe("YouTubeService", () => {
     });
     await YouTubeService.disconnect({ projectId: "p", userId: "u1" });
     expect(mocks.deleteAccount).not.toHaveBeenCalled();
+  });
+  it("recognizes the selected grant's Analytics scope across stored delimiters", async () => {
+    mocks.get.mockResolvedValue({
+      connectedByUserId: "u1",
+      youtubeAccountId: "a1",
+    });
+    mocks.grants = [
+      {
+        accountId: "a1",
+        scope:
+          "openid,https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly",
+      },
+    ];
+    await expect(
+      YouTubeService.getAnalyticsConnectionStatus("p"),
+    ).resolves.toMatchObject({ status: "ready" });
+    await expect(
+      YouTubeService.getYouTubeConnection("p"),
+    ).resolves.toMatchObject({ analyticsReady: true });
+
+    mocks.grants = [
+      {
+        accountId: "a1",
+        scope: "openid https://www.googleapis.com/auth/youtube.readonly",
+      },
+    ];
+    await expect(
+      YouTubeService.getAnalyticsConnectionStatus("p"),
+    ).resolves.toMatchObject({ status: "reconnect_required" });
   });
 });

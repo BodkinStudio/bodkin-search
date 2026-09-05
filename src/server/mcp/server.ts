@@ -34,6 +34,7 @@ import {
   getGoogleAnalyticsTrafficAcquisitionTool,
   getSearchOpportunitiesTool,
 } from "@/server/mcp/tools/google-analytics-tools";
+import { getYouTubeChannelOverviewTool } from "@/server/mcp/tools/youtube-analytics-tools";
 import { createProjectTool } from "@/server/mcp/tools/create-project";
 import { listProjectsTool } from "@/server/mcp/tools/list-projects";
 import {
@@ -205,6 +206,7 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
   register(getGoogleAnalyticsEcommercePerformanceTool);
   register(getGoogleAnalyticsSiteSearchTool);
   register(getGoogleAnalyticsAudienceBreakdownTool);
+  register(getYouTubeChannelOverviewTool);
   register(runSiteAuditTool);
   register(getAuditStatusTool);
   register(getAuditIssuesTool);

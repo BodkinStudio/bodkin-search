@@ -13,7 +13,7 @@ import { YOUTUBE_OAUTH_PROVIDER_ID } from "@/shared/youtube";
 import { YouTubeConnectionRepository } from "../repositories/YouTubeConnectionRepository";
 async function grants(userId: string) {
   return db
-    .select({ accountId: account.accountId })
+    .select({ accountId: account.accountId, scope: account.scope })
     .from(account)
     .where(
       and(
@@ -27,6 +27,32 @@ async function getConnection(projectId: string) {
 }
 async function userHasGrant(userId: string) {
   return (await grants(userId)).length > 0;
+}
+
+function hasAnalyticsScope(scope: string | null) {
+  return (scope ?? "")
+    .split(/[\s,]+/)
+    .includes("https://www.googleapis.com/auth/yt-analytics.readonly");
+}
+
+async function getAnalyticsConnectionStatus(projectId: string) {
+  const connection = await getConnection(projectId);
+  if (!connection)
+    return { status: "not_connected" as const, connection: null };
+  const grant = (await grants(connection.connectedByUserId)).find(
+    (item) => item.accountId === connection.youtubeAccountId,
+  );
+  if (!grant || !hasAnalyticsScope(grant.scope)) {
+    return { status: "reconnect_required" as const, connection };
+  }
+  return { status: "ready" as const, connection };
+}
+
+async function getYouTubeConnection(projectId: string) {
+  const status = await getAnalyticsConnectionStatus(projectId);
+  return status.connection
+    ? { ...status.connection, analyticsReady: status.status === "ready" }
+    : null;
 }
 
 type YouTubeUnavailableReason =
@@ -143,4 +169,6 @@ export const YouTubeService = {
   listChannelsForUser,
   setChannel,
   disconnect,
+  getAnalyticsConnectionStatus,
+  getYouTubeConnection,
 };

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
+import { YouTubeReportError } from "@/server/lib/youtubeErrors";
 
 const registration = vi.hoisted(() => ({
   handlers: [] as Array<
@@ -16,10 +17,12 @@ const registration = vi.hoisted(() => ({
 }));
 const service = vi.hoisted(() => ({
   getConnection: vi.fn(),
+  getYouTubeConnection: vi.fn(),
   userHasGrant: vi.fn(),
   listChannelsForUser: vi.fn(),
   setChannel: vi.fn(),
   disconnect: vi.fn(),
+  getOverview: vi.fn(),
 }));
 const oauth = vi.hoisted(() => ({ create: vi.fn(), configured: vi.fn() }));
 vi.mock("@tanstack/react-start", () => ({
@@ -65,6 +68,12 @@ vi.mock("@tanstack/react-start/server", () => ({
 vi.mock("@/server/features/youtube/services/YouTubeService", () => ({
   YouTubeService: service,
 }));
+vi.mock(
+  "@/server/features/youtube/services/YouTubeChannelOverviewService",
+  () => ({
+    YouTubeChannelOverviewService: { getOverview: service.getOverview },
+  }),
+);
 vi.mock("@/server/features/google/oauth-config", () => ({
   hasSelfHostedGoogleOAuthConfig: oauth.configured,
 }));
@@ -82,6 +91,7 @@ vi.mock("@/server/mcp/public-origin", () => ({
 import {
   disconnectYouTube,
   getYouTubeConnection,
+  getYouTubeChannelOverview,
   listYouTubeChannels,
   setYouTubeChannel,
   startSelfHostedYouTubeLink,
@@ -113,13 +123,15 @@ function registeredHandler(index: number) {
 describe("YouTube server functions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    service.getConnection.mockResolvedValue({
+    service.getYouTubeConnection.mockResolvedValue({
       channelId: "UC1",
       channelTitle: "Channel",
       channelCustomUrl: null,
       connectedByEmail: undefined,
+      connectedByUserId: "authorized-user",
     });
     service.userHasGrant.mockResolvedValue(true);
+    service.getOverview.mockResolvedValue({ status: "ok" });
     service.listChannelsForUser.mockResolvedValue({
       accounts: [
         {
@@ -151,7 +163,9 @@ describe("YouTube server functions", () => {
       data: { projectId: "forged" },
       context,
     });
-    expect(service.getConnection).toHaveBeenCalledWith("authorized-project");
+    expect(service.getYouTubeConnection).toHaveBeenCalledWith(
+      "authorized-project",
+    );
     expect(service.listChannelsForUser).toHaveBeenCalledWith("authorized-user");
     expect(service.setChannel).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -187,9 +201,10 @@ describe("YouTube server functions", () => {
     });
     expect(value).not.toHaveProperty("accessToken");
     expect(value).not.toHaveProperty("refreshToken");
+    expect(value).toMatchObject({ currentUserCanReconnect: true });
   });
   it("starts self-hosted OAuth with the authenticated actor", async () => {
-    await registeredHandler(4)({
+    await registeredHandler(5)({
       data: { callbackURL: "/settings" },
       context,
     });
@@ -203,7 +218,43 @@ describe("YouTube server functions", () => {
       listYouTubeChannels,
       setYouTubeChannel,
       disconnectYouTube,
+      getYouTubeChannelOverview,
       startSelfHostedYouTubeLink,
-    ]).toHaveLength(5);
+    ]).toHaveLength(6);
+  });
+  it("uses the authorized project for the channel overview", async () => {
+    await registeredHandler(4)({
+      data: {
+        projectId: "forged",
+        startDate: "2026-08-01",
+        endDate: "2026-08-28",
+      },
+      context,
+    });
+    expect(service.getOverview).toHaveBeenCalledWith({
+      projectId: "authorized-project",
+      startDate: "2026-08-01",
+      endDate: "2026-08-28",
+    });
+    expect(getYouTubeChannelOverview).toBeDefined();
+  });
+  it("serializes report errors without provider details", async () => {
+    service.getOverview.mockRejectedValue(
+      new YouTubeReportError(
+        "youtube_reconnect_required",
+        "Reconnect the YouTube channel.",
+        60,
+      ),
+    );
+    await expect(
+      registeredHandler(4)({ data: { projectId: "forged" }, context }),
+    ).resolves.toEqual({
+      status: "error",
+      error: {
+        code: "youtube_reconnect_required",
+        message: "Reconnect the YouTube channel.",
+        retryAfterSeconds: 60,
+      },
+    });
   });
 });

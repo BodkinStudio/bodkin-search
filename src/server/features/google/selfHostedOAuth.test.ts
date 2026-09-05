@@ -148,7 +148,7 @@ describe("self-hosted Google OAuth providers", () => {
       `${publicOrigin}/api/youtube/oauth/callback`,
     );
     expect(url.searchParams.get("scope")).toBe(
-      "openid email profile https://www.googleapis.com/auth/youtube.readonly",
+      "openid email profile https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly",
     );
     expect(url.searchParams.get("state")).not.toBeNull();
     const state = url.searchParams.get("state")!;
