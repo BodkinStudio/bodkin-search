@@ -174,3 +174,20 @@ The Monthly review card can prepare one explicit review attempt by composing the
 The same coordinator now runs unattended for Growth-enabled projects with monthly cadence. An hourly Worker check claims the project's configured report day in its report timezone and starts a retryable Workflow for the previous complete month. Scheduled Runs use a separate saved identity, and any draft created by them records system provenance. A monotonic settings revision and repeated archive checks prevent stale work from starting after a concurrent settings edit, disable or project archive.
 
 The result shows the authoritative review period and status. A fresh manual response also shows the priority-page check, due-Measurement and monthly-summary outcomes; an exact replay deliberately shows only the saved coordinator status rather than reconstructing phase detail from current state. Scheduling does not evaluate Measurements, publish or share a report, invoke the separate ranking-opportunity, low-CTR, tracked-rank, audit or measurement-due checks, or generate AI interpretation. Docker deployments still need an external scheduled-event source.
+
+## Weekly review boundary
+
+Growth-enabled projects with weekly cadence now receive an unattended internal
+review on their configured ISO weekday in the report timezone. The compact
+result summarizes saved Measurement gains and losses from the preceding seven
+complete local dates, newly controlled striking-distance opportunities,
+currently blocked or overdue Work, currently due Measurements and one
+deterministic focus.
+
+The weekly review has its own persisted cursor, Workflow identity and
+`weekly_review` Run. It reads saved evidence only: it does not call providers,
+spend credits, evaluate Measurements, create Work, publish a report or send a
+notification. Its Action and due-Measurement counts are current at execution
+time rather than a frozen historical snapshot. The disposable preview has no
+weekly-review UI; verify the scheduling and result contracts through the
+automated repository tests.

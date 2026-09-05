@@ -232,6 +232,13 @@
       "when": 1788594118414,
       "tag": "0032_pale_talon",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1788596131215,
+      "tag": "0033_old_dreadnoughts",
+      "breakpoints": true
     }
   ]
 }

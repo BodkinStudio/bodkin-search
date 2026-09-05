@@ -171,6 +171,7 @@ async function claimReviewRun(input: {
     ? GrowthRunsService.claimScheduledRun({
         ...creation,
         settingsRevision: input.execution.settingsRevision,
+        reportCadence: "monthly",
       })
     : GrowthRunsService.claimManualRun(creation);
 }

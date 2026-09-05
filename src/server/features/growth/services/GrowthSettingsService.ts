@@ -5,6 +5,7 @@ import {
   type GrowthSettingsInput,
 } from "@/types/schemas/growth";
 import { initialGrowthMonthlyReviewAt } from "./GrowthMonthlySchedule";
+import { initialGrowthWeeklyReviewAt } from "./GrowthWeeklySchedule";
 
 type AuthorizedProjectScope = {
   projectId: string;
@@ -16,6 +17,7 @@ export async function getSettings(projectId: string) {
   if (row) {
     const {
       nextMonthlyReviewAt: _schedule,
+      nextWeeklyReviewAt: _weeklySchedule,
       settingsRevision: _revision,
       ...settings
     } = row;
@@ -67,13 +69,32 @@ export async function updateSettings(
             input.reportDay,
           )
         : null;
+  const keepsWeeklySchedule =
+    input.growthEnabled &&
+    input.reportCadence === "weekly" &&
+    existing?.growthEnabled === true &&
+    existing.reportCadence === "weekly" &&
+    existing.reportTimezone === input.reportTimezone &&
+    existing.reportDay === input.reportDay;
+  const nextWeeklyReviewAt =
+    keepsWeeklySchedule && existing.nextWeeklyReviewAt
+      ? existing.nextWeeklyReviewAt
+      : input.growthEnabled && input.reportCadence === "weekly"
+        ? initialGrowthWeeklyReviewAt(
+            now,
+            input.reportTimezone,
+            input.reportDay,
+          )
+        : null;
   const row = await GrowthSettingsRepository.upsert(
     project.projectId,
     input,
     nextMonthlyReviewAt,
+    nextWeeklyReviewAt,
   );
   const {
     nextMonthlyReviewAt: _schedule,
+    nextWeeklyReviewAt: _weeklySchedule,
     settingsRevision: _revision,
     ...settings
   } = row;

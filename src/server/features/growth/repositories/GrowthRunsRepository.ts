@@ -105,6 +105,7 @@ async function tryCreateScheduledRun(
   input: CreateManualGrowthRunInput,
   id: string,
   settingsRevision: number,
+  reportCadence: "weekly" | "monthly",
 ) {
   const now = new Date().toISOString();
   const source = db
@@ -139,7 +140,7 @@ async function tryCreateScheduledRun(
       and(
         eq(growthProjectSettings.projectId, input.projectId),
         eq(growthProjectSettings.growthEnabled, true),
-        eq(growthProjectSettings.reportCadence, "monthly"),
+        eq(growthProjectSettings.reportCadence, reportCadence),
         eq(growthProjectSettings.settingsRevision, settingsRevision),
         isNull(projects.archivedAt),
       ),

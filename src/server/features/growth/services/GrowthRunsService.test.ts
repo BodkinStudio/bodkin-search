@@ -107,12 +107,14 @@ describe("GrowthRunsService", () => {
       GrowthRunsService.claimScheduledRun({
         ...creation,
         settingsRevision: 1,
+        reportCadence: "monthly",
       }),
     ).resolves.toMatchObject({ claimed: true });
     expect(repository.tryCreateScheduledRun).toHaveBeenCalledWith(
       expect.objectContaining({ projectId: "project_1" }),
       expect.any(String),
       1,
+      "monthly",
     );
 
     repository.tryCreateScheduledRun.mockResolvedValue(false);
@@ -121,6 +123,7 @@ describe("GrowthRunsService", () => {
       GrowthRunsService.claimScheduledRun({
         ...creation,
         settingsRevision: 2,
+        reportCadence: "monthly",
       }),
     ).resolves.toEqual({ run: null, claimed: false });
   });

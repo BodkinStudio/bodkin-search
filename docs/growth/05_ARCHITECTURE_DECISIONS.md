@@ -1480,3 +1480,51 @@ Weekly review, daily critical monitoring, automatic report publication or
 delivery, notification, generic job administration, Docker cron delivery,
 Workflow-instance inspection/restart and Gate 4 operational evidence remain
 separate work.
+
+---
+
+## ADR-056 - Weekly reviews summarize saved operational evidence
+
+**Status:** Accepted
+
+### Decision
+
+- A Growth-enabled project with weekly cadence stores a separate internal
+  `nextWeeklyReviewAt` cursor. The configured report day is an ISO weekday in
+  the project's IANA report timezone. An hourly Worker cron uses the monthly
+  scheduler's bounded admission, settings-revision compare-and-swap, archive
+  guard, cursor restoration and structured-summary rules.
+- Each admitted local week receives a deterministic Workflow identity and a
+  `weekly_review` Run for the preceding complete seven local calendar days.
+  The strictly validated payload freezes the period, timezone and settings
+  revision. A compatible running Run can safely resume after a Workflow retry;
+  a terminal Run is replayed without rereading current facts.
+- The compact internal result contains material gains and losses from
+  Measurement outcomes evaluated in the period, new controlled
+  striking-distance opportunities created in the period, currently blocked or
+  overdue pre-implementation Actions, Actions currently ready for Measurement,
+  and one deterministic recommended focus.
+- The due-Measurement scan remains bounded. If it overflows, the Run completes
+  with errors, the ready count is withheld and the recommended focus asks for a
+  complete Measurement scan. The review reads normalized saved records only;
+  it does not call a provider, spend credits, evaluate Measurements or create
+  new Recommendations or Actions.
+- The summary is explicitly current, not a historical snapshot. Measurement
+  outcomes and new opportunity links use the frozen period, while Action risk
+  and Measurement readiness reflect saved state at execution time.
+
+### Consequence
+
+Growth can prepare a small unattended operating brief every week without
+mixing weekly and monthly cursor identities or adding a second job framework.
+The result is an internal workflow response rather than a published client
+report.
+
+This implements BG-0404. It does not satisfy Gate 4, which still requires two
+consecutive real monthly cycles.
+
+### Deferred
+
+Weekly report publication or delivery, notifications, historical summary
+snapshots, automatic Measurement evaluation, daily critical monitoring,
+Docker cron delivery and Gate 4 operational evidence remain separate work.

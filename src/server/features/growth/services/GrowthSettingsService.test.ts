@@ -18,6 +18,7 @@ const persistedRow = {
   createdAt: "2026-08-29T10:00:00.000Z",
   updatedAt: "2026-08-29T10:00:00.000Z",
   nextMonthlyReviewAt: null,
+  nextWeeklyReviewAt: null,
   settingsRevision: 1,
 };
 
@@ -42,6 +43,7 @@ describe("GrowthSettingsService", () => {
 
     const {
       nextMonthlyReviewAt: _schedule,
+      nextWeeklyReviewAt: _weeklySchedule,
       settingsRevision: _revision,
       ...publicRow
     } = persistedRow;
@@ -72,6 +74,7 @@ describe("GrowthSettingsService", () => {
       "project_1",
       GROWTH_SETTINGS_DEFAULTS,
       null,
+      null,
     );
   });
 
@@ -95,6 +98,7 @@ describe("GrowthSettingsService", () => {
       "project_1",
       input,
       "2026-09-01T00:00:00.000Z",
+      null,
     );
   });
 
@@ -113,6 +117,44 @@ describe("GrowthSettingsService", () => {
       "project_1",
       expect.any(Object),
       "2026-10-01T00:00:00.000Z",
+      null,
+    );
+  });
+
+  it("initialises and preserves the weekly cursor for unchanged cadence", async () => {
+    const weekly = {
+      ...GROWTH_SETTINGS_DEFAULTS,
+      growthEnabled: true,
+      reportCadence: "weekly" as const,
+      reportDay: 1,
+    };
+    await updateSettings(
+      { projectId: "project_1", projectDomain: "acme.com" },
+      weekly,
+      new Date("2026-09-09T12:00:00.000Z"),
+    );
+    expect(mocks.upsert).toHaveBeenCalledWith(
+      "project_1",
+      weekly,
+      null,
+      "2026-09-07T00:00:00.000Z",
+    );
+
+    mocks.getByProjectId.mockResolvedValue({
+      ...persistedRow,
+      ...weekly,
+      nextWeeklyReviewAt: "2026-09-14T00:00:00.000Z",
+    });
+    await updateSettings(
+      { projectId: "project_1", projectDomain: "acme.com" },
+      weekly,
+      new Date("2026-09-10T12:00:00.000Z"),
+    );
+    expect(mocks.upsert).toHaveBeenLastCalledWith(
+      "project_1",
+      weekly,
+      null,
+      "2026-09-14T00:00:00.000Z",
     );
   });
 });

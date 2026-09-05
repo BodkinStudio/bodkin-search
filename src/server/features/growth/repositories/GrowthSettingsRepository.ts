@@ -20,6 +20,7 @@ async function upsert(
   projectId: string,
   input: GrowthSettingsInput,
   nextMonthlyReviewAt: string | null = null,
+  nextWeeklyReviewAt: string | null = null,
 ): Promise<GrowthSettingsRow> {
   const now = new Date().toISOString();
   // Spell out the stored settings so a wider runtime object can never smuggle
@@ -30,6 +31,7 @@ async function upsert(
     reportCadence: input.reportCadence,
     reportDay: input.reportDay,
     nextMonthlyReviewAt,
+    nextWeeklyReviewAt,
     defaultBaselineDays: input.defaultBaselineDays,
     defaultCooldownDays: input.defaultCooldownDays,
     defaultPrimaryWindowDays: input.defaultPrimaryWindowDays,
@@ -89,6 +91,35 @@ async function listDueMonthlyReviews(now: string, limit: number) {
     .limit(limit);
 }
 
+async function listDueWeeklyReviews(now: string, limit: number) {
+  return db
+    .select({
+      projectId: growthProjectSettings.projectId,
+      reportTimezone: growthProjectSettings.reportTimezone,
+      reportDay: growthProjectSettings.reportDay,
+      nextWeeklyReviewAt: growthProjectSettings.nextWeeklyReviewAt,
+      settingsRevision: growthProjectSettings.settingsRevision,
+    })
+    .from(growthProjectSettings)
+    .innerJoin(projects, eq(projects.id, growthProjectSettings.projectId))
+    .where(
+      and(
+        eq(growthProjectSettings.growthEnabled, true),
+        eq(growthProjectSettings.reportCadence, "weekly"),
+        isNull(projects.archivedAt),
+        or(
+          isNull(growthProjectSettings.nextWeeklyReviewAt),
+          lte(growthProjectSettings.nextWeeklyReviewAt, now),
+        ),
+      ),
+    )
+    .orderBy(
+      asc(growthProjectSettings.nextWeeklyReviewAt),
+      asc(growthProjectSettings.projectId),
+    )
+    .limit(limit);
+}
+
 async function claimMonthlyReviewSchedule(input: {
   projectId: string;
   settingsRevision: number;
@@ -125,9 +156,47 @@ async function claimMonthlyReviewSchedule(input: {
   return Boolean(row);
 }
 
+async function claimWeeklyReviewSchedule(input: {
+  projectId: string;
+  settingsRevision: number;
+  observedAt: string | null;
+  nextAt: string;
+}) {
+  const observed = input.observedAt
+    ? eq(growthProjectSettings.nextWeeklyReviewAt, input.observedAt)
+    : isNull(growthProjectSettings.nextWeeklyReviewAt);
+  const [row] = await db
+    .update(growthProjectSettings)
+    .set({ nextWeeklyReviewAt: input.nextAt })
+    .where(
+      and(
+        eq(growthProjectSettings.projectId, input.projectId),
+        eq(growthProjectSettings.growthEnabled, true),
+        eq(growthProjectSettings.reportCadence, "weekly"),
+        eq(growthProjectSettings.settingsRevision, input.settingsRevision),
+        observed,
+        exists(
+          db
+            .select({ id: projects.id })
+            .from(projects)
+            .where(
+              and(
+                eq(projects.id, input.projectId),
+                isNull(projects.archivedAt),
+              ),
+            ),
+        ),
+      ),
+    )
+    .returning({ projectId: growthProjectSettings.projectId });
+  return Boolean(row);
+}
+
 export const GrowthSettingsRepository = {
   getByProjectId,
   upsert,
   listDueMonthlyReviews,
   claimMonthlyReviewSchedule,
+  listDueWeeklyReviews,
+  claimWeeklyReviewSchedule,
 } as const;

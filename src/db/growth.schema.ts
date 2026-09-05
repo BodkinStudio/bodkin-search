@@ -33,6 +33,9 @@ export const growthProjectSettings = sqliteTable(
     // Internal scheduler cursor. Null is also the lazy-backfill state for
     // Growth settings created before scheduled monthly reviews shipped.
     nextMonthlyReviewAt: text("next_monthly_review_at"),
+    // Separate cursor because weekly cadence follows an ISO weekday rather
+    // than a day-of-month boundary.
+    nextWeeklyReviewAt: text("next_weekly_review_at"),
     // Monotonic scheduler concurrency token. Timestamps are not safe version
     // identifiers because distinct writes can occur in the same millisecond.
     settingsRevision: integer("settings_revision").notNull().default(1),
@@ -59,6 +62,12 @@ export const growthProjectSettings = sqliteTable(
       table.growthEnabled,
       table.reportCadence,
       table.nextMonthlyReviewAt,
+      table.projectId,
+    ),
+    index("growth_project_settings_weekly_due_idx").on(
+      table.growthEnabled,
+      table.reportCadence,
+      table.nextWeeklyReviewAt,
       table.projectId,
     ),
     check(

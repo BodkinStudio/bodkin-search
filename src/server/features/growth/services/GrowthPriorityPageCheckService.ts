@@ -185,6 +185,7 @@ async function executeCheck(
       ? await GrowthRunsService.claimScheduledRun({
           ...creation,
           settingsRevision: execution.settingsRevision,
+          reportCadence: "monthly",
         })
       : await GrowthRunsService.claimManualRun(creation);
   if (!claim.run)

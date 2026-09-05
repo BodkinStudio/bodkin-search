@@ -99,7 +99,10 @@ async function claimManualRun(input: CreateManualGrowthRunInput) {
 
 /** Atomically claims one scheduler-owned cadence identity. */
 async function claimScheduledRun(
-  input: CreateManualGrowthRunInput & { settingsRevision: number },
+  input: CreateManualGrowthRunInput & {
+    settingsRevision: number;
+    reportCadence: "weekly" | "monthly";
+  },
 ) {
   if (!(await GrowthRunsRepository.projectExists(input.projectId))) {
     throw new AppError("NOT_FOUND", "Growth project not found");
@@ -108,6 +111,7 @@ async function claimScheduledRun(
     input,
     crypto.randomUUID(),
     input.settingsRevision,
+    input.reportCadence,
   );
   const run = await GrowthRunsRepository.getRunBySlot(
     input.projectId,

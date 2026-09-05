@@ -27,6 +27,7 @@ beforeAll(async () => {
       readFileSync("drizzle/0044_glossy_komodo.sql", "utf8"),
       readFileSync("drizzle/0053_sweet_ben_grimm.sql", "utf8"),
       readFileSync("drizzle/0054_simple_sunspot.sql", "utf8"),
+      readFileSync("drizzle/0055_lying_rick_jones.sql", "utf8"),
     ].join("\n"),
   );
   ({ GrowthRunsRepository } = await import("./GrowthRunsRepository"));
@@ -136,6 +137,7 @@ describe("GrowthRunsRepository project-scoped reads", () => {
         creation,
         "scheduled_run_1",
         1,
+        "monthly",
       ),
     ).resolves.toBe(true);
     await expect(
@@ -152,6 +154,7 @@ describe("GrowthRunsRepository project-scoped reads", () => {
         { ...creation, cadenceSlot: `${creation.cadenceSlot}:drift` },
         "scheduled_run_drift",
         1,
+        "monthly",
       ),
     ).resolves.toBe(false);
     await expect(
@@ -166,10 +169,32 @@ describe("GrowthRunsRepository project-scoped reads", () => {
         { ...creation, cadenceSlot: `${creation.cadenceSlot}:archived` },
         "scheduled_run_archived",
         2,
+        "monthly",
       ),
     ).resolves.toBe(false);
     await expect(
       GrowthRunsRepository.getRun("project_1", "scheduled_run_archived"),
     ).resolves.toBeNull();
+
+    await client.execute(
+      "UPDATE projects SET archived_at = NULL WHERE id = 'project_1'",
+    );
+    await client.execute(
+      "UPDATE growth_project_settings SET report_cadence = 'weekly', report_day = 1 WHERE project_id = 'project_1'",
+    );
+    await expect(
+      GrowthRunsRepository.tryCreateScheduledRun(
+        {
+          ...creation,
+          runType: "weekly_review",
+          cadenceSlot: "weekly-review:scheduled:2026-08-31:2026-09-06",
+          periodStart: "2026-08-31",
+          periodEnd: "2026-09-06",
+        },
+        "scheduled_weekly_run",
+        2,
+        "weekly",
+      ),
+    ).resolves.toBe(true);
   });
 });

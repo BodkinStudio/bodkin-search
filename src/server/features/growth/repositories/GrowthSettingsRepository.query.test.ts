@@ -39,6 +39,7 @@ beforeAll(async () => {
       readFileSync("drizzle/0043_wild_proteus.sql", "utf8"),
       readFileSync("drizzle/0053_sweet_ben_grimm.sql", "utf8"),
       readFileSync("drizzle/0054_simple_sunspot.sql", "utf8"),
+      readFileSync("drizzle/0055_lying_rick_jones.sql", "utf8"),
     ].join("\n"),
   );
 
@@ -167,6 +168,72 @@ describe("GrowthSettingsRepository", () => {
         10,
       ),
     ).resolves.toEqual([]);
+  });
+
+  it("lists and claims only active due weekly projects", async () => {
+    await GrowthSettingsRepository.upsert(
+      "proj_1",
+      {
+        ...GROWTH_SETTINGS_DEFAULTS,
+        growthEnabled: true,
+        reportCadence: "weekly",
+        reportDay: 1,
+      },
+      null,
+      "2026-09-07T00:00:00.000Z",
+    );
+    const row = await GrowthSettingsRepository.getByProjectId("proj_1");
+    await expect(
+      GrowthSettingsRepository.listDueWeeklyReviews(
+        "2026-09-07T00:00:00.000Z",
+        10,
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        projectId: "proj_1",
+        nextWeeklyReviewAt: "2026-09-07T00:00:00.000Z",
+      }),
+    ]);
+    await expect(
+      GrowthSettingsRepository.claimWeeklyReviewSchedule({
+        projectId: "proj_1",
+        settingsRevision: row!.settingsRevision,
+        observedAt: "2026-09-07T00:00:00.000Z",
+        nextAt: "2026-09-14T00:00:00.000Z",
+      }),
+    ).resolves.toBe(true);
+    await expect(
+      GrowthSettingsRepository.listDueWeeklyReviews(
+        "2026-09-07T00:00:00.000Z",
+        10,
+      ),
+    ).resolves.toEqual([]);
+  });
+
+  it("rejects a weekly claim after a concurrent archive", async () => {
+    await GrowthSettingsRepository.upsert(
+      "proj_1",
+      {
+        ...GROWTH_SETTINGS_DEFAULTS,
+        growthEnabled: true,
+        reportCadence: "weekly",
+        reportDay: 1,
+      },
+      null,
+      "2026-09-07T00:00:00.000Z",
+    );
+    const row = await GrowthSettingsRepository.getByProjectId("proj_1");
+    await client.execute(
+      "UPDATE projects SET archived_at = '2026-09-07T00:00:01.000Z' WHERE id = 'proj_1'",
+    );
+    await expect(
+      GrowthSettingsRepository.claimWeeklyReviewSchedule({
+        projectId: "proj_1",
+        settingsRevision: row!.settingsRevision,
+        observedAt: "2026-09-07T00:00:00.000Z",
+        nextAt: "2026-09-14T00:00:00.000Z",
+      }),
+    ).resolves.toBe(false);
   });
 
   it("increments a monotonic revision when settings writes share a timestamp", async () => {
