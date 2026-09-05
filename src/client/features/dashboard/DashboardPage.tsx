@@ -16,6 +16,7 @@ import {
 } from "@/client/features/dashboard/DashboardCards";
 import { Ga4Card } from "@/client/features/dashboard/Ga4Card";
 import { YouTubeCard } from "@/client/features/dashboard/YouTubeCard";
+import { YouTubeContentCard } from "@/client/features/dashboard/YouTubeContentCard";
 import { McpConnectCard } from "@/client/features/dashboard/McpConnectCard";
 import { WorkspaceMergeBanner } from "@/client/features/dashboard/WorkspaceMergeBanner";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
@@ -354,6 +355,11 @@ export function DashboardPage({ projectId }: { projectId: string }) {
                     key: "youtube",
                     hasData: true,
                     node: <YouTubeCard projectId={projectId} />,
+                  },
+                  {
+                    key: "youtube-content",
+                    hasData: true,
+                    node: <YouTubeContentCard projectId={projectId} />,
                   },
                 ]
               : []),

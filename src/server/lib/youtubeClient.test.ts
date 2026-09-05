@@ -140,6 +140,64 @@ describe("YouTube client", () => {
       headers: { Authorization: "Bearer secret-token" },
     });
   });
+  it("supports bounded video report parameters and one safe metadata batch", async () => {
+    mocks.fetch
+      .mockResolvedValueOnce(response({ columnHeaders: [] }))
+      .mockResolvedValueOnce(
+        response({
+          items: [
+            {
+              id: "v1",
+              snippet: {
+                title: "Video",
+                publishedAt: "2026-01-01T00:00:00Z",
+                thumbnails: {
+                  medium: { url: "https://images.example/video.jpg" },
+                },
+              },
+            },
+          ],
+        }),
+      );
+    await client().queryAnalytics({
+      channelId: "UC",
+      startDate: "2026-01-01",
+      endDate: "2026-01-02",
+      dimensions: "video",
+      metrics: ["views"],
+      filters: "video==v1,v2",
+      sort: "-estimatedMinutesWatched",
+      maxResults: 10,
+    });
+    await expect(client().listVideos(["v1", "v2"])).resolves.toEqual([
+      {
+        videoId: "v1",
+        title: "Video",
+        publishedAt: "2026-01-01T00:00:00Z",
+        thumbnailUrl: "https://images.example/video.jpg",
+      },
+    ]);
+    expect(mocks.fetch.mock.calls[0]?.[0]).toContain("dimensions=video");
+    expect(mocks.fetch.mock.calls[0]?.[0]).toContain(
+      "filters=video%3D%3Dv1%2Cv2",
+    );
+    expect(mocks.fetch.mock.calls[1]?.[0]).toBe(
+      "https://www.googleapis.com/youtube/v3/videos?part=snippet&id=v1%2Cv2",
+    );
+  });
+  it("rejects duplicate video metadata IDs", async () => {
+    const item = {
+      id: "v1",
+      snippet: {
+        title: "Video",
+        publishedAt: "2026-01-01T00:00:00Z",
+      },
+    };
+    mocks.fetch.mockResolvedValue(response({ items: [item, item] }));
+    await expect(client().listVideos(["v1", "v2"])).rejects.toBeInstanceOf(
+      YouTubeMalformedResponseError,
+    );
+  });
   it("bounds retry information and only exposes normalized provider reasons", async () => {
     mocks.fetch.mockResolvedValue(
       response(
@@ -165,6 +223,23 @@ describe("YouTube client", () => {
       failure: "forbidden",
       retryAfterSeconds: 86_400,
       upstreamReason: "SERVICE_DISABLED",
+    });
+  });
+  it("accepts bounded HTTP-date Retry-After values for both APIs", async () => {
+    const retryAt = "Wed, 21 Oct 2099 07:28:00 GMT";
+    mocks.fetch
+      .mockResolvedValueOnce(response({}, 429, { "retry-after": retryAt }))
+      .mockResolvedValueOnce(response({}, 429, { "retry-after": retryAt }));
+    await expect(
+      client().queryAnalytics({
+        channelId: "UC",
+        startDate: "2026-01-01",
+        endDate: "2026-01-01",
+        metrics: ["views"],
+      }),
+    ).rejects.toMatchObject({ retryAfterSeconds: 86_400 });
+    await expect(client().listVideos(["v1"])).rejects.toMatchObject({
+      retryAfterSeconds: 86_400,
     });
   });
   it("does not mistake a generic permission status for missing OAuth scope", async () => {

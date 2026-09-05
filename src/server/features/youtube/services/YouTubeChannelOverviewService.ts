@@ -81,7 +81,7 @@ function comparison(
   };
 }
 
-function mapError(error: unknown): never {
+export function mapYouTubeReportError(error: unknown): never {
   if (error instanceof YouTubeReportError) throw error;
   if (
     error instanceof YouTubeTokenError ||
@@ -250,7 +250,7 @@ async function getOverview(
       warnings,
     };
   } catch (error) {
-    mapError(error);
+    mapYouTubeReportError(error);
   }
 }
 

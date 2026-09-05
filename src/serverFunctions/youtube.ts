@@ -8,6 +8,7 @@ import {
 } from "@/server/features/google/selfHostedOAuth";
 import { YouTubeService } from "@/server/features/youtube/services/YouTubeService";
 import { YouTubeChannelOverviewService } from "@/server/features/youtube/services/YouTubeChannelOverviewService";
+import { YouTubeContentAnalyticsService } from "@/server/features/youtube/services/YouTubeContentAnalyticsService";
 import { YouTubeReportError } from "@/server/lib/youtubeErrors";
 import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 import { getPublicOrigin } from "@/server/mcp/public-origin";
@@ -121,6 +122,45 @@ export const getYouTubeChannelOverview = createServerFn({ method: "POST" })
       throw error;
     }
   });
+function safeContentReport<T>(read: () => Promise<T>) {
+  return read().catch((error: unknown) => {
+    if (error instanceof YouTubeReportError) {
+      return {
+        status: "error" as const,
+        error: {
+          code: error.code,
+          message: error.message,
+          retryAfterSeconds: error.retryAfterSeconds,
+        },
+      };
+    }
+    throw error;
+  });
+}
+export const getYouTubeVideoPerformance = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(overviewInput)
+  .handler(({ data, context }) =>
+    safeContentReport(() =>
+      YouTubeContentAnalyticsService.getVideoPerformance({
+        projectId: context.projectId,
+        startDate: data.startDate,
+        endDate: data.endDate,
+      }),
+    ),
+  );
+export const getYouTubeTrafficSources = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(overviewInput)
+  .handler(({ data, context }) =>
+    safeContentReport(() =>
+      YouTubeContentAnalyticsService.getTrafficSources({
+        projectId: context.projectId,
+        startDate: data.startDate,
+        endDate: data.endDate,
+      }),
+    ),
+  );
 export const startSelfHostedYouTubeLink = createServerFn({ method: "POST" })
   .middleware(requireAuthenticatedContext)
   .validator(z.object({ callbackURL: z.string().min(1) }).strict())

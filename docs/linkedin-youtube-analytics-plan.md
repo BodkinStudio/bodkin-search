@@ -1,10 +1,10 @@
 # LinkedIn and YouTube analytics roadmap plan
 
-Status: active roadmap; YouTube connection and channel overview implemented
+Status: active roadmap; YouTube Analytics MVP implemented
 
 ## Implemented first slice
 
-The delivered YouTube foundation uses a separate read-only OAuth grant, channel discovery, and one selected channel per project. The channel overview uses `youtube.readonly` and `yt-analytics.readonly` to compare current channel metrics with the preceding period of the same length in the dashboard and MCP. Video performance, traffic sources, and LinkedIn remain planned work.
+The delivered YouTube foundation uses a separate read-only OAuth grant, channel discovery, and one selected channel per project. Channel overview, top-video performance, and traffic-source reports use `youtube.readonly` and `yt-analytics.readonly` with equal-length previous-period context in the dashboard and MCP. LinkedIn remains planned work.
 
 ## Decisions
 

@@ -55,5 +55,64 @@ export type YouTubeChannelOverview = {
   retrievedAt: string;
   warnings: string[];
 };
+export type YouTubeVideoMetrics = {
+  views: YouTubeMetricValue;
+  estimatedMinutesWatched: YouTubeMetricValue;
+  averageViewDuration: YouTubeMetricValue;
+  averageViewPercentage: YouTubeMetricValue;
+  likes: YouTubeMetricValue;
+  comments: YouTubeMetricValue;
+  shares: YouTubeMetricValue;
+  subscribersGained: YouTubeMetricValue;
+};
+export type YouTubeTrafficSourceMetrics = Pick<
+  YouTubeVideoMetrics,
+  "views" | "estimatedMinutesWatched"
+>;
+export type YouTubeMetricDelta = {
+  current: number | null;
+  previous: number | null;
+  absoluteChange: number | null;
+  percentChange: number | null;
+};
+export type YouTubeMetricsComparison = Record<string, YouTubeMetricDelta>;
+export type YouTubeVideoPerformance = {
+  status: "ok";
+  source: YouTubeChannelOverview["source"];
+  request: YouTubeChannelOverview["request"];
+  videos: Array<{
+    videoId: string;
+    title: string | null;
+    publishedAt: string | null;
+    thumbnailUrl: string | null;
+    url: string;
+    current: YouTubeVideoMetrics;
+    previous: YouTubeVideoMetrics;
+    comparison: YouTubeMetricsComparison;
+  }>;
+  /** Aggregate video rows do not establish a complete-through day. */
+  observedThrough: null;
+  completeness: "complete" | "partial" | "unknown";
+  retrievedAt: string;
+  warnings: string[];
+};
+export type YouTubeTrafficSources = {
+  status: "ok";
+  source: YouTubeChannelOverview["source"];
+  request: YouTubeChannelOverview["request"];
+  sources: Array<{
+    sourceType: string;
+    current: YouTubeTrafficSourceMetrics;
+    previous: YouTubeTrafficSourceMetrics;
+    comparison: YouTubeMetricsComparison;
+    /** Share among current source rows with numeric reported views. */
+    currentReportedRowsShare: number | null;
+  }>;
+  /** Aggregate source rows do not establish a complete-through day. */
+  observedThrough: null;
+  completeness: "complete" | "partial" | "unknown";
+  retrievedAt: string;
+  warnings: string[];
+};
 export const YOUTUBE_SELF_HOSTED_SETUP_DOCS_URL =
   "https://github.com/every-app/open-seo/blob/main/docs/SELF_HOSTING_YOUTUBE.md";

@@ -23,6 +23,8 @@ const service = vi.hoisted(() => ({
   setChannel: vi.fn(),
   disconnect: vi.fn(),
   getOverview: vi.fn(),
+  getVideoPerformance: vi.fn(),
+  getTrafficSources: vi.fn(),
 }));
 const oauth = vi.hoisted(() => ({ create: vi.fn(), configured: vi.fn() }));
 vi.mock("@tanstack/react-start", () => ({
@@ -74,6 +76,15 @@ vi.mock(
     YouTubeChannelOverviewService: { getOverview: service.getOverview },
   }),
 );
+vi.mock(
+  "@/server/features/youtube/services/YouTubeContentAnalyticsService",
+  () => ({
+    YouTubeContentAnalyticsService: {
+      getVideoPerformance: service.getVideoPerformance,
+      getTrafficSources: service.getTrafficSources,
+    },
+  }),
+);
 vi.mock("@/server/features/google/oauth-config", () => ({
   hasSelfHostedGoogleOAuthConfig: oauth.configured,
 }));
@@ -92,6 +103,8 @@ import {
   disconnectYouTube,
   getYouTubeConnection,
   getYouTubeChannelOverview,
+  getYouTubeTrafficSources,
+  getYouTubeVideoPerformance,
   listYouTubeChannels,
   setYouTubeChannel,
   startSelfHostedYouTubeLink,
@@ -132,6 +145,8 @@ describe("YouTube server functions", () => {
     });
     service.userHasGrant.mockResolvedValue(true);
     service.getOverview.mockResolvedValue({ status: "ok" });
+    service.getVideoPerformance.mockResolvedValue({ status: "ok" });
+    service.getTrafficSources.mockResolvedValue({ status: "ok" });
     service.listChannelsForUser.mockResolvedValue({
       accounts: [
         {
@@ -204,7 +219,7 @@ describe("YouTube server functions", () => {
     expect(value).toMatchObject({ currentUserCanReconnect: true });
   });
   it("starts self-hosted OAuth with the authenticated actor", async () => {
-    await registeredHandler(5)({
+    await registeredHandler(7)({
       data: { callbackURL: "/settings" },
       context,
     });
@@ -219,8 +234,10 @@ describe("YouTube server functions", () => {
       setYouTubeChannel,
       disconnectYouTube,
       getYouTubeChannelOverview,
+      getYouTubeVideoPerformance,
+      getYouTubeTrafficSources,
       startSelfHostedYouTubeLink,
-    ]).toHaveLength(6);
+    ]).toHaveLength(8);
   });
   it("uses the authorized project for the channel overview", async () => {
     await registeredHandler(4)({
@@ -255,6 +272,20 @@ describe("YouTube server functions", () => {
         message: "Reconnect the YouTube channel.",
         retryAfterSeconds: 60,
       },
+    });
+  });
+  it("uses authorized project context for both content reports", async () => {
+    await registeredHandler(5)({ data: { projectId: "forged" }, context });
+    await registeredHandler(6)({ data: { projectId: "forged" }, context });
+    expect(service.getVideoPerformance).toHaveBeenCalledWith({
+      projectId: "authorized-project",
+      startDate: undefined,
+      endDate: undefined,
+    });
+    expect(service.getTrafficSources).toHaveBeenCalledWith({
+      projectId: "authorized-project",
+      startDate: undefined,
+      endDate: undefined,
     });
   });
 });

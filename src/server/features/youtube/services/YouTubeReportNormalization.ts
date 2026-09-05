@@ -11,6 +11,21 @@ const METRICS = [
   "shares",
 ] as const;
 export const YOUTUBE_OVERVIEW_METRICS = METRICS;
+export const YOUTUBE_VIDEO_METRICS = [
+  "views",
+  "estimatedMinutesWatched",
+  "averageViewDuration",
+  "averageViewPercentage",
+  "likes",
+  "comments",
+  "shares",
+  "subscribersGained",
+] as const;
+export const YOUTUBE_TRAFFIC_SOURCE_METRICS = [
+  "views",
+  "estimatedMinutesWatched",
+] as const;
+const STRING_DIMENSIONS = new Set(["day", "video", "insightTrafficSourceType"]);
 
 type RawReport = {
   columnHeaders: Array<{ name: string; columnType: string; dataType: string }>;
@@ -24,7 +39,7 @@ type NormalizedYouTubeReport = {
 function invalid(): never {
   throw new YouTubeMalformedResponseError();
 }
-function numeric(value: unknown): number | null {
+function numeric(value: unknown, dataType: string): number | null {
   if (value === null) return null;
   const parsed =
     typeof value === "number"
@@ -33,6 +48,8 @@ function numeric(value: unknown): number | null {
         ? Number(value)
         : NaN;
   if (!Number.isFinite(parsed)) invalid();
+  if (parsed < 0 || (dataType === "INTEGER" && !Number.isInteger(parsed)))
+    invalid();
   return parsed;
 }
 function date(value: unknown): string {
@@ -50,7 +67,7 @@ function date(value: unknown): string {
 export function normalizeYouTubeReport(
   raw: RawReport,
   input: {
-    dimensions?: "day";
+    dimensions?: "day" | "video" | "insightTrafficSourceType";
     metrics: readonly string[];
     range?: { startDate: string; endDate: string };
   },
@@ -65,6 +82,9 @@ export function normalizeYouTubeReport(
   )
     invalid();
   const names = raw.columnHeaders.map((header) => header.name);
+  const headersByName = new Map(
+    raw.columnHeaders.map((header) => [header.name, header]),
+  );
   if (
     new Set(names).size !== names.length ||
     names.some((name) => !expected.includes(name)) ||
@@ -72,7 +92,7 @@ export function normalizeYouTubeReport(
   )
     invalid();
   for (const header of raw.columnHeaders) {
-    const dimension = header.name === "day";
+    const dimension = STRING_DIMENSIONS.has(header.name);
     if (
       (dimension && header.columnType !== "DIMENSION") ||
       (!dimension && header.columnType !== "METRIC")
@@ -91,7 +111,11 @@ export function normalizeYouTubeReport(
     return Object.fromEntries(
       names.map((name, index) => [
         name,
-        name === "day" ? date(rawRow[index]) : numeric(rawRow[index]),
+        name === "day"
+          ? date(rawRow[index])
+          : STRING_DIMENSIONS.has(name)
+            ? stringDimension(name, rawRow[index])
+            : numeric(rawRow[index], headersByName.get(name)!.dataType),
       ]),
     );
   });
@@ -107,7 +131,26 @@ export function normalizeYouTubeReport(
       ))
   )
     invalid();
-  rows.sort((a, b) => String(a.day ?? "").localeCompare(String(b.day ?? "")));
+  if (input.dimensions && input.dimensions !== "day") {
+    const values = rows
+      .map((row) => row[input.dimensions!])
+      .filter((value): value is string => typeof value === "string");
+    if (new Set(values).size !== values.length) invalid();
+  }
+  if (input.dimensions === "day")
+    rows.sort((a, b) => String(a.day ?? "").localeCompare(String(b.day ?? "")));
   days.sort();
   return { rows, observedThrough: days.at(-1) ?? null };
+}
+
+function stringDimension(name: string, value: unknown): string {
+  const maxLength = name === "video" ? 64 : 128;
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > maxLength ||
+    !/^[A-Za-z0-9_-]+$/.test(value)
+  )
+    invalid();
+  return value;
 }

@@ -19,6 +19,18 @@ const toolCategories: ToolCategory[] = [
         description:
           "Read channel views, watch time, engagement, and subscriber change.",
       },
+      {
+        name: "get_youtube_video_performance",
+        title: "Get YouTube video performance",
+        description:
+          "Read the channel's top videos with watch time, engagement, and previous-period context.",
+      },
+      {
+        name: "get_youtube_traffic_sources",
+        title: "Get YouTube traffic sources",
+        description:
+          "Read which YouTube traffic-source types generated reported views and watch time.",
+      },
     ],
   },
   {
