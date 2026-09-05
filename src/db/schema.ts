@@ -7,6 +7,7 @@ import * as sqliteAuth from "./better-auth-schema";
 import * as sqliteBilling from "./billing.schema";
 import * as sqliteGa4 from "./ga4.schema";
 import * as sqliteGsc from "./gsc.schema";
+import * as sqliteYouTube from "./youtube.schema";
 import * as sqliteTelemetry from "./telemetry.schema";
 import * as sqliteGrowth from "./growth.schema";
 import * as sqliteGrowthInsights from "./growth-insights.schema";
@@ -22,6 +23,7 @@ import * as pgAuth from "./pg/better-auth-schema";
 import * as pgBilling from "./pg/billing.schema";
 import * as pgGa4 from "./pg/ga4.schema";
 import * as pgGsc from "./pg/gsc.schema";
+import * as pgYouTube from "./pg/youtube.schema";
 import * as pgTelemetry from "./pg/telemetry.schema";
 import * as pgGrowth from "./pg/growth.schema";
 import * as pgGrowthInsights from "./pg/growth-insights.schema";
@@ -48,6 +50,7 @@ type AppSchema = typeof sqliteApp &
   typeof sqliteBilling &
   typeof sqliteGa4 &
   typeof sqliteGsc &
+  typeof sqliteYouTube &
   typeof sqliteTelemetry &
   typeof sqliteGrowth &
   typeof sqliteGrowthInsights &
@@ -67,6 +70,7 @@ const runtimeSchema =
         ...pgBilling,
         ...pgGa4,
         ...pgGsc,
+        ...pgYouTube,
         ...pgTelemetry,
         ...pgGrowth,
         ...pgGrowthInsights,
@@ -84,6 +88,7 @@ const runtimeSchema =
         ...sqliteBilling,
         ...sqliteGa4,
         ...sqliteGsc,
+        ...sqliteYouTube,
         ...sqliteTelemetry,
         ...sqliteGrowth,
         ...sqliteGrowthInsights,
@@ -130,6 +135,7 @@ export const {
   billingCustomerStatus,
   ga4Connections,
   gscConnections,
+  youtubeConnections,
   telemetryState,
   growthProjectSettings,
   growthRuns,

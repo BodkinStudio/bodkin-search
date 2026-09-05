@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SearchConsoleConnectionCard } from "@/client/features/gsc/SearchConsoleConnectionCard";
 import { GoogleAnalyticsConnectionCard } from "@/client/features/ga4/GoogleAnalyticsConnectionCard";
+import { YouTubeConnectionCard } from "@/client/features/youtube/YouTubeConnectionCard";
 
 export const Route = createFileRoute(
   "/_project/p/$projectId/settings/integrations",
@@ -20,6 +21,10 @@ function ProjectIntegrationsRoute() {
           Search Console
         </h2>
         <SearchConsoleConnectionCard projectId={projectId} />
+      </section>
+      <section id="youtube" className="scroll-mt-6 space-y-3">
+        <h2 className="text-sm font-medium text-base-content/50">YouTube</h2>
+        <YouTubeConnectionCard projectId={projectId} />
       </section>
 
       <section id="google-analytics" className="scroll-mt-6 space-y-3">
