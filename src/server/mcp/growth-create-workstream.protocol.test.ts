@@ -1,6 +1,9 @@
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GROWTH_PLAN_WRITE_SCOPE } from "@/lib/oauth-resource";
+import {
+  GROWTH_PLAN_WRITE_SCOPE,
+  MCP_OAUTH_SUPPORTED_SCOPES,
+} from "@/lib/oauth-resource";
 import { createWorkersOAuthMcpProps } from "./context";
 
 // The in-memory MCP client handshake takes ~3s; the default 5s budget
@@ -153,4 +156,25 @@ describe("growth_create_workstream MCP protocol", () => {
     },
     PROTOCOL_TIMEOUT_MS,
   );
+});
+
+describe("self-hosted scope set", () => {
+  it("lists every operation-scoped write tool", async () => {
+    // What handleSelfHostedOpenSeoMcpRequest grants its operator.
+    const selfHosted = await connectedClient([...MCP_OAUTH_SUPPORTED_SCOPES]);
+    try {
+      const names = (await selfHosted.client.listTools()).tools.map(
+        ({ name }) => name,
+      );
+      expect(names).toEqual(
+        expect.arrayContaining([
+          "growth_create_workstream",
+          "growth_record_change",
+        ]),
+      );
+    } finally {
+      await selfHosted.client.close();
+      await selfHosted.server.close();
+    }
+  });
 });
