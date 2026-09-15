@@ -3,6 +3,9 @@
 -- DROP of growth_actions into its whole descendant graph. Snapshot those rows
 -- first, rebuild growth_actions, then restore them in dependency order while
 -- foreign key checks are deferred to commit (same shape as 0050_wet_omega_red).
+-- Restores use INSERT OR IGNORE: rows that reference growth_actions only
+-- through a nullable column (e.g. growth_ai_briefs.approved_action_id) survive
+-- the drop and must not be inserted twice.
 PRAGMA defer_foreign_keys=ON;
 --> statement-breakpoint
 CREATE TABLE `__plan_growth_action_events` AS SELECT * FROM `growth_action_events`;
@@ -88,41 +91,41 @@ CREATE UNIQUE INDEX `growth_actions_project_creation_key` ON `growth_actions` (`
 --> statement-breakpoint
 CREATE UNIQUE INDEX `growth_actions_workstream_position_key` ON `growth_actions` (`project_id`,`workstream_id`,`workstream_position`);
 --> statement-breakpoint
-INSERT INTO `growth_action_events` SELECT * FROM `__plan_growth_action_events`;
+INSERT OR IGNORE INTO `growth_action_events` SELECT * FROM `__plan_growth_action_events`;
 --> statement-breakpoint
-INSERT INTO `growth_action_evidence` SELECT * FROM `__plan_growth_action_evidence`;
+INSERT OR IGNORE INTO `growth_action_evidence` SELECT * FROM `__plan_growth_action_evidence`;
 --> statement-breakpoint
-INSERT INTO `growth_action_targets` SELECT * FROM `__plan_growth_action_targets`;
+INSERT OR IGNORE INTO `growth_action_targets` SELECT * FROM `__plan_growth_action_targets`;
 --> statement-breakpoint
-INSERT INTO `growth_action_changes` SELECT * FROM `__plan_growth_action_changes`;
+INSERT OR IGNORE INTO `growth_action_changes` SELECT * FROM `__plan_growth_action_changes`;
 --> statement-breakpoint
-INSERT INTO `growth_measurement_plans` SELECT * FROM `__plan_growth_measurement_plans`;
+INSERT OR IGNORE INTO `growth_measurement_plans` SELECT * FROM `__plan_growth_measurement_plans`;
 --> statement-breakpoint
-INSERT INTO `growth_measurement_results` SELECT * FROM `__plan_growth_measurement_results`;
+INSERT OR IGNORE INTO `growth_measurement_results` SELECT * FROM `__plan_growth_measurement_results`;
 --> statement-breakpoint
-INSERT INTO `growth_report_actions` SELECT * FROM `__plan_growth_report_actions`;
+INSERT OR IGNORE INTO `growth_report_actions` SELECT * FROM `__plan_growth_report_actions`;
 --> statement-breakpoint
-INSERT INTO `growth_report_measurement_results` SELECT * FROM `__plan_growth_report_measurement_results`;
+INSERT OR IGNORE INTO `growth_report_measurement_results` SELECT * FROM `__plan_growth_report_measurement_results`;
 --> statement-breakpoint
-INSERT INTO `growth_ai_briefs` SELECT * FROM `__plan_growth_ai_briefs`;
+INSERT OR IGNORE INTO `growth_ai_briefs` SELECT * FROM `__plan_growth_ai_briefs`;
 --> statement-breakpoint
-INSERT INTO `growth_measurement_metrics` SELECT * FROM `__plan_growth_measurement_metrics`;
+INSERT OR IGNORE INTO `growth_measurement_metrics` SELECT * FROM `__plan_growth_measurement_metrics`;
 --> statement-breakpoint
-INSERT INTO `growth_measurement_observations` SELECT * FROM `__plan_growth_measurement_observations`;
+INSERT OR IGNORE INTO `growth_measurement_observations` SELECT * FROM `__plan_growth_measurement_observations`;
 --> statement-breakpoint
-INSERT INTO `growth_measurement_plan_anchors` SELECT * FROM `__plan_growth_measurement_plan_anchors`;
+INSERT OR IGNORE INTO `growth_measurement_plan_anchors` SELECT * FROM `__plan_growth_measurement_plan_anchors`;
 --> statement-breakpoint
-INSERT INTO `growth_measurement_result_changes` SELECT * FROM `__plan_growth_measurement_result_changes`;
+INSERT OR IGNORE INTO `growth_measurement_result_changes` SELECT * FROM `__plan_growth_measurement_result_changes`;
 --> statement-breakpoint
-INSERT INTO `growth_ai_brief_caveats` SELECT * FROM `__plan_growth_ai_brief_caveats`;
+INSERT OR IGNORE INTO `growth_ai_brief_caveats` SELECT * FROM `__plan_growth_ai_brief_caveats`;
 --> statement-breakpoint
-INSERT INTO `growth_ai_brief_citation_sources` SELECT * FROM `__plan_growth_ai_brief_citation_sources`;
+INSERT OR IGNORE INTO `growth_ai_brief_citation_sources` SELECT * FROM `__plan_growth_ai_brief_citation_sources`;
 --> statement-breakpoint
-INSERT INTO `growth_ai_brief_claims` SELECT * FROM `__plan_growth_ai_brief_claims`;
+INSERT OR IGNORE INTO `growth_ai_brief_claims` SELECT * FROM `__plan_growth_ai_brief_claims`;
 --> statement-breakpoint
-INSERT INTO `growth_ai_brief_steps` SELECT * FROM `__plan_growth_ai_brief_steps`;
+INSERT OR IGNORE INTO `growth_ai_brief_steps` SELECT * FROM `__plan_growth_ai_brief_steps`;
 --> statement-breakpoint
-INSERT INTO `growth_ai_brief_citations` SELECT * FROM `__plan_growth_ai_brief_citations`;
+INSERT OR IGNORE INTO `growth_ai_brief_citations` SELECT * FROM `__plan_growth_ai_brief_citations`;
 --> statement-breakpoint
 DROP TABLE `__plan_growth_action_events`;
 --> statement-breakpoint
