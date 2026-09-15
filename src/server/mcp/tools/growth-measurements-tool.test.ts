@@ -54,7 +54,9 @@ describe("growth_get_measurements MCP tool", () => {
     );
     expect(mocks.listMeasurements).toHaveBeenCalledWith(input);
     expect(result.structuredContent).toMatchObject({
-      meta: { url: "https://open-seo.test/p/project_1/growth#growth-work" },
+      meta: {
+        url: "https://open-seo.test/p/project_1/growth/operations#growth-work",
+      },
     });
     expect(textContent(result)).toMatch(/saved current Measurement Plans/i);
   });

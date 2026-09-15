@@ -243,7 +243,7 @@ describe("Growth page-context MCP registration", () => {
         },
         meta: {
           projectId: "project_123",
-          url: "https://app.example.com/p/project_123/growth",
+          url: "https://app.example.com/p/project_123/growth/operations",
         },
       });
       expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
@@ -311,7 +311,7 @@ describe("Growth project-summary MCP registration", () => {
         },
         meta: {
           projectId: "project_123",
-          url: "https://app.example.com/p/project_123/growth",
+          url: "https://app.example.com/p/project_123/growth/operations",
         },
       });
       expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
@@ -391,7 +391,7 @@ describe("Growth monthly-summary MCP registration", () => {
         },
         meta: {
           projectId: "project_123",
-          url: "https://app.example.com/p/project_123/growth#growth-monthly-summary",
+          url: "https://app.example.com/p/project_123/growth/operations#growth-monthly-summary",
         },
       });
       expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
@@ -489,7 +489,7 @@ describe("Growth Action MCP registration", () => {
         },
         meta: {
           projectId: "project_123",
-          url: "https://app.example.com/p/project_123/growth#growth-work",
+          url: "https://app.example.com/p/project_123/growth/operations#growth-work",
         },
       });
       expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
@@ -576,7 +576,7 @@ describe("Growth priority-Recommendation MCP registration", () => {
         },
         meta: {
           projectId: "project_123",
-          url: "https://app.example.com/p/project_123/growth",
+          url: "https://app.example.com/p/project_123/growth/operations",
         },
       });
       expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
@@ -643,7 +643,7 @@ describe("Growth Action detail MCP registration", () => {
         },
         meta: {
           projectId: "project_123",
-          url: "https://app.example.com/p/project_123/growth#growth-work",
+          url: "https://app.example.com/p/project_123/growth/operations#growth-work",
         },
       });
       expect(mocks.getActionDetail).toHaveBeenCalledWith({
@@ -703,7 +703,7 @@ describe("Growth recent-change MCP registration", () => {
         page: { changes: [], limit: 20, hasMore: false, nextCursor: null },
         meta: {
           projectId: "project_123",
-          url: "https://app.example.com/p/project_123/growth#growth-change-log",
+          url: "https://app.example.com/p/project_123/growth/operations#growth-change-log",
         },
       });
       expect(mocks.listRecentChanges).toHaveBeenCalledWith({

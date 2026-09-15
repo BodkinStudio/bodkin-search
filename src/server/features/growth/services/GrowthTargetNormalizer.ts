@@ -90,6 +90,12 @@ export function normalizeGrowthTargets(
     };
   });
 
+  return dedupeSortedTargets(targets);
+}
+
+function dedupeSortedTargets(
+  targets: NormalizedGrowthTarget[],
+): NormalizedGrowthTarget[] {
   return [
     ...new Map(
       targets.map((target) => [
@@ -101,6 +107,21 @@ export function normalizeGrowthTargets(
     `${a.targetType}:${a.targetValue}`.localeCompare(
       `${b.targetType}:${b.targetValue}`,
     ),
+  );
+}
+
+/**
+ * Keyword and cluster targets carry no host, so they normalize without a project
+ * domain — the path a project that has not set a domain yet still needs.
+ */
+export function normalizeGrowthWordTargets(
+  values: { type: "keyword" | "cluster"; value: string }[],
+): NormalizedGrowthTarget[] {
+  return dedupeSortedTargets(
+    values.map(({ type, value }) => ({
+      targetType: type,
+      targetValue: normalizeWords(value),
+    })),
   );
 }
 

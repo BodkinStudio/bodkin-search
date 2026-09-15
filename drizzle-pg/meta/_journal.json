@@ -337,6 +337,27 @@
       "when": 1789240648996,
       "tag": "0047_secret_sunfire",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1789420479889,
+      "tag": "0048_freezing_violations",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1789421969799,
+      "tag": "0049_chilly_norrin_radd",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1789451158696,
+      "tag": "0050_old_makkari",
+      "breakpoints": true
     }
   ]
 }

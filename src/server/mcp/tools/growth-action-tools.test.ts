@@ -182,7 +182,7 @@ describe("growth_get_actions MCP tool", () => {
       page: resultPage,
       meta: {
         projectId,
-        url: `https://open-seo.test/p/${projectId}/growth#growth-work`,
+        url: `https://open-seo.test/p/${projectId}/growth/operations#growth-work`,
       },
     });
 

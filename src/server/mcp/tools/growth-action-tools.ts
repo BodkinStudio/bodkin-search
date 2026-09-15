@@ -66,7 +66,7 @@ export const growthGetActionsTool = {
       meta: buildProjectMeta(
         context,
         args.projectId,
-        `/p/${args.projectId}/growth#growth-work`,
+        `/p/${args.projectId}/growth/operations#growth-work`,
       ),
       structuredContent: { page },
     });

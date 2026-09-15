@@ -42,7 +42,7 @@ export const growthRecordChangeTool = {
         meta: buildProjectMeta(
           context,
           args.projectId,
-          `/p/${args.projectId}/growth#growth-change-log`,
+          `/p/${args.projectId}/growth/operations#growth-change-log`,
         ),
         structuredContent: { change },
       });

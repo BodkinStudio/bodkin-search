@@ -66,6 +66,8 @@ beforeAll(async () => {
       readFileSync("drizzle/0044_glossy_komodo.sql", "utf8"),
       readFileSync("drizzle/0045_mean_retro_girl.sql", "utf8"),
       readFileSync("drizzle/0046_living_misty_knight.sql", "utf8"),
+      readFileSync("drizzle/0062_mixed_doctor_faustus.sql", "utf8"),
+      readFileSync("drizzle/0070_stormy_santa_claus.sql", "utf8"),
       `INSERT INTO growth_runs (
         id, project_id, run_type, trigger, status, cadence_slot, period_start,
         period_end, started_at, completed_at, detector_version

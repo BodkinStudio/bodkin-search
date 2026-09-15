@@ -81,7 +81,18 @@ import { growthGetActionsTool } from "@/server/mcp/tools/growth-action-tools";
 import { growthGetPriorityRecommendationsTool } from "@/server/mcp/tools/growth-priority-recommendations-tool";
 import { growthGetRecentChangesTool } from "@/server/mcp/tools/growth-recent-changes-tool";
 import { growthRecordChangeTool } from "@/server/mcp/tools/growth-record-change-tool";
-import { GROWTH_CHANGE_CREATE_SCOPE } from "@/lib/oauth-resource";
+import { growthGetPlanTool } from "@/server/mcp/tools/growth-plan-tool";
+import {
+  growthAddActionEvidenceTool,
+  growthCreateActionTool,
+  growthCreateWorkstreamTool,
+  growthUpdatePlanNarrativeTool,
+  growthUpdateWorkstreamTool,
+} from "@/server/mcp/tools/growth-plan-write-tools";
+import {
+  GROWTH_CHANGE_CREATE_SCOPE,
+  GROWTH_PLAN_WRITE_SCOPE,
+} from "@/lib/oauth-resource";
 import { hasMcpOperationScope } from "@/server/mcp/operation-auth";
 import { growthGetMeasurementsTool } from "@/server/mcp/tools/growth-measurements-tool";
 import { growthGetActionTool } from "@/server/mcp/tools/growth-action-detail-tool";
@@ -230,6 +241,14 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
   register(growthGetRecentChangesTool);
   if (hasMcpOperationScope(authProps, GROWTH_CHANGE_CREATE_SCOPE))
     register(growthRecordChangeTool);
+  register(growthGetPlanTool);
+  if (hasMcpOperationScope(authProps, GROWTH_PLAN_WRITE_SCOPE)) {
+    register(growthCreateWorkstreamTool);
+    register(growthUpdateWorkstreamTool);
+    register(growthCreateActionTool);
+    register(growthAddActionEvidenceTool);
+    register(growthUpdatePlanNarrativeTool);
+  }
   register(growthGetMeasurementsTool);
   register(growthGetActionTool);
   register(growthGetMonthlySummaryTool);

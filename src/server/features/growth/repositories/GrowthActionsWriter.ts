@@ -1,8 +1,10 @@
+/* eslint-disable max-lines -- Action creation, review and optional brief linkage are one atomic aggregate */
 import { and, eq, exists, sql, type SQL } from "drizzle-orm";
 import { getDatabaseProvider } from "@/db/provider";
 import { runBatch, type BatchExecutor } from "@/db/runBatch";
 import {
   growthActionEvents,
+  growthAiBriefs,
   growthActions,
   growthActionTargets,
   growthRecommendations,
@@ -35,6 +37,12 @@ type CreateActionGraphInput = {
   actorType: ActionActorType;
   actorId: string;
   note: string | null;
+  aiBriefApproval?: {
+    briefId: string;
+    expectedVersion: number;
+    dueOn: string;
+    actorId: string;
+  };
 };
 
 function buildActionCreationStatements(
@@ -65,6 +73,12 @@ function buildActionCreationStatements(
       cancelledAt: sql<null>`NULL`.as("cancelled_at"),
       createdAt: sql<string>`${createdAt}`.as("created_at"),
       updatedAt: sql<string>`${createdAt}`.as("updated_at"),
+      // An Action born from a Recommendation carries no plan fields; the
+      // projection must still list every column, in table order.
+      workstreamId: sql<null>`NULL`.as("workstream_id"),
+      workstreamPosition: sql<null>`NULL`.as("workstream_position"),
+      rationale: sql<null>`NULL`.as("rationale"),
+      successMeasure: sql<null>`NULL`.as("success_measure"),
     })
     .from(growthRecommendations)
     .where(
@@ -81,6 +95,26 @@ function buildActionCreationStatements(
           : eq(growthRecommendations.reviewVersion, expectedReviewVersion),
         eq(growthRecommendations.category, input.category),
         eq(growthRecommendations.priorityScore, input.priorityScore),
+        input.aiBriefApproval
+          ? exists(
+              tx
+                .select({ value: sql`1` })
+                .from(growthAiBriefs)
+                .where(
+                  and(
+                    eq(growthAiBriefs.projectId, input.projectId),
+                    eq(growthAiBriefs.id, input.aiBriefApproval.briefId),
+                    eq(growthAiBriefs.recommendationId, input.recommendationId),
+                    eq(
+                      growthAiBriefs.version,
+                      input.aiBriefApproval.expectedVersion,
+                    ),
+                    eq(growthAiBriefs.proposalWriteKey, input.id),
+                    sql`${growthAiBriefs.approvedActionId} IS NULL`,
+                  ),
+                ),
+            )
+          : undefined,
         sql`${input.targets.length} > 0`,
         ...input.targets.map((target) =>
           exists(
@@ -230,7 +264,9 @@ export async function createActionGraph(input: CreateActionGraphInput) {
 }
 
 export async function approveActionGraph(
-  input: CreateActionGraphInput & { expectedReviewVersion: number },
+  input: CreateActionGraphInput & {
+    expectedReviewVersion: number;
+  },
 ) {
   const createdAt = new Date().toISOString();
   await runBatch((tx) => {
@@ -283,7 +319,24 @@ export async function approveActionGraph(
           ),
         ),
     );
+    const briefApproval = input.aiBriefApproval;
     return [
+      ...(briefApproval
+        ? [
+            tx
+              .update(growthAiBriefs)
+              .set({ proposalWriteKey: input.id })
+              .where(
+                and(
+                  eq(growthAiBriefs.projectId, input.projectId),
+                  eq(growthAiBriefs.id, briefApproval.briefId),
+                  eq(growthAiBriefs.recommendationId, input.recommendationId),
+                  eq(growthAiBriefs.version, briefApproval.expectedVersion),
+                  sql`${growthAiBriefs.approvedActionId} IS NULL`,
+                ),
+              ),
+          ]
+        : []),
       ...buildActionCreationStatements(
         tx,
         input,
@@ -305,6 +358,44 @@ export async function approveActionGraph(
         },
         completeGraph,
       ),
+      ...(briefApproval
+        ? [
+            tx
+              .update(growthAiBriefs)
+              .set({
+                approvedActionId: input.id,
+                approvedVersion: briefApproval.expectedVersion,
+                approvedDueOn: briefApproval.dueOn,
+                approvedAt: createdAt,
+                approvedActorId: briefApproval.actorId,
+                updatedAt: createdAt,
+              })
+              .where(
+                and(
+                  eq(growthAiBriefs.projectId, input.projectId),
+                  eq(growthAiBriefs.id, briefApproval.briefId),
+                  eq(growthAiBriefs.proposalWriteKey, input.id),
+                  completeGraph,
+                  exists(
+                    tx
+                      .select({ value: sql`1` })
+                      .from(growthRecommendations)
+                      .where(
+                        and(
+                          eq(growthRecommendations.projectId, input.projectId),
+                          eq(growthRecommendations.id, input.recommendationId),
+                          eq(growthRecommendations.status, "accepted"),
+                          eq(
+                            growthRecommendations.reviewVersion,
+                            input.expectedReviewVersion + 1,
+                          ),
+                        ),
+                      ),
+                  ),
+                ),
+              ),
+          ]
+        : []),
     ];
   });
 }

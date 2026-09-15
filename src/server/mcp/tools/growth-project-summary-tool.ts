@@ -110,7 +110,7 @@ export const growthGetProjectSummaryTool = {
       meta: buildProjectMeta(
         context,
         args.projectId,
-        `/p/${args.projectId}/growth`,
+        `/p/${args.projectId}/growth/operations`,
       ),
       structuredContent: { summary },
     });

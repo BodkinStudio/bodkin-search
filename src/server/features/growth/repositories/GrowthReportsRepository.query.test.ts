@@ -429,6 +429,7 @@ beforeAll(async () => {
            '${"6".repeat(64)}', 'positive', 0.8, 'Clicks improved.',
            '2026-07-31T12:00:00.000Z');`,
       migration("drizzle/0049_gray_hedge_knight.sql"),
+      migration("drizzle/0070_stormy_santa_claus.sql"),
     ].join("\n"),
   );
   ({ GrowthReportsRepository: repo } =

@@ -66,9 +66,17 @@ beforeAll(async () => {
       readFileSync("drizzle/0044_glossy_komodo.sql", "utf8"),
       readFileSync("drizzle/0045_mean_retro_girl.sql", "utf8"),
       readFileSync("drizzle/0046_living_misty_knight.sql", "utf8"),
+      readFileSync("drizzle/0062_mixed_doctor_faustus.sql", "utf8"),
+      readFileSync("drizzle/0064_massive_mongoose.sql", "utf8"),
+      readFileSync("drizzle/0065_real_frog_thor.sql", "utf8"),
       readFileSync("drizzle/0052_lethal_brother_voodoo.sql", "utf8"),
+      readFileSync("drizzle/0070_stormy_santa_claus.sql", "utf8"),
       `INSERT INTO project_key_pages (id, project_id, url, role, topic, notes, commercial_weight, protected, actively_optimized, updated_at, updated_by)
      VALUES ('key_pricing', 'project_1', 'https://example.com/pricing', 'money', NULL, NULL, 3, false, false, '2026-01-01T00:00:00.000Z', 'user');`,
+      `INSERT INTO growth_assessments (id,project_id,version,status,objective,market,audience,success_measure,objective_confirmed,comparison_rationale,selected_option_id,created_at)
+       VALUES ('assessment_1','project_1',1,'ready','Increase qualified trials','UK','Operations leaders','Qualified trials',1,'This page has the clearest validation path','assessment_option_1','2026-01-01T00:00:00.000Z');`,
+      `INSERT INTO growth_assessment_options (id,project_id,assessment_id,ordinal,kind,title,business_relevance,evidence_source,evidence_date,evidence_scope,observation,uncertainty,next_validation,disposition,key_page_id)
+       VALUES ('assessment_option_1','project_1','assessment_1',0,'page','Pricing page','Commercial journey','Saved report','2026-01-01','UK organic traffic','Clicks fell','Attribution is incomplete','Compare matching periods','selected','key_pricing');`,
     ].join("\n"),
   );
   ({ GrowthPriorityPageCheckService: service } =
@@ -551,6 +559,12 @@ describe("GrowthPriorityPageCheckService SQLite integration", () => {
 
     await client.execute(
       "DELETE FROM gsc_connections WHERE project_id = 'project_1'",
+    );
+    await client.execute(
+      "DELETE FROM growth_assessment_options WHERE project_id = 'project_1'",
+    );
+    await client.execute(
+      "DELETE FROM growth_assessments WHERE project_id = 'project_1'",
     );
     await client.execute(
       "DELETE FROM project_key_pages WHERE project_id = 'project_1'",

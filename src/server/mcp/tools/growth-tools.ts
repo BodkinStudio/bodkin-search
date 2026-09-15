@@ -81,7 +81,7 @@ export const growthGetMonthlySummaryTool = {
         meta: buildProjectMeta(
           context,
           args.projectId,
-          `/p/${args.projectId}/growth#growth-monthly-summary`,
+          `/p/${args.projectId}/growth/operations#growth-monthly-summary`,
         ),
         structuredContent: { summary },
       });

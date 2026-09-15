@@ -168,6 +168,7 @@ beforeAll(async () => {
        VALUES ('project_1', 'action_1', 'change_1'),
               ('project_1', 'action_rollback', 'change_1');`,
       migration("drizzle/0051_noisy_agent_zero.sql"),
+      migration("drizzle/0070_stormy_santa_claus.sql"),
     ].join("\n"),
   );
   ({ GrowthMeasurementsRepository: repo } =

@@ -17,6 +17,7 @@ import { GrowthOpportunityDecisionsRepository } from "../repositories/GrowthOppo
 import { GrowthRunsRepository } from "../repositories/GrowthRunsRepository";
 import { normalizeKeyPageUrl } from "@/server/features/project-context/services/contextUpdateOps";
 import { GrowthActionsService } from "./GrowthActionsService";
+import { GrowthAssessmentsService } from "./GrowthAssessmentsService";
 import { GrowthInsightsService } from "./GrowthInsightsService";
 import { investigationKeys } from "./GrowthInvestigationTemplate";
 import { growthEvidenceDisplayUrl } from "./GrowthEvidencePacket";
@@ -638,7 +639,12 @@ async function exactTemplateAction(
     projectId,
     investigationKeysForDescriptor(descriptor, controllerSignalId).action,
   );
-  return action?.recommendationId === recommendationId ? action : null;
+  if (action?.recommendationId === recommendationId) return action;
+  return GrowthActionsRepository.getApprovedAiBriefAction(
+    projectId,
+    controllerSignalId,
+    recommendationId,
+  );
 }
 
 async function getInvestigation(
@@ -730,11 +736,15 @@ function projectedWorkItem(
     dueAt: string;
     createdAt: string;
     runId: string;
+    aiBriefSignalId?: string | null;
   },
   targets: { targetType: string; targetValue: string }[],
 ): GrowthWorkItem {
   return {
     id: action.id,
+    ...(action.aiBriefSignalId
+      ? { aiBriefSignalId: action.aiBriefSignalId }
+      : {}),
     title: action.title,
     status: action.status,
     stateVersion: action.stateVersion,
@@ -768,7 +778,11 @@ async function updateWorkStatus(
     [input.actionId],
   );
   return projectedWorkItem(
-    { ...transitioned.action, runId: qualified.runId },
+    {
+      ...transitioned.action,
+      runId: qualified.runId,
+      aiBriefSignalId: qualified.aiBriefSignalId,
+    },
     targets,
   );
 }
@@ -831,7 +845,9 @@ async function approveInvestigation(input: {
 
   const replay = async (existing: {
     id: string;
-    recommendationId: string;
+    // Plan Actions carry no Recommendation, and the identity guard below
+    // rejects them for this creation key.
+    recommendationId: string | null;
     dueAt: string;
   }) => {
     if (existing.recommendationId !== saved.graph.recommendation.id)
@@ -878,6 +894,11 @@ async function approveInvestigation(input: {
     keys.action,
   );
   if (existing) return replay(existing);
+  await GrowthAssessmentsService.requireReadyForPage(
+    input.projectId,
+    saved.graph.targets.find((target) => target.targetType === "url")
+      ?.targetValue ?? null,
+  );
   if (saved.graph.recommendation.status === "accepted") {
     throw new AppError(
       "CONFLICT",

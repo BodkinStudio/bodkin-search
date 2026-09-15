@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import {
   GROWTH_CHANGE_CREATE_SCOPE,
+  GROWTH_PLAN_WRITE_SCOPE,
   MCP_OAUTH_SCOPES,
 } from "@/lib/oauth-resource";
 import { workersOAuthMcpPropsSchema } from "@/server/mcp/context";
@@ -204,6 +205,7 @@ describe("OpenSEO OAuth provider configuration", () => {
       "offline_access",
       "mcp",
       GROWTH_CHANGE_CREATE_SCOPE,
+      GROWTH_PLAN_WRITE_SCOPE,
     ]);
     expect(mocks.options[0]?.clientRegistrationTTL).toBe(60 * 60 * 24 * 365);
   });

@@ -114,7 +114,7 @@ describe("growth_get_page_context MCP tool", () => {
       context: pageContext,
       meta: {
         projectId,
-        url: `https://open-seo.test/p/${projectId}/growth`,
+        url: `https://open-seo.test/p/${projectId}/growth/operations`,
       },
     });
 

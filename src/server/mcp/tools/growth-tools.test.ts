@@ -152,7 +152,7 @@ describe("growth_get_monthly_summary MCP tool", () => {
       summary,
       meta: {
         projectId,
-        url: `https://open-seo.test/p/${projectId}/growth#growth-monthly-summary`,
+        url: `https://open-seo.test/p/${projectId}/growth/operations#growth-monthly-summary`,
       },
     });
 

@@ -84,7 +84,7 @@ describe("growth_get_action MCP tool", () => {
       action: detail,
       meta: {
         projectId,
-        url: `https://open-seo.test/p/${projectId}/growth#growth-work`,
+        url: `https://open-seo.test/p/${projectId}/growth/operations#growth-work`,
       },
     });
     expect(textContent(result)).toContain(detail.action.title.value);

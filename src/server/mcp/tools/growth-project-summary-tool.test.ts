@@ -271,7 +271,7 @@ describe("growth_get_project_summary MCP tool", () => {
       summary,
       meta: {
         projectId,
-        url: `https://open-seo.test/p/${projectId}/growth`,
+        url: `https://open-seo.test/p/${projectId}/growth/operations`,
       },
     });
 

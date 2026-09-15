@@ -491,6 +491,27 @@
       "when": 1789240647816,
       "tag": "0069_calm_tarot",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "6",
+      "when": 1789420478347,
+      "tag": "0070_stormy_santa_claus",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "6",
+      "when": 1789421968606,
+      "tag": "0071_married_zaladane",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "6",
+      "when": 1789451157777,
+      "tag": "0072_organic_amazoness",
+      "breakpoints": true
     }
   ]
 }

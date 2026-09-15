@@ -115,7 +115,7 @@ describe("growth_record_change MCP tool", () => {
       change,
       meta: {
         projectId,
-        url: "https://open-seo.test/p/project_1/growth#growth-change-log",
+        url: "https://open-seo.test/p/project_1/growth/operations#growth-change-log",
       },
     });
     expect(textContent(result)).toMatch(/recorded or replayed/i);

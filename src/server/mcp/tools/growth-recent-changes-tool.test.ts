@@ -72,7 +72,7 @@ describe("growth_get_recent_changes MCP tool", () => {
     expect(mocks.listRecentChanges).toHaveBeenCalledWith(input);
     expect(result.structuredContent).toMatchObject({
       meta: {
-        url: "https://open-seo.test/p/project_1/growth#growth-change-log",
+        url: "https://open-seo.test/p/project_1/growth/operations#growth-change-log",
       },
     });
     expect(textContent(result)).toMatch(/saved manual Change Event/i);

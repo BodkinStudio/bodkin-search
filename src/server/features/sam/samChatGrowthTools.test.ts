@@ -199,7 +199,7 @@ describe("SAM Growth MCP tools", () => {
         },
         meta: {
           projectId: "bound_project",
-          url: "https://open-seo.test/p/bound_project/growth",
+          url: "https://open-seo.test/p/bound_project/growth/operations",
         },
       },
     });
@@ -248,7 +248,7 @@ describe("SAM Growth MCP tools", () => {
         },
         meta: {
           projectId: "bound_project",
-          url: "https://open-seo.test/p/bound_project/growth",
+          url: "https://open-seo.test/p/bound_project/growth/operations",
         },
       },
     });
@@ -314,7 +314,7 @@ describe("SAM Growth MCP tools", () => {
         },
         meta: {
           projectId: "bound_project",
-          url: "https://open-seo.test/p/bound_project/growth#growth-work",
+          url: "https://open-seo.test/p/bound_project/growth/operations#growth-work",
         },
       },
     });
@@ -385,7 +385,7 @@ describe("SAM Growth MCP tools", () => {
         },
         meta: {
           projectId: "bound_project",
-          url: "https://open-seo.test/p/bound_project/growth#growth-work",
+          url: "https://open-seo.test/p/bound_project/growth/operations#growth-work",
         },
       },
     });
@@ -424,7 +424,7 @@ describe("SAM Growth MCP tools", () => {
         summary,
         meta: {
           projectId: "bound_project",
-          url: "https://open-seo.test/p/bound_project/growth#growth-monthly-summary",
+          url: "https://open-seo.test/p/bound_project/growth/operations#growth-monthly-summary",
         },
       },
     });
