@@ -1,15 +1,45 @@
-import { createElement } from "react";
+vi.mock("@/serverFunctions/growthAssessmentInvestigations", () => ({
+  getGrowthAssessmentInvestigation: vi.fn(),
+  runGrowthAssessmentInvestigation: vi.fn(),
+}));
+vi.mock("@/serverFunctions/projectContext", () => ({
+  getProjectContext: vi.fn(),
+}));
+vi.mock("@/serverFunctions/growthAssessments", () => ({
+  getGrowthAssessment: vi.fn(),
+  generateGrowthAssessment: vi.fn(),
+  confirmGrowthAssessment: vi.fn(),
+}));
+import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { buildGrowthPreview } from "@/server/features/growth/services/GrowthPreviewService";
 import { GrowthPreviewDetail } from "./GrowthPreviewDetail";
 import {
-  GrowthPreviewPage,
+  GrowthOperationsPage,
   GrowthPreviewRequestState,
-} from "./GrowthPreviewPage";
+} from "./GrowthOperationsPage";
 import { GrowthPreviewWorkspace } from "./GrowthPreviewWorkspace";
 
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({
+    to,
+    params,
+    children,
+    className,
+  }: {
+    to: string;
+    params: { projectId: string };
+    children: ReactNode;
+    className?: string;
+  }) =>
+    createElement(
+      "a",
+      { href: to.replace("$projectId", params.projectId), className },
+      children,
+    ),
+}));
 vi.mock("@/serverFunctions/growthPreview", () => ({
   getGrowthPreview: vi.fn(),
 }));
@@ -69,7 +99,7 @@ describe("GrowthPreview rendered contract", () => {
         {
           client: new QueryClient(),
         },
-        createElement(GrowthPreviewPage, {
+        createElement(GrowthOperationsPage, {
           projectId: "real_project",
         }),
       ),
@@ -84,15 +114,12 @@ describe("GrowthPreview rendered contract", () => {
     expect(html).toContain('href="#growth-live-readiness"');
     expect(html).toContain("Loading Growth overview");
     expect(html).toContain("Opportunities");
-    expect(html).toContain('href="#growth-opportunities"');
     expect(html).toContain("Loading saved opportunities");
-    expect(html).toContain("turn the saved record into a monthly summary");
+    expect(html).toContain("Decide what matters next, understand the evidence");
     expect(html).toContain("Loading monthly summary");
-    expect(html).toContain('href="#growth-monthly-summary"');
     expect(html).toContain('href="#growth-monthly-review"');
     expect(html).toContain("Change log");
     expect(html).toContain("Run inspector");
-    expect(html).toContain('href="#growth-run-inspector"');
     expect(html).toContain("Loading saved work");
     expect(html).toContain('href="#growth-work"');
     expect(html).toContain("Loading saved changes");

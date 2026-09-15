@@ -16,12 +16,14 @@ vi.mock("@tanstack/react-router", () => ({
       return { useParams: () => ({ projectId: route.projectId }) };
     },
 }));
-vi.mock("./GrowthPreviewPage", () => ({ GrowthPreviewPage: () => null }));
+vi.mock("./GrowthOperationsPage", () => ({
+  GrowthOperationsPage: () => null,
+}));
 
-import { Route } from "@/routes/_project/p/$projectId/growth";
+import { Route } from "@/routes/_project/p/$projectId/growth/operations";
 
-describe("GrowthPreview project scope", () => {
-  it("keys the entire preview page to the project, remounting all nested query/filter/selection state", () => {
+describe("Growth operations project scope", () => {
+  it("keys the entire operations page to the project, remounting all nested query/filter/selection state", () => {
     expect(Route).toBeDefined();
     route.projectId = "project_one";
     const first = route.component!();
