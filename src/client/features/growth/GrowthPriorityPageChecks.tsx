@@ -8,7 +8,10 @@ import { GrowthCheckDetail } from "./GrowthCheckDetail";
 import { GrowthPersistentRankDropCheck } from "./GrowthPersistentRankDropCheck";
 import { GrowthCriticalAuditIssueCheck } from "./GrowthCriticalAuditIssueCheck";
 import { GrowthMeasurementDueCheck } from "./GrowthMeasurementDueCheck";
-import { runGrowthCheckSchema } from "@/types/schemas/growth-checks";
+import {
+  runGrowthCheckSchema,
+  runGrowthStrikingDistanceCheckSchema,
+} from "@/types/schemas/growth-checks";
 import {
   getGrowthCheckRun,
   getGrowthChecksOverview,
@@ -21,6 +24,10 @@ type GrowthStrikingDistanceCheckResult = Awaited<
   ReturnType<typeof runGrowthStrikingDistanceCheck>
 >;
 type GrowthLowCtrCheckResult = Awaited<ReturnType<typeof runGrowthLowCtrCheck>>;
+type StrikingDistanceRequest = {
+  requestKey: string;
+  keyPageId?: string;
+};
 
 function newGrowthCheckRequestKey() {
   return crypto.randomUUID().replaceAll("-", "");
@@ -52,15 +59,30 @@ function readPendingCheck(projectId: string) {
 function readPendingStrikingDistanceCheck(projectId: string) {
   if (typeof window === "undefined") return null;
   try {
-    const parsed = runGrowthCheckSchema.shape.requestKey.safeParse(
-      window.sessionStorage.getItem(
-        pendingStrikingDistanceStorageKey(projectId),
-      ),
+    const stored = window.sessionStorage.getItem(
+      pendingStrikingDistanceStorageKey(projectId),
     );
+    const legacy = runGrowthCheckSchema.shape.requestKey.safeParse(stored);
+    if (legacy.success) return { requestKey: legacy.data };
+    const parsed = runGrowthStrikingDistanceCheckSchema
+      .pick({ requestKey: true, keyPageId: true })
+      .safeParse(JSON.parse(stored ?? "null"));
     return parsed.success ? parsed.data : null;
   } catch {
     return null;
   }
+}
+
+function strikingDistanceRequestForAttempt(input: {
+  newAttempt: boolean;
+  pending: StrikingDistanceRequest | null;
+  selectedKeyPageId: string;
+}): StrikingDistanceRequest {
+  if (!input.newAttempt && input.pending) return input.pending;
+  return {
+    requestKey: newGrowthCheckRequestKey(),
+    keyPageId: input.selectedKeyPageId || undefined,
+  };
 }
 function readPendingLowCtrCheck(projectId: string) {
   if (typeof window === "undefined") return null;
@@ -92,6 +114,9 @@ function GrowthStrikingDistanceCheckStatus({
   result: GrowthStrikingDistanceCheckResult;
 }) {
   const resultPrefix = result.replayed ? "Retrieved the saved result. " : "";
+  const scope = result.scope
+    ? `Scope: ${result.scope.url}. `
+    : "Scope: all saved priority pages. ";
   const foundSummary = `Found ${result.candidateCount} eligible ranking ${result.candidateCount === 1 ? "opportunity" : "opportunities"}. Newly saved: ${result.savedOpportunityCount}. Already covered: ${result.alreadyCoveredCount}.`;
   const hasReviewableResult =
     result.savedOpportunityCount > 0 || result.alreadyCoveredCount > 0;
@@ -108,15 +133,17 @@ function GrowthStrikingDistanceCheckStatus({
   if (result.run.status === "running")
     return (
       <p role="status" className="text-sm text-base-content/70">
-        {resultPrefix}This ranking-opportunity check is still running. Retry the
-        saved request to retrieve its outcome.
+        {resultPrefix}
+        {scope}This ranking-opportunity check is still running. Retry the saved
+        request to retrieve its outcome.
       </p>
     );
   if (result.run.status === "failed")
     return (
       <div role="alert" className="alert alert-error py-3 text-sm">
         <span>
-          {resultPrefix}The ranking-opportunity check failed.{" "}
+          {resultPrefix}
+          {scope}The ranking-opportunity check failed.{" "}
           {result.run.failureMessage ??
             "No ranking-opportunity suggestion was saved."}
         </span>
@@ -127,6 +154,7 @@ function GrowthStrikingDistanceCheckStatus({
       <div role="alert" className="alert alert-warning py-3 text-sm">
         <span>
           {resultPrefix}
+          {scope}
           {result.run.failureCode === "INCOMPLETE_QUERY_INVENTORY"
             ? "Search Console query data was incomplete, so no ranking opportunity was saved."
             : `The ranking-opportunity check completed with errors. ${result.run.failureMessage ?? "Some suggestions could not be saved."} ${foundSummary}`}
@@ -137,13 +165,15 @@ function GrowthStrikingDistanceCheckStatus({
   if (result.candidateCount === 0)
     return (
       <p role="status" className="text-sm text-base-content/70">
-        {resultPrefix}No eligible ranking opportunities were found in the
-        completed Search Console inventory. No new suggestion was saved.
+        {resultPrefix}
+        {scope}No eligible ranking opportunities were found in the completed
+        Search Console inventory. No new suggestion was saved.
       </p>
     );
   return (
     <p role="status" className="text-sm text-base-content/70">
       {resultPrefix}
+      {scope}
       {foundSummary}
       {reviewLink}
     </p>
@@ -218,6 +248,69 @@ function shouldShowLowCtrResult(
   return result !== null && !pending;
 }
 
+function StrikingDistanceControls({
+  pages,
+  request,
+  selectedKeyPageId,
+  isPending,
+  isReady,
+  onSelect,
+  onSubmit,
+}: {
+  pages: Array<{ id: string; url: string }>;
+  request: StrikingDistanceRequest | null;
+  selectedKeyPageId: string;
+  isPending: boolean;
+  isReady: boolean;
+  onSelect: (keyPageId: string) => void;
+  onSubmit: (newAttempt?: boolean) => void;
+}) {
+  const scopeLocked = isPending || request !== null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      <label className="form-control w-full sm:w-80">
+        <span className="label-text text-sm">Saved priority page</span>
+        <select
+          className="select select-bordered select-sm mt-1"
+          value={request?.keyPageId ?? selectedKeyPageId}
+          disabled={scopeLocked}
+          onChange={(event) => onSelect(event.target.value)}
+        >
+          <option value="">All saved priority pages</option>
+          {pages.map((page) => (
+            <option key={page.id} value={page.id}>
+              {page.url}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button
+        type="button"
+        className="btn btn-outline btn-sm"
+        aria-busy={isPending}
+        disabled={!isReady || isPending}
+        onClick={() => onSubmit()}
+      >
+        {isPending
+          ? "Finding opportunities…"
+          : request
+            ? "Retry ranking-opportunity request"
+            : "Find ranking opportunities"}
+      </button>
+      {request ? (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          disabled={!isReady || isPending}
+          onClick={() => onSubmit(true)}
+        >
+          Start new ranking-opportunity check
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 // eslint-disable-next-line max-lines-per-function -- the established card owns both retry-safe checks and decline history
 export function GrowthPriorityPageChecks({
   projectId,
@@ -233,9 +326,13 @@ export function GrowthPriorityPageChecks({
     readPendingCheck(projectId),
   );
   const [storageError, setStorageError] = useState<string | null>(null);
-  const [strikingDistanceRequestKey, setStrikingDistanceRequestKey] = useState(
-    () => readPendingStrikingDistanceCheck(projectId),
+  const [strikingDistanceRequest, setStrikingDistanceRequest] = useState(() =>
+    readPendingStrikingDistanceCheck(projectId),
   );
+  const [
+    selectedStrikingDistanceKeyPageId,
+    setSelectedStrikingDistanceKeyPageId,
+  ] = useState("");
   const [strikingDistanceStorageError, setStrikingDistanceStorageError] =
     useState<string | null>(null);
   const [strikingDistanceResult, setStrikingDistanceResult] =
@@ -280,12 +377,13 @@ export function GrowthPriorityPageChecks({
     },
   });
   const findStrikingDistance = useMutation({
-    mutationFn: (key: string) =>
+    mutationFn: (request: StrikingDistanceRequest) =>
       runGrowthStrikingDistanceCheck({
-        data: { projectId, requestKey: key },
+        data: { projectId, ...request },
       }),
     onSuccess: (result) => {
       setStrikingDistanceResult(result);
+      setSelectedStrikingDistanceKeyPageId(result.scope?.id ?? "");
       if (result.run.status !== "running") {
         try {
           window.sessionStorage.removeItem(
@@ -294,12 +392,9 @@ export function GrowthPriorityPageChecks({
         } catch {
           // A stale terminal identity is safe to replay after a reload.
         }
-        setStrikingDistanceRequestKey(null);
+        setStrikingDistanceRequest(null);
       }
-      if (
-        result.run.status === "completed" ||
-        result.run.status === "completed_with_errors"
-      ) {
+      if (["completed", "completed_with_errors"].includes(result.run.status)) {
         void client.invalidateQueries({
           queryKey: ["growthPriorityRecommendations", projectId],
         });
@@ -322,10 +417,7 @@ export function GrowthPriorityPageChecks({
         }
         setLowCtrRequestKey(null);
       }
-      if (
-        result.run.status === "completed" ||
-        result.run.status === "completed_with_errors"
-      ) {
+      if (["completed", "completed_with_errors"].includes(result.run.status)) {
         void client.invalidateQueries({
           queryKey: ["growthPriorityRecommendations", projectId],
         });
@@ -355,13 +447,15 @@ export function GrowthPriorityPageChecks({
     start.mutate(key);
   };
   const submitStrikingDistance = (newAttempt = false) => {
-    const key =
-      (!newAttempt && strikingDistanceRequestKey) || newGrowthCheckRequestKey();
+    const request = strikingDistanceRequestForAttempt({
+      newAttempt,
+      pending: strikingDistanceRequest,
+      selectedKeyPageId: selectedStrikingDistanceKeyPageId,
+    });
     try {
-      // Only a retry nonce is saved here, never source data or credentials.
       window.sessionStorage.setItem(
         pendingStrikingDistanceStorageKey(projectId),
-        key,
+        JSON.stringify(request),
       );
     } catch {
       setStrikingDistanceStorageError(
@@ -371,8 +465,8 @@ export function GrowthPriorityPageChecks({
     }
     setStrikingDistanceStorageError(null);
     setStrikingDistanceResult(null);
-    setStrikingDistanceRequestKey(key);
-    findStrikingDistance.mutate(key);
+    setStrikingDistanceRequest(request);
+    findStrikingDistance.mutate(request);
   };
   const submitLowCtr = (newAttempt = false) => {
     const key = (!newAttempt && lowCtrRequestKey) || newGrowthCheckRequestKey();
@@ -483,35 +577,15 @@ export function GrowthPriorityPageChecks({
               window, using the preceding 28 days as evidence.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="btn btn-outline btn-sm"
-              aria-busy={findStrikingDistance.isPending}
-              disabled={
-                data.setup !== "ready" || findStrikingDistance.isPending
-              }
-              onClick={() => submitStrikingDistance()}
-            >
-              {findStrikingDistance.isPending
-                ? "Finding opportunities…"
-                : strikingDistanceRequestKey
-                  ? "Retry ranking-opportunity request"
-                  : "Find ranking opportunities"}
-            </button>
-            {strikingDistanceRequestKey ? (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={
-                  data.setup !== "ready" || findStrikingDistance.isPending
-                }
-                onClick={() => submitStrikingDistance(true)}
-              >
-                Start new ranking-opportunity check
-              </button>
-            ) : null}
-          </div>
+          <StrikingDistanceControls
+            pages={data.keyPages}
+            request={strikingDistanceRequest}
+            selectedKeyPageId={selectedStrikingDistanceKeyPageId}
+            isPending={findStrikingDistance.isPending}
+            isReady={data.setup === "ready"}
+            onSelect={setSelectedStrikingDistanceKeyPageId}
+            onSubmit={submitStrikingDistance}
+          />
         </div>
         {findStrikingDistance.isPending ? (
           <p
@@ -521,7 +595,7 @@ export function GrowthPriorityPageChecks({
           >
             Finding ranking opportunities in final Search Console data…
           </p>
-        ) : strikingDistanceRequestKey && !strikingDistanceResult ? (
+        ) : strikingDistanceRequest && !strikingDistanceResult ? (
           <p role="status" className="mt-3 text-sm text-base-content/70">
             A previous ranking-opportunity request has no confirmed outcome yet.
             Retry it to retrieve the saved result, or explicitly start a

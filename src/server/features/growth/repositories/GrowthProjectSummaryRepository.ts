@@ -153,6 +153,46 @@ async function listRecentSignals(
     .limit(limit);
 }
 
+/**
+ * Evidence-only projection for AI priority generation. Keep this separate
+ * from the compact summary contract consumed by the dashboard and MCP.
+ */
+async function listRecentSignalEvidence(
+  projectId: string,
+  asOf: string,
+  limit: number,
+) {
+  const signalId = codeUnitId(growthSignals.id);
+  return db
+    .select({
+      id: growthSignals.id,
+      signalType: growthSignals.signalType,
+      entityType: growthSignals.entityType,
+      entityRef: growthSignals.entityRef,
+      metric: growthSignals.metric,
+      severity: growthSignals.severity,
+      confidence: growthSignals.confidence,
+      periodStart: growthSignals.periodStart,
+      periodEnd: growthSignals.periodEnd,
+      baselineValue: growthSignals.baselineValue,
+      currentValue: growthSignals.currentValue,
+      deltaValue: growthSignals.deltaValue,
+      deltaPercent: growthSignals.deltaPercent,
+      evidenceKind: growthSignals.evidenceKind,
+      evidenceRef: growthSignals.evidenceRef,
+      capturedAt: growthSignals.capturedAt,
+      runStatus: growthRuns.status,
+    })
+    .from(growthSignals)
+    .innerJoin(growthRuns, terminalSignalRun(projectId, asOf))
+    .orderBy(
+      asc(severityOrder()),
+      desc(growthSignals.capturedAt),
+      asc(signalId),
+    )
+    .limit(limit);
+}
+
 async function listSignalFreshness(projectId: string, asOf: string) {
   return db
     .select({
@@ -231,6 +271,7 @@ export const GrowthProjectSummaryRepository = {
   listUnresolvedRecommendations,
   listCurrentActions,
   listRecentSignals,
+  listRecentSignalEvidence,
   listSignalFreshness,
   getLatestRun,
   listActiveMeasurementCandidates,

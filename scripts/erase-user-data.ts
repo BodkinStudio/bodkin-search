@@ -32,6 +32,7 @@ import postgres from "postgres";
 import { z } from "zod";
 import { GA4_OAUTH_PROVIDER_ID } from "../src/shared/ga4";
 import { YOUTUBE_OAUTH_PROVIDER_ID } from "../src/shared/youtube";
+import { LINKEDIN_OAUTH_PROVIDER_ID } from "../src/shared/linkedin";
 import {
   GDPR_STORAGE_ERASURE_PATH,
   signGdprErasureRequest,
@@ -316,6 +317,16 @@ async function buildInventory(db: Db, user: UserRow) {
       schema.youtubeConnections,
       eq(schema.youtubeConnections.connectedByUserId, user.id),
     ),
+    linkedin_page_connections: await db.$count(
+      schema.linkedinPageConnections,
+      eq(schema.linkedinPageConnections.connectedByUserId, user.id),
+    ),
+    linkedin_page_overview_caches: projectIds.length
+      ? await db.$count(
+          schema.linkedinPageOverviewCaches,
+          inArray(schema.linkedinPageOverviewCaches.projectId, projectIds),
+        )
+      : 0,
     api_keys: await db.$count(
       schema.apikey,
       eq(schema.apikey.referenceId, user.id),
@@ -504,6 +515,33 @@ async function erasePostgres(db: Db, user: UserRow, organizationIds: string[]) {
     await tx
       .delete(schema.youtubeConnections)
       .where(eq(schema.youtubeConnections.connectedByUserId, user.id));
+    await tx
+      .delete(schema.linkedinPageConnections)
+      .where(eq(schema.linkedinPageConnections.connectedByUserId, user.id));
+    // A Page cache has no user FK. Erase project-scoped API observations
+    // explicitly before the project/organization cascade and remove this
+    // user's dedicated encrypted grant irrespective of shared project access.
+    if (organizationIds.length > 0) {
+      await tx
+        .delete(schema.linkedinPageOverviewCaches)
+        .where(
+          inArray(
+            schema.linkedinPageOverviewCaches.projectId,
+            tx
+              .select({ id: schema.projects.id })
+              .from(schema.projects)
+              .where(inArray(schema.projects.organizationId, organizationIds)),
+          ),
+        );
+    }
+    await tx
+      .delete(schema.account)
+      .where(
+        and(
+          eq(schema.account.userId, user.id),
+          eq(schema.account.providerId, LINKEDIN_OAUTH_PROVIDER_ID),
+        ),
+      );
     // apikey.reference_id mirrors the plugin's polymorphic schema and has no
     // user FK, so keys don't cascade with the user row.
     await tx
@@ -566,12 +604,28 @@ async function verifyPostgres(
           schema.organization,
           inArray(schema.organization.id, organizationIds),
         );
-  if (userRows !== 0 || organizationRows !== 0) {
+  const linkedInConnections = await db.$count(
+    schema.linkedinPageConnections,
+    eq(schema.linkedinPageConnections.connectedByUserId, userId),
+  );
+  const linkedInGrants = await db.$count(
+    schema.account,
+    and(
+      eq(schema.account.userId, userId),
+      eq(schema.account.providerId, LINKEDIN_OAUTH_PROVIDER_ID),
+    ),
+  );
+  if (
+    userRows !== 0 ||
+    organizationRows !== 0 ||
+    linkedInConnections !== 0 ||
+    linkedInGrants !== 0
+  ) {
     throw new Error(
       "Postgres verification failed: user or organization rows remain.",
     );
   }
-  return { userRows, organizationRows };
+  return { userRows, organizationRows, linkedInConnections, linkedInGrants };
 }
 
 async function main() {

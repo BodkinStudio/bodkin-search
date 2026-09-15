@@ -18,12 +18,17 @@ export type LinkedInMetricTotals = Record<
   LinkedInMetric
 >;
 
+/** Page-level totals. Manual post rows intentionally do not gain this field. */
+export type LinkedInPageMetricTotals = LinkedInMetricTotals & {
+  pageViews: LinkedInMetric;
+};
+
 export type LinkedInMetricChanges = Record<
   LinkedInCountMetricName,
   LinkedInMetric
 >;
 
-export type LinkedInImportSource = {
+type LinkedInImportSource = {
   provider: "linkedin_page_content_manual";
   pageName: string;
   startDate: string;
@@ -32,18 +37,33 @@ export type LinkedInImportSource = {
   rowCount: number;
 };
 
+type LinkedInApiSource = {
+  provider: "linkedin_api";
+  page: { id: string; name: string };
+  dateRange: { start: string; end: string };
+  previousDateRange: { start: string; end: string };
+  retrievedAt: string;
+  apiVersion: typeof LINKEDIN_MARKETING_API_VERSION;
+  freshness: "fresh" | "stale";
+  /** API rows are eligible for deletion after this instant. */
+  retainUntil: string;
+};
+
+export type LinkedInOverviewSource = LinkedInImportSource | LinkedInApiSource;
+
 export type LinkedInReportWarning =
   | "partial_current_metric_values"
   | "partial_previous_metric_values"
-  | "no_exact_adjacent_prior_import";
+  | "no_exact_adjacent_prior_import"
+  | "api_refresh_failed";
 
 export type LinkedInPageOverview = {
   status: "ok";
   projectId: string;
-  source: LinkedInImportSource;
-  current: LinkedInMetricTotals;
-  previous: LinkedInMetricTotals | null;
-  comparison: LinkedInMetricChanges | null;
+  source: LinkedInOverviewSource;
+  current: LinkedInPageMetricTotals;
+  previous: LinkedInPageMetricTotals | null;
+  comparison: (LinkedInMetricChanges & { pageViews: LinkedInMetric }) | null;
   completeness: "complete" | "partial";
   warnings: LinkedInReportWarning[];
 };
@@ -72,9 +92,19 @@ export type LinkedInReportError = {
   status: "error";
   projectId: string;
   error: {
-    code: "linkedin_no_import";
+    code:
+      | "linkedin_no_import"
+      | "not_configured"
+      | "not_connected"
+      | "reconnect_required"
+      | "page_inaccessible"
+      | "rate_limited"
+      | "malformed"
+      | "upstream"
+      | "transport";
     message: string;
     actionUrl: string;
+    retryAfterSeconds?: number;
   };
 };
 
@@ -100,3 +130,10 @@ export type LinkedInImportResult =
         message: string;
       };
     };
+/** Dedicated, read-only grant for LinkedIn company Page reporting. */
+export const LINKEDIN_OAUTH_PROVIDER_ID = "linkedin-page-analytics";
+export const LINKEDIN_OAUTH_SCOPES = ["rw_organization_admin"] as const;
+export const LINKEDIN_MARKETING_API_VERSION = "202608" as const;
+export const LINKEDIN_RESTLI_PROTOCOL_VERSION = "2.0.0" as const;
+export const LINKEDIN_API_CACHE_TTL_MS = 24 * 60 * 60 * 1_000;
+export const LINKEDIN_API_RETENTION_MS = 365 * 24 * 60 * 60 * 1_000;

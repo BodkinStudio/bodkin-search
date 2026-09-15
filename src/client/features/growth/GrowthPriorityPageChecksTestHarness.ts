@@ -77,6 +77,10 @@ vi.mock("@tanstack/react-query", () => ({
           data: {
             setup: harness.setup,
             keyPageCount: harness.setup === "missing_key_pages" ? 0 : 1,
+            keyPages:
+              harness.setup === "missing_key_pages"
+                ? []
+                : [{ id: "page_1", url: "https://example.com/pricing" }],
             runs: [],
           },
           refetch: vi.fn(),
@@ -178,6 +182,10 @@ export function findButton(
     }>(node)
   )
     return null;
+  if (typeof node.type === "function") {
+    const rendered: unknown = Reflect.apply(node.type, undefined, [node.props]);
+    return isValidElement(rendered) ? findButton(rendered, label) : null;
+  }
   if (node.type === "button" && node.props.children === label) return node;
   for (const child of Children.toArray(node.props.children)) {
     const found = findButton(child, label);

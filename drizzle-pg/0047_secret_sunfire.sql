@@ -1,0 +1,1 @@
+ALTER TABLE "growth_assessment_investigation_evidence" ADD COLUMN "cited_by_decision" boolean DEFAULT false NOT NULL;

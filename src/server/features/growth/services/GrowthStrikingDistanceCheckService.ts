@@ -73,7 +73,11 @@ function decisionCounts(decisions: Array<Decision | null>) {
   );
 }
 
-async function storedResult(run: RunRow, replayed: boolean) {
+async function storedResult(
+  run: RunRow,
+  replayed: boolean,
+  keyPage: { id: string; url: string } | null,
+) {
   const signals = await GrowthRunsService.listSignals(run.projectId, run.id);
   const controllers = signals.filter(
     (signal) =>
@@ -94,6 +98,7 @@ async function storedResult(run: RunRow, replayed: boolean) {
   return {
     run: runSummary(run),
     replayed,
+    scope: keyPage,
     candidateCount: controllers.length,
     ...decisionCounts(decisions),
   };
@@ -112,8 +117,23 @@ function signalByMetric<
   return signal;
 }
 
-async function runCheck(input: { projectId: string; requestKey: string }) {
-  const cadenceSlot = `${CADENCE_SLOT_PREFIX}${input.requestKey}`;
+async function runCheck(input: {
+  projectId: string;
+  requestKey: string;
+  keyPageId?: string;
+}) {
+  const keyPages = await ProjectContextRepository.listKeyPages(input.projectId);
+  const selectedKeyPage = input.keyPageId
+    ? keyPages.find((page) => page.id === input.keyPageId)
+    : null;
+  if (input.keyPageId && !selectedKeyPage)
+    throw new AppError("VALIDATION_ERROR", "Choose a saved priority page");
+  const scope = selectedKeyPage
+    ? { id: selectedKeyPage.id, url: selectedKeyPage.url }
+    : null;
+  const cadenceSlot = selectedKeyPage
+    ? `${CADENCE_SLOT_PREFIX}${selectedKeyPage.id}:${input.requestKey}`
+    : `${CADENCE_SLOT_PREFIX}${input.requestKey}`;
   const existing = await GrowthRunsRepository.getRunBySlot(
     input.projectId,
     RUN_TYPE,
@@ -125,12 +145,11 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
         "CONFLICT",
         "Ranking-opportunity request slot is occupied",
       );
-    return storedResult(existing, true);
+    return storedResult(existing, true, scope);
   }
 
-  const [connection, keyPages, site] = await Promise.all([
+  const [connection, site] = await Promise.all([
     GscConnectionRepository.getByProjectId(input.projectId),
-    ProjectContextRepository.listKeyPages(input.projectId),
     GrowthInsightsRepository.projectDomain(input.projectId),
   ]);
   if (!connection)
@@ -161,7 +180,7 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
       "CONFLICT",
       "Ranking-opportunity request slot is occupied",
     );
-  if (!claim.claimed) return storedResult(claim.run, true);
+  if (!claim.claimed) return storedResult(claim.run, true, scope);
 
   let inventory: Awaited<
     ReturnType<typeof collectGrowthStrikingDistanceInventory>
@@ -184,6 +203,7 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
     return {
       run: runSummary(terminal),
       replayed: false,
+      scope,
       candidateCount: 0,
       savedOpportunityCount: 0,
       alreadyCoveredCount: 0,
@@ -204,6 +224,7 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
     return {
       run: runSummary(terminal),
       replayed: false,
+      scope,
       candidateCount: 0,
       savedOpportunityCount: 0,
       alreadyCoveredCount: 0,
@@ -216,12 +237,14 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
       projectId: input.projectId,
       runId: claim.run.id,
       site,
-      keyPages: keyPages.map(({ id, projectId, url, commercialWeight }) => ({
-        id,
-        projectId,
-        url,
-        commercialWeight,
-      })),
+      keyPages: (selectedKeyPage ? [selectedKeyPage] : keyPages).map(
+        ({ id, projectId, url, commercialWeight }) => ({
+          id,
+          projectId,
+          url,
+          commercialWeight,
+        }),
+      ),
       inventory,
     });
   } catch {
@@ -235,6 +258,7 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
     return {
       run: runSummary(terminal),
       replayed: false,
+      scope,
       candidateCount: 0,
       savedOpportunityCount: 0,
       alreadyCoveredCount: 0,
@@ -287,6 +311,7 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
     return {
       run: runSummary(terminal),
       replayed: false,
+      scope,
       candidateCount: candidates.length,
       ...decisionCounts(decisions),
     };
@@ -328,6 +353,7 @@ async function runCheck(input: { projectId: string; requestKey: string }) {
     return {
       run: runSummary(terminal),
       replayed: false,
+      scope,
       candidateCount: candidates.length,
       ...decisionCounts(durable),
     };

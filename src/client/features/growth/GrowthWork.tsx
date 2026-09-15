@@ -3,6 +3,7 @@ import { getGrowthWork } from "@/serverFunctions/growthInvestigations";
 import type { GrowthWorkOverview } from "@/types/schemas/growth-investigations";
 import { formatGrowthPreviewDate } from "./GrowthPreviewPresentation";
 import { GROWTH_WORK_STATUS_LABELS } from "./GrowthWorkPresentation";
+import { GrowthAiBriefPanel } from "./GrowthAiBriefPanel";
 import { GrowthWorkDelivery } from "./GrowthWorkDelivery";
 import { GrowthWorkChanges } from "./GrowthWorkChanges";
 import { GrowthWorkMeasurement } from "./GrowthWorkMeasurement";
@@ -95,9 +96,22 @@ export function GrowthWorkList({
         {data.actions.map((action) => (
           <li
             key={action.id}
+            id={`growth-action-${action.id}`}
             className="border-t border-base-300 pt-4 text-sm [overflow-wrap:anywhere]"
           >
             <h3 className="font-semibold">{action.title}</h3>
+            {action.aiBriefSignalId ? (
+              <details className="mt-3">
+                <summary className="cursor-pointer font-medium">
+                  Review approved AI proposal and evidence
+                </summary>
+                <GrowthAiBriefPanel
+                  projectId={projectId}
+                  signalId={action.aiBriefSignalId}
+                  readOnly
+                />
+              </details>
+            ) : null}
             <ul className="mt-1 space-y-1 text-base-content/70">
               {action.displayUrls.map((url, index) => (
                 <li key={`${index}:${url}`}>

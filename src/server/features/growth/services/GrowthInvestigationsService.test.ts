@@ -8,6 +8,7 @@ const repositories = vi.hoisted(() => ({
   getRun: vi.fn(),
   findRecommendationForSignal: vi.fn(),
   getDecisionControllerSource: vi.fn(),
+  getApprovedAiBriefAction: vi.fn().mockResolvedValue(null),
   getActionByKey: vi.fn(),
   getActionGraph: vi.fn(),
   getRecommendationSource: vi.fn(),
@@ -30,6 +31,33 @@ const services = vi.hoisted(() => ({
   transitionAction: vi.fn(),
 }));
 
+vi.mock("./GrowthAssessmentsService", () => ({
+  GrowthAssessmentsService: {
+    requireReadyForPage: vi.fn(async () => ({
+      assessment: {
+        id: "assessment_1",
+        version: 1,
+        objective: "Increase qualified enquiries",
+        market: "US",
+        audience: "IT buyers",
+        successMeasure: "Qualified enquiries",
+        comparisonRationale: "This page supports the agreed objective",
+      },
+      selected: {
+        title: "Investigate pricing",
+        businessRelevance: "Help buyers evaluate",
+        observation: "Saved evidence",
+        evidenceSource: "Saved report",
+        evidenceDate: "2026-09-09",
+        evidenceScope: "US",
+        uncertainty: "No causal evidence",
+        nextValidation: "Validate enquiry baseline",
+      },
+      page: { url: "https://example.com/pricing" },
+    })),
+  },
+}));
+
 vi.mock("../repositories/GrowthRunsRepository", () => ({
   GrowthRunsRepository: {
     getSignal: repositories.getSignal,
@@ -50,6 +78,7 @@ vi.mock("../repositories/GrowthOpportunityDecisionsRepository", () => ({
 }));
 vi.mock("../repositories/GrowthActionsRepository", () => ({
   GrowthActionsRepository: {
+    getApprovedAiBriefAction: repositories.getApprovedAiBriefAction,
     getActionByKey: repositories.getActionByKey,
     getActionGraph: repositories.getActionGraph,
     getRecommendationSource: repositories.getRecommendationSource,

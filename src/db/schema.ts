@@ -12,10 +12,16 @@ import * as sqliteLinkedIn from "./linkedin.schema";
 import * as sqliteTelemetry from "./telemetry.schema";
 import * as sqliteGrowth from "./growth.schema";
 import * as sqliteGrowthInsights from "./growth-insights.schema";
+import * as sqliteGrowthWorkstreams from "./growth-workstreams.schema";
 import * as sqliteGrowthActions from "./growth-actions.schema";
+import * as sqliteGrowthEvidenceSeries from "./growth-evidence-series.schema";
 import * as sqliteGrowthChangeEvents from "./growth-change-events.schema";
 import * as sqliteGrowthMeasurements from "./growth-measurements.schema";
 import * as sqliteGrowthReports from "./growth-reports.schema";
+import * as sqliteGrowthAiBriefs from "./growth-ai-briefs.schema";
+import * as sqliteGrowthAssessments from "./growth-assessments.schema";
+import * as sqliteGrowthAssessmentInvestigations from "./growth-assessment-investigations.schema";
+import * as sqlitePromptExplorerSnapshots from "./prompt-explorer-snapshots.schema";
 import * as pgApp from "./pg/app.schema";
 import * as pgProjectContext from "./pg/project-context.schema";
 import * as pgAudit from "./pg/audit.schema";
@@ -29,10 +35,16 @@ import * as pgLinkedIn from "./pg/linkedin.schema";
 import * as pgTelemetry from "./pg/telemetry.schema";
 import * as pgGrowth from "./pg/growth.schema";
 import * as pgGrowthInsights from "./pg/growth-insights.schema";
+import * as pgGrowthWorkstreams from "./pg/growth-workstreams.schema";
 import * as pgGrowthActions from "./pg/growth-actions.schema";
+import * as pgGrowthEvidenceSeries from "./pg/growth-evidence-series.schema";
 import * as pgGrowthChangeEvents from "./pg/growth-change-events.schema";
 import * as pgGrowthMeasurements from "./pg/growth-measurements.schema";
 import * as pgGrowthReports from "./pg/growth-reports.schema";
+import * as pgGrowthAiBriefs from "./pg/growth-ai-briefs.schema";
+import * as pgGrowthAssessments from "./pg/growth-assessments.schema";
+import * as pgGrowthAssessmentInvestigations from "./pg/growth-assessment-investigations.schema";
+import * as pgPromptExplorerSnapshots from "./pg/prompt-explorer-snapshots.schema";
 
 // Canonical schema barrel. Repositories import their tables from here and the
 // provider-aware `db` from "@/db", so each repository is written ONCE for both
@@ -57,10 +69,16 @@ type AppSchema = typeof sqliteApp &
   typeof sqliteTelemetry &
   typeof sqliteGrowth &
   typeof sqliteGrowthInsights &
+  typeof sqliteGrowthWorkstreams &
   typeof sqliteGrowthActions &
+  typeof sqliteGrowthEvidenceSeries &
   typeof sqliteGrowthChangeEvents &
   typeof sqliteGrowthMeasurements &
-  typeof sqliteGrowthReports;
+  typeof sqliteGrowthReports &
+  typeof sqliteGrowthAiBriefs &
+  typeof sqliteGrowthAssessments &
+  typeof sqliteGrowthAssessmentInvestigations &
+  typeof sqlitePromptExplorerSnapshots;
 
 const runtimeSchema =
   getDatabaseProvider() === "postgres"
@@ -78,10 +96,16 @@ const runtimeSchema =
         ...pgTelemetry,
         ...pgGrowth,
         ...pgGrowthInsights,
+        ...pgGrowthWorkstreams,
         ...pgGrowthActions,
+        ...pgGrowthEvidenceSeries,
         ...pgGrowthChangeEvents,
         ...pgGrowthMeasurements,
         ...pgGrowthReports,
+        ...pgGrowthAiBriefs,
+        ...pgGrowthAssessments,
+        ...pgGrowthAssessmentInvestigations,
+        ...pgPromptExplorerSnapshots,
       }
     : {
         ...sqliteApp,
@@ -97,10 +121,16 @@ const runtimeSchema =
         ...sqliteTelemetry,
         ...sqliteGrowth,
         ...sqliteGrowthInsights,
+        ...sqliteGrowthWorkstreams,
         ...sqliteGrowthActions,
+        ...sqliteGrowthEvidenceSeries,
         ...sqliteGrowthChangeEvents,
         ...sqliteGrowthMeasurements,
         ...sqliteGrowthReports,
+        ...sqliteGrowthAiBriefs,
+        ...sqliteGrowthAssessments,
+        ...sqliteGrowthAssessmentInvestigations,
+        ...sqlitePromptExplorerSnapshots,
       };
 
 // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- guarded by schema-parity.test.ts
@@ -141,6 +171,8 @@ export const {
   ga4Connections,
   gscConnections,
   youtubeConnections,
+  linkedinPageConnections,
+  linkedinPageOverviewCaches,
   linkedinPageImports,
   linkedinPagePostMetrics,
   telemetryState,
@@ -155,9 +187,13 @@ export const {
   growthRecommendationTargets,
   growthRecommendationSteps,
   growthRecommendationSignalLinks,
+  growthWorkstreams,
   growthActions,
   growthActionTargets,
   growthActionEvents,
+  growthActionEvidence,
+  growthEvidenceSeries,
+  growthEvidencePoints,
   growthChangeEvents,
   growthChangeEventUrls,
   growthActionChanges,
@@ -171,4 +207,19 @@ export const {
   growthReportSections,
   growthReportActions,
   growthReportMeasurementResults,
+  growthAiBriefs,
+  growthAiBriefClaims,
+  growthAiBriefCitationSources,
+  growthAiBriefCitations,
+  growthAiBriefSteps,
+  growthAiBriefCaveats,
+  growthAssessments,
+  growthAssessmentOptions,
+  growthAssessmentInvestigations,
+  growthAssessmentInvestigationFindings,
+  growthAssessmentInvestigationEvidence,
+  promptExplorerSnapshots,
+  promptExplorerSnapshotModels,
+  promptExplorerSnapshotCitations,
+  promptExplorerSnapshotFanOutQueries,
 } = schema;

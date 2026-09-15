@@ -98,7 +98,7 @@ describe("growth_get_measurements MCP protocol", () => {
         page: { measurements: [], limit: 20, hasMore: false, nextCursor: null },
         meta: {
           projectId: "project_123",
-          url: "https://app.example.com/p/project_123/growth#growth-work",
+          url: "https://app.example.com/p/project_123/growth/operations#growth-work",
         },
       });
       expect(mocks.listMeasurements).toHaveBeenCalledWith({

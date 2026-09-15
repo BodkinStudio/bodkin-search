@@ -152,7 +152,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                 />
                 {showDevtools ? (
                   <TanStackDevtools
-                    config={{ position: "bottom-right" }}
+                    config={{ position: "top-right" }}
                     eventBusConfig={{ connectToServerBus: true }}
                     plugins={[
                       {

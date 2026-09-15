@@ -1,0 +1,1 @@
+ALTER TABLE `growth_assessment_investigation_evidence` ADD `cited_by_decision` integer DEFAULT false NOT NULL;

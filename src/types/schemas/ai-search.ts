@@ -225,6 +225,12 @@ const promptExplorerCitationSchema = z.object({
   matchedBrand: z.boolean(),
 });
 
+const promptExplorerCacheProvenanceSchema = z.object({
+  /** `unknown` is retained for cache values written before provenance existed. */
+  source: z.enum(["fresh", "cached", "unknown"]).default("unknown"),
+  generatedAt: z.string().datetime().nullable().default(null),
+});
+
 export type PromptExplorerCitation = z.infer<
   typeof promptExplorerCitationSchema
 >;
@@ -240,6 +246,7 @@ export const promptExplorerModelResultSchema = z.discriminatedUnion("status", [
     brandMentioned: z.boolean().nullable(),
     outputTokens: z.number().int().nonnegative().nullable(),
     webSearch: z.boolean(),
+    cacheProvenance: promptExplorerCacheProvenanceSchema.optional(),
   }),
   z.object({
     status: z.literal("error"),
@@ -258,9 +265,35 @@ export const promptExplorerResultSchema = z.object({
   highlightBrand: z.string().nullable(),
   fetchedAt: z.string(),
   results: z.array(promptExplorerModelResultSchema),
+  snapshotId: z.string().nullable().optional(),
+  snapshotSaveError: z.string().nullable().optional(),
 });
 
 export type PromptExplorerResult = z.infer<typeof promptExplorerResultSchema>;
+
+export const promptExplorerSnapshotSummarySchema = z.object({
+  id: z.string(),
+  prompt: z.string(),
+  highlightBrand: z.string().nullable(),
+  webSearch: z.boolean(),
+  webSearchCountryCode: webSearchCountryCodeSchema.nullable(),
+  capturedAt: z.string().datetime(),
+  models: z.array(promptExplorerModelSchema),
+});
+export type PromptExplorerSnapshotSummary = z.infer<
+  typeof promptExplorerSnapshotSummarySchema
+>;
+
+export const promptExplorerSnapshotSchema = promptExplorerResultSchema.extend({
+  id: z.string(),
+  webSearch: z.boolean(),
+  webSearchCountryCode: webSearchCountryCodeSchema.nullable(),
+  snapshotId: z.string(),
+  snapshotSaveError: z.null(),
+});
+export type PromptExplorerSnapshot = z.infer<
+  typeof promptExplorerSnapshotSchema
+>;
 
 // ---------------------------------------------------------------------------
 // URL search params

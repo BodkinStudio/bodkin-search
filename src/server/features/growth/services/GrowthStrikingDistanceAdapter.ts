@@ -53,8 +53,7 @@ function normalizeQuery(query: string) {
     .trim()
     .replace(/\s+/g, " ")
     .toLocaleLowerCase("en-US");
-  if (!normalized || normalized.length > 500)
-    validation("Search Console returned an invalid query");
+  if (!normalized) validation("Search Console returned an invalid query");
   return normalized;
 }
 

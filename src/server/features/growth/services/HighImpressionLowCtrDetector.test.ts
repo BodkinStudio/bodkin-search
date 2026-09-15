@@ -57,6 +57,15 @@ function input(overrides: Record<string, unknown> = {}) {
   };
 }
 describe("detectHighImpressionLowCtrQueries", () => {
+  it("does not let oversized queries block eligible CTR opportunities", async () => {
+    const value = input();
+    for (const period of [value.inventory.baseline, value.inventory.current]) {
+      period.rows.push({ ...period.rows[0], query: "x".repeat(826) });
+    }
+    const outcomes = await detectHighImpressionLowCtrQueries(value);
+    expect(outcomes).toHaveLength(1);
+    expect(outcomes[0]).toMatchObject({ status: "candidate", query: "query" });
+  });
   it("emits a four-fact CTR controller at exact thresholds", async () => {
     const [outcome] = await detectHighImpressionLowCtrQueries(input());
     expect(outcome.status).toBe("candidate");

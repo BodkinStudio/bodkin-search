@@ -63,6 +63,21 @@ const row = (
 describe("collectGrowthStrikingDistanceInventory", () => {
   beforeEach(() => mocks.getPerformance.mockReset());
 
+  it("preserves long provider queries without truncating or merging their coordinates", async () => {
+    const prefix = "q".repeat(825);
+    const queries = [`${prefix}a`, `${prefix}b`];
+    mockPerformance((request) =>
+      response(
+        request,
+        request.startRow ? [] : queries.map((query) => row(query)),
+      ),
+    );
+    const result = await collectGrowthStrikingDistanceInventory(input);
+    expect(result.current.retrievalStatus).toBe("exhausted");
+    expect(result.baseline.rows.map((entry) => entry.query)).toEqual(queries);
+    expect(result.current.rows.map((entry) => entry.query)).toEqual(queries);
+  });
+
   it("collects adjacent final query/page inventories and normalizes coordinates", async () => {
     mockPerformance((request) =>
       response(request, request.startRow ? [] : [row()]),

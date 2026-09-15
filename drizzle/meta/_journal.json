@@ -421,6 +421,76 @@
       "when": 1788638086694,
       "tag": "0059_amused_darkstar",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "6",
+      "when": 1788642577353,
+      "tag": "0060_yummy_maelstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "6",
+      "when": 1788644513163,
+      "tag": "0061_regular_shadow_king",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "6",
+      "when": 1788732229983,
+      "tag": "0062_mixed_doctor_faustus",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "6",
+      "when": 1788795823062,
+      "tag": "0063_first_wonder_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "6",
+      "when": 1788935884554,
+      "tag": "0064_massive_mongoose",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "6",
+      "when": 1788936312069,
+      "tag": "0065_real_frog_thor",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "6",
+      "when": 1789165186513,
+      "tag": "0066_fine_firestar",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "6",
+      "when": 1789165550153,
+      "tag": "0067_damp_gamora",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "6",
+      "when": 1789239855347,
+      "tag": "0068_exotic_dakota_north",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "6",
+      "when": 1789240647816,
+      "tag": "0069_calm_tarot",
+      "breakpoints": true
     }
   ]
 }

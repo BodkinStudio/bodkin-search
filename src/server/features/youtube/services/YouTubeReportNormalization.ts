@@ -39,7 +39,11 @@ type NormalizedYouTubeReport = {
 function invalid(): never {
   throw new YouTubeMalformedResponseError();
 }
-function numeric(value: unknown, dataType: string): number | null {
+function numeric(
+  value: unknown,
+  dataType: string,
+  metric: string,
+): number | null {
   if (value === null) return null;
   const parsed =
     typeof value === "number"
@@ -48,7 +52,12 @@ function numeric(value: unknown, dataType: string): number | null {
         ? Number(value)
         : NaN;
   if (!Number.isFinite(parsed)) invalid();
-  if (parsed < 0 || (dataType === "INTEGER" && !Number.isInteger(parsed)))
+  // YouTube can return signed likes (observed in channel Analytics reports).
+  // Keep the reported value; other requested metrics remain non-negative.
+  if (
+    (parsed < 0 && metric !== "likes") ||
+    (dataType === "INTEGER" && !Number.isInteger(parsed))
+  )
     invalid();
   return parsed;
 }
@@ -115,7 +124,7 @@ export function normalizeYouTubeReport(
           ? date(rawRow[index])
           : STRING_DIMENSIONS.has(name)
             ? stringDimension(name, rawRow[index])
-            : numeric(rawRow[index], headersByName.get(name)!.dataType),
+            : numeric(rawRow[index], headersByName.get(name)!.dataType, name),
       ]),
     );
   });

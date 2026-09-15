@@ -4,6 +4,7 @@ import { makeToolContext, textContent } from "./tool-test-support";
 const mocks = vi.hoisted(() => ({
   overview: vi.fn(),
   topPosts: vi.fn(),
+  apiOverview: vi.fn(),
   getProjectForOrganization: vi.fn(),
 }));
 vi.mock(
@@ -13,6 +14,12 @@ vi.mock(
       overview: mocks.overview,
       topPosts: mocks.topPosts,
     },
+  }),
+);
+vi.mock(
+  "@/server/features/linkedin/services/LinkedInPageReportingService",
+  () => ({
+    LinkedInPageReportingService: { overview: mocks.apiOverview },
   }),
 );
 vi.mock("@/server/features/projects/services/ProjectService", () => ({
@@ -59,6 +66,7 @@ describe("LinkedIn Page Content MCP tools", () => {
     vi.clearAllMocks();
     mocks.getProjectForOrganization.mockResolvedValue({ id: "project-1" });
     mocks.overview.mockResolvedValue(overview);
+    mocks.apiOverview.mockResolvedValue(overview);
     mocks.topPosts.mockResolvedValue({ ...overview, posts: [] });
   });
 
@@ -68,7 +76,7 @@ describe("LinkedIn Page Content MCP tools", () => {
       makeToolContext(),
     );
     expect(mocks.getProjectForOrganization).toHaveBeenCalled();
-    expect(mocks.overview).toHaveBeenCalledWith({ projectId: "project-1" });
+    expect(mocks.apiOverview).toHaveBeenCalledWith({ projectId: "project-1" });
     expect(JSON.parse(textContent(result))).toEqual(result.structuredContent);
     expect(result.structuredContent).toMatchObject({
       ...overview,
@@ -87,7 +95,7 @@ describe("LinkedIn Page Content MCP tools", () => {
   });
 
   it("normalizes the no-import action URL to an absolute project URL", async () => {
-    mocks.overview.mockResolvedValue({
+    mocks.apiOverview.mockResolvedValue({
       status: "error",
       projectId: "project-1",
       error: {

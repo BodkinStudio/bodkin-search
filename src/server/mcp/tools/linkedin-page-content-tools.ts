@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { LinkedInPageContentService } from "@/server/features/linkedin/services/LinkedInPageContentService";
+import { LinkedInPageReportingService } from "@/server/features/linkedin/services/LinkedInPageReportingService";
 import { buildProjectMeta } from "@/server/mcp/context";
 import { mcpResponse } from "@/server/mcp/formatters";
 import { withMcpProjectAuth } from "@/server/mcp/project-auth";
@@ -13,7 +14,7 @@ import type {
 const inputSchema = z.strictObject({ projectId: projectIdSchema });
 type Args = z.infer<typeof inputSchema>;
 
-const metricSchema = z.number().nonnegative().nullable();
+const metricSchema = z.number().int().safe().nullable();
 const metricTotalsSchema = z.strictObject({
   impressions: metricSchema,
   membersReached: metricSchema,
@@ -23,6 +24,7 @@ const metricTotalsSchema = z.strictObject({
   comments: metricSchema,
   reposts: metricSchema,
   follows: metricSchema,
+  pageViews: metricSchema,
 });
 const comparisonSchema = z.strictObject({
   impressions: z.number().nullable(),
@@ -33,8 +35,9 @@ const comparisonSchema = z.strictObject({
   comments: z.number().nullable(),
   reposts: z.number().nullable(),
   follows: z.number().nullable(),
+  pageViews: z.number().nullable(),
 });
-const sourceSchema = z.strictObject({
+const manualSourceSchema = z.strictObject({
   provider: z.literal("linkedin_page_content_manual"),
   pageName: z.string(),
   startDate: z.string(),
@@ -42,10 +45,25 @@ const sourceSchema = z.strictObject({
   importedAt: z.string(),
   rowCount: z.number().int().nonnegative(),
 });
+const apiSourceSchema = z.strictObject({
+  provider: z.literal("linkedin_api"),
+  page: z.strictObject({ id: z.string(), name: z.string() }),
+  dateRange: z.strictObject({ start: z.string(), end: z.string() }),
+  previousDateRange: z.strictObject({ start: z.string(), end: z.string() }),
+  retrievedAt: z.string(),
+  apiVersion: z.string(),
+  freshness: z.enum(["fresh", "stale"]),
+  retainUntil: z.string(),
+});
+const sourceSchema = z.discriminatedUnion("provider", [
+  manualSourceSchema,
+  apiSourceSchema,
+]);
 const warningSchema = z.enum([
   "partial_current_metric_values",
   "partial_previous_metric_values",
   "no_exact_adjacent_prior_import",
+  "api_refresh_failed",
 ]);
 const metaSchema = z.strictObject({
   projectId: z.string(),
@@ -55,9 +73,20 @@ const errorSchema = z.strictObject({
   status: z.literal("error"),
   projectId: z.string(),
   error: z.strictObject({
-    code: z.literal("linkedin_no_import"),
+    code: z.enum([
+      "linkedin_no_import",
+      "not_configured",
+      "not_connected",
+      "reconnect_required",
+      "page_inaccessible",
+      "rate_limited",
+      "malformed",
+      "upstream",
+      "transport",
+    ]),
     message: z.string(),
     actionUrl: z.string().url(),
+    retryAfterSeconds: z.number().int().nonnegative().optional(),
   }),
   meta: metaSchema,
 });
@@ -70,6 +99,13 @@ const overviewFields = {
   comparison: comparisonSchema.nullable(),
   completeness: z.enum(["complete", "partial"]),
   warnings: z.array(warningSchema),
+  apiFallback: z
+    .object({
+      code: z.string(),
+      message: z.string(),
+      retryAfterSeconds: z.number().optional(),
+    })
+    .optional(),
   meta: metaSchema,
 } as const;
 const overviewOutputSchema = z.discriminatedUnion("status", [
@@ -106,7 +142,10 @@ function actionPath(projectId: string): string {
 function response(
   args: Args,
   context: { baseUrl: string },
-  result: LinkedInPageOverviewResult | LinkedInPostPerformanceResult,
+  result:
+    | LinkedInPageOverviewResult
+    | LinkedInPostPerformanceResult
+    | Awaited<ReturnType<typeof LinkedInPageReportingService.overview>>,
 ) {
   const meta = buildProjectMeta(
     context,
@@ -136,7 +175,7 @@ function response(
 
 const readOnlyAnnotations = {
   readOnlyHint: true,
-  openWorldHint: false,
+  openWorldHint: true,
   destructiveHint: false,
 } as const;
 
@@ -145,13 +184,13 @@ export const getLinkedInPageOverviewTool = {
   config: {
     title: "Get LinkedIn Page overview",
     description:
-      "Read totals and an exact adjacent-period comparison from the latest manually imported LinkedIn Page Content report. Read-only and uses no OpenSEO credits.",
+      "Read a LinkedIn Page overview, preferring a fresh API cache and falling back to a labelled manual export when needed. Read-only and uses no OpenSEO credits.",
     inputSchema,
     outputSchema: overviewOutputSchema,
     annotations: readOnlyAnnotations,
   },
   handler: withMcpProjectAuth(async (args: Args, context) =>
-    response(args, context, await LinkedInPageContentService.overview(args)),
+    response(args, context, await LinkedInPageReportingService.overview(args)),
   ),
 };
 

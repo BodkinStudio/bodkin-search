@@ -11,6 +11,7 @@ import type {
   GrowthInvestigationReviewInput,
   GrowthInvestigationView,
 } from "@/types/schemas/growth-investigations";
+import { GrowthAiBriefPanel } from "./GrowthAiBriefPanel";
 import { formatGrowthPreviewDate } from "./GrowthPreviewPresentation";
 import { GrowthInvestigationForm } from "./GrowthInvestigationForm";
 import {
@@ -457,7 +458,7 @@ export function GrowthInvestigationReview({
       ) : null}
       <h4 className="font-semibold">{saved.title}</h4>
       <p className="text-base-content/70">
-        Rule-based investigation. No AI was used.
+        Original rule-based investigation. AI analysis appears separately below.
       </p>
       <p className="whitespace-pre-wrap">{saved.rationale}</p>
       {saved.evidenceSummary?.kind === "persistent_tracked_rank_drop" ? (
@@ -480,6 +481,17 @@ export function GrowthInvestigationReview({
       <p className="text-xs text-base-content/70">
         Saved template: {saved.templateVersion}
       </p>
+      {!saved.actionId ? <AssessmentPrerequisite /> : null}
+      <GrowthAiBriefPanel
+        key={`${projectId}:${signalId}`}
+        projectId={projectId}
+        signalId={signalId}
+        canApprove={saved.status === "proposed" && !reviewLocked}
+        supported={
+          saved.templateVersion.startsWith("priority-page-") ||
+          saved.templateVersion.startsWith("striking-distance-")
+        }
+      />
       {saved.actionId ? (
         <p role="status">
           This investigation is in your work list.
@@ -506,11 +518,16 @@ export function GrowthInvestigationReview({
             </a>{" "}
             before approving.
           </p>
-          <GrowthInvestigationForm
-            disabled={reviewLocked}
-            pending={approve.isPending}
-            onSubmit={submit}
-          />
+          <details className="rounded-md border border-base-300 p-3">
+            <summary className="cursor-pointer font-medium">
+              Approve the original rule-based work
+            </summary>
+            <GrowthInvestigationForm
+              disabled={reviewLocked}
+              pending={approve.isPending}
+              onSubmit={submit}
+            />
+          </details>
           <GrowthInvestigationReviewControls
             disabled={reviewLocked}
             pending={review.isPending}
@@ -582,5 +599,18 @@ export function GrowthInvestigationReview({
         </p>
       ) : null}
     </div>
+  );
+}
+
+function AssessmentPrerequisite() {
+  return (
+    <p className="rounded border border-base-300 p-3 text-sm">
+      New page work requires a ready priority assessment selecting this page.
+      Record the business outcome, supporting evidence and why this takes
+      priority before generating or approving a proposal.{" "}
+      <a className="link" href="#growth-assessment">
+        Review priority assessment
+      </a>
+    </p>
   );
 }

@@ -21,7 +21,6 @@ const RUN_TYPE = "manual_analysis" as const;
 const WINDOW_DAYS = 28;
 const MAX_PAGE_REQUESTS = 25;
 const CADENCE_SLOT_PREFIX = "priority-page-check:";
-const SOURCE_TIMEZONE = "America/Los_Angeles";
 
 function subtractDays(date: string, days: number) {
   const result = new Date(`${date}T00:00:00.000Z`);
@@ -31,7 +30,7 @@ function subtractDays(date: string, days: number) {
 
 export function priorityPageCheckWindows(capturedAt: string) {
   const currentEnd = subtractDays(
-    calendarDateInTimezone(capturedAt, SOURCE_TIMEZONE),
+    calendarDateInTimezone(capturedAt, "America/Los_Angeles"),
     3,
   );
   const currentStart = subtractDays(currentEnd, WINDOW_DAYS - 1);
@@ -116,6 +115,7 @@ async function getOverview(projectId: string): Promise<GrowthCheckOverview> {
         ? "missing_key_pages"
         : "ready",
     keyPageCount: keyPages.length,
+    keyPages: keyPages.map((page) => ({ id: page.id, url: page.url })),
     runs: runs.map(runSummary),
   };
 }

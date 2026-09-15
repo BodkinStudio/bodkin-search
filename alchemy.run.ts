@@ -172,6 +172,7 @@ const resolveSelfHostAccess = (
   stage: string,
   provision: boolean,
   workersSubdomain: string,
+  customHostname?: string,
 ) =>
   Effect.gen(function* () {
     let teamDomain = yield* optionalVar("TEAM_DOMAIN");
@@ -247,6 +248,7 @@ const resolveSelfHostAccess = (
         policyName: `open-seo ${stage} self-host users`,
         applicationName: `open-seo ${stage}`,
         domain: `${workerName(stage)}.${subdomain}`,
+        additionalDomains: customHostname ? [customHostname] : undefined,
         emails: allowedEmails,
       });
       policyAud = application.aud;
@@ -308,6 +310,28 @@ export default Alchemy.Stack(
     );
     const databaseProvider = yield* optionalVar("DATABASE_PROVIDER");
     const workersSubdomain = yield* readWorkersSubdomain({ required: false });
+    const customHostname = (yield* optionalVar(
+      "SELFHOST_CUSTOM_HOSTNAME",
+    )).trim();
+    const saasZone = (yield* optionalVar("SELFHOST_SAAS_ZONE")).trim();
+    if (customHostname || saasZone) {
+      const hostname = z
+        .string()
+        .regex(/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/);
+      if (
+        stage !== "selfhost" ||
+        authMode !== "cloudflare_access" ||
+        !hostname.safeParse(customHostname).success ||
+        !hostname.safeParse(saasZone).success ||
+        (yield* optionalVar("POLICY_AUD"))
+      ) {
+        return yield* Effect.die(
+          new Error(
+            "SELFHOST_CUSTOM_HOSTNAME and SELFHOST_SAAS_ZONE require valid hostnames, stage selfhost, cloudflare_access, and Alchemy-managed Access (POLICY_AUD unset).",
+          ),
+        );
+      }
+    }
 
     // Auth needs an absolute BETTER_AUTH_URL. Prod sets it explicitly;
     // previews always derive it from the deterministic worker name — a wrong
@@ -349,12 +373,16 @@ export default Alchemy.Stack(
       stage,
       authMode === "cloudflare_access" && !prod,
       workersSubdomain,
+      customHostname || undefined,
     );
 
     const app = yield* Cloudflare.Worker("open-seo", {
       name: workerName(stage),
       // Prod serves the real domains; the zone is inferred from the hostname.
       domain: prod ? ["app.openseo.so", "www.app.openseo.so"] : undefined,
+      routes: customHostname
+        ? [{ pattern: `${customHostname}/*`, zoneName: saasZone }]
+        : undefined,
       // Prebuilt worker from `vite build` (@cloudflare/vite-plugin). The entry
       // exports the DO + WorkflowEntrypoint classes (re-exported by
       // src/server.ts), which `bundle: false` requires. Sibling chunks under

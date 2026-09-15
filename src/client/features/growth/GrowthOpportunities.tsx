@@ -9,10 +9,6 @@ function statusLabel(status: "proposed" | "snoozed" | "accepted") {
   return "Accepted — needs action";
 }
 
-function metricLabel(label: string, value: number) {
-  return `${label} ${value}/5`;
-}
-
 export function GrowthOpportunities({ projectId }: { projectId: string }) {
   const queryKey = ["growthPriorityRecommendations", projectId] as const;
   const query = useQuery({
@@ -114,8 +110,7 @@ export function GrowthOpportunitiesList({
             <span className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-medium">{recommendation.title}</span>
               <span className="text-sm text-base-content/70">
-                {statusLabel(recommendation.status)} · Priority{" "}
-                {recommendation.priorityScore}
+                {statusLabel(recommendation.status)}
               </span>
             </span>
           </summary>
@@ -123,15 +118,8 @@ export function GrowthOpportunitiesList({
             <p>{recommendation.rationale}</p>
             <ProjectionNotice recommendation={recommendation} />
             <p className="text-base-content/70">
-              Category {recommendation.category} ·{" "}
-              {metricLabel("Impact", recommendation.impact)} ·{" "}
-              {metricLabel(
-                "Commercial relevance",
-                recommendation.commercialRelevance,
-              )}{" "}
-              · {metricLabel("Effort", recommendation.effort)} · Urgency{" "}
-              {recommendation.urgency}/3 · Confidence{" "}
-              {Math.round(recommendation.confidence * 100)}%
+              Review business fit, expected benefit and effort before approving
+              work.
             </p>
             <OpportunityTargets recommendation={recommendation} />
             <OpportunitySteps recommendation={recommendation} />
@@ -158,7 +146,7 @@ export function GrowthOpportunitiesList({
       ))}
       {data.hasMore ? (
         <p role="status" className="text-sm text-base-content/70">
-          Additional lower-priority saved opportunities are not shown yet.
+          More saved opportunities are available.
         </p>
       ) : null}
     </div>

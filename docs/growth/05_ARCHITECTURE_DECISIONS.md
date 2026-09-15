@@ -1681,3 +1681,85 @@ phases remain out of scope.
 The dossier can show operator-recorded context without fabricating verification
 or declaring a Gate 4 result. It remains deliberately bounded and preserves
 separate retry rows for one monthly period.
+
+---
+
+## ADR-061 - AI investigation starts with an explicit, unsaved brief
+
+**Status:** Implemented; live usefulness unverified
+
+### Decision
+
+- A user starts generation from a saved investigation. Opening the finding
+  alone does not call a model. The first supported sources are priority-page
+  click declines and striking-distance queries with qualified saved evidence.
+- The server reloads the finding in the authorized project and builds a
+  bounded model projection. The original internal-review evidence packet and
+  its `modelEgress` declaration remain unchanged. Internal organization and
+  user identifiers are not part of the model projection.
+- Generation uses the deployment's existing OpenRouter configuration and
+  hosted usage accounting. The UI explains that saved evidence, current
+  business context and the affected page are used by the configured provider.
+- The existing safe page reader inspects only the affected page. Current page
+  content and current business context are distinguished from historical
+  search observations. Missing page access or business context remains an
+  explicit limitation. Page content is evidence, never an instruction source.
+- The draft separates observations, hypotheses, business fit, proposed work
+  and measurement. Citations must resolve to the server-provided source set.
+  Confidence is a model assessment, not a calibrated probability or proof of
+  causation. A weak-fit query may warrant no website change.
+- The first result is an unsaved draft. Existing approval still creates the
+  rule-based investigation Action; it does not save or approve the AI draft.
+- Concurrent requests from the same user for the same project and finding
+  share one in-flight generation within a server instance. A completed request
+  can be regenerated deliberately. This is not a durable request ledger:
+  exactly-once provider calls or charging across Worker instances and restarts
+  remain unverified and must not be claimed for hosted rollout.
+
+### Consequence
+
+This makes AI interpretation available for review before adding persistence
+or automated work creation. It advances BG-0205 and BG-0206 without declaring
+Gate 2 usefulness, Gate 4 reliability or daily-monitor readiness.
+
+### Deferred
+
+Persisting and approving the generated brief as a Recommendation/Action,
+additional detector types, automatic research, model quality calibration and
+website changes remain separate work. YakChat must provide live usefulness
+evidence before this draft is treated as a validated recommendation workflow.
+
+## ADR-062 - Save AI evidence separately from the reviewed proposal
+
+**Status:** Implemented in local preview; live operating validation remains open
+
+### Decision
+
+- Generate from the server's qualified, project-scoped finding and save the
+  parsed result with model, prompt and template provenance. The browser cannot
+  submit generated claims or change their source lineage.
+- Store claims, citation relationships and ordered steps in normalized tables.
+  Keep the original generated work and measurement suggestion alongside a
+  separate editable proposal. Existing immutable Run and Recommendation facts
+  are preserved.
+- Draft edits carry an expected version. Approval names that saved version and
+  due date and uses the existing Recommendation proposed-to-accepted transition.
+  The brief version guard, Action, approval event and brief-to-Action link must
+  be committed atomically. A competing generic approval cannot create another
+  Action for the same proposed investigation.
+- Qualify AI Actions through their approved brief/source relationship in Work.
+  Preserve the existing closed guards for rule-based Actions. Users can reopen
+  the approved proposal and original evidence from Work.
+- Retain the requested affected URL independently from page-read success. A
+  bounded redirect chain validates each destination and records the resolved
+  URL supplying the excerpt. An unavailable read never implies an unknown URL.
+- Approval records planned work. The measurement approach remains proposed text
+  until a real website Change Event supports formal measurement setup.
+
+### Consequence
+
+This supersedes ADR-061's unsaved-result boundary for supported saved findings.
+It does not claim calibrated model confidence, commercially useful proposals,
+distributed exactly-once provider charges or completion of the live operating
+gates. One explicit model request remains separate from reading and editing a
+saved brief.

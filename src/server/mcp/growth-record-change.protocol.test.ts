@@ -146,7 +146,7 @@ describe("growth_record_change MCP protocol", () => {
         change,
         meta: {
           projectId: "project_123",
-          url: "https://app.example.com/p/project_123/growth#growth-change-log",
+          url: "https://app.example.com/p/project_123/growth/operations#growth-change-log",
         },
       });
       expect(mocks.recordChange).toHaveBeenCalledWith(

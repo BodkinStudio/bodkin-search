@@ -12,6 +12,11 @@ export const runGrowthCheckSchema = z.strictObject({
     .max(160)
     .regex(/^[A-Za-z0-9_-]+$/),
 });
+export const runGrowthStrikingDistanceCheckSchema = runGrowthCheckSchema.extend(
+  {
+    keyPageId: id.optional(),
+  },
+);
 export const getGrowthCheckRunSchema = z.strictObject({
   projectId: id,
   runId: id,
@@ -24,6 +29,7 @@ export const getGrowthCheckEvidenceSchema = z.strictObject({
 export type GrowthCheckOverview = {
   setup: "ready" | "missing_connection" | "missing_key_pages";
   keyPageCount: number;
+  keyPages: Array<{ id: string; url: string }>;
   runs: Array<{
     id: string;
     status: "running" | "completed" | "completed_with_errors" | "failed";

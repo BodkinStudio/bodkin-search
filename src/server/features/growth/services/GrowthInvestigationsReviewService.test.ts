@@ -1,3 +1,6 @@
+vi.mock("./GrowthAssessmentsService", () => ({
+  GrowthAssessmentsService: { requireReadyForPage: vi.fn() },
+}));
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "@/server/lib/errors";
 
@@ -6,6 +9,7 @@ const repositories = vi.hoisted(() => ({
   getRun: vi.fn(),
   findRecommendationForSignal: vi.fn(),
   getDecisionControllerSource: vi.fn(),
+  getApprovedAiBriefAction: vi.fn().mockResolvedValue(null),
   getActionByKey: vi.fn(),
 }));
 const insights = vi.hoisted(() => ({
@@ -37,6 +41,7 @@ vi.mock("../repositories/GrowthOpportunityDecisionsRepository", () => ({
 }));
 vi.mock("../repositories/GrowthActionsRepository", () => ({
   GrowthActionsRepository: {
+    getApprovedAiBriefAction: repositories.getApprovedAiBriefAction,
     getActionByKey: repositories.getActionByKey,
   },
 }));

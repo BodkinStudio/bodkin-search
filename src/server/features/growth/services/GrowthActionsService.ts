@@ -109,6 +109,9 @@ async function createActionGraph(
   input: CreateGrowthActionInput,
   expectedReviewVersion?: number,
   targetNormalizationMode: GrowthTargetNormalizationMode = "research_scope",
+  aiBriefApproval?: Parameters<
+    typeof repo.approveActionGraph
+  >[0]["aiBriefApproval"],
 ) {
   const [domain, source, sourceTargetRows] = await Promise.all([
     repo.projectDomain(input.projectId),
@@ -227,11 +230,16 @@ async function createActionGraph(
     actorType: input.actorType,
     actorId: input.actorId,
     note: input.note ?? null,
+    aiBriefApproval,
   };
   if (expectedReviewVersion === undefined) {
     await repo.createActionGraph(write);
   } else {
-    await repo.approveActionGraph({ ...write, expectedReviewVersion });
+    await repo.approveActionGraph({
+      ...write,
+      expectedReviewVersion,
+      aiBriefApproval,
+    });
   }
 
   const winner = await repo.getActionByKey(input.projectId, input.creationKey);
@@ -280,11 +288,15 @@ async function approveProposedRecommendation(
   input: CreateGrowthActionInput,
   expectedReviewVersion: number,
   targetNormalizationMode?: GrowthTargetNormalizationMode,
+  aiBriefApproval?: Parameters<
+    typeof repo.approveActionGraph
+  >[0]["aiBriefApproval"],
 ) {
   return createActionGraph(
     input,
     expectedReviewVersion,
     targetNormalizationMode,
+    aiBriefApproval,
   );
 }
 

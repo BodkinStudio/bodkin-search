@@ -39,6 +39,29 @@ export function toSavedKeywordSort(
   return "createdAt";
 }
 
+/**
+ * Keep the handoff to rank tracking predictable when older or imported saved
+ * rows contain whitespace or repeated terms. The server remains authoritative
+ * about terms already tracked in the selected configuration.
+ */
+export function trackingKeywordsFromSavedRows(
+  rows: SavedKeywordRow[],
+): string[] {
+  const seen = new Set<string>();
+  const keywords: string[] = [];
+
+  for (const row of rows) {
+    const keyword = row.keyword.trim();
+    const key = keyword.toLocaleLowerCase();
+    if (keyword && !seen.has(key)) {
+      seen.add(key);
+      keywords.push(keyword);
+    }
+  }
+
+  return keywords;
+}
+
 export function formatSavedKeywordNumber(value: number | null | undefined) {
   if (value == null) return "-";
   return new Intl.NumberFormat().format(value);

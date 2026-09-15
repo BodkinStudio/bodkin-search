@@ -38,11 +38,31 @@ vi.mock("@tanstack/react-start", () => ({
     }),
   }),
 }));
-vi.mock("./middleware", () => ({ requireProjectContext: [] }));
+vi.mock("./middleware", () => ({
+  requireProjectContext: [],
+  requireAuthenticatedContext: [],
+}));
+vi.mock("@/server/features/linkedin/services/LinkedInPageApiService", () => ({
+  LinkedInPageApiService: {},
+}));
+vi.mock(
+  "@/server/features/linkedin/services/LinkedInPageReportingService",
+  () => ({
+    LinkedInPageReportingService: { overview: service.overview },
+  }),
+);
+vi.mock("@/server/features/linkedin/oauth", () => ({
+  createLinkedInAuthorizationUrl: vi.fn(),
+}));
+vi.mock("@/server/mcp/public-origin", () => ({ getPublicOrigin: vi.fn() }));
+vi.mock("@tanstack/react-start/server", () => ({ getRequest: vi.fn() }));
 vi.mock(
   "@/server/features/linkedin/services/LinkedInPageContentService",
   () => ({
-    LinkedInPageContentService: service,
+    LinkedInPageContentService: {
+      import: service.import,
+      topPosts: service.topPosts,
+    },
   }),
 );
 
@@ -100,7 +120,11 @@ describe("LinkedIn server functions", () => {
       context,
     });
     await registration.handlers[1]?.({
-      data: { projectId: "forged" },
+      data: {
+        projectId: "forged",
+        startDate: "2026-08-01",
+        endDate: "2026-08-31",
+      },
       context,
     });
     await registration.handlers[2]?.({
@@ -112,6 +136,8 @@ describe("LinkedIn server functions", () => {
     );
     expect(service.overview).toHaveBeenCalledWith({
       projectId: "authorized-project",
+      startDate: "2026-08-01",
+      endDate: "2026-08-31",
     });
     expect(service.topPosts).toHaveBeenCalledWith({
       projectId: "authorized-project",

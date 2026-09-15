@@ -134,6 +134,7 @@ describe("Growth checks server functions", () => {
     expect(strikingService.runCheck).toHaveBeenCalledWith({
       projectId: "project_authorized",
       requestKey: "retry_1",
+      keyPageId: undefined,
     });
     expect(lowCtrService.runCheck).toHaveBeenCalledWith({
       projectId: "project_authorized",

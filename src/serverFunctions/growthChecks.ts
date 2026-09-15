@@ -11,6 +11,7 @@ import {
   getGrowthCheckRunSchema,
   getGrowthChecksOverviewSchema,
   runGrowthCheckSchema,
+  runGrowthStrikingDistanceCheckSchema,
 } from "@/types/schemas/growth-checks";
 
 export const getGrowthChecksOverview = createServerFn({ method: "POST" })
@@ -30,11 +31,12 @@ export const runGrowthCheck = createServerFn({ method: "POST" })
   );
 export const runGrowthStrikingDistanceCheck = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
-  .validator(runGrowthCheckSchema)
+  .validator(runGrowthStrikingDistanceCheckSchema)
   .handler(async ({ data, context }) =>
     GrowthStrikingDistanceCheckService.runCheck({
       projectId: context.projectId,
       requestKey: data.requestKey,
+      keyPageId: data.keyPageId,
     }),
   );
 export const runGrowthLowCtrCheck = createServerFn({ method: "POST" })

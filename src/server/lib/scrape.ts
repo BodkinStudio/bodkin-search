@@ -10,13 +10,18 @@ import { normalizeAndValidateStartUrl } from "@/server/lib/audit/url-policy";
 export const MAX_PAGES = 5;
 const PER_PAGE_CHAR_LIMIT = 4000;
 const FETCH_TIMEOUT_MS = 10_000;
+const MAX_REDIRECT_HOPS = 5;
 const MAX_RESPONSE_BYTES = 2_000_000;
 const USER_AGENT = "OpenSEO-Onboarding/1.0 (+https://openseo.so)";
 
 type ScrapedPage = {
   url: string;
+  /** Final validated URL supplying the text, after redirects. */
+  resolvedUrl: string;
   title: string | null;
   text: string;
+  /** Same-site action links observed in the fetched HTML, without fetching them. */
+  links?: Array<{ text: string; url: string }>;
 };
 
 type SiteReadResult = {
@@ -47,40 +52,40 @@ async function readBoundedText(response: Response): Promise<string | null> {
   return result;
 }
 
-async function fetchText(url: string): Promise<string | null> {
+async function fetchText(
+  url: string,
+): Promise<{ text: string; resolvedUrl: string } | null> {
   try {
-    const response = await fetch(url, {
-      headers: { "user-agent": USER_AGENT, accept: "text/html,*/*" },
-      // Manual redirects so we can re-validate each hop against the SSRF guard;
-      // redirect:"follow" would let a 30x to an internal host bypass it.
-      redirect: "manual",
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
-
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get("location");
-      if (!location) return null;
-      let redirectUrl: string;
-      try {
-        // Re-validates host, blocks private IPs, and does DoH DNS resolution.
-        redirectUrl = await normalizeAndValidateStartUrl(
-          new URL(location, url).toString(),
-        );
-      } catch {
-        return null; // blocked or invalid redirect destination
-      }
-      // One hop only; fetch the validated destination without following further.
-      const redirected = await fetch(redirectUrl, {
+    const signal = AbortSignal.timeout(FETCH_TIMEOUT_MS);
+    const visited = new Set<string>();
+    let current = url;
+    for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop++) {
+      if (visited.has(current)) return null;
+      visited.add(current);
+      const response = await fetch(current, {
         headers: { "user-agent": USER_AGENT, accept: "text/html,*/*" },
+        // Each redirect destination must pass the same SSRF checks as the input.
         redirect: "manual",
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        signal,
       });
-      if (!redirected.ok) return null;
-      return await readBoundedText(redirected);
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        await response.body?.cancel();
+        if (!location || hop === MAX_REDIRECT_HOPS) return null;
+        const next = new URL(location, current);
+        if (next.protocol !== "http:" && next.protocol !== "https:")
+          return null;
+        current = await normalizeAndValidateStartUrl(next.toString());
+        continue;
+      }
+      if (!response.ok) {
+        await response.body?.cancel();
+        return null;
+      }
+      const text = await readBoundedText(response);
+      return text === null ? null : { text, resolvedUrl: current };
     }
-
-    if (!response.ok) return null;
-    return await readBoundedText(response);
+    return null;
   } catch {
     return null;
   }
@@ -139,18 +144,57 @@ function decodeEntities(value: string): string {
     .replace(/&nbsp;/g, " ");
 }
 
+function extractSameSiteLinks(html: string, baseUrl: string) {
+  const links: Array<{ text: string; url: string }> = [];
+  const seen = new Set<string>();
+  const anchor = /<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+  let scanned = 0;
+  while ((match = anchor.exec(html)) && links.length < 50 && scanned < 100) {
+    scanned += 1;
+    const text = htmlToText(match[2]).slice(0, 200);
+    if (!text) continue;
+    try {
+      const raw = new URL(match[1], baseUrl);
+      if (raw.protocol !== "http:" && raw.protocol !== "https:") continue;
+      if (
+        raw.username ||
+        raw.password ||
+        raw.hostname !== new URL(baseUrl).hostname
+      )
+        continue;
+      raw.hash = "";
+      const normalized = raw.toString();
+      if (seen.has(normalized)) continue;
+      seen.add(normalized);
+      links.push({ text, url: normalized });
+    } catch {
+      // Ignore malformed, unsafe, or off-site destinations.
+    }
+  }
+  return links;
+}
+
 /** Fetches one (already-validated) URL and shapes it as a page, or null if it
  * couldn't be read or yielded no text. */
 async function scrapePage(url: string): Promise<ScrapedPage | null> {
-  const html = await fetchText(url);
-  if (!html) {
+  const fetched = await fetchText(url);
+  if (!fetched) {
     return null;
   }
+  const html = fetched.text;
   const text = htmlToText(html).slice(0, PER_PAGE_CHAR_LIMIT);
   if (text.length === 0) {
     return null;
   }
-  return { url, title: extractTitle(html), text };
+  const links = extractSameSiteLinks(html, fetched.resolvedUrl);
+  return {
+    url,
+    resolvedUrl: fetched.resolvedUrl,
+    title: extractTitle(html),
+    text,
+    ...(links.length ? { links } : {}),
+  };
 }
 
 /**
@@ -200,7 +244,7 @@ export async function discoverSiteUrls(
   const origin = new URL(rootUrl).origin;
 
   const sitemap = await fetchText(`${origin}/sitemap.xml`);
-  const discovered = sitemap ? parseSitemapUrls(sitemap, origin) : [];
+  const discovered = sitemap ? parseSitemapUrls(sitemap.text, origin) : [];
   const urls = [rootUrl, ...discovered.filter((url) => url !== rootUrl)];
   return { urls: urls.slice(0, limit), blocked: false };
 }

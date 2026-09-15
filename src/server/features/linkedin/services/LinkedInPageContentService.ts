@@ -10,7 +10,7 @@ import {
   LINKEDIN_COUNT_METRIC_NAMES,
   type LinkedInImportResult,
   type LinkedInMetricChanges,
-  type LinkedInMetricTotals,
+  type LinkedInPageMetricTotals,
   type LinkedInPageOverview,
   type LinkedInPageOverviewResult,
   type LinkedInPostPerformanceItem,
@@ -26,7 +26,7 @@ import {
 
 const TOP_POST_LIMIT = 10;
 
-function aggregate(rows: LinkedInPostMetricRecord[]): LinkedInMetricTotals {
+function aggregate(rows: LinkedInPostMetricRecord[]): LinkedInPageMetricTotals {
   const total = (metric: (typeof LINKEDIN_COUNT_METRIC_NAMES)[number]) => {
     const values = rows
       .map((row) => row[metric])
@@ -44,14 +44,16 @@ function aggregate(rows: LinkedInPostMetricRecord[]): LinkedInMetricTotals {
     comments: total("comments"),
     reposts: total("reposts"),
     follows: total("follows"),
+    // Page Content exports contain post metrics only; do not invent page views.
+    pageViews: null,
   };
 }
 
 function compare(
-  current: LinkedInMetricTotals,
-  previous: LinkedInMetricTotals,
-): LinkedInMetricChanges {
-  const difference = (metric: (typeof LINKEDIN_COUNT_METRIC_NAMES)[number]) =>
+  current: LinkedInPageMetricTotals,
+  previous: LinkedInPageMetricTotals,
+): LinkedInMetricChanges & { pageViews: number | null } {
+  const difference = (metric: keyof LinkedInPageMetricTotals) =>
     current[metric] === null || previous[metric] === null
       ? null
       : current[metric] - previous[metric];
@@ -64,6 +66,7 @@ function compare(
     comments: difference("comments"),
     reposts: difference("reposts"),
     follows: difference("follows"),
+    pageViews: difference("pageViews"),
   };
 }
 

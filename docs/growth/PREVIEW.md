@@ -39,7 +39,7 @@ The authenticated **Growth** route also includes a project-local **Check priorit
 
 The disposable preview has no Google credentials, so it can only demonstrate the setup and saved-result UI with local state. A live Google collection remains an external verification step.
 
-New checks also save rule-based investigation suggestions for detected declines. Growth does not generate AI diagnoses or schedule collection. Usefulness on a live site and the full Phase 2 gate remain unverified.
+New checks also save rule-based investigation suggestions for detected declines. AI interpretation is available separately from a saved investigation; opening a check does not generate it. Usefulness on a live site and the full Phase 2 gate remain unverified.
 
 ## Find ranking opportunities
 
@@ -242,3 +242,82 @@ explanation and duplicate recommendation spam, with an optional note. This is
 an append-only human assertion, not verified fact or an automatic Gate 4
 decision. A save refreshes the bounded dossier, which shows only the latest
 observation per visible cycle and never exposes reviewer identity.
+
+## AI investigation brief
+
+Open **Review investigation** on a saved priority-page click decline or
+striking-distance query, then choose **Generate AI draft**. The draft explains
+business fit, cites the saved observations, labels hypotheses, proposes work
+and describes how to measure it. Weak business fit can justify leaving the
+page unchanged. Missing business context always appears as a limitation.
+
+Generation uses the configured OpenRouter provider and existing hosted credit
+accounting. It sends a bounded selection of the saved finding, current project
+context and the affected page's readable content. Reading a finding alone must
+not start generation. An unreadable page is a limitation, not evidence that the
+page was inspected; current page content is not a snapshot of either search
+reporting period.
+
+Generation saves the brief in the project. Reopening the investigation loads
+that saved brief without another model call. Its original observations,
+hypotheses, citations and proposal remain visible separately from your edits.
+The page's known URL is retained even when reading fails; a successful read
+also records its final URL after any validated redirects.
+
+Edit **Work title**, **Proposed steps** and **Proposed measurement approach**,
+then choose **Save proposal changes**. Set a due date and choose **Approve saved
+proposal (version …)** to create planned work from that saved version. Unsaved
+edits cannot be approved. The proposal and source evidence can be reopened from
+**Work → Review approved AI proposal and evidence**. Approval does not change
+the website or start a formal measurement; record a real Change Event before
+setting up measurement.
+
+The original rule-based approval remains available under **Approve the original
+rule-based work**. It uses the original investigation steps. Both approval
+paths share the source Recommendation, so competing approvals must not create
+two Actions. If another review or edit wins, reload the saved state.
+
+Test the brief on YakChat's saved findings before treating it as a validated
+recommendation workflow. Automated checks cover persistence, source validation
+and approval behavior, but cannot establish whether the proposed work is
+commercially sensible. The initial paid test exposed a two-redirect page-read
+failure; the repaired reader retrieves the public page, without making another
+paid model call.
+
+## Saved keywords to Rank Tracking
+
+In **Saved Keywords**, select rows and choose **Track keywords**. Review the
+selected terms and choose an existing tracking configuration for this project.
+The dialog shows its domain, location, language, devices and search depth.
+Confirming adds the terms and attempts an initial rank check and metrics
+refresh; review the credit notice first. Scheduled destinations also show the
+prospective recurring check cost. Opening or cancelling the dialog does
+not start either request.
+
+If the project has no tracking configuration, use **Set up Rank Tracking**
+and create one, then return to Saved Keywords.
+
+## Prompt Explorer evidence comparison
+
+Prompt Explorer results include a cross-model summary of reported brand matches
+and cited domains. Open the source links to inspect the pages, then use the full
+answers below to judge relevance and business fit. A brand-name match can occur
+in an answer or a citation; it does not establish source ownership or endorsement.
+
+Failed models are unavailable, not evidence of absence. Reopening a prompt may
+reuse cached answers.
+
+### Saved responses
+
+New completed Prompt Explorer runs save their answers, citations and request
+settings as snapshots. Open the saved snapshots section in Prompt Explorer to
+read an earlier response or select two snapshots to compare. Opening saved
+responses does not call the models again. Searches from before snapshots were
+introduced cannot be reconstructed from recent-search history alone.
+
+Check that the prompt, highlighted brand, models and web-search settings match
+before interpreting a difference. Failed models do not count as lost citations
+or brand mentions. A snapshot records what was returned at capture time; cached
+answers can be older. The provider does not supply generation timestamps, so
+those remain unknown. Repeated cached answers are not independent measurements,
+and differences between responses do not establish that your changes caused them.

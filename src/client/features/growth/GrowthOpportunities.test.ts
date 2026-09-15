@@ -162,6 +162,34 @@ describe("Growth opportunities rendered contract", () => {
     expect(html).toContain('href="#growth-live-check-title"');
   });
 
+  it("does not present template defaults as an assessment", () => {
+    const html = renderToStaticMarkup(
+      createElement(GrowthOpportunitiesList, {
+        projectId: "project_1",
+        data: page([
+          {
+            recommendation: {
+              ...recommendation,
+              impact: 1,
+              commercialRelevance: 1,
+              effort: 1,
+              urgency: 1,
+              confidence: 0,
+              priorityScore: 0,
+            },
+            reviewSource: { signalId: "signal_proposed" },
+          },
+        ]),
+      }),
+    );
+    expect(html).not.toContain("Priority 0");
+    expect(html).not.toContain("Confidence 0%");
+    expect(html).not.toContain("1/5");
+    expect(html).toContain("Ready for review");
+    expect(html).toContain("Saved rationale");
+    expect(html).toContain("Lazy Review investigation signal_proposed");
+  });
+
   it("renders safe detail disclosures and only delegates proposed/snoozed sources", () => {
     const html = renderToStaticMarkup(
       createElement(GrowthOpportunitiesList, {
@@ -214,8 +242,10 @@ describe("Growth opportunities rendered contract", () => {
     expect(html).toContain("Review evidence (redacted) (truncated)");
     expect(html).toContain("Some saved targets are omitted or withheld");
     expect(html).toContain("Additional saved steps are not shown here.");
-    expect(html).toContain("Confidence 80%");
-    expect(html).toContain("Category content");
-    expect(html).toContain("Additional lower-priority saved opportunities");
+    expect(html).not.toContain("Confidence 80%");
+    expect(html).not.toContain("Priority 42");
+    expect(html).not.toContain("Impact 4/5");
+    expect(html).toContain("Review business fit, expected benefit and effort");
+    expect(html).toContain("More saved opportunities are available");
   });
 });

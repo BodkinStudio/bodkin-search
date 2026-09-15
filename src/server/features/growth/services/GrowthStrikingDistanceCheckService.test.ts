@@ -316,4 +316,46 @@ describe("Growth striking-distance check", () => {
     expect(mocks.claim).not.toHaveBeenCalled();
     expect(mocks.collect).not.toHaveBeenCalled();
   });
+
+  it("rejects a page outside the authorized project before provider work", async () => {
+    mocks.keyPages.mockResolvedValue([{ id: "page_1" }]);
+
+    await expect(
+      GrowthStrikingDistanceCheckService.runCheck({
+        projectId: "project_1",
+        requestKey: "request_1",
+        keyPageId: "page_foreign",
+      }),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(mocks.connection).not.toHaveBeenCalled();
+    expect(mocks.collect).not.toHaveBeenCalled();
+  });
+
+  it("limits detection and replay identity to the selected saved page", async () => {
+    const selected = {
+      id: "page_teams",
+      projectId: "project_1",
+      url: "https://example.com/teams",
+      commercialWeight: 3,
+    };
+    mocks.keyPages.mockResolvedValue([
+      selected,
+      { ...selected, id: "page_other" },
+    ]);
+
+    await GrowthStrikingDistanceCheckService.runCheck({
+      projectId: "project_1",
+      requestKey: "request_1",
+      keyPageId: "page_teams",
+    });
+
+    expect(mocks.claim).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cadenceSlot: "striking-distance-check:page_teams:request_1",
+      }),
+    );
+    expect(mocks.detect).toHaveBeenCalledWith(
+      expect.objectContaining({ keyPages: [selected] }),
+    );
+  });
 });

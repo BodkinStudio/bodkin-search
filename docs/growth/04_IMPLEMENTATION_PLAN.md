@@ -8,6 +8,44 @@ Build the product as a sequence of narrow vertical slices with explicit gates.
 
 Every phase should leave the repository in a mergeable state.
 
+## Current progress: saved Prompt Explorer snapshots
+
+The AI investigation milestone advances BG-0205 and BG-0206: turn a saved
+finding into a reviewable AI investigation brief with business context, cited
+evidence, labelled hypotheses, proposed work and a measurement approach.
+Start with priority-page click declines and saved striking-distance queries,
+using their existing qualified evidence. Use YakChat to judge the brief's
+usefulness against real findings, including whether a query fits the business
+well enough to pursue.
+
+Gate 4 remains an operational validation requirement for the monthly cycle.
+It does not require pausing this unfinished Phase 2 work for two calendar
+months. Daily monitoring remains separately gated on observed detector quality.
+Fixture and automated tests cannot substitute for either live gate.
+
+The current slice saves the generated brief and its provenance, keeps original
+AI evidence separate from editable proposed work, and lets the user approve
+an exact saved version into one Action. This advances BG-0206 and BG-0209.
+Approval uses the original qualified Recommendation's review transition;
+it does not rewrite the source finding or start a measurement. The first live
+YakChat brief reproduced the saved metrics, but page reading failed on a
+second redirect. The reader now follows a bounded, validated redirect chain;
+usefulness of a newly generated brief with the readable page remains to be
+checked explicitly.
+
+The local preview now connects selected Saved Keywords to an existing project
+Rank Tracking configuration. Users review the terms, destination and cost
+before adding them. Projects without tracking configured are directed to setup.
+Opportunity cards now show review status without unassessed numeric ratings.
+Tracking setup starts with no suggested keywords selected.
+Prompt Explorer now compares cited domains across existing responses, with
+source links and explicit brand-match limitations.
+New runs now save immutable response snapshots with request settings, answers,
+citations and cache provenance. Users can reopen or compare two saved responses
+without another provider call. Differences are observations, not proof of impact;
+older recent-search entries cannot supply historical response snapshots. These
+workflow changes proceed independently of the live AI-quality and operating gates.
+
 ---
 
 # Phase 0 - Fork and discovery
@@ -722,3 +760,13 @@ or stop
 ```
 
 Do not let sunk development cost turn a weak workflow into a permanent internal product.
+
+## Competitor research workflow
+
+The [competitor research plan](COMPETITOR_RESEARCH_PLAN.md) connects saved
+competitors to an explicit, bounded keyword comparison, selected keyword
+saving and existing Rank Tracking, deeper domain/page research and an editable
+AI analysis draft. Growth links to the workflow without treating competitor
+rankings as automatically qualified Recommendations. Frozen comparison history,
+direct evidence-backed Growth proposals and broader competitive analysis are
+listed separately in that plan.

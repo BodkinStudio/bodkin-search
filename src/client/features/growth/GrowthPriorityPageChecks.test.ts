@@ -89,25 +89,59 @@ describe("Growth check retry identity", () => {
 
   it("keeps ranking-opportunity retries separate from decline-check retries", () => {
     click(render(), "Find ranking opportunities");
-    expect(harness.strikingMutate).toHaveBeenLastCalledWith("request_1");
+    expect(harness.strikingMutate).toHaveBeenLastCalledWith({
+      requestKey: "request_1",
+      keyPageId: undefined,
+    });
     expect(harness.mutate).not.toHaveBeenCalled();
     expect(
       harness.storage.get("growth:striking-distance-check:project_1"),
-    ).toBe("request_1");
+    ).toBe(JSON.stringify({ requestKey: "request_1" }));
     expect(harness.storage.has("growth:priority-page-check:project_1")).toBe(
       false,
     );
 
     harness.states = [];
     click(render(), "Retry ranking-opportunity request");
-    expect(harness.strikingMutate).toHaveBeenLastCalledWith("request_1");
+    expect(harness.strikingMutate).toHaveBeenLastCalledWith({
+      requestKey: "request_1",
+      keyPageId: undefined,
+    });
     expect(harness.sequence).toBe(1);
 
     click(render(), "Start new ranking-opportunity check");
-    expect(harness.strikingMutate).toHaveBeenLastCalledWith("request_2");
+    expect(harness.strikingMutate).toHaveBeenLastCalledWith({
+      requestKey: "request_2",
+      keyPageId: undefined,
+    });
     expect(
       harness.storage.get("growth:striking-distance-check:project_1"),
-    ).toBe("request_2");
+    ).toBe(JSON.stringify({ requestKey: "request_2" }));
+  });
+
+  it("keeps a restored scoped retry visible after a terminal zero result", () => {
+    harness.storage.set(
+      "growth:striking-distance-check:project_1",
+      JSON.stringify({ requestKey: "request_1", keyPageId: "page_1" }),
+    );
+    click(render(), "Retry ranking-opportunity request");
+    expect(harness.strikingMutate).toHaveBeenLastCalledWith({
+      requestKey: "request_1",
+      keyPageId: "page_1",
+    });
+
+    harness.strikingMutation?.onSuccess({
+      run: { id: "striking_run_1", status: "completed" },
+      replayed: true,
+      scope: { id: "page_1", url: "https://example.com/pricing" },
+      candidateCount: 0,
+      savedOpportunityCount: 0,
+      alreadyCoveredCount: 0,
+    });
+
+    const html = renderToStaticMarkup(render());
+    expect(html).toContain('option value="page_1" selected=""');
+    expect(html).toContain("Scope: https://example.com/pricing.");
   });
 
   it("describes eligibility and disables the native action without setup", () => {
@@ -132,6 +166,8 @@ describe("Growth check retry identity", () => {
     expect(textContent(tree)).toContain(
       "Finding ranking opportunities in final Search Console data",
     );
+    expect(renderToStaticMarkup(tree)).toContain("Saved priority page");
+    expect(renderToStaticMarkup(tree)).toContain('disabled=""');
   });
 
   it("does not dispatch a ranking-opportunity check if retry storage fails", () => {

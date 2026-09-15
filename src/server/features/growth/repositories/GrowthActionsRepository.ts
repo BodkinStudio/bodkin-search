@@ -8,6 +8,7 @@ import {
   growthActionEvents,
   growthActions,
   growthActionTargets,
+  growthAiBriefs,
   growthRecommendations,
   growthRecommendationTargets,
   growthRecommendationInsights,
@@ -207,6 +208,7 @@ async function projectDomain(projectId: string) {
 function investigationWorkGuard(
   descriptor: GrowthInvestigationTemplateDescriptor,
   requireAnalysisVersion: boolean,
+  aiBrief = false,
 ) {
   return and(
     eq(growthRuns.runType, "manual_analysis"),
@@ -221,7 +223,9 @@ function investigationWorkGuard(
     eq(growthSignals.metric, descriptor.controller.metric),
     eq(growthSignals.evidenceKind, descriptor.controller.evidenceKind),
     sql`${growthRecommendations.creationKey} = ${`${descriptor.templateVersion}:recommendation:`} || ${growthInsightSignals.signalId}`,
-    sql`${growthActions.creationKey} = ${descriptor.actionKeyPrefix} || ${growthInsightSignals.signalId}`,
+    aiBrief
+      ? sql`${growthActions.creationKey} = ${"growth-ai-brief:action:"} || ${growthAiBriefs.id}`
+      : sql`${growthActions.creationKey} = ${descriptor.actionKeyPrefix} || ${growthInsightSignals.signalId}`,
   );
 }
 
@@ -318,6 +322,7 @@ async function listInvestigationWork(
   return db
     .select({
       id: growthActions.id,
+      aiBriefSignalId: growthAiBriefs.signalId,
       title: growthActions.title,
       status: growthActions.status,
       stateVersion: growthActions.stateVersion,
@@ -326,6 +331,13 @@ async function listInvestigationWork(
       runId: growthRecommendations.runId,
     })
     .from(growthActions)
+    .leftJoin(
+      growthAiBriefs,
+      and(
+        eq(growthAiBriefs.projectId, growthActions.projectId),
+        eq(growthAiBriefs.approvedActionId, growthActions.id),
+      ),
+    )
     .innerJoin(
       growthRecommendations,
       and(
@@ -381,6 +393,37 @@ async function listInvestigationWork(
         eq(growthActions.projectId, projectId),
         actionId === undefined ? undefined : eq(growthActions.id, actionId),
         or(
+          and(
+            eq(growthAiBriefs.recommendationId, growthActions.recommendationId),
+            eq(growthAiBriefs.signalId, growthInsightSignals.signalId),
+            eq(growthAiBriefs.approvedVersion, growthAiBriefs.version),
+            eq(growthRecommendations.status, "accepted"),
+            or(
+              and(
+                eq(
+                  growthAiBriefs.templateVersion,
+                  priorityPageInvestigationDescriptor.templateVersion,
+                ),
+                investigationWorkGuard(
+                  priorityPageInvestigationDescriptor,
+                  false,
+                  true,
+                ),
+              ),
+              and(
+                eq(
+                  growthAiBriefs.templateVersion,
+                  strikingDistanceInvestigationDescriptor.templateVersion,
+                ),
+                investigationWorkGuard(
+                  strikingDistanceInvestigationDescriptor,
+                  true,
+                  true,
+                ),
+                strikingGraphGuard(),
+              ),
+            ),
+          ),
           investigationWorkGuard(priorityPageInvestigationDescriptor, false),
           and(
             investigationWorkGuard(
@@ -412,6 +455,7 @@ async function listInvestigationWork(
     )
     .groupBy(
       growthActions.id,
+      growthAiBriefs.signalId,
       growthActions.title,
       growthActions.status,
       growthActions.stateVersion,
@@ -497,7 +541,37 @@ async function listActionTargetsForActions(
     .orderBy(growthActionTargets.targetType, growthActionTargets.targetValue);
 }
 
+async function getApprovedAiBriefAction(
+  projectId: string,
+  signalId: string,
+  recommendationId: string,
+) {
+  const [row] = await db
+    .select({ action: growthActions })
+    .from(growthAiBriefs)
+    .innerJoin(
+      growthActions,
+      and(
+        eq(growthAiBriefs.projectId, growthActions.projectId),
+        eq(growthAiBriefs.approvedActionId, growthActions.id),
+        eq(growthAiBriefs.recommendationId, growthActions.recommendationId),
+      ),
+    )
+    .where(
+      and(
+        eq(growthAiBriefs.projectId, projectId),
+        eq(growthAiBriefs.signalId, signalId),
+        eq(growthAiBriefs.recommendationId, recommendationId),
+        eq(growthAiBriefs.approvedVersion, growthAiBriefs.version),
+        sql`${growthActions.creationKey} = ${"growth-ai-brief:action:"} || ${growthAiBriefs.id}`,
+      ),
+    )
+    .limit(1);
+  return row?.action ?? null;
+}
+
 export const GrowthActionsRepository = {
+  getApprovedAiBriefAction,
   getAction,
   getActionByKey,
   getActionGraph,

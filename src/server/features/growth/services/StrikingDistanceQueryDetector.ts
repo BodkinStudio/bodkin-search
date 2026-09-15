@@ -210,6 +210,8 @@ export async function detectStrikingDistanceQueries(
   )
     .filter(
       (row) =>
+        // Saved signal entity references are limited to 500 characters.
+        row.query.length <= 500 &&
         row.position >= STRIKING_DISTANCE_QUERY_MIN_POSITION &&
         row.position <= STRIKING_DISTANCE_QUERY_MAX_POSITION &&
         row.impressions >= STRIKING_DISTANCE_QUERY_MIN_IMPRESSIONS,

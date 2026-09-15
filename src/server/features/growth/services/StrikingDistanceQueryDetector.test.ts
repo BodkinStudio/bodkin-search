@@ -69,6 +69,20 @@ const input = (
 });
 
 describe("detectStrikingDistanceQueries", () => {
+  it("excludes oversized queries before selecting candidates while retaining eligible queries", async () => {
+    const queries = ["x".repeat(826), "a".repeat(500), "buy widget"];
+    const result = await detectStrikingDistanceQueries(
+      input(
+        inventory({
+          baseline: queries.map((query) => candidate(query, 12, 800)),
+          current: queries.map((query) => candidate(query, 8, 1000)),
+        }),
+      ),
+    );
+    expect(
+      result.map((outcome) => outcome.status === "candidate" && outcome.query),
+    ).toEqual(["a".repeat(500), "buy widget"]);
+  });
   it("emits three measured signal drafts with common, recomputable evidence", async () => {
     const [outcome] = await detectStrikingDistanceQueries(input());
     expect(outcome).toMatchObject({

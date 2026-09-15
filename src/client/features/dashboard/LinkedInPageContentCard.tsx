@@ -5,22 +5,22 @@ import {
   Stat,
 } from "@/client/features/dashboard/cardParts";
 import { LinkedInPageContentImportForm } from "@/client/features/dashboard/LinkedInPageContentImportForm";
-import { getLinkedInPostPerformance } from "@/serverFunctions/linkedin";
+import {
+  getLinkedInPageOverview,
+  getLinkedInPostPerformance,
+} from "@/serverFunctions/linkedin";
 import type {
   LinkedInMetric,
+  LinkedInPageOverview,
   LinkedInPostPerformance,
   LinkedInPostPerformanceItem,
 } from "@/shared/linkedin";
 
-function formatMetric(value: LinkedInMetric): string {
-  return value === null ? "—" : value.toLocaleString();
-}
-
-function formatRate(value: LinkedInMetric): string {
-  return value === null ? "—" : `${value.toFixed(2)}%`;
-}
-
-function formatDate(value: string): string {
+const formatMetric = (value: LinkedInMetric | undefined) =>
+  value == null ? "—" : value.toLocaleString();
+const formatRate = (value: LinkedInMetric) =>
+  value === null ? "—" : `${value.toFixed(2)}%`;
+function formatDate(value: string) {
   const date = new Date(`${value}T00:00:00Z`);
   return Number.isNaN(date.valueOf())
     ? value
@@ -31,27 +31,14 @@ function formatDate(value: string): string {
         timeZone: "UTC",
       });
 }
-
-function formatTimestamp(value: string): string {
-  const date = new Date(value);
-  return Number.isNaN(date.valueOf())
-    ? value
-    : date.toLocaleString(undefined, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      });
+function postLabel(post: LinkedInPostPerformanceItem) {
+  return (
+    post.postText?.trim() ||
+    (post.publishedAt
+      ? `Post published ${formatDate(post.publishedAt)}`
+      : "LinkedIn post")
+  );
 }
-
-function postLabel(post: LinkedInPostPerformanceItem): string {
-  const text = post.postText?.trim();
-  if (text) return text.length > 110 ? `${text.slice(0, 107)}…` : text;
-  if (post.publishedAt) return `Post published ${formatDate(post.publishedAt)}`;
-  return "LinkedIn post";
-}
-
 function LoadingState() {
   return (
     <div
@@ -64,7 +51,6 @@ function LoadingState() {
     </div>
   );
 }
-
 function ReportError({ retry }: { retry: () => void }) {
   return (
     <div role="alert" className="space-y-2 text-sm text-base-content/70">
@@ -75,35 +61,45 @@ function ReportError({ retry }: { retry: () => void }) {
     </div>
   );
 }
-
-function Overview({ report }: { report: LinkedInPostPerformance }) {
+function provenance(report: LinkedInPageOverview) {
+  return report.source.provider === "linkedin_api"
+    ? `${report.source.page.name} · ${formatDate(report.source.dateRange.start)}–${formatDate(report.source.dateRange.end)} · Retrieved ${new Date(report.source.retrievedAt).toLocaleString()}`
+    : `${report.source.pageName} · ${formatDate(report.source.startDate)}–${formatDate(report.source.endDate)} · ${report.source.rowCount.toLocaleString()} posts · Imported ${new Date(report.source.importedAt).toLocaleString()} · Manual export`;
+}
+function Overview({ report }: { report: LinkedInPageOverview }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-medium">{report.source.pageName}</p>
-        <p className="mt-1 text-xs text-base-content/60">
-          {formatDate(report.source.startDate)}–
-          {formatDate(report.source.endDate)} ·{" "}
-          {report.source.rowCount.toLocaleString()} posts · Imported{" "}
-          {formatTimestamp(report.source.importedAt)}
-        </p>
+        <p className="text-sm font-medium">{provenance(report)}</p>
       </div>
-
       {report.completeness === "partial" ? (
         <p role="status" className="text-xs text-warning">
-          Some metrics were blank in the LinkedIn export, so totals and
-          comparisons may be partial.
+          Some metrics were blank or unavailable, so totals and comparisons may
+          be partial.
         </p>
       ) : null}
-
+      {"apiFallback" in report &&
+      report.apiFallback &&
+      typeof report.apiFallback === "object" &&
+      "message" in report.apiFallback ? (
+        <p role="status" className="text-xs text-warning">
+          Manual LinkedIn export because {String(report.apiFallback.message)}
+        </p>
+      ) : null}
+      {report.source.provider === "linkedin_api" &&
+      report.source.freshness === "stale" ? (
+        <p role="status" className="text-xs text-warning">
+          LinkedIn refresh failed; showing retention-compliant cached API data.
+        </p>
+      ) : null}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat
           label="Impressions"
           value={formatMetric(report.current.impressions)}
           sub={
             report.comparison?.impressions != null &&
-            report.current.impressions !== null &&
-            report.previous?.impressions != null ? (
+            report.previous?.impressions != null &&
+            report.current.impressions !== null ? (
               <PercentDelta
                 current={report.current.impressions}
                 previous={report.previous.impressions}
@@ -115,110 +111,100 @@ function Overview({ report }: { report: LinkedInPostPerformance }) {
           label="Reached"
           value={formatMetric(report.current.membersReached)}
         />
-        <Stat label="Clicks" value={formatMetric(report.current.clicks)} />
+        <Stat
+          label="Page views"
+          value={formatMetric(report.current.pageViews)}
+        />
         <Stat
           label="Reactions"
           value={formatMetric(report.current.reactions)}
         />
       </div>
-
       <p className="text-xs text-base-content/60">
         {report.comparison
           ? "Compared with the exact preceding period."
           : "Import the exact preceding period to unlock comparisons."}
       </p>
-
-      <section
-        aria-labelledby="linkedin-top-posts"
-        className="border-t border-base-300 pt-5"
-      >
-        <h3 id="linkedin-top-posts" className="text-sm font-semibold">
-          Top posts by impressions
-        </h3>
-        {report.posts.length === 0 ? (
-          <p className="mt-3 text-sm text-base-content/60">
-            No post rows were available in this import.
-          </p>
-        ) : (
-          <ol className="mt-3 divide-y divide-base-300">
-            {report.posts.map((post, index) => (
-              <li
-                key={`${post.postUrl ?? post.postText ?? post.publishedAt}-${index}`}
-                className="flex gap-3 py-3 first:pt-0"
-              >
-                <span
-                  aria-hidden="true"
-                  className="w-5 shrink-0 text-xs tabular-nums text-base-content/45"
-                >
-                  {index + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  {post.postUrl ? (
-                    <a
-                      href={post.postUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="line-clamp-2 text-sm font-medium hover:underline"
-                    >
-                      {postLabel(post)}
-                    </a>
-                  ) : (
-                    <p className="line-clamp-2 text-sm font-medium">
-                      {postLabel(post)}
-                    </p>
-                  )}
-                  <p className="mt-1 text-xs text-base-content/55">
-                    {formatMetric(post.impressions)} impressions ·{" "}
-                    {formatRate(post.providerEngagementRate)} provider
-                    engagement rate
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
     </div>
   );
 }
-
+function ManualPosts({ report }: { report: LinkedInPostPerformance | null }) {
+  if (!report || report.status !== "ok") return null;
+  return (
+    <section
+      aria-labelledby="linkedin-top-posts"
+      className="border-t border-base-300 pt-5"
+    >
+      <h3 id="linkedin-top-posts" className="text-sm font-semibold">
+        Manual export: top posts by impressions
+      </h3>
+      {report.posts.length === 0 ? (
+        <p className="mt-3 text-sm text-base-content/60">
+          No post rows were available in this manual import.
+        </p>
+      ) : (
+        <ol className="mt-3 divide-y divide-base-300">
+          {report.posts.map((post, index) => (
+            <li
+              key={`${post.postUrl ?? post.postText ?? post.publishedAt}-${index}`}
+              className="flex gap-3 py-3 first:pt-0"
+            >
+              <span aria-hidden="true" className="w-5 shrink-0 text-xs">
+                {index + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="line-clamp-2 text-sm font-medium">
+                  {postLabel(post)}
+                </p>
+                <p className="mt-1 text-xs text-base-content/55">
+                  {formatMetric(post.impressions)} impressions ·{" "}
+                  {formatRate(post.providerEngagementRate)} provider engagement
+                  rate
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
 export function LinkedInPageContentCard({ projectId }: { projectId: string }) {
-  const report = useQuery({
+  const overview = useQuery({
+    queryKey: ["linkedinPageOverview", projectId],
+    queryFn: () => getLinkedInPageOverview({ data: { projectId } }),
+  });
+  const posts = useQuery({
     queryKey: ["linkedinPagePosts", projectId],
     queryFn: () => getLinkedInPostPerformance({ data: { projectId } }),
   });
-  const existingPeriod =
-    report.data?.status === "ok"
-      ? {
-          startDate: report.data.source.startDate,
-          endDate: report.data.source.endDate,
-        }
-      : null;
-
+  const result = overview.data;
+  const stamp =
+    result?.status === "ok" && result.source.provider === "linkedin_api"
+      ? result.source.freshness === "stale"
+        ? "Stale LinkedIn API"
+        : "LinkedIn API"
+      : "Manual LinkedIn export";
   return (
-    <CardShell
-      title="LinkedIn Page analytics"
-      stamp="Manually imported LinkedIn Page Content export"
-    >
+    <CardShell title="LinkedIn Page analytics" stamp={stamp}>
       <div className="space-y-6">
-        {report.isPending ? (
+        {overview.isPending ? (
           <LoadingState />
-        ) : report.isError ? (
-          <ReportError retry={() => void report.refetch()} />
-        ) : report.data.status === "ok" ? (
-          <Overview report={report.data} />
+        ) : overview.isError ? (
+          <ReportError retry={() => void overview.refetch()} />
+        ) : result?.status === "ok" ? (
+          <Overview report={result} />
         ) : (
           <div>
             <p className="text-sm font-medium">
               No LinkedIn analytics imported yet
             </p>
             <p className="mt-1 text-sm text-base-content/65">
-              Export Content analytics from your LinkedIn Page, then upload the
-              file below.
+              Connect a Page or upload a manual Page Content export below.
             </p>
           </div>
         )}
-
+        <ManualPosts report={posts.data?.status === "ok" ? posts.data : null} />
         <section
           aria-labelledby="linkedin-import-heading"
           className="border-t border-base-300 pt-5"
@@ -227,9 +213,7 @@ export function LinkedInPageContentCard({ projectId }: { projectId: string }) {
             id="linkedin-import-heading"
             className="mb-3 text-sm font-semibold"
           >
-            {existingPeriod
-              ? "Import another period"
-              : "Import Page Content analytics"}
+            Manual fallback: upload Page Content analytics
           </h3>
           <LinkedInPageContentImportForm projectId={projectId} />
         </section>

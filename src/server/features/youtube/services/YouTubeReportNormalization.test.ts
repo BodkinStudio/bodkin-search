@@ -22,6 +22,21 @@ describe("normalizeYouTubeReport", () => {
       observedThrough: "2026-03-01",
     });
   });
+  it("preserves signed likes without accepting negative views or fractional integer metrics", () => {
+    expect(
+      normalizeYouTubeReport(report(undefined, [[-1, "2026-03-01", 4]]), input)
+        .rows,
+    ).toEqual([{ likes: -1, day: "2026-03-01", views: 4 }]);
+    expect(() =>
+      normalizeYouTubeReport(report(undefined, [[2, "2026-03-01", -4]]), input),
+    ).toThrow(YouTubeMalformedResponseError);
+    expect(() =>
+      normalizeYouTubeReport(
+        report(undefined, [[-1.5, "2026-03-01", 4]]),
+        input,
+      ),
+    ).toThrow(YouTubeMalformedResponseError);
+  });
   it("allows omitted/suppressed rows", () => {
     expect(normalizeYouTubeReport({ ...report(), rows: [] }, input)).toEqual({
       rows: [],

@@ -147,7 +147,14 @@ export async function detectHighImpressionLowCtrQueries(
     .flatMap((row) => {
       const prior = baseline.get(`${row.query}\u0000${row.page}`);
       const keyPage = pages.get(row.page);
-      if (!prior || !keyPage || row.page.length > 2000) return [];
+      // Keep full provider queries in the inventory, but respect saved-signal limits.
+      if (
+        !prior ||
+        !keyPage ||
+        row.page.length > 2000 ||
+        row.query.length > 500
+      )
+        return [];
       const before = ctr(prior.clicks, prior.impressions);
       const now = ctr(row.clicks, row.impressions);
       if (

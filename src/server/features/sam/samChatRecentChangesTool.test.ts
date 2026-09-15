@@ -96,7 +96,7 @@ describe("SAM recent-change MCP tool", () => {
         page: { changes: [], limit: 20, hasMore: false, nextCursor: null },
         meta: {
           projectId: "bound_project",
-          url: "https://open-seo.test/p/bound_project/growth#growth-change-log",
+          url: "https://open-seo.test/p/bound_project/growth/operations#growth-change-log",
         },
       },
     });

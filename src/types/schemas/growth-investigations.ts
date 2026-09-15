@@ -28,6 +28,10 @@ export const getGrowthInvestigationSchema = z.strictObject({
   projectId: id,
   signalId: id,
 });
+export const generateGrowthAiBriefSchema = z.strictObject({
+  projectId: id,
+  signalId: id,
+});
 export const approveGrowthInvestigationSchema = z.strictObject({
   projectId: id,
   signalId: id,
@@ -225,8 +229,106 @@ export type GrowthInvestigationView = z.output<
   typeof growthInvestigationViewSchema
 >;
 
+const growthAiBriefCitationSchema = z.strictObject({
+  snapshot: z.string().max(4000).nullable(),
+  id: z.string().min(1).max(100),
+  label: z.string().min(1).max(300),
+  source: z.enum([
+    "historical_saved_evidence",
+    "current_project_context",
+    "current_page_read",
+  ]),
+});
+const growthAiBriefClaimSchema = z.strictObject({
+  statement: z.string().min(1).max(1200),
+  citationIds: z.array(z.string().min(1).max(100)).min(1).max(3),
+});
+
+export const growthAiBriefSchema = z.strictObject({
+  kind: z.literal("growth_ai_brief"),
+  persistence: z.literal("ephemeral"),
+  generatedAt: canonicalTimestamp,
+  affectedPageUrl: z.string().url().max(2048).nullable(),
+  currentBusinessContext: z.enum(["available", "missing"]),
+  currentPageRead: z.discriminatedUnion("status", [
+    z.strictObject({
+      status: z.literal("read"),
+      requestedUrl: z.string().url().max(2048),
+      resolvedUrl: z.string().url().max(2048),
+    }),
+    z.strictObject({ status: z.literal("unavailable") }),
+    z.strictObject({ status: z.literal("not_available") }),
+  ]),
+  businessRelevance: z.string().min(1).max(1800),
+  observations: z.array(growthAiBriefClaimSchema).min(1).max(8),
+  hypotheses: z
+    .array(
+      z.strictObject({
+        statement: z.string().min(1).max(1200),
+        confidence: z.enum(["low", "medium", "high"]),
+        citationIds: z.array(z.string().min(1).max(100)).min(1).max(3),
+      }),
+    )
+    .min(1)
+    .max(5),
+  proposedSteps: z.array(z.string().min(1).max(1200)).min(1).max(6),
+  measurementApproach: z.string().min(1).max(1800),
+  caveats: z.array(z.string().min(1).max(800)).min(1).max(6),
+  citations: z.array(growthAiBriefCitationSchema).min(1).max(8),
+});
+
+export type GrowthAiBrief = z.output<typeof growthAiBriefSchema>;
+
+export const saveGrowthAiBriefEditsSchema = z.strictObject({
+  projectId: id,
+  briefId: id,
+  expectedVersion: z.number().int().nonnegative(),
+  title: z.string().trim().min(1).max(300),
+  proposedSteps: z.array(z.string().trim().min(1).max(1200)).min(1).max(6),
+  measurementApproach: z.string().trim().min(1).max(1800),
+});
+export const approveGrowthAiBriefSchema = z.strictObject({
+  projectId: id,
+  briefId: id,
+  expectedVersion: z.number().int().nonnegative(),
+  dueOn: calendarDate,
+});
+export const savedGrowthAiBriefSchema = z.strictObject({
+  id,
+  projectId: id,
+  signalId: id,
+  recommendationId: id,
+  templateVersion: z.string().min(1).max(100),
+  model: z.string().min(1).max(200),
+  promptVersion: z.string().min(1).max(100),
+  generated: growthAiBriefSchema.omit({ persistence: true }),
+  proposal: z.strictObject({
+    title: z.string().trim().min(1).max(300),
+    proposedSteps: z.array(z.string().trim().min(1).max(1200)).min(1).max(6),
+    measurementApproach: z.string().trim().min(1).max(1800),
+    version: z.number().int().nonnegative(),
+  }),
+  approval: z
+    .strictObject({
+      actionId: id,
+      version: z.number().int().nonnegative(),
+      dueOn: calendarDate,
+      approvedAt: canonicalTimestamp,
+      actorId: id,
+    })
+    .nullable(),
+});
+export type SavedGrowthAiBrief = z.output<typeof savedGrowthAiBriefSchema>;
+export type SaveGrowthAiBriefEditsInput = z.output<
+  typeof saveGrowthAiBriefEditsSchema
+>;
+export type ApproveGrowthAiBriefInput = z.output<
+  typeof approveGrowthAiBriefSchema
+>;
+
 export type GrowthWorkItem = {
   id: string;
+  aiBriefSignalId?: string;
   title: string;
   status: GrowthActionStatus;
   stateVersion: number;

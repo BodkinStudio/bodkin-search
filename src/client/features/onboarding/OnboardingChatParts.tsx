@@ -253,12 +253,14 @@ export function ChatComposer({
   busy,
   onSend,
   placeholder = "Ask Sam about your strategy or OpenSEO…",
+  initialValue = "",
 }: {
   busy: boolean;
   onSend: (text: string) => void;
   placeholder?: string;
+  initialValue?: string;
 }) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialValue);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-grow the textarea up to a few lines, then scroll. Resetting height to

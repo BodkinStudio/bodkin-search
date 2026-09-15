@@ -1,10 +1,10 @@
 # LinkedIn and YouTube analytics roadmap plan
 
-Status: active roadmap; YouTube Analytics MVP and LinkedIn manual Content import implemented
+Status: active roadmap; YouTube Analytics MVP, LinkedIn manual Content import, and flagged LinkedIn Page API overview implemented
 
 ## Implemented first slice
 
-The delivered YouTube foundation uses a separate read-only OAuth grant, channel discovery, and one selected channel per project. Channel overview, top-video performance, and traffic-source reports use `youtube.readonly` and `yt-analytics.readonly` with equal-length previous-period context in the dashboard and MCP. LinkedIn Page Content analytics is also available through manual report uploads; LinkedIn API access remains planned work.
+The delivered YouTube foundation uses a separate read-only OAuth grant, channel discovery, and one selected channel per project. Channel overview, top-video performance, and traffic-source reports use `youtube.readonly` and `yt-analytics.readonly` with equal-length previous-period context in the dashboard and MCP. LinkedIn Page Content analytics remains available through manual report uploads. A read-only LinkedIn Page API overview is behind an explicit configuration flag while Community Management access is pending; manual imports remain the separate fallback.
 
 ## Decisions
 

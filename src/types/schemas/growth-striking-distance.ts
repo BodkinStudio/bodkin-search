@@ -30,7 +30,9 @@ export const growthStrikingDistanceWindowSchema = z
   });
 
 export const growthStrikingDistanceRowSchema = z.strictObject({
-  query: boundedText(500),
+  // Provider queries can exceed the saved-signal limit. Preserve them in the
+  // inventory; detectors apply eligibility limits before producing signals.
+  query: z.string().trim().min(1),
   page: boundedText(4096),
   clicks: count,
   impressions: count,

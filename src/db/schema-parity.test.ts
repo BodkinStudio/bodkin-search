@@ -17,10 +17,15 @@ import * as sqliteLinkedIn from "./linkedin.schema";
 import * as sqliteTelemetry from "./telemetry.schema";
 import * as sqliteGrowth from "./growth.schema";
 import * as sqliteGrowthInsights from "./growth-insights.schema";
+import * as sqliteGrowthWorkstreams from "./growth-workstreams.schema";
 import * as sqliteGrowthActions from "./growth-actions.schema";
+import * as sqliteGrowthEvidenceSeries from "./growth-evidence-series.schema";
 import * as sqliteGrowthChangeEvents from "./growth-change-events.schema";
 import * as sqliteGrowthMeasurements from "./growth-measurements.schema";
 import * as sqliteGrowthReports from "./growth-reports.schema";
+import * as sqlitePromptExplorerSnapshots from "./prompt-explorer-snapshots.schema";
+import * as sqliteGrowthAssessments from "./growth-assessments.schema";
+import * as sqliteGrowthAssessmentInvestigations from "./growth-assessment-investigations.schema";
 import * as pgApp from "./pg/app.schema";
 import * as pgProjectContext from "./pg/project-context.schema";
 import * as pgAudit from "./pg/audit.schema";
@@ -34,10 +39,15 @@ import * as pgLinkedIn from "./pg/linkedin.schema";
 import * as pgTelemetry from "./pg/telemetry.schema";
 import * as pgGrowth from "./pg/growth.schema";
 import * as pgGrowthInsights from "./pg/growth-insights.schema";
+import * as pgGrowthWorkstreams from "./pg/growth-workstreams.schema";
 import * as pgGrowthActions from "./pg/growth-actions.schema";
+import * as pgGrowthEvidenceSeries from "./pg/growth-evidence-series.schema";
 import * as pgGrowthChangeEvents from "./pg/growth-change-events.schema";
 import * as pgGrowthMeasurements from "./pg/growth-measurements.schema";
 import * as pgGrowthReports from "./pg/growth-reports.schema";
+import * as pgPromptExplorerSnapshots from "./pg/prompt-explorer-snapshots.schema";
+import * as pgGrowthAssessments from "./pg/growth-assessments.schema";
+import * as pgGrowthAssessmentInvestigations from "./pg/growth-assessment-investigations.schema";
 
 // Guards the ONE structural artifact `db:generate` does not regenerate: the
 // hand-written Postgres schema. The provider-aware `db`/`@/db/schema` barrel
@@ -172,10 +182,15 @@ const sqliteAppTables = tablesFrom(
   sqliteTelemetry,
   sqliteGrowth,
   sqliteGrowthInsights,
+  sqliteGrowthWorkstreams,
   sqliteGrowthActions,
+  sqliteGrowthEvidenceSeries,
   sqliteGrowthChangeEvents,
   sqliteGrowthMeasurements,
   sqliteGrowthReports,
+  sqlitePromptExplorerSnapshots,
+  sqliteGrowthAssessments,
+  sqliteGrowthAssessmentInvestigations,
 );
 const pgAppTables = tablesFrom(
   pgApp,
@@ -190,10 +205,15 @@ const pgAppTables = tablesFrom(
   pgTelemetry,
   pgGrowth,
   pgGrowthInsights,
+  pgGrowthWorkstreams,
   pgGrowthActions,
+  pgGrowthEvidenceSeries,
   pgGrowthChangeEvents,
   pgGrowthMeasurements,
   pgGrowthReports,
+  pgPromptExplorerSnapshots,
+  pgGrowthAssessments,
+  pgGrowthAssessmentInvestigations,
 );
 const sqliteAuthTables = tablesFrom(sqliteAuth);
 const pgAuthTables = tablesFrom(pgAuth);

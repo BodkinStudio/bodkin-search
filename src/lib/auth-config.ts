@@ -7,6 +7,10 @@ import {
   YOUTUBE_OAUTH_PROVIDER_ID,
   YOUTUBE_OAUTH_SCOPES,
 } from "@/shared/youtube";
+import {
+  LINKEDIN_OAUTH_PROVIDER_ID,
+  LINKEDIN_OAUTH_SCOPES,
+} from "@/shared/linkedin";
 
 export function createBaseAuthConfig() {
   return {
@@ -89,6 +93,15 @@ export function createBaseAuthConfig() {
             scopes: [...YOUTUBE_OAUTH_SCOPES],
             accessType: "offline",
             prompt: "select_account consent",
+            pkce: true,
+          },
+          {
+            providerId: LINKEDIN_OAUTH_PROVIDER_ID,
+            clientId: env.LINKEDIN_CLIENT_ID?.trim() ?? "",
+            clientSecret: env.LINKEDIN_CLIENT_SECRET?.trim() ?? "",
+            authorizationUrl: "https://www.linkedin.com/oauth/v2/authorization",
+            tokenUrl: "https://www.linkedin.com/oauth/v2/accessToken",
+            scopes: [...LINKEDIN_OAUTH_SCOPES],
             pkce: true,
           },
         ],

@@ -96,7 +96,8 @@ describe("Growth investigation rendered contract", () => {
     const html = render(client);
     expect(html).toContain(proposal.title);
     expect(html).toContain(proposal.rationale);
-    expect(html).toContain("No AI was used");
+    expect(html).toContain("Original rule-based investigation");
+    expect(html).toContain("Approve the original rule-based work");
     expect(html).toContain(
       "This suggestion covers later checks for the same saved page",
     );

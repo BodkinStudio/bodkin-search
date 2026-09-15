@@ -90,6 +90,10 @@ export const projectKeyPages = sqliteTable(
     updatedBy: text("updated_by", { enum: ["user", "sam", "mcp"] }).notNull(),
   },
   (table) => [
+    uniqueIndex("project_key_pages_project_id_key").on(
+      table.projectId,
+      table.id,
+    ),
     uniqueIndex("project_key_pages_project_url_idx").on(
       table.projectId,
       table.url,

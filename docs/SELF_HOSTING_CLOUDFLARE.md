@@ -1,6 +1,6 @@
 # Cloudflare Self-Hosting
 
-Host OpenSEO on Cloudflare for internet-facing self-hosting across multiple devices or with your team. One deploy command provisions everything, including the Cloudflare Access login gate. Works on Cloudflare's free plan.
+Host OpenSEO on Cloudflare for internet-facing self-hosting across multiple devices or with your team. One deploy command provisions everything, including the Cloudflare Access login gate. Deployment is possible on the free Workers plan, but its 10 ms CPU limit can terminate MCP requests even when the browser app loads. Use Workers Paid for production MCP use; see [CPU-limit troubleshooting](./SELF_HOSTING_CLOUDFLARE_OPERATIONS.md#troubleshoot-mcp-502-errors).
 
 Related guides:
 
