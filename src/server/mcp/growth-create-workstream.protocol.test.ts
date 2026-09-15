@@ -3,6 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { GROWTH_PLAN_WRITE_SCOPE } from "@/lib/oauth-resource";
 import { createWorkersOAuthMcpProps } from "./context";
 
+// The in-memory MCP client handshake takes ~3s; the default 5s budget
+// times out whenever other test workers compete for CPU.
+const PROTOCOL_TIMEOUT_MS = 20_000;
+
 const mocks = vi.hoisted(() => ({
   getProjectForOrganization: vi.fn(),
   createWorkstream: vi.fn(),
@@ -83,66 +87,70 @@ async function connectedClient(scopes: string[]) {
 }
 
 describe("growth_create_workstream MCP protocol", () => {
-  it("hides the tool without the operation scope and calls it with explicit consent", async () => {
-    const readOnly = await connectedClient(["mcp"]);
-    try {
-      expect(
-        (await readOnly.client.listTools()).tools.some(
-          ({ name }) => name === "growth_create_workstream",
-        ),
-      ).toBe(false);
-    } finally {
-      await readOnly.client.close();
-      await readOnly.server.close();
-    }
+  it(
+    "hides the tool without the operation scope and calls it with explicit consent",
+    async () => {
+      const readOnly = await connectedClient(["mcp"]);
+      try {
+        expect(
+          (await readOnly.client.listTools()).tools.some(
+            ({ name }) => name === "growth_create_workstream",
+          ),
+        ).toBe(false);
+      } finally {
+        await readOnly.client.close();
+        await readOnly.server.close();
+      }
 
-    mocks.getProjectForOrganization.mockResolvedValue({ id: "project_123" });
-    mocks.createWorkstream.mockResolvedValue(workstream);
-    mocks.incrementSelfHostMcpToolCallCount.mockResolvedValue(undefined);
-    mocks.captureServerEvent.mockResolvedValue(undefined);
-    mocks.captureServerError.mockResolvedValue(undefined);
-    mocks.recordExternalMcpToolCall.mockResolvedValue(undefined);
-    const capable = await connectedClient(["mcp", GROWTH_PLAN_WRITE_SCOPE]);
-    try {
-      expect(
-        (await capable.client.listTools()).tools.find(
-          ({ name }) => name === "growth_create_workstream",
-        ),
-      ).toMatchObject({
-        name: "growth_create_workstream",
-        inputSchema: {
-          type: "object",
-          required: ["projectId", "requestKey", "title", "commercialReason"],
-        },
-        outputSchema: { type: "object", required: ["workstream"] },
-        annotations: {
-          readOnlyHint: false,
-          idempotentHint: true,
-          destructiveHint: false,
-          openWorldHint: false,
-        },
-      });
+      mocks.getProjectForOrganization.mockResolvedValue({ id: "project_123" });
+      mocks.createWorkstream.mockResolvedValue(workstream);
+      mocks.incrementSelfHostMcpToolCallCount.mockResolvedValue(undefined);
+      mocks.captureServerEvent.mockResolvedValue(undefined);
+      mocks.captureServerError.mockResolvedValue(undefined);
+      mocks.recordExternalMcpToolCall.mockResolvedValue(undefined);
+      const capable = await connectedClient(["mcp", GROWTH_PLAN_WRITE_SCOPE]);
+      try {
+        expect(
+          (await capable.client.listTools()).tools.find(
+            ({ name }) => name === "growth_create_workstream",
+          ),
+        ).toMatchObject({
+          name: "growth_create_workstream",
+          inputSchema: {
+            type: "object",
+            required: ["projectId", "requestKey", "title", "commercialReason"],
+          },
+          outputSchema: { type: "object", required: ["workstream"] },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: true,
+            destructiveHint: false,
+            openWorldHint: false,
+          },
+        });
 
-      const result = await capable.client.callTool({
-        name: "growth_create_workstream",
-        arguments: input,
-      });
-      expect(result.isError).not.toBe(true);
-      expect(result.structuredContent).toMatchObject({
-        workstream,
-        meta: {
-          projectId: "project_123",
-          url: "https://app.example.com/p/project_123/growth",
-        },
-      });
-      expect(mocks.createWorkstream).toHaveBeenCalledWith({
-        ...input,
-        actorType: "agent",
-        actorId: "user_123",
-      });
-    } finally {
-      await capable.client.close();
-      await capable.server.close();
-    }
-  });
+        const result = await capable.client.callTool({
+          name: "growth_create_workstream",
+          arguments: input,
+        });
+        expect(result.isError).not.toBe(true);
+        expect(result.structuredContent).toMatchObject({
+          workstream,
+          meta: {
+            projectId: "project_123",
+            url: "https://app.example.com/p/project_123/growth",
+          },
+        });
+        expect(mocks.createWorkstream).toHaveBeenCalledWith({
+          ...input,
+          actorType: "agent",
+          actorId: "user_123",
+        });
+      } finally {
+        await capable.client.close();
+        await capable.server.close();
+      }
+    },
+    PROTOCOL_TIMEOUT_MS,
+  );
 });

@@ -2,6 +2,10 @@ import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createWorkersOAuthMcpProps } from "./context";
 
+// The in-memory MCP client handshake takes ~3s; the default 5s budget
+// times out whenever other test workers compete for CPU.
+const PROTOCOL_TIMEOUT_MS = 20_000;
+
 const mocks = vi.hoisted(() => ({
   getProjectForOrganization: vi.fn(),
   listMeasurements: vi.fn(),
@@ -43,72 +47,81 @@ vi.mock("@/server/lib/self-host-telemetry", () => ({
 afterEach(() => vi.resetAllMocks());
 
 describe("growth_get_measurements MCP protocol", () => {
-  it("advertises strict saved-data input/output and invokes the authorized shared service", async () => {
-    mocks.getProjectForOrganization.mockResolvedValue({ id: "project_123" });
-    mocks.listMeasurements.mockResolvedValue({
-      measurements: [],
-      limit: 20,
-      hasMore: false,
-      nextCursor: null,
-    });
-    mocks.incrementSelfHostMcpToolCallCount.mockResolvedValue(undefined);
-    mocks.captureServerEvent.mockResolvedValue(undefined);
-    mocks.captureServerError.mockResolvedValue(undefined);
-    mocks.recordExternalMcpToolCall.mockResolvedValue(undefined);
-    const { createOpenSeoMcpServer } = await import("./server");
-    const server = createOpenSeoMcpServer(
-      createWorkersOAuthMcpProps({
-        userId: "user",
-        userEmail: "team@example.com",
-        organizationId: "org",
-        baseUrl: "https://app.example.com",
-        clientId: null,
-        scopes: ["mcp"],
-      }),
-    );
-    const client = new Client({
-      name: "growth-measurements",
-      version: "1.0.0",
-    });
-    const [clientTransport, serverTransport] =
-      InMemoryTransport.createLinkedPair();
-    await server.connect(serverTransport);
-    try {
-      await client.connect(clientTransport);
-      const tool = (await client.listTools()).tools.find(
-        (value) => value.name === "growth_get_measurements",
+  it(
+    "advertises strict saved-data input/output and invokes the authorized shared service",
+    async () => {
+      mocks.getProjectForOrganization.mockResolvedValue({ id: "project_123" });
+      mocks.listMeasurements.mockResolvedValue({
+        measurements: [],
+        limit: 20,
+        hasMore: false,
+        nextCursor: null,
+      });
+      mocks.incrementSelfHostMcpToolCallCount.mockResolvedValue(undefined);
+      mocks.captureServerEvent.mockResolvedValue(undefined);
+      mocks.captureServerError.mockResolvedValue(undefined);
+      mocks.recordExternalMcpToolCall.mockResolvedValue(undefined);
+      const { createOpenSeoMcpServer } = await import("./server");
+      const server = createOpenSeoMcpServer(
+        createWorkersOAuthMcpProps({
+          userId: "user",
+          userEmail: "team@example.com",
+          organizationId: "org",
+          baseUrl: "https://app.example.com",
+          clientId: null,
+          scopes: ["mcp"],
+        }),
       );
-      expect(tool).toMatchObject({
-        name: "growth_get_measurements",
-        inputSchema: { type: "object", required: ["projectId"] },
-        outputSchema: { type: "object", required: ["page"] },
-        annotations: {
-          readOnlyHint: true,
-          destructiveHint: false,
-          openWorldHint: false,
-        },
+      const client = new Client({
+        name: "growth-measurements",
+        version: "1.0.0",
       });
-      const cursor = { createdAt: "2026-01-01T01:00:00+01:00", id: "plan_1" };
-      const result = await client.callTool({
-        name: "growth_get_measurements",
-        arguments: { projectId: "project_123", limit: 2, cursor },
-      });
-      expect(result.isError).not.toBe(true);
-      expect(result.structuredContent).toMatchObject({
-        page: { measurements: [], limit: 20, hasMore: false, nextCursor: null },
-        meta: {
+      const [clientTransport, serverTransport] =
+        InMemoryTransport.createLinkedPair();
+      await server.connect(serverTransport);
+      try {
+        await client.connect(clientTransport);
+        const tool = (await client.listTools()).tools.find(
+          (value) => value.name === "growth_get_measurements",
+        );
+        expect(tool).toMatchObject({
+          name: "growth_get_measurements",
+          inputSchema: { type: "object", required: ["projectId"] },
+          outputSchema: { type: "object", required: ["page"] },
+          annotations: {
+            readOnlyHint: true,
+            destructiveHint: false,
+            openWorldHint: false,
+          },
+        });
+        const cursor = { createdAt: "2026-01-01T01:00:00+01:00", id: "plan_1" };
+        const result = await client.callTool({
+          name: "growth_get_measurements",
+          arguments: { projectId: "project_123", limit: 2, cursor },
+        });
+        expect(result.isError).not.toBe(true);
+        expect(result.structuredContent).toMatchObject({
+          page: {
+            measurements: [],
+            limit: 20,
+            hasMore: false,
+            nextCursor: null,
+          },
+          meta: {
+            projectId: "project_123",
+            url: "https://app.example.com/p/project_123/growth/operations#growth-work",
+          },
+        });
+        expect(mocks.listMeasurements).toHaveBeenCalledWith({
           projectId: "project_123",
-          url: "https://app.example.com/p/project_123/growth/operations#growth-work",
-        },
-      });
-      expect(mocks.listMeasurements).toHaveBeenCalledWith({
-        projectId: "project_123",
-        limit: 2,
-        cursor,
-      });
-    } finally {
-      await client.close();
-      await server.close();
-    }
-  });
+          limit: 2,
+          cursor,
+        });
+      } finally {
+        await client.close();
+        await server.close();
+      }
+    },
+    PROTOCOL_TIMEOUT_MS,
+  );
 });

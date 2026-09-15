@@ -3,6 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { GROWTH_CHANGE_CREATE_SCOPE } from "@/lib/oauth-resource";
 import { createWorkersOAuthMcpProps } from "./context";
 
+// The in-memory MCP client handshake takes ~3s; the default 5s budget
+// times out whenever other test workers compete for CPU.
+const PROTOCOL_TIMEOUT_MS = 20_000;
+
 const mocks = vi.hoisted(() => ({
   getProjectForOrganization: vi.fn(),
   recordChange: vi.fn(),
@@ -91,75 +95,82 @@ async function connectedClient(scopes: string[]) {
 }
 
 describe("growth_record_change MCP protocol", () => {
-  it("hides the tool without the operation scope and calls it with explicit consent", async () => {
-    const readOnly = await connectedClient(["mcp"]);
-    try {
-      expect(
-        (await readOnly.client.listTools()).tools.some(
+  it(
+    "hides the tool without the operation scope and calls it with explicit consent",
+    async () => {
+      const readOnly = await connectedClient(["mcp"]);
+      try {
+        expect(
+          (await readOnly.client.listTools()).tools.some(
+            ({ name }) => name === "growth_record_change",
+          ),
+        ).toBe(false);
+      } finally {
+        await readOnly.client.close();
+        await readOnly.server.close();
+      }
+
+      mocks.getProjectForOrganization.mockResolvedValue({ id: "project_123" });
+      mocks.recordChange.mockResolvedValue(change);
+      mocks.incrementSelfHostMcpToolCallCount.mockResolvedValue(undefined);
+      mocks.captureServerEvent.mockResolvedValue(undefined);
+      mocks.captureServerError.mockResolvedValue(undefined);
+      mocks.recordExternalMcpToolCall.mockResolvedValue(undefined);
+      const capable = await connectedClient([
+        "mcp",
+        GROWTH_CHANGE_CREATE_SCOPE,
+      ]);
+      try {
+        const tool = (await capable.client.listTools()).tools.find(
           ({ name }) => name === "growth_record_change",
-        ),
-      ).toBe(false);
-    } finally {
-      await readOnly.client.close();
-      await readOnly.server.close();
-    }
+        );
+        expect(tool).toMatchObject({
+          name: "growth_record_change",
+          inputSchema: {
+            type: "object",
+            required: [
+              "projectId",
+              "requestKey",
+              "changeType",
+              "description",
+              "happenedAt",
+              "urls",
+            ],
+          },
+          outputSchema: { type: "object", required: ["change"] },
+          annotations: {
+            readOnlyHint: false,
+            idempotentHint: true,
+            destructiveHint: false,
+            openWorldHint: false,
+          },
+        });
 
-    mocks.getProjectForOrganization.mockResolvedValue({ id: "project_123" });
-    mocks.recordChange.mockResolvedValue(change);
-    mocks.incrementSelfHostMcpToolCallCount.mockResolvedValue(undefined);
-    mocks.captureServerEvent.mockResolvedValue(undefined);
-    mocks.captureServerError.mockResolvedValue(undefined);
-    mocks.recordExternalMcpToolCall.mockResolvedValue(undefined);
-    const capable = await connectedClient(["mcp", GROWTH_CHANGE_CREATE_SCOPE]);
-    try {
-      const tool = (await capable.client.listTools()).tools.find(
-        ({ name }) => name === "growth_record_change",
-      );
-      expect(tool).toMatchObject({
-        name: "growth_record_change",
-        inputSchema: {
-          type: "object",
-          required: [
-            "projectId",
-            "requestKey",
-            "changeType",
-            "description",
-            "happenedAt",
-            "urls",
-          ],
-        },
-        outputSchema: { type: "object", required: ["change"] },
-        annotations: {
-          readOnlyHint: false,
-          idempotentHint: true,
-          destructiveHint: false,
-          openWorldHint: false,
-        },
-      });
-
-      const result = await capable.client.callTool({
-        name: "growth_record_change",
-        arguments: input,
-      });
-      expect(result.isError).not.toBe(true);
-      expect(result.structuredContent).toMatchObject({
-        change,
-        meta: {
-          projectId: "project_123",
-          url: "https://app.example.com/p/project_123/growth/operations#growth-change-log",
-        },
-      });
-      expect(mocks.recordChange).toHaveBeenCalledWith(
-        input,
-        expect.objectContaining({
-          userId: "user_123",
-          clientId: "client_123",
-          scopes: ["mcp", GROWTH_CHANGE_CREATE_SCOPE],
-        }),
-      );
-    } finally {
-      await capable.client.close();
-      await capable.server.close();
-    }
-  });
+        const result = await capable.client.callTool({
+          name: "growth_record_change",
+          arguments: input,
+        });
+        expect(result.isError).not.toBe(true);
+        expect(result.structuredContent).toMatchObject({
+          change,
+          meta: {
+            projectId: "project_123",
+            url: "https://app.example.com/p/project_123/growth/operations#growth-change-log",
+          },
+        });
+        expect(mocks.recordChange).toHaveBeenCalledWith(
+          input,
+          expect.objectContaining({
+            userId: "user_123",
+            clientId: "client_123",
+            scopes: ["mcp", GROWTH_CHANGE_CREATE_SCOPE],
+          }),
+        );
+      } finally {
+        await capable.client.close();
+        await capable.server.close();
+      }
+    },
+    PROTOCOL_TIMEOUT_MS,
+  );
 });
