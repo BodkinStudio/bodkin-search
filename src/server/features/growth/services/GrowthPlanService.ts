@@ -724,21 +724,85 @@ async function transitionPlanAction(
   return readAction(input.projectId, input.actionId);
 }
 
+/** The saved shape of one evidence item, for comparing a replay to its fact. */
+const evidenceFact = (
+  item: Pick<
+    GrowthActionEvidenceDto,
+    "kind" | "statement" | "sourceLabel" | "sourceUrl" | "observedOn"
+  > & {
+    series: {
+      kind: string;
+      title: string;
+      unit: string;
+      points: { label: string; group: string | null; value: number | null }[];
+    } | null;
+  },
+) =>
+  JSON.stringify({
+    kind: item.kind,
+    statement: item.statement,
+    sourceLabel: item.sourceLabel,
+    sourceUrl: item.sourceUrl,
+    observedOn: item.observedOn,
+    series: item.series
+      ? {
+          kind: item.series.kind,
+          title: item.series.title,
+          unit: item.series.unit,
+          points: item.series.points.map(({ label, group, value }) => ({
+            label,
+            group,
+            value,
+          })),
+        }
+      : null,
+  });
+
 async function addActionEvidence(
   input: AddGrowthActionEvidenceInput & Actor,
 ): Promise<GrowthPlanActionDto> {
   await requirePlanAction(input.projectId, input.actionId);
+  const evidence = normalizeEvidence(input.evidence);
+  // The request key doubles as the row id, so a retry lands on the same row —
+  // and the writer derives the series and point ids from it.
+  const evidenceId = input.requestKey ?? crypto.randomUUID();
   await withPositionRetry(() =>
     repo.insertEvidence({
-      ...normalizeEvidence(input.evidence),
-      // The request key doubles as the row id, so a retry lands on the same
-      // row — and the writer derives the series and point ids from it.
-      id: input.requestKey ?? crypto.randomUUID(),
+      ...evidence,
+      id: evidenceId,
       projectId: input.projectId,
       actionId: input.actionId,
     }),
   );
-  return readAction(input.projectId, input.actionId);
+
+  const action = await readAction(input.projectId, input.actionId);
+  // The insert no-ops on a repeated id, so the stored row is the authority: the
+  // same key carrying a different fact must conflict, as it does for
+  // Workstreams and plan Actions.
+  const saved = action.evidence.find((item) => item.id === evidenceId);
+  if (!saved)
+    throw new AppError("CONFLICT", "Growth Action evidence was not created");
+  const fact = evidenceFact({
+    ...evidence,
+    series: evidence.series
+      ? {
+          ...evidence.series,
+          points: evidence.series.points.map(
+            ({ label, groupLabel, value }) => ({
+              label,
+              group: groupLabel,
+              value,
+            }),
+          ),
+        }
+      : null,
+  });
+  if (evidenceFact(saved) !== fact)
+    throw new AppError(
+      "CONFLICT",
+      "Request key is occupied by a different evidence fact",
+    );
+  return action;
 }
 
 async function removeActionEvidence(

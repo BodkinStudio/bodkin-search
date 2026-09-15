@@ -211,12 +211,15 @@ describe("GrowthPlanService.createPlanAction", () => {
     );
     repository.getAction.mockResolvedValue({ ...savedAction });
 
-    await GrowthPlanService.createPlanAction({
-      ...createInput,
-      evidence: [{ ...evidenceInput, series }],
-      actorType: "user",
-      actorId: "user_1",
-    });
+    const create = (points: { label: string; value: number }[]) =>
+      GrowthPlanService.createPlanAction({
+        ...createInput,
+        evidence: [{ ...evidenceInput, series: { ...series, points } }],
+        actorType: "user",
+        actorId: "user_1",
+      });
+
+    await create(series.points);
 
     expect(repository.createPlanActionGraph.mock.lastCall?.[0]).toMatchObject({
       evidence: [
@@ -234,59 +237,62 @@ describe("GrowthPlanService.createPlanAction", () => {
       ],
     });
 
-    await expect(
-      GrowthPlanService.createPlanAction({
-        ...createInput,
-        evidence: [
-          {
-            ...evidenceInput,
-            series: { ...series, points: [{ label: "Jan", value: 1 }] },
-          },
-        ],
-        actorType: "user",
-        actorId: "user_1",
-      }),
-    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
-
-    await expect(
-      GrowthPlanService.createPlanAction({
-        ...createInput,
-        evidence: [
-          {
-            ...evidenceInput,
-            series: {
-              ...series,
-              points: [
-                { label: "2026-02", value: 14 },
-                { label: "2026-01", value: 10 },
-              ],
-            },
-          },
-        ],
-        actorType: "user",
-        actorId: "user_1",
-      }),
-    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    // A label that is not a month, and months out of order.
+    await expect(create([{ label: "Jan", value: 1 }])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+    });
+    await expect(create([...series.points].toReversed())).rejects.toMatchObject(
+      { code: "VALIDATION_ERROR" },
+    );
   });
 
-  it("replays addActionEvidence under the same request key with the same ids", async () => {
+  it("replays addActionEvidence on the same fact and conflicts on a different one", async () => {
+    const requestKey = "33333333-3333-4333-8333-333333333333";
+    const seriesInput = {
+      kind: "monthly" as const,
+      title: "Clicks",
+      unit: "clicks",
+      points: [{ label: "2026-01", value: 10 }],
+    };
     const input = {
       projectId: "project_1",
-      requestKey: "33333333-3333-4333-8333-333333333333",
+      requestKey,
       actionId: "action_1",
-      evidence: {
-        ...evidenceInput,
-        series: {
-          kind: "monthly" as const,
-          title: "Clicks",
-          unit: "clicks",
-          points: [{ label: "2026-01", value: 10 }],
-        },
-      },
+      evidence: { ...evidenceInput, series: seriesInput },
       actorType: "user" as const,
       actorId: "user_1",
     };
     repository.getAction.mockResolvedValue({ ...savedAction });
+    // What the first write left behind.
+    repository.listActionEvidence.mockResolvedValue([
+      {
+        id: requestKey,
+        kind: evidenceInput.kind,
+        statement: evidenceInput.statement,
+        sourceLabel: evidenceInput.sourceLabel,
+        sourceUrl: null,
+        observedOn: null,
+        position: 1,
+      },
+    ]);
+    repository.listEvidenceSeries.mockResolvedValue([
+      {
+        id: `${requestKey}:series`,
+        evidenceId: requestKey,
+        kind: "monthly",
+        title: seriesInput.title,
+        unit: seriesInput.unit,
+      },
+    ]);
+    repository.listEvidencePoints.mockResolvedValue([
+      {
+        seriesId: `${requestKey}:series`,
+        position: 1,
+        label: "2026-01",
+        groupLabel: null,
+        value: 10,
+      },
+    ]);
 
     await GrowthPlanService.addActionEvidence(input);
     await GrowthPlanService.addActionEvidence(input);
@@ -295,7 +301,16 @@ describe("GrowthPlanService.createPlanAction", () => {
     // point ids and the replay is a pure no-op.
     const [first, second] = repository.insertEvidence.mock.calls;
     expect(first?.[0]).toEqual(second?.[0]);
-    expect(first?.[0]).toMatchObject({ id: input.requestKey });
+    expect(first?.[0]).toMatchObject({ id: requestKey });
+
+    // The insert no-ops, so a changed fact under the same key must conflict
+    // rather than silently return the stored row.
+    await expect(
+      GrowthPlanService.addActionEvidence({
+        ...input,
+        evidence: { ...input.evidence, statement: "Something else entirely." },
+      }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
   });
 
   it("conflicts when the creation key already carries a different fact", async () => {
