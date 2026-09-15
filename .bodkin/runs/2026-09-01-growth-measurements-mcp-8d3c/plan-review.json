@@ -1,0 +1,13 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve the provider-aware chronological expression for SQLite/D1 cursor comparison and root ordering, with SQLite BINARY/PostgreSQL C ID ordering.",
+    "Preserve root-first pagination with only bounded Metric and Result bulk reads after emitted roots.",
+    "Preserve authorization-before-service, strict saved-data-only projection, lifecycle integrity checks, and explicit Action alignment drift."
+  ]
+}

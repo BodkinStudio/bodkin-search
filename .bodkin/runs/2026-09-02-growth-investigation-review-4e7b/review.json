@@ -1,0 +1,12 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve exact frozen retries for non-definitive review failures; only VALIDATION_ERROR unlocks correction.",
+    "Preserve server-side tenant qualification, server-derived state transitions, expected-version replay semantics and approval-versus-review atomicity."
+  ]
+}

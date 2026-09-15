@@ -1,0 +1,88 @@
+{
+  "runId": "2026-09-01-growth-action-detail-9c31",
+  "status": "pass",
+  "generatedAt": "2026-09-01T20:26:53Z",
+  "checks": [
+    {
+      "name": "Focused Action-detail and Measurement regressions",
+      "command": "pnpm exec vitest run src/types/schemas/growth-action-detail.test.ts src/server/features/growth/repositories/GrowthActionDetailRepository.query.test.ts src/server/features/growth/repositories/GrowthMeasurementsRepository.query.test.ts src/server/features/growth/services/GrowthActionDetailService.test.ts src/server/features/growth/services/GrowthMeasurementsService.test.ts src/server/mcp/tools/growth-action-detail-tool.test.ts src/server/mcp/server.growth.integration.test.ts src/server/features/sam/samChatGrowthTools.test.ts --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 3030,
+      "output": "8 test files passed; 62 tests passed. Coverage includes strict DTO bounds and vocabularies, privacy-before-truncation, canonical mixed SQLite timestamps, project-leading graph reads, Measurement overflow integrity, auth-first MCP handling, real in-process MCP protocol and SAM project binding."
+    },
+    {
+      "name": "Repair-scope schema and agent contract regressions",
+      "command": "pnpm exec vitest run src/types/schemas/growth-action-detail.test.ts src/server/features/growth/services/GrowthActionDetailService.test.ts src/server/mcp/tools/growth-action-detail-tool.test.ts src/server/mcp/server.growth.integration.test.ts src/server/features/sam/samChatGrowthTools.test.ts --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 3540,
+      "output": "5 files and 24 tests passed after discriminating URL and non-URL Measurement entity-key projections. Focused type-aware Oxlint and root TypeScript checks also passed."
+    },
+    {
+      "name": "Fresh PostgreSQL 16 migration",
+      "command": "POSTGRES_DATABASE_URL=<disposable local PostgreSQL 16 URL> pnpm db:migrate:pg",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 5200,
+      "output": "All migrations applied successfully on a new empty PostgreSQL 16 database after ordering the referenced Measurement Plan uniqueness before its composite foreign key. The disposable container and data were removed after verification."
+    },
+    {
+      "name": "Live PostgreSQL 16 repository parity",
+      "command": "TEST_POSTGRES_DATABASE_URL=<disposable local PostgreSQL 16 URL> pnpm exec vitest run src/server/features/growth/repositories/GrowthActionDetailRepository.postgres.test.ts src/server/features/growth/repositories/GrowthMeasurementsRepository.read.postgres.test.ts src/server/features/growth/repositories/GrowthMeasurementsRepository.postgres.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 3820,
+      "output": "3 files and 5 live PostgreSQL tests passed. Coverage includes project isolation, C ordering, per-parent Signal/URL windows, all Change sources, future cutoffs, 51/151/51 Measurement sentinels, exact lifecycle versions and existing Measurement write regressions."
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 55200,
+      "output": "Prettier, Knip, root and badseo TypeScript checks, type-aware Oxlint, plugin skill sync and generated-skill cleanliness passed with 0 warnings and 0 errors."
+    },
+    {
+      "name": "Full repository tests",
+      "command": "pnpm test",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 22250,
+      "output": "240 test files passed and 12 environment-gated PostgreSQL files skipped; 2,090 tests passed and 26 skipped. The new and adjacent PostgreSQL suites were executed separately above."
+    },
+    {
+      "name": "Production build",
+      "command": "pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 82300,
+      "output": "Client and SSR production bundles built and the trailing TypeScript check passed. Wrangler emitted its known non-fatal sandbox log-file EPERM diagnostic; the command exited 0."
+    },
+    {
+      "name": "Whitespace",
+      "command": "git diff --check && git diff --cached --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 100,
+      "output": "No unstaged or staged whitespace errors."
+    },
+    {
+      "name": "External HTTP and headless consumer probes",
+      "command": "Not run",
+      "required": false,
+      "status": "waived",
+      "exitCode": null,
+      "durationMs": 0,
+      "output": "Explicitly waived because the user prohibited browser, HTTP, CDP, Playwright and screenshot verification. The real MCP client/server protocol was exercised in process."
+    }
+  ]
+}

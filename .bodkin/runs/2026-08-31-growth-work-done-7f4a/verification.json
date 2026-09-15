@@ -1,0 +1,101 @@
+{
+  "runId": "2026-08-31-growth-work-done-7f4a",
+  "status": "blocked",
+  "checks": [
+    {
+      "name": "Focused Growth behavior",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "pnpm exec vitest run src/client/features/growth/GrowthWork.test.ts src/client/features/growth/GrowthWorkDelivery.test.ts src/client/features/growth/GrowthWorkSubmission.test.ts src/types/schemas/growth-actions.test.ts src/types/schemas/growth-work.test.ts src/server/features/growth/services/GrowthActionsLifecycleService.test.ts src/server/features/growth/services/GrowthMeasurementsService.test.ts src/server/features/growth/services/GrowthInvestigationsService.test.ts src/server/features/growth/repositories/GrowthReportsRepository.migration.test.ts src/server/features/growth/repositories/GrowthActionsRepository.queries.test.ts --maxWorkers=2 --reporter=dot",
+      "output": "9 files, 119 tests passed, 6.18s. The plural queries selector matched no file; actual query tests executed in the next check."
+    },
+    {
+      "name": "Final migration rollback and SQLite queries",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "pnpm exec vitest run src/server/features/growth/repositories/GrowthReportsRepository.migration.test.ts src/server/features/growth/repositories/GrowthActionsRepository.query.test.ts src/server/features/growth/repositories/GrowthMeasurementsRepository.query.test.ts --maxWorkers=2 --reporter=dot",
+      "output": "3 files, 10 tests passed, 2.33s. Includes final exact graph/schema preservation, failed-migration rollback, FK-on assertions, invalid edge/milestone/tenant rejection and null-start measurement states."
+    },
+    {
+      "name": "Real disposable D1 upgrade",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "pnpm exec vitest run --config .bodkin-ui/current/done-d1.vitest.config.ts --reporter=verbose",
+      "output": "1 preservation/rollback test passed, other report test deliberately filtered out. 4.43s. Reuses the product fixture through local Wrangler D1 prepare/batch adapter, persist:false, remoteBindings:false, envFiles:[], dummy database ID. Before/after rows and unchanged schema match exactly; backup tables absent; failed batch rolls back. Runtime disposed."
+    },
+    {
+      "name": "Postgres migrations",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "POSTGRES_DATABASE_URL=<task-only loopback database on 64632> pnpm db:migrate:pg",
+      "output": "Migrations applied successfully to root-created cached Postgres16 container bodkin-growth-done-pg-7f4a only. No remote database."
+    },
+    {
+      "name": "Executed Postgres lifecycle",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "TEST_POSTGRES_DATABASE_URL=<task-only loopback database on 64632> pnpm exec vitest run src/server/features/growth/repositories/GrowthActionsRepository.postgres.test.ts src/server/features/growth/repositories/GrowthInvestigationsRepository.postgres.test.ts src/server/features/growth/repositories/GrowthMeasurementsRepository.postgres.test.ts --maxWorkers=1 --reporter=dot",
+      "output": "2 files, 5 tests passed, 11.93s. Action direct completion from approved and ready preserves null start, one version/event and replay; measurement repository suite executes. Nonexistent investigations selector matched no file, no such coverage claimed."
+    },
+    {
+      "name": "UI source detector",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "node /Users/jamesward/.codex/plugins/cache/bodkin-tools/bodkin-ui/0.1.0/skills/impeccable/scripts/detect.mjs src/client/features/growth/GrowthWorkStatusForm.tsx src/client/features/growth/GrowthWorkDelivery.tsx --json",
+      "output": "[]; source-only analysis, not rendered visual evidence."
+    },
+    {
+      "name": "Repository CI",
+      "status": "pass",
+      "command": "pnpm ci:check",
+      "output": "User-authorized one-line typeof string guard applied. Full pnpm ci:check completed exit0: formatting, Knip, application and badseo TypeScript, type-aware lint (0 warnings/0 errors,15.9s), skill sync and clean generated-skill check all passed. Earlier failed attempts retained in repair artifacts.",
+      "exitCode": 0
+    },
+    {
+      "name": "Production client + SSR + types",
+      "status": "pass",
+      "command": "pnpm build",
+      "output": "pnpm build completed exit 0, recorded by bundled UI preflight. Client 3692 modules in 11.09s, SSR 7634 modules in 3m49s, then tsc --noEmit passed. Existing large-chunk warning and nonfatal sandbox-denied Wrangler log write; no code failure.",
+      "exitCode": 0
+    },
+    {
+      "name": "Whitespace",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "git diff --check",
+      "output": "No whitespace errors."
+    },
+    {
+      "name": "UI rendered acceptance",
+      "status": "blocked",
+      "output": "Fresh desktop/narrow screenshots and independent visual review unavailable under prior browser URL-policy denial. No indirect browser/HTTP/CDP/Playwright workaround attempted; old screenshots not reused. User-provided fresh screenshots can fill this gap."
+    },
+    {
+      "name": "Final lint-repair migration test",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "pnpm exec vitest run src/server/features/growth/repositories/GrowthReportsRepository.migration.test.ts --maxWorkers=1 --reporter=dot",
+      "output": "2 tests passed, 2.66s, after equivalent schema predicate refactor. SQL and runtime code unchanged."
+    },
+    {
+      "name": "Existing disposable preview migration and restart",
+      "status": "pass",
+      "exitCode": 0,
+      "output": "Wrangler local migration 0050 applied. All Growth rows hashed identically before/after: 24 tables, 25 rows, SHA256 4f8eae5244c1580474a713d93468acd6b3ee72d9b3aed6ad04cfd77a7b22b982; FK violations 0. Credential-free local_noauth preview restarted on 127.0.0.1:3218; Vite ready in12.143s. Startup confirmed, not rendered-page validation."
+    },
+    {
+      "name": "Authorized one-line correction",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "pnpm exec oxlint src/server/features/growth/repositories/GrowthReportsRepository.migration.test.ts --type-aware && pnpm exec vitest run src/server/features/growth/repositories/GrowthReportsRepository.migration.test.ts --maxWorkers=1 --reporter=dot",
+      "output": "Lint0warnings/errors,2.1s. Both migration tests passed,336ms. No runtime or migration SQL changed."
+    }
+  ],
+  "notes": [
+    "Initial in-memory libSQL fixture failure was diagnosed to transaction() detaching the connection; replaced with atomic client.batch on same connection (see repair-1.md).",
+    "Only schema graph/checks and three Work UI files change runtime behavior. Existing writer/service/auth/CAS code untouched.",
+    "Counts overlap: migration suite in both focused runs. 127 distinct focused unit/query/migration tests, five executed Postgres cases, one repeated-on-real-D1 preservation case.",
+    "Task-only Postgres container and synthetic volume removed after checks. No commit or push in this turn; awaiting authorized final lint correction and separate visual evidence.",
+    "2026-08-31 follow-up: user authorized final test-only guard and continuing roadmap. CI now passes. Rendered evidence remains the only acceptance gap; existing repair cap/history retained."
+  ]
+}

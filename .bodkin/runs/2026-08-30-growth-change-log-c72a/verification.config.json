@@ -1,0 +1,14 @@
+{
+  "checks": [
+    {
+      "name": "Growth change lifecycle and UI regressions",
+      "command": "pnpm exec vitest run GrowthChange growth-change growthChangeLog GrowthPreview GrowthPriorityPageChecks --maxWorkers=1 --reporter=dot",
+      "required": true
+    },
+    {
+      "name": "Consuming-app checks and rendered-evidence preflight",
+      "command": "node /Users/jamesward/.codex/plugins/cache/bodkin-tools/bodkin-ui/0.1.0/scripts/ui-preflight.mjs .bodkin/runs/2026-08-30-growth-change-log-c72a/ui-preflight.config.json",
+      "required": true
+    }
+  ]
+}

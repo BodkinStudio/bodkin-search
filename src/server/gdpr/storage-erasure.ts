@@ -24,6 +24,17 @@ type GoogleRevocationResult = {
   status: "revoked" | "token_unavailable";
 };
 
+export type GdprStorageErasureEnv = {
+  GDPR_ERASURE_SECRET?: string;
+  SITE_AUDIT_WORKFLOW: Pick<Workflow, "get">;
+  RANK_CHECK_WORKFLOW: Pick<Workflow, "get">;
+  SAM_CHAT: unknown;
+  ONBOARDING_CHAT: unknown;
+  KV: Pick<KVNamespace, "delete">;
+  R2: Pick<R2Bucket, "list" | "delete">;
+  OAUTH_KV: Pick<KVNamespace, "list" | "delete">;
+};
+
 function timingSafeEqual(left: string, right: string): boolean {
   const leftBytes = new TextEncoder().encode(left);
   const rightBytes = new TextEncoder().encode(right);
@@ -55,7 +66,10 @@ async function authenticateRequest(
   return timingSafeEqual(signature, expected);
 }
 
-async function terminateWorkflows(workflow: Workflow, ids: string[]) {
+async function terminateWorkflows(
+  workflow: Pick<Workflow, "get">,
+  ids: string[],
+) {
   let terminated = 0;
   for (const id of ids) {
     // get() throws for an unknown id; terminate() throws once the instance
@@ -72,7 +86,10 @@ async function terminateWorkflows(workflow: Workflow, ids: string[]) {
   return terminated;
 }
 
-async function deleteKvPrefix(namespace: KVNamespace, prefix: string) {
+async function deleteKvPrefix(
+  namespace: Pick<KVNamespace, "list" | "delete">,
+  prefix: string,
+) {
   let cursor: string | undefined;
   let deleted = 0;
   do {
@@ -86,7 +103,10 @@ async function deleteKvPrefix(namespace: KVNamespace, prefix: string) {
   return deleted;
 }
 
-async function deleteOauthGrants(namespace: KVNamespace, userId: string) {
+async function deleteOauthGrants(
+  namespace: Pick<KVNamespace, "list" | "delete">,
+  userId: string,
+) {
   const grantPrefix = `grant:${userId}:`;
   let cursor: string | undefined;
   let deletedGrants = 0;
@@ -108,7 +128,7 @@ async function deleteOauthGrants(namespace: KVNamespace, userId: string) {
 }
 
 async function deleteOrganizationPromptCaches(
-  bucket: R2Bucket,
+  bucket: Pick<R2Bucket, "list" | "delete">,
   organizationIds: string[],
 ) {
   const targets = new Set(organizationIds);
@@ -169,7 +189,10 @@ async function revokeGoogleAccount(
   return { ...account, status: "revoked" };
 }
 
-async function eraseStorage(env: Env, payload: GdprStorageErasurePayload) {
+async function eraseStorage(
+  env: GdprStorageErasureEnv,
+  payload: GdprStorageErasurePayload,
+) {
   // Stop live workflows first so a running crawl can't rewrite a scratchpad
   // after it is wiped.
   const auditWorkflowsTerminated = await terminateWorkflows(
@@ -190,13 +213,13 @@ async function eraseStorage(env: Env, payload: GdprStorageErasurePayload) {
   // the classes); narrow here so the erasure RPCs are typed.
   const samChat =
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the binding is declared as this class in wrangler.jsonc
-    env.SAM_CHAT as unknown as DurableObjectNamespace<SamChatAgent>;
+    env.SAM_CHAT as DurableObjectNamespace<SamChatAgent>;
   for (const sessionId of payload.samSessionIds) {
     await samChat.get(samChat.idFromName(sessionId)).destroyForErasure();
   }
   const onboardingChat =
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the binding is declared as this class in wrangler.jsonc
-    env.ONBOARDING_CHAT as unknown as DurableObjectNamespace<OnboardingChatAgent>;
+    env.ONBOARDING_CHAT as DurableObjectNamespace<OnboardingChatAgent>;
   for (const projectId of payload.projectIds) {
     await onboardingChat
       .get(onboardingChat.idFromName(projectId))
@@ -243,7 +266,7 @@ async function eraseStorage(env: Env, payload: GdprStorageErasurePayload) {
 
 export async function handleGdprStorageErasure(
   request: Request,
-  env: Env,
+  env: GdprStorageErasureEnv,
 ): Promise<Response> {
   const secret = env.GDPR_ERASURE_SECRET?.trim();
   if (!secret) return new Response("Not found", { status: 404 });

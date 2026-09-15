@@ -1,0 +1,72 @@
+{
+  "runId": "2026-09-02-growth-investigation-review-4e7b",
+  "status": "pass",
+  "generatedAt": "2026-09-02T00:54:11Z",
+  "checks": [
+    {
+      "name": "Focused investigation review regressions",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run <8 schema, service, server-function, static-render, submission and existing review/query files> --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "8 files and 66 tests passed after repair. Coverage includes strict decisions and safe projection, tenant qualification, all three review mappings, future snooze conversion, exact retry, semantic native controls, duplicate dispatch blocking, definitive validation recovery and unchanged approval behavior."
+    },
+    {
+      "name": "Live PostgreSQL review and approval concurrency",
+      "command": "POSTGRES_DATABASE_URL=<task-scoped disposable PostgreSQL 16 URL> pnpm db:migrate:pg; TEST_POSTGRES_DATABASE_URL=<same URL> NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run src/server/features/growth/repositories/GrowthApprovalRepository.postgres.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "All migrations applied and 7/7 live tests passed. The first run found that the fixture omitted the required Recommendation step; after completing the seeded graph, approval versus dismissal and snooze each produced exactly one winner, and Review now created no Action. The disposable container was removed after verification."
+    },
+    {
+      "name": "TypeScript and targeted type-aware lint",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm types:check; NODE_OPTIONS=--max-old-space-size=4096 pnpm exec oxlint --type-aware <15 changed TypeScript files>",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "TypeScript passed. Targeted Oxlint passed with zero warnings and errors after removing one unused test import."
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "Prettier, Knip, root and badseo TypeScript, type-aware Oxlint across 1,106 files, plugin skill synchronization and generated-skill cleanliness passed with zero warnings and errors."
+    },
+    {
+      "name": "Full repository tests",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run --reporter=dot --maxWorkers=1",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 84320,
+      "output": "262 test files and 2,186 tests passed with one worker; 15 environment-gated files and 31 tests skipped."
+    },
+    {
+      "name": "Production build",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "Client and SSR/Worker production bundles plus the trailing TypeScript check passed. Existing large-chunk warnings remained. Wrangler emitted a non-fatal sandbox-only log-file EPERM diagnostic; repository papercut rules exclude environment permission errors."
+    },
+    {
+      "name": "UI semantic contract",
+      "command": "Focused static-render and submission tests; .bodkin-ui/current/run.json classification",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "The local non-material PATCH preserves the existing card/native-form composition. Static and dispatch tests cover labels, required fields, UTC minimum, pending locks, statuses, exact retry and validation recovery. Browser, screenshot, responsive and visual-quality claims are intentionally excluded by the current session constraint."
+    },
+    {
+      "name": "Whitespace",
+      "command": "git diff --check && git diff --cached --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "No unstaged or staged whitespace errors."
+    }
+  ]
+}

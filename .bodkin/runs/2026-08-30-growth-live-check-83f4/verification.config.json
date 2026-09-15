@@ -1,0 +1,24 @@
+{
+  "checks": [
+    {
+      "name": "Targeted Growth workflow and evidence regressions",
+      "command": "pnpm exec vitest run GrowthPriorityPageCheck growth-checks growthChecks GrowthPreview GrowthRuns PriorityPageClickDecline GrowthSearchPerformance GrowthEvidencePacket --maxWorkers=1 --reporter=dot",
+      "required": true
+    },
+    {
+      "name": "Repository checks",
+      "command": "pnpm ci:check",
+      "required": true
+    },
+    {
+      "name": "Production build",
+      "command": "WRANGLER_LOG_PATH=/private/tmp/bodkin-growth-build-83f4.log pnpm build",
+      "required": true
+    },
+    {
+      "name": "Whitespace",
+      "command": "git diff --check",
+      "required": true
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "system_drift": [],
+  "do_not_change": [
+    "Preserve the visible role=status focus target and neutral refresh copy in src/client/features/growth/GrowthMonthlyReport.tsx.",
+    "Preserve the article/section/list/dl hierarchy in src/client/features/growth/GrowthReportView.tsx and first-after-header placement in src/client/features/growth/GrowthPreviewPage.tsx.",
+    "Evidence limitation: this verdict covers static source inspection and 21 passing render/interaction tests only; browser and screenshot evidence was explicitly prohibited and was not used."
+  ]
+}

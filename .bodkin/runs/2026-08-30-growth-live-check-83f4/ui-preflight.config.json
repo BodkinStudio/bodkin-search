@@ -1,0 +1,8 @@
+{
+  "commands": {
+    "Growth workflow and existing evidence regressions": "pnpm exec vitest run GrowthPriorityPageCheck growth-checks growthChecks GrowthPreview GrowthRuns PriorityPageClickDecline GrowthSearchPerformance GrowthEvidencePacket --maxWorkers=1 --reporter=dot",
+    "repository checks": "pnpm ci:check",
+    "production build": "pnpm build",
+    "whitespace": "git diff --check"
+  }
+}

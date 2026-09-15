@@ -1,0 +1,24 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "Postgres ordering evidence was conditional despite provider-specific collation logic.",
+      "location": ".bodkin/runs/2026-09-01-growth-actions-mcp-5a7c/plan.md — Verification",
+      "evidence": "The initial plan allowed acceptance without executing the Postgres cursor and COLLATE C path.",
+      "impact": "SQLite-only evidence could not establish the cross-dialect keyset correctness claim.",
+      "recommendation": "Require a disposable Postgres fixture before acceptance."
+    },
+    {
+      "summary": "Implementation verification must be persisted before final review.",
+      "location": ".bodkin/runs/2026-09-01-growth-actions-mcp-5a7c/verification.json",
+      "evidence": "No verification record exists at the planning stage.",
+      "impact": "Final evidence-based acceptance will require exact commands and outcomes.",
+      "recommendation": "Create verification.json after implementation and before implementation review."
+    }
+  ],
+  "plan_gaps": [],
+  "resolution": "Accepted before implementation. Live Postgres 16 is now mandatory, and the plan explicitly requires verification.json before implementation review."
+}

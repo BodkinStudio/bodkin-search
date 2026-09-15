@@ -1,0 +1,29 @@
+{
+  "checks": [
+    {
+      "name": "Focused human measurement finalization",
+      "command": "pnpm vitest run src/types/schemas/growth-work.test.ts src/server/features/growth/services/GrowthMeasurementReview.test.ts src/server/features/growth/services/GrowthMeasurementsService.test.ts src/server/features/growth/services/GrowthWorkMeasurementProjection.test.ts src/server/features/growth/services/GrowthWorkMeasurementService.test.ts src/serverFunctions/growthWork.test.ts src/client/features/growth/GrowthWorkMeasurementFinalizationForm.test.ts src/client/features/growth/GrowthWorkMeasurementFinalizationRender.test.ts src/client/features/growth/GrowthWorkMeasurementFinalization.test.ts src/client/features/growth/GrowthWorkMeasurementCollection.test.ts src/client/features/growth/GrowthWorkMeasurementSubmission.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "pnpm ci:check",
+      "required": true
+    },
+    {
+      "name": "Full repository tests",
+      "command": "pnpm test:ci",
+      "required": true
+    },
+    {
+      "name": "Production build",
+      "command": "pnpm build",
+      "required": true
+    },
+    {
+      "name": "Whitespace",
+      "command": "git diff --check",
+      "required": true
+    }
+  ]
+}

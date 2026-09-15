@@ -34,6 +34,15 @@ import {
   getGoogleAnalyticsTrafficAcquisitionTool,
   getSearchOpportunitiesTool,
 } from "@/server/mcp/tools/google-analytics-tools";
+import {
+  getYouTubeChannelOverviewTool,
+  getYouTubeTrafficSourcesTool,
+  getYouTubeVideoPerformanceTool,
+} from "@/server/mcp/tools/youtube-analytics-tools";
+import {
+  getLinkedInPageOverviewTool,
+  getLinkedInPostPerformanceTool,
+} from "@/server/mcp/tools/linkedin-page-content-tools";
 import { createProjectTool } from "@/server/mcp/tools/create-project";
 import { listProjectsTool } from "@/server/mcp/tools/list-projects";
 import {
@@ -68,6 +77,28 @@ import {
   getAuditStatusTool,
   runSiteAuditTool,
 } from "@/server/mcp/tools/site-audit-tools";
+import { growthGetActionsTool } from "@/server/mcp/tools/growth-action-tools";
+import { growthGetPriorityRecommendationsTool } from "@/server/mcp/tools/growth-priority-recommendations-tool";
+import { growthGetRecentChangesTool } from "@/server/mcp/tools/growth-recent-changes-tool";
+import { growthRecordChangeTool } from "@/server/mcp/tools/growth-record-change-tool";
+import { growthGetPlanTool } from "@/server/mcp/tools/growth-plan-tool";
+import {
+  growthAddActionEvidenceTool,
+  growthCreateActionTool,
+  growthCreateWorkstreamTool,
+  growthUpdatePlanNarrativeTool,
+  growthUpdateWorkstreamTool,
+} from "@/server/mcp/tools/growth-plan-write-tools";
+import {
+  GROWTH_CHANGE_CREATE_SCOPE,
+  GROWTH_PLAN_WRITE_SCOPE,
+} from "@/lib/oauth-resource";
+import { hasMcpOperationScope } from "@/server/mcp/operation-auth";
+import { growthGetMeasurementsTool } from "@/server/mcp/tools/growth-measurements-tool";
+import { growthGetActionTool } from "@/server/mcp/tools/growth-action-detail-tool";
+import { growthGetProjectSummaryTool } from "@/server/mcp/tools/growth-project-summary-tool";
+import { growthGetPageContextTool } from "@/server/mcp/tools/growth-page-context-tool";
+import { growthGetMonthlySummaryTool } from "@/server/mcp/tools/growth-tools";
 import { whoamiTool } from "@/server/mcp/tools/whoami";
 
 type ToolSchema = z.ZodType | z.ZodRawShape;
@@ -194,10 +225,33 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
   register(getGoogleAnalyticsEcommercePerformanceTool);
   register(getGoogleAnalyticsSiteSearchTool);
   register(getGoogleAnalyticsAudienceBreakdownTool);
+  register(getYouTubeChannelOverviewTool);
+  register(getYouTubeVideoPerformanceTool);
+  register(getYouTubeTrafficSourcesTool);
+  register(getLinkedInPageOverviewTool);
+  register(getLinkedInPostPerformanceTool);
   register(runSiteAuditTool);
   register(getAuditStatusTool);
   register(getAuditIssuesTool);
   register(getAuditPagesTool);
+  register(growthGetProjectSummaryTool);
+  register(growthGetPageContextTool);
+  register(growthGetActionsTool);
+  register(growthGetPriorityRecommendationsTool);
+  register(growthGetRecentChangesTool);
+  if (hasMcpOperationScope(authProps, GROWTH_CHANGE_CREATE_SCOPE))
+    register(growthRecordChangeTool);
+  register(growthGetPlanTool);
+  if (hasMcpOperationScope(authProps, GROWTH_PLAN_WRITE_SCOPE)) {
+    register(growthCreateWorkstreamTool);
+    register(growthUpdateWorkstreamTool);
+    register(growthCreateActionTool);
+    register(growthAddActionEvidenceTool);
+    register(growthUpdatePlanNarrativeTool);
+  }
+  register(growthGetMeasurementsTool);
+  register(growthGetActionTool);
+  register(growthGetMonthlySummaryTool);
 
   return server;
 }

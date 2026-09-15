@@ -1,0 +1,12 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "system_drift": [],
+  "do_not_change": [
+    "Preserve the native Record a change disclosure, blue Save change action, and separator-based history.",
+    "Keep Changed and Manually recorded dates distinct, with UTC labels and the explicit non-causal/manual-history wording.",
+    "Preserve the darker inline required-field error text shown in the repaired narrow captures."
+  ]
+}

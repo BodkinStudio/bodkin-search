@@ -27,6 +27,10 @@ Have a feature request that belongs here? [Tell us on Discord](https://discord.g
 
 - Prompt tracking for AI search visibility
 - Google Business Profile integration
+- YouTube Analytics integration
+  - Channel and video performance in OpenSEO and through MCP.
+- LinkedIn Page analytics
+  - Timing depends on LinkedIn API approval.
 - Google Maps geo-grid rank tracking
 - Support multi-user for Docker self hosting
   - Guides for popular platforms like Coolify and Railway.

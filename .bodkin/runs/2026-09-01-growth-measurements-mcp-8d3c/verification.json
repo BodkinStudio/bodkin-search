@@ -1,0 +1,61 @@
+{
+  "runId": "2026-09-01-growth-measurements-mcp-8d3c",
+  "status": "pass",
+  "generatedAt": "2026-09-01T23:09:20Z",
+  "checks": [
+    {
+      "name": "Focused Measurement-list contract and agent regressions",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run <7 Measurement-list, MCP and SAM files> --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 6610,
+      "output": "7 files and 28 tests passed. Coverage includes strict schemas, offset-cursor canonicalization, SQLite/D1 keyset paging, root-first child selection, Metric and Result integrity, lifecycle drift, privacy projection, authorization-first handling, real in-process MCP registration and bound-SAM project injection."
+    },
+    {
+      "name": "Live PostgreSQL repository parity",
+      "command": "TEST_POSTGRES_DATABASE_URL=<existing disposable local PostgreSQL URL> pnpm exec vitest run src/server/features/growth/repositories/GrowthMeasurementsReadRepository.postgres.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 1080,
+      "output": "1 live PostgreSQL fixture passed against the existing disposable PostgreSQL 16 container. It covers C-collated creation-time/ID continuation, status-before-limit, project-qualified Action roots, foreign-project exclusion, per-parent 51-Metric bounds and non-empty project-leading Result reads."
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 52200,
+      "output": "Prettier, Knip, root and badseo TypeScript, type-aware Oxlint across 1,093 files, plugin skill synchronization and generated-skill cleanliness passed with zero warnings and zero errors. The first attempt found one unnecessary exported cursor schema; repair round 1 made it module-private and the complete gate passed."
+    },
+    {
+      "name": "Full repository tests",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 79090,
+      "output": "255 test files and 2,143 tests passed with one worker; 15 environment-gated files and 29 tests skipped. The new PostgreSQL fixture ran separately above."
+    },
+    {
+      "name": "Production build",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 45000,
+      "output": "Client and SSR/Worker production bundles plus the trailing TypeScript check passed. Existing large-chunk warnings remained. Wrangler emitted a non-fatal sandbox-only log-file EPERM diagnostic; repository papercut rules exclude environment permission errors."
+    },
+    {
+      "name": "Whitespace",
+      "command": "git diff --check && git diff --cached --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 200,
+      "output": "No unstaged or staged whitespace errors."
+    }
+  ]
+}

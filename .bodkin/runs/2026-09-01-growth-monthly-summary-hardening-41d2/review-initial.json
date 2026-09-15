@@ -1,0 +1,29 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "The required contention proof is not an end-to-end concurrent monthly-build test.",
+      "location": ".bodkin/runs/2026-09-01-growth-monthly-summary-8b4c/acceptance.md; src/server/features/growth/services/GrowthMonthlyReportsService.test.ts; .bodkin/runs/2026-09-01-growth-monthly-summary-hardening-41d2/verification.json",
+      "evidence": "The service-level coverage used repository and writer seams instead of independently racing real coordinator calls through immutable persistence.",
+      "impact": "A coordinator contention-recovery regression could pass despite first-writer-wins being the central immutability guarantee.",
+      "recommendation": "Race two monthly coordinator builds with different bounded snapshots through real persistence and assert both receive the exact stored winner."
+    },
+    {
+      "summary": "Postgres compatibility of the new source-query collation and predicates remains unexecuted in this verification environment.",
+      "location": "src/server/features/growth/repositories/GrowthMonthlyReportsRepository.ts; src/server/features/growth/repositories/GrowthReportsRepository.postgres.test.ts; .bodkin/runs/2026-09-01-growth-monthly-summary-hardening-41d2/verification.json",
+      "evidence": "The concrete conditional fixture existed, but TEST_POSTGRES_DATABASE_URL was unavailable and the fixture was skipped.",
+      "impact": "SQLite/D1 execution could not establish Postgres execution semantics for the new query expressions.",
+      "recommendation": "Run the Postgres fixture against a disposable database and retain the result."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve the explicit-build-only UI: reads and refreshes must remain write-free.",
+    "Preserve server-owned authority, cutoff, report version, frozen snapshot content and exact-coordinate rollover recovery.",
+    "Preserve the accepted independent-subset relationship between Performance and Results from earlier work.",
+    "Preserve the safe allowlisted DTO and the URL/narrative sanitisation boundary."
+  ]
+}

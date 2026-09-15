@@ -1,0 +1,31 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Keep the app-only review source limited to the controller Signal ID.",
+      "location": "src/types/schemas/growth-opportunities.ts; src/server/features/growth/services/GrowthOpportunitiesService.ts",
+      "evidence": "The strict wrapper permits only reviewSource.signalId; composition maps only that field, and schema coverage rejects runId and relationship.",
+      "impact": "Preserves ADR-045/047's browser and MCP boundary for Run coordinates and graph relationships.",
+      "recommendation": "Do not expose Run IDs, graph rows, relationship fields or raw evidence through the Opportunities DTO."
+    },
+    {
+      "summary": "Preserve project-leading, read-only controller qualification.",
+      "location": "src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.ts; src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.sources.postgres.test.ts",
+      "evidence": "The query filters authorized project, emitted Recommendation IDs, controller relationship and null release timestamp. The live test uses withPgClient and valid project-cascade cleanup.",
+      "impact": "Prevents foreign, suppressed and released links from granting review access.",
+      "recommendation": "Retain this bounded lookup and do not add read-time source inference, adoption or writes."
+    },
+    {
+      "summary": "Keep Opportunities on the existing priority-Recommendation query-key prefix and invalidate it after investigation decisions.",
+      "location": "src/client/features/growth/GrowthOpportunities.tsx; src/client/features/growth/GrowthInvestigation.tsx",
+      "evidence": "The inbox query uses the shared project prefix; approval and review invalidate it, while approval also invalidates Work and project summary.",
+      "impact": "Maintains membership consistency after approval, dismissal, snooze and Review now.",
+      "recommendation": "Do not change the shared key or remove the related invalidations."
+    }
+  ]
+}

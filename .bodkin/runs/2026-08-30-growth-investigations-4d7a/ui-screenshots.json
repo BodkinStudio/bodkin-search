@@ -1,0 +1,29 @@
+{
+  "screenshots": [
+    {
+      "path": ".bodkin-ui/current/investigation-proposal-desktop.png",
+      "label": "Saved rule-based investigation: observed decline, unknown cause, persisted target and ordered steps; desktop upper portion",
+      "viewport": "1280x720"
+    },
+    {
+      "path": ".bodkin-ui/current/investigation-desktop.png",
+      "label": "Desktop approval form lower portion: explicit due date, planned-work explanation and existing-work link before approval",
+      "viewport": "1280x720"
+    },
+    {
+      "path": ".bodkin-ui/current/investigation-validation-narrow.png",
+      "label": "Native due-date validation at 390px: inline required-date error, focused approval control and stacked content",
+      "viewport": "390x640 app iframe inside a 1280x720 temporary QA wrapper"
+    },
+    {
+      "path": ".bodkin-ui/current/investigation-work-desktop.png",
+      "label": "Real saved work after UI approval: Approved status, 4 September UTC due date and source-check link; existing Change log preserved below",
+      "viewport": "1280x720"
+    },
+    {
+      "path": ".bodkin-ui/current/investigation-work-narrow.png",
+      "label": "The same saved work after a fresh document load at 390px, without response overrides or automatic resubmission",
+      "viewport": "390x640 app iframe inside a 1280x720 temporary QA wrapper"
+    }
+  ]
+}

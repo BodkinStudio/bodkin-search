@@ -1,0 +1,19 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [
+    {
+      "summary": "The keyset plan does not require normalizing SQLite createdAt in SQL before ordering and comparing the canonical cursor.",
+      "location": ".bodkin/runs/2026-09-01-growth-measurements-mcp-8d3c/plan.md; .bodkin/runs/2026-09-01-growth-measurements-mcp-8d3c/acceptance.md",
+      "evidence": "SQLite Measurement Plan defaults use current_timestamp, producing YYYY-MM-DD HH:mm:ss, while the proposed cursor is canonicalized to ISO UTC. Comparing the raw SQLite value to that cursor makes an equal instant sort as earlier because the space sorts before T, so a continuation can repeat rows or break tied-ID pagination. The established GrowthPriorityRecommendationsRepository prevents this with a provider-aware chronological expression used in both order and cursor predicates.",
+      "impact": "The core continuation contract is not implementable correctly and consistently across SQLite/D1 and PostgreSQL as originally specified.",
+      "recommendation": "Require one provider-aware chronological Plan-createdAt SQL expression, used identically in root SELECT ordering and every cursor predicate; preserve raw stored createdAt only for later output normalization. Add D1 and PostgreSQL tests using default storage timestamps, non-UTC equivalent cursor input, equal creation times with binary-distinct IDs, and assertions that pages neither repeat nor skip rows."
+    }
+  ],
+  "do_not_change": [
+    "Preserve the saved-data-only, root-first two-child-read design; authorization before service invocation; explicit Action aligned or inconsistent state; strict Plan/Result lifecycle checks; per-plan 51-Metric sentinel with the 1-50 and primary-Metric integrity checks; and safe Action-title/Result-summary projection."
+  ]
+}

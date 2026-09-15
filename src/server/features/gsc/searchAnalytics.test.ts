@@ -110,6 +110,14 @@ describe("buildSearchAnalyticsRequest", () => {
     expect(request.rowLimit).toBe(1000);
   });
 
+  it("treats explicit empty dimensions as the ungrouped aggregate", () => {
+    const request = buildSearchAnalyticsRequest(
+      { projectId: "p1", dimensions: [] },
+      TODAY,
+    );
+    expect(request.dimensions).toBeUndefined();
+  });
+
   it("clamps rowLimit to the 1000 ceiling", () => {
     expect(
       buildSearchAnalyticsRequest({ projectId: "p1", rowLimit: 99999 }, TODAY)

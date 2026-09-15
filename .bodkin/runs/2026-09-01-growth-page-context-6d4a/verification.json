@@ -1,0 +1,70 @@
+{
+  "runId": "2026-09-01-growth-page-context-6d4a",
+  "status": "pass",
+  "generatedAt": "2026-09-01T19:26:10Z",
+  "checks": [
+    {
+      "name": "Focused page-context and adjacent agent regressions",
+      "command": "pnpm exec vitest run src/types/schemas/growth-page-context.test.ts src/server/features/gsc/searchAnalytics.test.ts src/server/features/growth/repositories/GrowthPageContextRepository.query.test.ts src/server/features/growth/services/GrowthPageContextService.test.ts src/server/mcp/tools/growth-page-context-tool.test.ts src/server/mcp/server.growth.integration.test.ts src/server/features/sam/samChatGrowthTools.test.ts src/server/mcp/tools/growth-action-tools.test.ts src/server/mcp/tools/growth-project-summary-tool.test.ts src/server/mcp/tools/growth-tools.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 3700,
+      "output": "10 test files passed; 92 tests passed. This includes strict DTO, URL/privacy/provider boundaries, mixed-format SQLite rank selection, real in-memory MCP protocol, SAM project binding and existing Growth project-summary, Action and monthly-summary regressions."
+    },
+    {
+      "name": "Live PostgreSQL 16 repository parity",
+      "command": "TEST_POSTGRES_DATABASE_URL=<local PostgreSQL 16 test container URL> pnpm exec vitest run src/server/features/growth/repositories/GrowthPageContextRepository.postgres.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 1410,
+      "output": "1 live PostgreSQL repository test passed. The URL was derived without printing its password. Coverage includes every new page-leading read, project isolation, cutoffs, current lifecycle semantics, deterministic C ordering, rank winner-before-URL selection and caps."
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 59000,
+      "output": "Prettier, Knip, root and badseo TypeScript checks, type-aware Oxlint, plugin skill sync and generated-skill cleanliness passed with 0 warnings and 0 errors."
+    },
+    {
+      "name": "Full repository tests",
+      "command": "pnpm test",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 22290,
+      "output": "236 test files passed and 10 environment-gated PostgreSQL files skipped; 2,071 tests passed and 24 skipped. The new PostgreSQL suite was executed separately above."
+    },
+    {
+      "name": "Production build",
+      "command": "pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 99000,
+      "output": "Client and SSR production bundles built and the trailing TypeScript check passed. Wrangler emitted a non-fatal sandbox log-file EPERM diagnostic; the command exited 0."
+    },
+    {
+      "name": "Whitespace",
+      "command": "git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 100,
+      "output": "No whitespace errors."
+    },
+    {
+      "name": "External HTTP and headless consumer probes",
+      "command": "Not run",
+      "required": false,
+      "status": "waived",
+      "exitCode": null,
+      "durationMs": 0,
+      "output": "Explicitly waived because the user prohibited browser, HTTP, CDP, Playwright and screenshot verification. The real MCP client/server protocol was exercised in process."
+    }
+  ]
+}

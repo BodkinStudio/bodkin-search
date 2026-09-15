@@ -1,0 +1,14 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "system_drift": [],
+  "do_not_change": [
+    "Preserve timestamped run identity and persistent selection while focus moves into evidence.",
+    "Keep baseline and current counts paired with their respective date windows, distinct from capture time and current project context.",
+    "Preserve the readable incomplete-result warning and explicit no-all-clear and unknown-completion caveats.",
+    "Keep Run check explicit, disabled during submission or missing setup, with inline recovery and a separate secondary synthetic sample.",
+    "Retain the incumbent OpenSEO shell, theme, and narrow-screen stacking."
+  ]
+}

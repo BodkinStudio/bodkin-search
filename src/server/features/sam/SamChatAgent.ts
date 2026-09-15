@@ -362,7 +362,9 @@ export class SamChatAgent extends Think {
   // The return value becomes the stored chat-terminal body that reconnecting
   // clients replay — returning nothing would make it the string "undefined".
   onChatError(error: unknown, ctx?: ChatErrorContext): unknown {
-    console.error("[sam] chat turn error", ctx?.stage, error);
+    console.error("[sam] chat turn error", ctx?.stage, {
+      message: error instanceof Error ? error.message : "Unknown chat error",
+    });
     return error;
   }
 

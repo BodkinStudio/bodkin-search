@@ -8,6 +8,7 @@ import {
   WebStandardStreamableHTTPServerTransport,
 } from "@modelcontextprotocol/server";
 import { getHostedBaseUrl } from "@/lib/auth";
+import { MCP_OAUTH_SUPPORTED_SCOPES } from "@/lib/oauth-resource";
 import { MCP_SCOPE } from "@/lib/oauth-resource";
 import { resolveCloudflareAccessContext } from "@/middleware/ensure-user/cloudflareAccess";
 import { resolveLocalNoAuthContext } from "@/middleware/ensure-user/delegated";
@@ -196,6 +197,14 @@ export async function handleSelfHostedOpenSeoMcpRequest(
     userEmail: identity.userEmail,
     organizationId: identity.organizationId,
     baseUrl: getPublicOrigin(request),
+    // Per-operation consent is a hosted-OAuth concept: it exists so a user can
+    // grant a third-party MCP client less than their full account. A
+    // self-hosted instance has no such client — the operator reaching this
+    // endpoint owns the deployment and is already authenticated by Cloudflare
+    // Access (or is the local developer) — so withholding write scopes here
+    // would hide the write tools from the only person entitled to them.
+    scopes: [...MCP_OAUTH_SUPPORTED_SCOPES],
+    clientId: "selfhost",
   });
 
   return createRequestHandler(props)(request, env, ctx);

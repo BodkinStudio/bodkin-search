@@ -1,0 +1,63 @@
+{
+  "runId": "2026-08-29-growth-foundation-b4d2",
+  "verifiedAt": "2026-08-29T09:35:59Z",
+  "baseCommit": "c469a48ae90ab58413b198fe3d1ac1aa90a9b070",
+  "result": "pass",
+  "checks": [
+    {
+      "command": "pnpm run db:generate",
+      "result": "pass",
+      "evidence": "Generated D1 migration 0043_wild_proteus and Postgres migration 0021_loud_snowbird plus both snapshots/journals. The successful run required the local D1 helper outside the network/filesystem sandbox."
+    },
+    {
+      "command": "focused Growth, Project Context, MCP, repository-query and schema-parity tests",
+      "result": "pass",
+      "evidence": "Seven focused files passed with 226 assertions before the final full-suite run. The migration-backed libSQL tests execute D1 migration 0043 against migration 0042, verify an existing key-page row receives null/false/false, and exercise settings isolation/cascade and metadata upsert semantics."
+    },
+    {
+      "command": "pnpm run test:ci",
+      "result": "pass",
+      "evidence": "Final run: 138 test files and 1,147 tests passed."
+    },
+    {
+      "command": "pnpm run ci:check",
+      "result": "pass",
+      "evidence": "Prettier, Knip, root TypeScript, badseo TypeScript, type-aware Oxlint (821 files, zero warnings/errors), skill synchronization and generated-skill cleanliness passed."
+    },
+    {
+      "command": "pnpm vite build",
+      "result": "pass",
+      "evidence": "Client and SSR/Worker production bundles completed successfully (3,662 client and 7,560 SSR modules). Wrangler could not write its optional user-level debug log inside the sandbox, but the build exited 0."
+    },
+    {
+      "command": "git diff --check and final scope audit",
+      "result": "pass",
+      "evidence": "No whitespace errors; no package manifest/lockfile, auth, scheduler, deployment, or later-phase Growth file changed. Build artifacts remained ignored."
+    }
+  ],
+  "migrationReview": {
+    "d1": "The generator's table-copy SELECT incorrectly referenced new columns on the old project_key_pages table. The checked-in SQL was corrected to backfill NULL, false and false, then executed against the prior migration with a populated legacy row.",
+    "postgres": "Adds the settings table, FK, three key-page columns and commercial-weight CHECK without table recreation; inspected against the hand-maintained Postgres schema.",
+    "schemaParity": "Both provider definitions passed all 182 application/auth structural parity assertions, including table, column, default-presence, key, cascade and named-check coverage."
+  },
+  "acceptanceAudit": {
+    "adrRecorded": true,
+    "dualProviderSettingsPersistence": true,
+    "authorizedServerFunctionServiceRepositoryBoundary": true,
+    "growthEnableRequiresProjectDomain": true,
+    "existingKeyPageModelReused": true,
+    "omittedMetadataPreserved": true,
+    "explicitFalseAndNullSupported": true,
+    "suffixSafeProjectDomainValidation": true,
+    "legacyOffDomainRemovalAllowed": true,
+    "existingAppSamMcpContextPathPreserved": true,
+    "dependenciesChanged": false,
+    "productionMigrationOrRemoteStateExecuted": false
+  },
+  "scopeNotes": [
+    "docs/growth and the earlier Phase 0 run were already untracked inputs/evidence at this run's start. This run appends only ADR-021 within that planning pack.",
+    "The existing KeyPagesSection carries metadata through its current URL remove+add behavior but adds no visible Growth controls.",
+    "A repository-fixable Drizzle migration-generation trap was logged in .agents/PAPERCUTS.md as required by AGENTS.md.",
+    "Growth UI, runs, signals, recommendations, actions, measurement observations, reports, schedules, provider adapters, AI and new MCP tools remain deferred."
+  ]
+}

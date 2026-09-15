@@ -1,0 +1,86 @@
+{
+  "runId": "2026-08-29-growth-actions-events-7c2e",
+  "verifiedAt": "2026-08-29T20:01:08Z",
+  "baseCommit": "30f7945e8132868a0d4cb8561bc1b43717474a3f",
+  "result": "pass",
+  "finalAcceptanceAudit": "PASS",
+  "checks": [
+    {
+      "command": "pnpm run db:generate",
+      "result": "pass",
+      "evidence": "Generated only D1 migration 0046_living_misty_knight and Postgres migration 0024_friendly_mystique with their snapshots/journal entries. The final second generation reported no schema changes for either provider."
+    },
+    {
+      "command": "focused Growth schema, contract, migration, repository and service tests",
+      "result": "pass",
+      "evidence": "Final repair run: 16 focused files and 373 assertions passed, with three provider-specific files and six tests explicitly skipped. Coverage includes prior Growth regressions plus accepted-source creation, source-target subset enforcement, immediate and delayed exact/drift retries, every legal and incompatible Action transition coordinate, blocked/resume cycles, milestones, ordered event history, atomic rollback, project isolation, run/project cascades and schema parity."
+    },
+    {
+      "command": "complete Postgres migration tree against fresh disposable Postgres 16",
+      "result": "pass",
+      "evidence": "A brand-new openseo_growth_actions_audit database was created in the dedicated local Postgres 16 test container. The complete checked-in migration tree through 0024_friendly_mystique applied successfully from scratch. No existing project database or remote environment was touched."
+    },
+    {
+      "command": "TEST_POSTGRES_DATABASE_URL=... pnpm vitest run GrowthActionsRepository.postgres.test.ts",
+      "result": "pass",
+      "evidence": "Two live-provider tests passed through the production provider-aware repositories and withPgClient path after the repair. They exercise concurrent Action creation drift, exact and changed concurrent transition retries, atomic projection/event behavior, project-scoped reads and ordered event history against the fresh migrated database. The sandbox initially denied localhost access; the identical command passed with scoped local-network permission."
+    },
+    {
+      "command": "pnpm run test:ci",
+      "result": "pass",
+      "evidence": "Final repair run: 150 test files and 1,324 tests passed, with three files and six explicitly provider-gated tests skipped, in 10.91 seconds. The new Postgres file passed separately against live Postgres."
+    },
+    {
+      "command": "pnpm run ci:check",
+      "result": "pass",
+      "evidence": "Prettier, Knip, root TypeScript, badseo TypeScript, type-aware Oxlint (850 files, zero warnings/errors), skill synchronization and generated-skill cleanliness passed. The initial Knip run identified two unused contract exports; their visibility was narrowed and the complete check then passed."
+    },
+    {
+      "command": "pnpm vite build",
+      "result": "pass",
+      "evidence": "Client and SSR/Worker production bundles completed successfully after repair: 3,662 client modules in 6.39 seconds and 7,564 server modules in 48.44 seconds. Wrangler could not write its optional user-level debug log inside the filesystem sandbox, but the build completed and exited 0."
+    },
+    {
+      "command": "git diff --check and final scope audit",
+      "result": "pass",
+      "evidence": "No whitespace errors. No dependency manifest, lockfile, auth flow, scheduler, deployment, provider adapter, UI, MCP, Change Event, Measurement or report implementation changed. Build artifacts remained ignored."
+    }
+  ],
+  "migrationReview": {
+    "d1": "Migration 0046 creates normalized Action, target and event tables with project-leading composite keys, owner SET NULL, Recommendation/run cascades, explicit status/actor/event vocabulary, legal event pairs, milestone shapes, finite priority and SQLite integer-storage guards. A real-libSQL test starts from populated accepted Recommendations after 0045, executes 0046, exercises raw failures/cascades and ends with a clean PRAGMA foreign_key_check.",
+    "postgres": "Migration 0024 creates the equivalent graph with inline parent unique constraints before dependent foreign keys and explicitly rejects Infinity, negative Infinity and NaN priority values. The full migration tree was applied from scratch before production repository concurrency tests.",
+    "schemaParity": "Both providers expose matching Action, target and event tables, columns, defaults, keys, foreign-key pairings, checks and cascades; 237 structural parity assertions passed."
+  },
+  "acceptanceAudit": {
+    "adrRecorded": true,
+    "acceptedSameProjectRecommendationRequired": true,
+    "multipleActionsPerRecommendation": true,
+    "projectScopedCreationKey": true,
+    "immutableFactExactRetryAndDriftConflict": true,
+    "canonicalRecommendationTargetSubset": true,
+    "inheritedFinitePriorityAndCategory": true,
+    "ownerDeferredAndNull": true,
+    "approvedVersionZeroCreationEvent": true,
+    "exactLegalStateMachine": true,
+    "atomicProjectionAndEvent": true,
+    "compareAndSetTransitionLifecycle": true,
+    "eventReplayIsIdempotent": true,
+    "historicalEventReplaySurvivesLaterTransitions": true,
+    "contractAndServiceShareLifecycleLegality": true,
+    "orderedAppendOnlyHistory": true,
+    "firstEntryMilestonesPreserved": true,
+    "implementedDistinctFromEvaluated": true,
+    "crossProjectConstraints": true,
+    "recommendationRunAndProjectCascades": true,
+    "dualProviderSchemaMigrationAndRuntimeEvidence": true,
+    "dependenciesChanged": false,
+    "productionMigrationPaidCallOrRemoteStateExecuted": false
+  },
+  "scopeNotes": [
+    "This is an internal service/repository slice. It intentionally exposes no server function, UI, MCP tool, scheduler or caller-supplied authorization boundary.",
+    "Action targets and events expose no application update/delete methods. The Action projection changes only through versioned state transitions; title, description, due date, source, inherited category/priority and targets remain immutable.",
+    "The pure Growth target normalizer now serves Recommendations and Actions, preventing canonicalization drift without changing existing Recommendation behavior.",
+    "Occurrence timestamps are generated by the atomic writer and excluded from semantic event hashes, so delayed exact retries remain stable.",
+    "Owner assignment, website Change Events, implementation notes, Measurement records and external surfaces remain deferred."
+  ]
+}

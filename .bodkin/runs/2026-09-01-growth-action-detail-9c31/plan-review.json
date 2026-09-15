@@ -1,0 +1,15 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep the project-leading SQL window capped at six code-unit-ordered URLs per emitted Change, deriving overflow from row six.",
+    "Keep shared Measurement validation bounded at 51 Metrics, 151 Observations, and 51 confounder links, with exact lifecycle-event reads and overflow rejection.",
+    "Preserve the legacy validator Metric ordering used for immutable Plan fact hashes; apply code-unit ordering only to the post-validation public Metric projection.",
+    "Keep the explicit public allowlist, safe projector mapping, current-not-snapshot wording, all-source Change semantics, and no-causality marker.",
+    "Keep canonical authorization before all reads, server-side SAM project binding, and the saved-data-only, read-only, zero-credit boundary."
+  ]
+}

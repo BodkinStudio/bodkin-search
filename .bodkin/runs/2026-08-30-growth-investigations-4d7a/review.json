@@ -1,0 +1,29 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "An interrupted approval does not preserve its due date or approving actor across reload/retry.",
+      "location": "src/server/features/growth/services/GrowthInvestigationsService.ts, approveInvestigation",
+      "evidence": "The service first changes the recommendation from proposed to accepted, then separately creates the Action. If action creation fails, the accepted recommendation stores neither dueOn nor actorId. On a subsequent request, the accepted-without-action branch accepts any supplied dueOn and actorId and creates the Action from those new values. The client only freezes submittedDueOn in component state, which is lost on reload; its own UI explicitly supports reopening accepted-without-action suggestions.",
+      "impact": "A different project member, or the same member with a different date after an uncertain failure, can create the sole immutable Action with facts that differ from the original explicit approval. This violates the slice's retry/actor immutability requirement.",
+      "recommendation": "Make approval facts durable before or atomically with acceptance/action creation, then require retries to use those saved facts; alternatively make the acceptance and Action creation one recoverable atomic operation so accepted-without-action cannot lose the original actor and date."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "The new project work query has no executed Postgres evidence.",
+      "location": "src/server/features/growth/repositories/GrowthActionsRepository.ts, listInvestigationWork; .bodkin/runs/2026-08-30-growth-investigations-4d7a/verification.json",
+      "evidence": "listInvestigationWork adds a new multi-join, grouped query with SQL concatenation and status filters. Its exercised repository coverage is SQLite/D1; verification records six optional Postgres tests skipped, and no Postgres test covers this new query.",
+      "impact": "The required both-dialect regression claim is not independently established for the newly added read path.",
+      "recommendation": "Run a bounded Postgres integration test that creates qualifying investigation Actions and exercises listInvestigationWork, or explicitly narrow acceptance to SQLite/D1 until that environment is available."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep source, target, title, rationale, and Action creation key server-derived from the saved same-project recommendation.",
+    "Keep read endpoints provider-free and preserve the bounded latest-50 projection with normalized persisted action targets.",
+    "Keep the UI’s explicit retry behavior; it must not auto-submit after a reload."
+  ]
+}

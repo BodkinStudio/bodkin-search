@@ -1,0 +1,61 @@
+{
+  "runId": "2026-08-30-growth-atomic-approval-8c2e",
+  "status": "pass",
+  "generatedAt": "2026-08-30T20:19:46.397Z",
+  "checks": [
+    {
+      "name": "Growth regressions including actual Postgres approval and existing Actions",
+      "command": "TEST_POSTGRES_DATABASE_URL=postgres://growth_qa:growth_qa_disposable@127.0.0.1:55119/growth_atomic_qa pnpm exec vitest run GrowthApproval GrowthInvestigation growth-investigation growthInvestigations GrowthWork GrowthActions GrowthInsights GrowthRuns GrowthPriorityPageCheck GrowthPreview GrowthChangeLog --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 28126,
+      "output": "\n RUN  v3.2.6 /Users/jamesward/Documents/Dev/bodkin-search\n\n······························································································································································································\n\n Test Files  33 passed (33)\n      Tests  190 passed (190)\n   Start at  21:01:30\n   Duration  24.43s (transform 1.73s, setup 0ms, collect 5.65s, tests 10.17s, environment 5ms, prepare 2.38s)"
+    },
+    {
+      "name": "Postgres tests after test-only lint repair",
+      "command": "TEST_POSTGRES_DATABASE_URL=postgres://growth_qa:growth_qa_disposable@127.0.0.1:55119/growth_atomic_qa pnpm exec vitest run src/server/features/growth/repositories/GrowthApprovalRepository.postgres.test.ts --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 4903,
+      "output": "\n RUN  v3.2.6 /Users/jamesward/Documents/Dev/bodkin-search\n\n·····\n\n Test Files  1 passed (1)\n      Tests  5 passed (5)\n   Start at  21:13:53\n   Duration  3.67s (transform 465ms, setup 0ms, collect 71ms, tests 3.06s, environment 0ms, prepare 64ms)"
+    },
+    {
+      "name": "Real D1 atomic rollback and immutable replay",
+      "command": "pnpm exec vitest run --config .bodkin-ui/current/qa-d1.config.ts --reporter=verbose",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 16120,
+      "output": "Director execution through the real Wrangler D1 platform proxy against the separate synthetic database copy. 1 test passed. Invalid creation-event hash rolled back recommendation acceptance, Action, targets and event. Subsequent approval succeeded; different-user replay preserved actor/date, changed date conflicted, Work returned the saved graph once. Test duration 12.371s; full command duration 16.12s. See runtime-evidence.md for the exact isolated harness and limitations."
+    },
+    {
+      "name": "Repository checks",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 2135,
+      "output": "> open-seo@0.1.6 ci:check /Users/jamesward/Documents/Dev/bodkin-search\n> prettier --check . && knip && tsc --noEmit && tsc --noEmit -p badseo/tsconfig.json && oxlint . --type-aware && pnpm sync-plugin-skills && test -z \"$(git status --porcelain -- plugins/openseo/skills)\"\nChecking formatting...\nAll matched files use Prettier code style!\nFound 0 warnings and 0 errors.\nFinished in 19.2s on 957 files with 184 rules using 10 threads.\n> open-seo@0.1.6 sync-plugin-skills /Users/jamesward/Documents/Dev/bodkin-search\n> node scripts/sync-plugin-skills.mjs\nSynced 9 skills into plugins/openseo/skills/\n\nDirect exec session 43712 completed with exit code 0. Timing note: durationMs records the combined tool-wait durations (1.001083125s + 1.134076125s), not total asynchronous command elapsed time, which was not captured."
+    },
+    {
+      "name": "Production build",
+      "command": "WRANGLER_LOG_PATH=/private/tmp/bodkin-growth-build-8c2e.log pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 432996,
+      "output": "[16184 earlier characters omitted]\n           3.23 kB\ndist/server/assets/backlinks--jEOFUZC.js                             3.25 kB\ndist/server/assets/hook-proxy-Dogs9wbj-CcT13sHP.js                   3.38 kB\ndist/server/assets/rank-tracking-BGMt-AHf.js                         3.42 kB\ndist/server/assets/keywordControllerActions-UrsoG8uU.js              3.47 kB\ndist/server/assets/domain-Drm1JcXa.js                                3.56 kB\ndist/server/assets/ahrefs-BqOP4zI5.js                                3.64 kB\ndist/server/assets/index-CKISK_Fc.js                                 3.71 kB\ndist/server/assets/TablePagination-CgMCg65M.js                       3.74 kB\ndist/server/assets/middleware-BrNvRi0L.js                            3.81 kB\ndist/server/assets/billing-DokBHsQz.js                               4.02 kB\ndist/server/assets/serp-locations-CS-UzDKQ.js                        4.12 kB\ndist/server/assets/d1-sqlite-dialect-BLC8LXE6-DiBzZMVG.js            4.27 kB\ndist/server/assets/SetupControls-CCzg9Eiu.js                         4.49 kB\ndist/server/assets/ResearchScopeSelect-88HGZ1ZO.js                   4.50 kB\ndist/server/assets/forgot-password-xubkoCPZ.js                       4.75 kB\ndist/server/assets/support-uns-NYuo.js                               4.75 kB\ndist/server/assets/growthChangeLog-xvXzBb-g.js                       4.80 kB\ndist/server/assets/audit-DvEteahE.js                                 4.81 kB\ndist/server/assets/bun-sqlite-dialect-BW9W1_Ps-DU9Ihi7a.js           4.94 kB\ndist/server/assets/node-sqlite-dialect-HsAopbYO.js                   4.95 kB\ndist/server/assets/CreateProjectModal--TFS5_8x.js                    5.04 kB\ndist/server/assets/searchPerformance-B22H-NMM.js                     5.14 kB\ndist/server/assets/dataforseo-api-key-fD8pJa8Z.js                    5.18 kB\ndist/server/assets/workspace-1P1x_EBN.js                             5.33 kB\ndist/server/assets/onboarding-CB8RWDEY.js                            5.54 kB\ndist/server/assets/LocationSelect-BOhrQ2fG.js                        5.65 kB\ndist/server/assets/lighthouse-DUB_P3hA.js                            5.67 kB\ndist/server/assets/openrouter-api-key-BBUkdu9a.js                    5.80 kB\ndist/server/assets/projects-BhjEnIm1.js                              5.93 kB\ndist/server/assets/verify-email-DSmy88au.js                          5.97 kB\ndist/server/assets/lighthouseStoredPayload-C-QUtbnx.js               6.08 kB\ndist/server/assets/_authenticated.oauth-consent-DH3DroyD.js          6.16 kB\ndist/server/assets/searchPerformance-B8HHKwFv.js                     6.34 kB\ndist/server/assets/startGoogleLink-DKfo_O3P.js                       6.36 kB\ndist/server/assets/projects-BzsWd-1j.js                              6.45 kB\ndist/server/assets/route-TtK63aMa.js                                 6.71 kB\ndist/server/assets/gsc-BXt1Epl8.js                                   6.80 kB\ndist/server/assets/SitePicker-CkvQq2GE.js                            7.02 kB\ndist/server/assets/_auth.sign-in-BghqFqMc.js                         7.23 kB\ndist/server/assets/reset-password-BTtwS7JH.js                        7.33 kB\ndist/server/assets/keywords-C5qE2Twk.js                              7.45 kB\ndist/server/assets/ai-search-BjbVm9tC.js                             7.71 kB\ndist/server/assets/index-DMAeGfIx.js                                 8.59 kB\ndist/server/assets/growthPreview-Dlt0_84V.js                         8.68 kB\ndist/server/assets/coerce-C8JZZ-w_.js                                8.86 kB\ndist/server/assets/useTimestampedSearchHistory-Bqo_FLDh.js           9.83 kB\ndist/server/assets/DomainFilterPanel-Bqkj6tia.js                    10.38 kB\ndist/server/assets/selfHostedOAuth-COfmAqOU.js                      10.92 kB\ndist/server/assets/GrowthChangeEventsService-py-NVXQ_.js            11.46 kB\ndist/server/assets/dashboard-V4wV4S7J.js                            11.52 kB\ndist/server/assets/_authenticated.subscribe-ydJ-WPGr.js             12.31 kB\ndist/server/assets/ga4-D7cyIV_r.js                                  12.40 kB\ndist/server/assets/_auth.sign-up-JxSYCtzn.js                        12.58 kB\ndist/server/assets/index-WNvolLO0.js                                12.88 kB\ndist/server/assets/index-Dr9rp-s3.js                                13.75 kB\ndist/server/assets/rank-tracking-qknJYl4v.js                        13.91 kB\ndist/server/assets/_authenticated.onboarding.chat-DN0IpkW-.js       14.67 kB\ndist/server/assets/settings-CNoCiVTC.js                             16.29 kB\ndist/server/assets/SearchConsoleConnectionCard-DMptue9w.js          16.53 kB\ndist/server/assets/sam-DanQ9jGR.js                                  16.89 kB\ndist/server/assets/_tanstack-start-manifest_v-CE0QnphW.js           17.31 kB\ndist/server/assets/GoogleAnalyticsConnectionCard-syVvhtnM.js        17.69 kB\ndist/server/assets/_authenticated.onboarding.index-FV5_U3dG.js      20.56 kB\ndist/server/assets/growth-change-events-BAGqIfNF.js                 20.88 kB\ndist/server/assets/useSearchTabNavigation-Dtr1Jx0M.js               21.53 kB\ndist/server/assets/ErrorBarContext-t2iCCrZ3.js                      21.68 kB\ndist/server/assets/LineChart-Cv7gALDg.js                            22.35 kB\ndist/server/assets/search-performance-DcuvVefx.js                   25.73 kB\ndist/server/assets/ai-search-CWDnE7zj.js                            27.32 kB\ndist/server/assets/ai-B8UnJR5M.js                                   28.53 kB\ndist/server/assets/growthChecks-oBJ_Dpap.js                         28.57 kB\ndist/server/assets/_resultId-BW7Qxa0J.js                            32.56 kB\ndist/server/assets/GrowthInvestigationTemplate-NDoER3GS.js          33.68 kB\ndist/server/assets/prompt-explorer-D_L4Oj1F.js                      33.85 kB\ndist/server/assets/context-bCqCMCeh.js                              34.43 kB\ndist/server/assets/GrowthEvidencePacket-CPVk1K0N.js                 35.28 kB\ndist/server/assets/growthInvestigations-Cd_37XIj.js                 38.05 kB\ndist/server/assets/index-9hMzPsZk.js                                39.62 kB\ndist/server/assets/useOnboardingRedirect-BoxOrJyD.js                50.31 kB\ndist/server/assets/billing-nYTBnZFD.js                              63.15 kB\ndist/server/assets/RankTrackingConfigModal-BKWWGcGB.js              68.41 kB\ndist/server/assets/brand-lookup-B197--Aw.js                         69.32 kB\ndist/server/assets/saved-CFcAptg7.js                                73.32 kB\ndist/server/assets/_configId-BLeOLE2J.js                            78.22 kB\ndist/server/assets/growth-DOJRPj6Y.js                               82.92 kB\ndist/server/assets/domain-DQp-yeX8.js                               84.08 kB\ndist/server/assets/Markdown-Dr1T_I7u.js                             91.14 kB\ndist/server/assets/page-analyzer-CckacD2c.js                        93.56 kB\ndist/server/assets/keywords-DidzQk2v.js                            100.07 kB\ndist/server/assets/sections-BBvLsmNS.js                            120.00 kB\ndist/server/assets/backlinks-ByVuW5VV.js                           121.42 kB\ndist/server/assets/mimetext.node.es-DV5i9rzU.js                    223.47 kB\ndist/server/assets/OnboardingChatParts-BV9Awd1k.js                 259.83 kB\ndist/server/assets/module-Bvs3CmIK.js                              290.91 kB\ndist/server/assets/index-COk_46iG.js                               747.73 kB\ndist/server/assets/fetch-6vNQCjpG.js                               856.50 kB\ndist/server/assets/router-B0fwTN-o.js                            1,552.94 kB\ndist/server/assets/core-DLAGj9fI.js                              3,140.44 kB\ndist/server/assets/index-BNL3LLm7.js                             8,777.53 kB\n✓ built in 5m 37s\n[stderr]\n\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit."
+    },
+    {
+      "name": "Diff whitespace",
+      "command": "git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 40,
+      "output": ""
+    }
+  ]
+}

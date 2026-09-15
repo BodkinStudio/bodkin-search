@@ -1,0 +1,23 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "Fresh rendered UI evidence and independent UI review remain unavailable.",
+      "location": ".bodkin/runs/2026-08-30-growth-work-status-f61b/verification.json",
+      "evidence": "UI preflight is recorded as failed because the screenshot manifest is empty; acceptance.md requires fresh desktop/narrow renders and UI review. The documented browser URL-policy denial remains in force.",
+      "impact": "Rendered layout, narrow-screen wrapping, and visual quality of the new Work controls cannot be accepted from static tests alone.",
+      "recommendation": "Obtain permitted fresh desktop and narrow captures, run UI preflight and independent UI review, then refresh the acceptance record."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep exact-ID source qualification independent of the latest-50 Work list bound.",
+    "Keep status transitions delegated to GrowthActionsService so CAS, immutable event facts, and exact-retry replay remain authoritative.",
+    "Keep history scoped by project/action, newest-first, capped at 50, and limited to safe event fields.",
+    "Keep UI requests frozen after uncertainty; recovery must read saved state before unlocking or changing intent.",
+    "Keep implemented-to-measuring and measuring-to-evaluated transitions unavailable from Work."
+  ]
+}

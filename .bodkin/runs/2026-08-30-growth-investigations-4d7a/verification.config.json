@@ -1,0 +1,19 @@
+{
+  "checks": [
+    {
+      "name": "Growth investigation, action and check regressions",
+      "command": "pnpm exec vitest run GrowthInvestigation growth-investigation growthInvestigations GrowthWork GrowthActions GrowthInsights GrowthRuns GrowthPriorityPageCheck GrowthPreview GrowthChangeLog --maxWorkers=1 --reporter=dot",
+      "required": true
+    },
+    {
+      "name": "Production build",
+      "command": "WRANGLER_LOG_PATH=/private/tmp/bodkin-growth-build-4d7a.log pnpm build",
+      "required": true
+    },
+    {
+      "name": "Repository and rendered evidence preflight",
+      "command": "node /Users/jamesward/.codex/plugins/cache/bodkin-tools/bodkin-ui/0.1.0/scripts/ui-preflight.mjs .bodkin/runs/2026-08-30-growth-investigations-4d7a/ui-preflight.config.json",
+      "required": true
+    }
+  ]
+}

@@ -11,6 +11,44 @@ type ToolCategory = {
 
 const toolCategories: ToolCategory[] = [
   {
+    label: "LinkedIn Page Content",
+    tools: [
+      {
+        name: "get_linkedin_page_overview",
+        title: "Get LinkedIn Page overview",
+        description: "Read the latest manually imported Page Content summary.",
+      },
+      {
+        name: "get_linkedin_post_performance",
+        title: "Get LinkedIn post performance",
+        description: "Read up to 10 posts from the latest Page Content import.",
+      },
+    ],
+  },
+  {
+    label: "YouTube Analytics",
+    tools: [
+      {
+        name: "get_youtube_channel_overview",
+        title: "Get YouTube channel overview",
+        description:
+          "Read channel views, watch time, engagement, and subscriber change.",
+      },
+      {
+        name: "get_youtube_video_performance",
+        title: "Get YouTube video performance",
+        description:
+          "Read the channel's top videos with watch time, engagement, and previous-period context.",
+      },
+      {
+        name: "get_youtube_traffic_sources",
+        title: "Get YouTube traffic sources",
+        description:
+          "Read which YouTube traffic-source types generated reported views and watch time.",
+      },
+    ],
+  },
+  {
     label: "Project Context",
     tools: [
       {

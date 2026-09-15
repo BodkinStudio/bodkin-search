@@ -1,0 +1,35 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "The plan must explicitly prove the existing shared Run contract already admits monthly_review.",
+      "recommendation": "Cite and verify the existing shared TypeScript and dual-provider representations; clarify that no schema change means no contract or migration change is needed."
+    },
+    {
+      "summary": "The pre-claim version check leaves a slot-occupancy race.",
+      "recommendation": "Qualify the row returned by claimManualRun after the atomic insert/read before replay or execution."
+    },
+    {
+      "summary": "Timezone consistency across due state and report recovery needs an explicit policy.",
+      "recommendation": "State the due queue's Plan-frozen timezone semantics and classify report settings/coordinate drift without combining it into a coherent snapshot claim."
+    },
+    {
+      "summary": "A returned existing report must match the frozen period and timezone before it counts as success.",
+      "recommendation": "Compare all returned report coordinate fields and add a mismatch regression."
+    },
+    {
+      "summary": "A hard crash can leave the manually claimed envelope running.",
+      "recommendation": "Define recovery or explicitly bound the inherited non-resumable manual-attempt behavior and verify truthful replay/new-attempt handling."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Do not add PostgreSQL-only coverage unless implementation introduces new SQL, schema, repository or provider-conditional behavior.",
+      "recommendation": "Continue relying on existing dual-provider persistence tests for a service-only composition."
+    }
+  ]
+}

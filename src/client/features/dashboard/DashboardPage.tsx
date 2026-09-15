@@ -15,6 +15,9 @@ import {
   GscCard,
 } from "@/client/features/dashboard/DashboardCards";
 import { Ga4Card } from "@/client/features/dashboard/Ga4Card";
+import { YouTubeCard } from "@/client/features/dashboard/YouTubeCard";
+import { YouTubeContentCard } from "@/client/features/dashboard/YouTubeContentCard";
+import { LinkedInPageContentCard } from "@/client/features/dashboard/LinkedInPageContentCard";
 import { McpConnectCard } from "@/client/features/dashboard/McpConnectCard";
 import { WorkspaceMergeBanner } from "@/client/features/dashboard/WorkspaceMergeBanner";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
@@ -300,6 +303,7 @@ export function DashboardPage({ projectId }: { projectId: string }) {
   const showBacklinks = activation.domain !== null;
   const gscConnected = activation.gsc.connected;
   const ga4Connected = activation.ga4.connected;
+  const youtubeConnected = activation.youtube.connected;
 
   return (
     <div className="px-4 py-4 pb-24 md:px-6 md:py-6 md:pb-8">
@@ -346,6 +350,25 @@ export function DashboardPage({ projectId }: { projectId: string }) {
                   },
                 ]
               : []),
+            ...(youtubeConnected
+              ? [
+                  {
+                    key: "youtube",
+                    hasData: true,
+                    node: <YouTubeCard projectId={projectId} />,
+                  },
+                  {
+                    key: "youtube-content",
+                    hasData: true,
+                    node: <YouTubeContentCard projectId={projectId} />,
+                  },
+                ]
+              : []),
+            {
+              key: "linkedin-page-content",
+              hasData: false,
+              node: <LinkedInPageContentCard projectId={projectId} />,
+            },
             {
               key: "audit",
               hasData: overview?.audit != null,

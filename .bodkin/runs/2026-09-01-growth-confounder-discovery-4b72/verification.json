@@ -1,0 +1,61 @@
+{
+  "runId": "2026-09-01-growth-confounder-discovery-4b72",
+  "status": "pass",
+  "generatedAt": "2026-09-01T07:23:17Z",
+  "checks": [
+    {
+      "name": "Focused confounder discovery and Work UI",
+      "command": "pnpm vitest run src/server/features/growth/repositories/GrowthChangeEventsRepository.query.test.ts src/server/features/growth/services/GrowthMeasurementConfounders.test.ts src/server/features/growth/services/GrowthWorkMeasurementService.test.ts src/client/features/growth/GrowthWorkMeasurement.test.ts src/client/features/growth/GrowthWorkMeasurementConfounders.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 4100,
+      "output": "5 test files passed; 43 tests passed. Coverage includes every Change Event source, exact URL matching, project tenancy, interval boundaries, anchor exclusion, overflow, incomplete repository output, credential-safe read-model projection, safe rendering, and all UI states."
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 56000,
+      "output": "Prettier, Knip, root and badseo TypeScript checks, type-aware Oxlint, plugin skill sync, and generated-skill cleanliness passed with 0 warnings and 0 errors after the review repair."
+    },
+    {
+      "name": "Full repository tests",
+      "command": "pnpm test:ci",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 16470,
+      "output": "208 test files passed, 7 skipped; 1,851 tests passed, 18 skipped after the review repair."
+    },
+    {
+      "name": "Production build",
+      "command": "pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 69000,
+      "output": "Client and SSR production bundles built and the trailing TypeScript check passed. Wrangler emitted a non-fatal sandbox log-file EPERM diagnostic; the command exited 0."
+    },
+    {
+      "name": "Whitespace",
+      "command": "git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 200,
+      "output": "No whitespace errors."
+    },
+    {
+      "name": "Rendered browser evidence",
+      "command": "Not run",
+      "required": false,
+      "status": "waived",
+      "exitCode": null,
+      "durationMs": 0,
+      "output": "Waived because the user explicitly prohibited browser, HTTP, CDP, Playwright, and old-screenshot evidence. Server-render tests provide the mechanical UI evidence for this slice."
+    }
+  ]
+}

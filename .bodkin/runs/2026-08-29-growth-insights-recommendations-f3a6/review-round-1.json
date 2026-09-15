@@ -1,0 +1,47 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "A same-project cross-run merge/supersede can make deletion of the destination run fail instead of cascading.",
+      "location": "src/db/growth-insights.schema.ts:149-153; src/db/pg/growth-insights.schema.ts:149-153; drizzle/0045_mean_retro_girl.sql:91-92; drizzle-pg/0023_cuddly_black_tarantula.sql:174",
+      "evidence": "The schema permits resolutionRecommendationId to reference any Recommendation in the same project, including another run, and the migration test explicitly permits recommendation_1 in run_1 to resolve to recommendation_2 in run_2. The self-reference is ON DELETE NO ACTION, so deleting run_2 is rejected while run_1 still references it.",
+      "impact": "This violates the accepted requirement that deleting a run cascades its Insights, Recommendations, and normalized children.",
+      "recommendation": "Require merge/supersede destinations to be in the same run, or define another safe cross-run deletion policy, and add dual-provider destination-run deletion coverage."
+    },
+    {
+      "summary": "An otherwise exact snooze review replay becomes invalid once its snooze time has passed.",
+      "location": "src/types/schemas/growth.ts:306-316; src/server/features/growth/services/GrowthInsightsService.ts:299-318",
+      "evidence": "The Zod contract rejects snoozedUntil unless it is later than Date.now() before the service can recognize an exact persisted replay.",
+      "impact": "A delayed retry of a persisted snooze returns validation failure rather than the original decision, breaking idempotency and making retries time-dependent.",
+      "recommendation": "Allow structurally valid expired snooze metadata through parsing, recognize exact replay first, and retain the future requirement for a new transition."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [
+    {
+      "summary": "The plan did not reconcile same-project cross-run resolution with unconditional run cascades.",
+      "location": ".bodkin/runs/2026-08-29-growth-insights-recommendations-f3a6/acceptance.md; docs/growth/05_ARCHITECTURE_DECISIONS.md",
+      "evidence": "The documents required only a same-project destination while also requiring every run deletion to cascade its graph.",
+      "impact": "The implementation could not satisfy both requirements without an additional resolution-scope decision.",
+      "recommendation": "Amend ADR-023 and acceptance criteria to make resolution same-run and align schema, service and tests."
+    }
+  ],
+  "do_not_change": [
+    {
+      "summary": "Keep immutable graph writes fact-hash guarded and atomic.",
+      "location": "src/server/features/growth/repositories/GrowthInsightsGraphWriter.ts",
+      "evidence": "Conditional parent insertion plus fact-hash-gated child insert-selects prevent losing drift from attaching children.",
+      "impact": "Weakening this would reintroduce partial or contaminated graphs under concurrency.",
+      "recommendation": "Preserve the current predicates and runBatch semantics during repair."
+    },
+    {
+      "summary": "Keep project/run-leading composite graph boundaries.",
+      "location": "src/db/growth-insights.schema.ts; src/db/pg/growth-insights.schema.ts",
+      "evidence": "The graph links reject cross-project and cross-run evidence attachment.",
+      "impact": "Weakening these keys would compromise tenant and origin-run isolation.",
+      "recommendation": "Retain composite project/run keys and cascades."
+    }
+  ]
+}

@@ -12,6 +12,7 @@ import { getHostedBaseUrl } from "@/lib/auth";
 import {
   getMcpResource,
   MCP_OAUTH_SCOPES,
+  MCP_OAUTH_SUPPORTED_SCOPES,
   MCP_SCOPE,
 } from "@/lib/oauth-resource";
 import { asAppError } from "@/server/lib/errors";
@@ -229,7 +230,9 @@ function getGrantedMcpScopes(requestedScopes: string[]) {
   }
 
   const requested = new Set(requestedScopes);
-  const granted = MCP_OAUTH_SCOPES.filter((scope) => requested.has(scope));
+  const granted = MCP_OAUTH_SUPPORTED_SCOPES.filter((scope) =>
+    requested.has(scope),
+  );
 
   if (!granted.includes(MCP_SCOPE)) {
     throw new Error("The mcp scope is required");
@@ -404,7 +407,7 @@ function createProvider(appFetch: AppFetch, resource: string) {
     authorizeEndpoint: OAUTH_AUTHORIZE_PATH,
     tokenEndpoint: OAUTH_TOKEN_PATH,
     clientRegistrationEndpoint: OAUTH_REGISTER_PATH,
-    scopesSupported: [...MCP_OAUTH_SCOPES],
+    scopesSupported: [...MCP_OAUTH_SUPPORTED_SCOPES],
     accessTokenTTL: MCP_ACCESS_TOKEN_TTL_SECONDS,
     refreshTokenTTL: MCP_REFRESH_TOKEN_TTL_SECONDS,
     clientRegistrationTTL: MCP_CLIENT_REGISTRATION_TTL_SECONDS,
@@ -413,7 +416,7 @@ function createProvider(appFetch: AppFetch, resource: string) {
       scopes_supported: [MCP_SCOPE],
       resource_name: "OpenSEO MCP",
     },
-    tokenExchangeCallback: ({ props, requestedScope }) => {
+    tokenExchangeCallback: ({ props, requestedScope, scope }) => {
       if (!requestedScope.includes(MCP_SCOPE)) {
         throw new OAuthError("invalid_scope", {
           description: "The mcp scope is required",
@@ -422,6 +425,17 @@ function createProvider(appFetch: AppFetch, resource: string) {
 
       const authContext =
         workersOAuthMcpPropsSchema.parse(props)[MCP_AUTH_CONTEXT_PROP];
+      if (
+        requestedScope.some(
+          (requested) =>
+            !scope.includes(requested) ||
+            !authContext.scopes?.includes(requested),
+        )
+      ) {
+        throw new OAuthError("invalid_scope", {
+          description: "Requested scope is outside the original grant",
+        });
+      }
       return {
         accessTokenProps: createWorkersOAuthMcpProps({
           ...authContext,

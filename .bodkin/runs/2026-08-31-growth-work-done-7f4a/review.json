@@ -1,0 +1,29 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "Required repository CI is failing.",
+      "location": "src/server/features/growth/repositories/GrowthReportsRepository.migration.test.ts:267",
+      "evidence": "verification.json records pnpm ci:check exit 1: type-aware lint rejects no-base-to-string for String(name). Formatting, Knip, both TypeScript checks, focused tests, migrations, D1, Postgres, and build do not replace the required CI gate.",
+      "impact": "The full change cannot be accepted with its configured CI gate failing, even though the defect is test-only.",
+      "recommendation": "Apply the explicit string type guard, then rerun pnpm ci:check and refresh verification.json."
+    },
+    {
+      "summary": "Rendered UI acceptance remains unavailable.",
+      "location": "Growth Work UI acceptance gate",
+      "evidence": "verification.json marks fresh desktop/narrow captures and independent visual review blocked by the browser URL-policy denial; source detector output is expressly not rendered evidence.",
+      "impact": "The product/UX requirements cannot be evidence-based accepted, including the default Done selection and visible Mark done interaction.",
+      "recommendation": "Obtain permitted fresh desktop and narrow screenshots, then complete the independent rendered UI review."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve the direct approved/ready-to-implemented transitions and their one-event, one-version CAS behavior.",
+    "Preserve null startedAt for direct completion while retaining an existing recorded start.",
+    "Preserve the D1 migration's complete snapshot/restore closure and foreign-key-on rollback behavior.",
+    "Keep Done scoped to Work presentation and keep measurement/evaluation as separate lifecycle stages."
+  ]
+}

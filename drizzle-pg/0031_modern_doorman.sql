@@ -1,0 +1,2 @@
+ALTER TABLE "growth_project_settings" ADD COLUMN "next_monthly_review_at" text;--> statement-breakpoint
+CREATE INDEX "growth_project_settings_monthly_due_idx" ON "growth_project_settings" USING btree ("growth_enabled","report_cadence","next_monthly_review_at","project_id");

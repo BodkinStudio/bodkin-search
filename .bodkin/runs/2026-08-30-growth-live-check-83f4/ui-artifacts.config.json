@@ -1,0 +1,5 @@
+{
+  "commands": {
+    "whitespace": "git diff --check"
+  }
+}

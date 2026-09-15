@@ -1,0 +1,12 @@
+{
+  "verdict": "pass",
+  "findings": [],
+  "acceptanceGaps": [],
+  "evidence": [
+    "Recovery freezes the complete measurement snapshot in a project/action-scoped React Query entry with infinite GC; the parent prefers that snapshot over normal query data.",
+    "While recovery exists, the measurement query is disabled and mount, reconnect and focus refetching are false. Refresh and collection are also disabled; the explicit authoritative check uses fetchQuery directly.",
+    "Recovery is removed and the lock released only after mutation success or when an authoritative read returns a completed Plan with a Result. Failed and incomplete checks retain the exact frozen request.",
+    "The shared parent operation ref synchronously excludes collection and finalization, while equal stateVersion cache writes preserve the existing evidence snapshot.",
+    "The strict server function derives project and actor context, the Work service derives the Plan and provenance, and the core preserves exact retry, competing-winner, selected-confounder and reviewed-Observation protections."
+  ]
+}

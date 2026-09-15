@@ -1,0 +1,64 @@
+{
+  "runId": "2026-09-02-growth-repeat-suppression-7c4d",
+  "status": "pass",
+  "generatedAt": "2026-09-02T02:21:19Z",
+  "checks": [
+    {
+      "name": "Affected Growth suppression regressions",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run --reporter=dot --maxWorkers=1 src/db/schema-parity.test.ts src/client/features/growth/GrowthInvestigation.test.ts src/client/features/growth/GrowthInvestigationSubmission.test.ts src/server/features/growth/repositories/GrowthInsightsRepository.migration.test.ts src/server/features/growth/repositories/GrowthInsightsRepository.postgres.test.ts src/server/features/growth/repositories/GrowthInsightsRepository.query.test.ts src/server/features/growth/services/GrowthInvestigationsReviewService.test.ts src/server/features/growth/services/GrowthInvestigationsService.test.ts src/server/features/growth/services/GrowthPriorityPageCheckService.integration.test.ts src/server/features/growth/services/GrowthPriorityPageCheckService.test.ts src/server/features/growth/services/PriorityPageOpportunityPolicy.test.ts src/types/schemas/growth-investigations.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "11 files and 391 tests passed; the one live-PostgreSQL file and its 7 tests were correctly environment-gated. Coverage includes schema parity, null-reason rejection, sequential cross-Run suppression, exact retry, legacy adoption/drift, real check-to-Work suppression, real partial-generation recovery, strict DTO projection, mutation rejection and static covered-state rendering."
+    },
+    {
+      "name": "Live PostgreSQL migration, concurrency and lifecycle",
+      "command": "POSTGRES_DATABASE_URL=<task-scoped disposable PostgreSQL 16 URL> NODE_OPTIONS=--max-old-space-size=4096 pnpm db:migrate:pg; TEST_POSTGRES_DATABASE_URL=<same URL> NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run --reporter=dot --maxWorkers=1 src/server/features/growth/repositories/GrowthInsightsRepository.postgres.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "All migrations applied and 7/7 live tests passed. They reject a suppressed null reason; race two different Runs to one complete controller and one suppressed decision; let a terminal Run win with zero orphan graph/decision rows; adopt an exact legacy graph; reject controller Recommendation and Run deletion while decisions remain; delete only a suppressed Signal decision; and successfully cascade whole-project deletion. The exact disposable container bodkin-growth-suppression-pg-20260902 on port 55440 was removed afterward; the pre-existing port-55439 container was not changed."
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "Repository-wide Prettier, Knip, root and badseo TypeScript, type-aware Oxlint across 1,111 files, plugin skill synchronization and generated-skill cleanliness passed with zero lint warnings or errors."
+    },
+    {
+      "name": "Full repository tests with one worker",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run --reporter=dot --maxWorkers=1",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 83770,
+      "output": "263 test files and 2,213 tests passed with one worker; 15 environment-gated files and 35 tests skipped. Expected negative-path OAuth, MCP, provider and workflow logs did not fail the suite."
+    },
+    {
+      "name": "Production build",
+      "command": "WRANGLER_LOG_PATH=/tmp/bodkin-growth-suppression-wrangler.log NODE_OPTIONS=--max-old-space-size=4096 pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "Client and SSR/Worker production bundles plus the trailing TypeScript check passed. Only the repository's existing large-chunk advisory remained. The explicit temporary Wrangler log path avoided the earlier sandbox-only log-file diagnostic."
+    },
+    {
+      "name": "UI semantic and accessibility contract",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run --reporter=dot --maxWorkers=1 src/types/schemas/growth-investigations.test.ts src/client/features/growth/GrowthInvestigation.test.ts src/client/features/growth/GrowthInvestigationSubmission.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "3 files and 30 tests passed. The non-material PATCH preserves the existing disclosure/card vocabulary. A suppressed Signal exposes no rationale, steps or old targets; renders a status message and optional native Work link; and has no approval, dismissal, snooze or Review-now control. Browser, screenshot, responsive and visual-quality claims are intentionally excluded by the standing session constraint."
+    },
+    {
+      "name": "Whitespace and worktree scope",
+      "command": "git diff --check; final git diff --cached --check before commit",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "Both staged and unstaged diffs have no whitespace errors after staging the explicit intended-file list. A staged added-line credential-pattern scan is run immediately before commit."
+    }
+  ]
+}

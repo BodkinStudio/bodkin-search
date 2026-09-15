@@ -1,0 +1,24 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve exact historical retries after a project domain change.",
+      "location": "src/server/features/growth/services/GrowthChangeEventsService.ts:72-85",
+      "evidence": "Existing-key replay compares the immutable fact hash and complete stored graph without revalidating the historical URL set against the project's current domain.",
+      "impact": "Historical immutable facts remain retriable while new events remain constrained by the active domain.",
+      "recommendation": "Retain this replay path when evolving URL or domain handling."
+    },
+    {
+      "summary": "Preserve Action links as associations outside the immutable Event fact.",
+      "location": "src/server/features/growth/services/GrowthChangeEventsService.ts:34-61",
+      "evidence": "Complete graph validation compares the Event core and URL set, intentionally excluding current actionIds.",
+      "impact": "Action/run cascades and later append-only links cannot make a valid immutable Event appear corrupt.",
+      "recommendation": "Do not add Action-link coordinates to the Event fact hash or replay-equality check."
+    }
+  ]
+}

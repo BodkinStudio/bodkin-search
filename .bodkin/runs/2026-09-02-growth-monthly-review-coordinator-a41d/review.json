@@ -1,0 +1,38 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve exact stored-envelope replay and post-claim qualification.",
+      "location": "src/server/features/growth/services/GrowthMonthlyReviewService.ts:105-133",
+      "evidence": "The service replays a compatible occupied slot before settings or phases, then qualifies the atomic claim result and only lets claimed winners execute.",
+      "impact": "Prevents duplicate detector calls, report builds, and due-queue reads for one retry identity.",
+      "recommendation": "Keep the pre-read, compatibility checks, and claimed-only phase boundary intact."
+    },
+    {
+      "summary": "Preserve independent frozen-timezone due semantics.",
+      "location": "src/server/features/growth/services/GrowthDueMeasurementsService.ts:39-56",
+      "evidence": "Due availability is calculated from each Plan's own reportTimezone and the calendar day after its inclusive end date.",
+      "impact": "Avoids reinterpreting existing Measurement Plans when project report settings change.",
+      "recommendation": "Keep due-queue calculation separate from the coordinator's report-period coordinate."
+    },
+    {
+      "summary": "Preserve static parent error isolation.",
+      "location": "src/server/features/growth/services/GrowthMonthlyReviewService.ts:145-239",
+      "evidence": "Caught child, due, and report failures become closed warning codes; terminal parent failure values are the two static monthly-review messages.",
+      "impact": "Prevents provider, database, and exception details from leaking through the coordinator response or parent Run.",
+      "recommendation": "Do not add caught error text or child failure details to the response or persisted parent failure fields."
+    },
+    {
+      "summary": "Preserve the deliberately bounded manual crash behavior.",
+      "location": "docs/growth/05_ARCHITECTURE_DECISIONS.md:1161-1163",
+      "evidence": "ADR-049 truthfully documents replay of a running envelope and permits a distinct explicit request key without inferred abandonment or resume.",
+      "impact": "Avoids inventing unsafe lease, stale-run, or scheduler semantics.",
+      "recommendation": "Keep crash recovery, leases, and resumable orchestration deferred until separately designed."
+    }
+  ]
+}

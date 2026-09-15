@@ -1,0 +1,9 @@
+{
+  "commands": {
+    "preview tests": "pnpm exec vitest run GrowthPreview --maxWorkers=1 --reporter=dot",
+    "launcher isolation": "node --test scripts/growth-preview.test.mjs",
+    "repository checks": "pnpm ci:check",
+    "production build": "pnpm build",
+    "whitespace": "git diff --check"
+  }
+}

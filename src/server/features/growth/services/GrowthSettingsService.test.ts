@@ -1,0 +1,160 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { GROWTH_SETTINGS_DEFAULTS } from "@/types/schemas/growth";
+import { getSettings, updateSettings } from "./GrowthSettingsService";
+
+const mocks = vi.hoisted(() => ({
+  getByProjectId: vi.fn(),
+  upsert: vi.fn(),
+}));
+
+vi.mock(
+  "@/server/features/growth/repositories/GrowthSettingsRepository",
+  () => ({ GrowthSettingsRepository: mocks }),
+);
+
+const persistedRow = {
+  projectId: "project_1",
+  ...GROWTH_SETTINGS_DEFAULTS,
+  createdAt: "2026-08-29T10:00:00.000Z",
+  updatedAt: "2026-08-29T10:00:00.000Z",
+  nextMonthlyReviewAt: null,
+  nextWeeklyReviewAt: null,
+  settingsRevision: 1,
+};
+
+describe("GrowthSettingsService", () => {
+  beforeEach(() => {
+    mocks.getByProjectId.mockResolvedValue(null);
+    mocks.upsert.mockResolvedValue(persistedRow);
+  });
+
+  it("returns deterministic defaults before settings are persisted", async () => {
+    await expect(getSettings("project_1")).resolves.toEqual({
+      projectId: "project_1",
+      ...GROWTH_SETTINGS_DEFAULTS,
+      createdAt: null,
+      updatedAt: null,
+      persisted: false,
+    });
+  });
+
+  it("returns a stored project row without merging another project's state", async () => {
+    mocks.getByProjectId.mockResolvedValue(persistedRow);
+
+    const {
+      nextMonthlyReviewAt: _schedule,
+      nextWeeklyReviewAt: _weeklySchedule,
+      settingsRevision: _revision,
+      ...publicRow
+    } = persistedRow;
+    await expect(getSettings("project_1")).resolves.toEqual({
+      ...publicRow,
+      persisted: true,
+    });
+    expect(mocks.getByProjectId).toHaveBeenCalledWith("project_1");
+  });
+
+  it("requires a primary domain before enabling Growth", async () => {
+    await expect(
+      updateSettings(
+        { projectId: "project_1", projectDomain: null },
+        { ...GROWTH_SETTINGS_DEFAULTS, growthEnabled: true },
+      ),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(mocks.upsert).not.toHaveBeenCalled();
+  });
+
+  it("allows disabled settings before a project domain is known", async () => {
+    await updateSettings(
+      { projectId: "project_1", projectDomain: null },
+      GROWTH_SETTINGS_DEFAULTS,
+    );
+
+    expect(mocks.upsert).toHaveBeenCalledWith(
+      "project_1",
+      GROWTH_SETTINGS_DEFAULTS,
+      null,
+      null,
+    );
+  });
+
+  it("persists enabled settings for the authorized project scope", async () => {
+    const input = { ...GROWTH_SETTINGS_DEFAULTS, growthEnabled: true };
+
+    await expect(
+      updateSettings(
+        { projectId: "project_1", projectDomain: "acme.com" },
+        input,
+        new Date("2026-09-05T12:00:00.000Z"),
+      ),
+    ).resolves.toEqual({
+      projectId: persistedRow.projectId,
+      ...GROWTH_SETTINGS_DEFAULTS,
+      createdAt: persistedRow.createdAt,
+      updatedAt: persistedRow.updatedAt,
+      persisted: true,
+    });
+    expect(mocks.upsert).toHaveBeenCalledWith(
+      "project_1",
+      input,
+      "2026-09-01T00:00:00.000Z",
+      null,
+    );
+  });
+
+  it("preserves an existing monthly cursor when cadence fields do not change", async () => {
+    mocks.getByProjectId.mockResolvedValue({
+      ...persistedRow,
+      growthEnabled: true,
+      nextMonthlyReviewAt: "2026-10-01T00:00:00.000Z",
+    });
+    await updateSettings(
+      { projectId: "project_1", projectDomain: "acme.com" },
+      { ...GROWTH_SETTINGS_DEFAULTS, growthEnabled: true },
+      new Date("2026-09-05T12:00:00.000Z"),
+    );
+    expect(mocks.upsert).toHaveBeenCalledWith(
+      "project_1",
+      expect.any(Object),
+      "2026-10-01T00:00:00.000Z",
+      null,
+    );
+  });
+
+  it("initialises and preserves the weekly cursor for unchanged cadence", async () => {
+    const weekly = {
+      ...GROWTH_SETTINGS_DEFAULTS,
+      growthEnabled: true,
+      reportCadence: "weekly" as const,
+      reportDay: 1,
+    };
+    await updateSettings(
+      { projectId: "project_1", projectDomain: "acme.com" },
+      weekly,
+      new Date("2026-09-09T12:00:00.000Z"),
+    );
+    expect(mocks.upsert).toHaveBeenCalledWith(
+      "project_1",
+      weekly,
+      null,
+      "2026-09-07T00:00:00.000Z",
+    );
+
+    mocks.getByProjectId.mockResolvedValue({
+      ...persistedRow,
+      ...weekly,
+      nextWeeklyReviewAt: "2026-09-14T00:00:00.000Z",
+    });
+    await updateSettings(
+      { projectId: "project_1", projectDomain: "acme.com" },
+      weekly,
+      new Date("2026-09-10T12:00:00.000Z"),
+    );
+    expect(mocks.upsert).toHaveBeenLastCalledWith(
+      "project_1",
+      weekly,
+      null,
+      "2026-09-14T00:00:00.000Z",
+    );
+  });
+});

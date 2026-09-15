@@ -1,0 +1,71 @@
+{
+  "runId": "2026-08-31-growth-work-changes-9c2e",
+  "status": "visual-evidence-blocked",
+  "checks": [
+    {
+      "name": "Focused behavior and actual SQLite reads",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "pnpm exec vitest run src/client/features/growth/GrowthWorkChanges.test.ts src/client/features/growth/GrowthWorkChangeSubmission.test.ts src/client/features/growth/GrowthWork.test.ts src/client/features/growth/GrowthChangeLog.test.ts src/types/schemas/growth-work.test.ts src/serverFunctions/growthWork.test.ts src/server/features/growth/services/GrowthWorkChangesService.test.ts src/server/features/growth/services/GrowthChangeLogService.test.ts src/server/features/growth/services/GrowthChangeEventsService.test.ts src/server/features/growth/services/GrowthInvestigationsService.test.ts src/server/features/growth/repositories/GrowthChangeEventsRepository.query.test.ts --maxWorkers=2 --reporter=dot",
+      "output": "11 files,81 tests passed in2.37s. Includes actual SQLite project/Action/manual scoping, linked history independent of recent candidates,51-record cap and tie-break order, existing qualification and immutable/idempotent writer tests, middleware/schema and UI submission/static-render contracts. Static render is not browser/visual proof."
+    },
+    {
+      "name": "Postgres migrations",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "POSTGRES_DATABASE_URL=<disposable localhost:53546 database> pnpm db:migrate:pg",
+      "output": "Applied all existing migrations to cached postgres:16 in a new task-only loopback container. No new migration in this slice."
+    },
+    {
+      "name": "Executed Postgres associations and bounded read",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "TEST_POSTGRES_DATABASE_URL=<disposable localhost:53546 database> pnpm exec vitest run src/server/features/growth/repositories/GrowthChangeEventsRepository.postgres.test.ts --maxWorkers=1 --reporter=dot",
+      "output": "2 tests passed in5.98s, including concurrent idempotency/drift, links/cascades, unchanged Action state and51-event bounded/order query. Initial run passed first test but failed fixture seeding with too many clients:50 fixtures created100 Workers-lifetime scopes in Node. Fixed only the new fixture to reuse one withPgClient scope; final live rerun passed. Task-only container and synthetic volume removed after verification."
+    },
+    {
+      "name": "Repository CI",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "pnpm ci:check",
+      "output": "Full rerun passed formatting,Knip,application/badseo types,lint(0warnings/errors,973files,9.3s),skill sync and clean generated-skill check. First preflight caught unused exported ChangeDto alias; removed alias and used shared DTO type directly. Type-only correction, no runtime change."
+    },
+    {
+      "name": "Production bundle and types",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "pnpm build",
+      "output": "Executed once by bundled UI preflight. Client3694modules9.95s,SSR7637modules1m15s,then tsc. Existing large-chunk warning and nonfatal sandbox-denied Wrangler log output. Preflight records production exit0."
+    },
+    {
+      "name": "UI source detector",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "node <installed bodkin-ui>/skills/impeccable/scripts/detect.mjs src/client/features/growth/GrowthWorkChanges.tsx src/client/features/growth/GrowthWorkChangeForm.tsx src/client/features/growth/GrowthChangeHistory.tsx src/client/features/growth/GrowthWork.tsx --json",
+      "output": "[];source-only analysis."
+    },
+    {
+      "name": "Whitespace",
+      "status": "pass",
+      "exitCode": 0,
+      "command": "git diff --check",
+      "output": "No errors."
+    },
+    {
+      "name": "Existing preview refresh",
+      "status": "pass",
+      "exitCode": 0,
+      "output": "Verified old Vite PID7314 and preview cwd, stopped only that process. Synced11 runtime files via apply_patch. Restarted same localhost:3218 preview with growthPreviewEnvironment credential allowlist/local_noauth. Vite ready8.315s. No migration or seeding. Before/after restart24 Growth tables,25rows,SHA2567a966252a3c1bfeca7870ffedd657bf6b8a34af55598704861f3cf8068702f4e,FK violations0. Startup/data preservation only, not browser validation."
+    },
+    {
+      "name": "Fresh rendered UI acceptance",
+      "status": "blocked",
+      "output": "Prior explicit browser URL-policy denial still applies. No browser/HTTP/CDP/Playwright workaround attempted. Screenshot manifest remains empty; old screenshots not reused. Fresh user-provided or permitted desktop/narrow screenshots and independent UI review are required."
+    }
+  ],
+  "notes": [
+    "Final integration applied the missing linked-history limit before root focused verification. No change to append-only writer,Action lifecycle,provider auth,dependencies,schemas or migrations.",
+    "This delivers only the Work-to-recorded-change association part of BG-0302/0303. Measurement anchor semantics require an explicit product decision: investigation Done time is not evidence of website implementation. No Phase2/3 gate claim.",
+    "UI preflight overall remains fail for missing rendered evidence. Its initial CI failure is superseded by the independently executed full CI rerun; production passed without a second build."
+  ]
+}

@@ -1,0 +1,153 @@
+{
+  "verdict": "pass",
+  "criteria": [
+    {
+      "criterion": "growth_get_actions is registered on the existing OpenSEO MCP server and mirrored from the same definition into SAM.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/tools/growth-action-tools.ts",
+        "src/server/mcp/server.ts",
+        "src/server/features/sam/samChatTools.ts"
+      ],
+      "note": "One shared definition is registered through both existing adapters; no server or transport was added."
+    },
+    {
+      "criterion": "Input is limited to project scope and bounded status, exact-category, minimum-priority, limit and cursor filters.",
+      "status": "pass",
+      "evidence": [
+        "src/types/schemas/growth-action-reads.ts",
+        "src/types/schemas/growth-action-reads.test.ts"
+      ],
+      "note": "The strict schema defaults to 20, caps at 50, rejects unknown keys and invalid cursors, and canonicalizes status filters."
+    },
+    {
+      "criterion": "Canonical project authorization completes before Action storage is read.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/tools/growth-action-tools.ts",
+        "src/server/mcp/tools/growth-action-tools.test.ts"
+      ],
+      "note": "The unauthorized-path test proves the read and mutation spies remain untouched when project membership fails."
+    },
+    {
+      "criterion": "The read covers all project Actions and remains separate from qualified priority-page Work.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/repositories/GrowthActionsRepository.ts",
+        "src/server/features/growth/repositories/GrowthActionsRepository.read.query.test.ts"
+      ],
+      "note": "listActionsPage reads growth_actions directly; listInvestigationWork retains its existing detector/run/signal qualification."
+    },
+    {
+      "criterion": "Pagination uses immutable createdAt/code-unit ID keyset order, project-leading predicates and limit plus one.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/repositories/GrowthActionsRepository.ts",
+        "src/server/features/growth/repositories/GrowthActionsRepository.read.query.test.ts",
+        "src/server/features/growth/repositories/GrowthActionsRepository.read.postgres.test.ts"
+      ],
+      "note": "SQLite/D1 BINARY and live PostgreSQL C collation tests prove exact continuation; the service emits the last returned row only when more data exists."
+    },
+    {
+      "criterion": "Only emitted-page targets are bulk-loaded, the 100-target invariant is enforced and five display targets are exposed.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/services/GrowthActionsReadService.ts",
+        "src/server/features/growth/services/GrowthActionsReadService.test.ts"
+      ],
+      "note": "Tests prove the overflow row is excluded from target loading, JavaScript code-unit sorting precedes the five-target slice, and 101 stored targets fail closed."
+    },
+    {
+      "criterion": "The strict DTO exposes only approved Action summary and safe target fields.",
+      "status": "pass",
+      "evidence": [
+        "src/types/schemas/growth-action-reads.ts",
+        "src/types/schemas/growth-action-reads.test.ts",
+        "src/server/features/growth/services/GrowthActionsReadService.test.ts"
+      ],
+      "note": "Recommendation/run IDs, owner IDs, creation keys, hashes, actors, notes and raw rows are excluded and strict output validation rejects injected internal fields."
+    },
+    {
+      "criterion": "Mutable prose and URL targets use credential-safe projections with truthful redaction, truncation, omission and withholding state.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/services/GrowthActionsReadService.ts",
+        "src/server/features/growth/services/GrowthActionsReadService.test.ts"
+      ],
+      "note": "Repair round 1 reapplies public caps after sanitization; exact Unicode URL-expansion, credentials, email material, URL query/fragment omission and complete withholding are covered."
+    },
+    {
+      "criterion": "Descriptions are capped at 400 characters and overall output remains bounded to 50 Actions.",
+      "status": "pass",
+      "evidence": [
+        "src/types/schemas/growth-action-reads.ts",
+        "src/server/features/growth/services/GrowthActionsReadService.ts"
+      ],
+      "note": "The service bounds after projection and the strict DTO independently enforces Action, prose and target caps."
+    },
+    {
+      "criterion": "The tool is read-only, closed-world, non-destructive, saved-data-only, zero-credit and provider-free.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/tools/growth-action-tools.ts",
+        "src/server/mcp/tools/growth-action-tools.test.ts"
+      ],
+      "note": "The authorized handler makes one listActions call; annotations, description and no-mutation assertions match the implementation."
+    },
+    {
+      "criterion": "Human-readable output truthfully distinguishes empty, final and continuing pages.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/tools/growth-action-tools.ts",
+        "src/server/mcp/tools/growth-action-tools.test.ts"
+      ],
+      "note": "Continuation text appears only with hasMore and directs callers to the structured nextCursor."
+    },
+    {
+      "criterion": "Standard metadata contains the authorized project ID and Growth Work deep link.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/tools/growth-action-tools.ts",
+        "src/server/mcp/server.growth.integration.test.ts"
+      ],
+      "note": "Both direct and real protocol tests retain /p/:projectId/growth#growth-work."
+    },
+    {
+      "criterion": "SAM hides model-visible projectId, injects the bound project and preserves filters and cursors.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/sam/samChatGrowthTools.test.ts",
+        "src/server/features/sam/samChatTools.ts"
+      ],
+      "note": "The SAM test parses the model-facing schema, executes it and proves exact bound-project authorization/delegation."
+    },
+    {
+      "criterion": "ADR documentation records the sanitized current-list boundary and deferred detail/history/write scope.",
+      "status": "pass",
+      "evidence": ["docs/growth/05_ARCHITECTURE_DECISIONS.md"],
+      "note": "ADR-037 records the keyset, privacy, shared-adapter and no-chain/no-mutation decisions."
+    },
+    {
+      "criterion": "No dependency, schema, migration, provider, billing, auth, scope, transport, route, server-function or UI change was added, and required checks/review pass.",
+      "status": "pass",
+      "evidence": [
+        "git status and complete diff against 4744fb4",
+        ".bodkin/runs/2026-09-01-growth-actions-mcp-5a7c/verification.json",
+        ".bodkin/runs/2026-09-01-growth-actions-mcp-5a7c/review-final.json"
+      ],
+      "note": "The final diff is confined to schemas, the existing repository/service/MCP/SAM layers, tests, ADR and run evidence; all gates and the post-repair fresh review pass."
+    }
+  ],
+  "missing": [],
+  "limitations": [
+    "Raw HTTP transport and an external headless MCP consumer probe were not run because the user's standing constraint prohibits HTTP and headless/browser activity. Those layers are not claimed as passed; a real no-network MCP client/server protocol exercise is included instead.",
+    "The disposable PostgreSQL fixture applied migration 0029's exact DDL in dependency-safe order because the checked-in SQL emits a referenced unique constraint after its foreign keys. No migration or product source was changed in this slice."
+  ],
+  "do_not_change": [
+    "Keep the general all-Action read separate from qualified priority-page Work.",
+    "Keep createdAt plus provider-collated ID keyset ordering and limit-plus-one pagination.",
+    "Keep safe-text caps after sanitization and preserve truthful projection flags.",
+    "Keep canonical MCP project authorization and SAM's server-bound project injection.",
+    "Keep detail/history/evidence-chain reads and Action writes out of this tool."
+  ]
+}

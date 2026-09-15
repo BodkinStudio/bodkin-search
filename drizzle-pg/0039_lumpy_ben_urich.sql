@@ -1,0 +1,1 @@
+ALTER TABLE "linkedin_page_overview_caches" ADD COLUMN "completeness" text DEFAULT 'complete' NOT NULL;

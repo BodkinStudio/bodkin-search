@@ -21,6 +21,15 @@ import {
   getAuditStatusTool,
   runSiteAuditTool,
 } from "@/server/mcp/tools/site-audit-tools";
+import { growthGetActionsTool } from "@/server/mcp/tools/growth-action-tools";
+import { growthGetPriorityRecommendationsTool } from "@/server/mcp/tools/growth-priority-recommendations-tool";
+import { growthGetRecentChangesTool } from "@/server/mcp/tools/growth-recent-changes-tool";
+import { growthGetMeasurementsTool } from "@/server/mcp/tools/growth-measurements-tool";
+import { growthGetActionTool } from "@/server/mcp/tools/growth-action-detail-tool";
+import { growthGetProjectSummaryTool } from "@/server/mcp/tools/growth-project-summary-tool";
+import { growthGetPageContextTool } from "@/server/mcp/tools/growth-page-context-tool";
+import { growthGetMonthlySummaryTool } from "@/server/mcp/tools/growth-tools";
+import { growthGetPlanTool } from "@/server/mcp/tools/growth-plan-tool";
 import { listSavedKeywordsTool } from "@/server/mcp/tools/list-saved-keywords";
 import { buildUpdateProjectContextTool } from "@/server/mcp/tools/project-context";
 import {
@@ -57,6 +66,11 @@ import {
   inspectUrlsTool,
 } from "@/server/mcp/tools/search-console-tools";
 import { whoamiTool } from "@/server/mcp/tools/whoami";
+import {
+  getYouTubeChannelOverviewTool,
+  getYouTubeTrafficSourcesTool,
+  getYouTubeVideoPerformanceTool,
+} from "@/server/mcp/tools/youtube-analytics-tools";
 import { discoverSiteUrls, readPages, readSite } from "@/server/lib/scrape";
 import openSeoFactSheet from "@/server/features/onboarding/openseo-fact-sheet.md?raw";
 
@@ -301,7 +315,7 @@ export function buildSamMcpTools(
     definition: McpToolDefinition<Shape>,
   ) => adaptMcpTool(definition, toolContext, projectId);
 
-  // The GA4 tools define inputSchema as a built ZodObject instead of a raw
+  // The GA4 and YouTube tools define inputSchema as a built ZodObject instead of a raw
   // shape; unwrap it so the same adapter (projectId stripping included) applies.
   type AnyMcpHandler = McpToolDefinition<ZodRawShape>["handler"];
   const adaptObjectTool = (definition: {
@@ -399,9 +413,27 @@ export function buildSamMcpTools(
     get_google_analytics_audience_breakdown: adaptObjectTool(
       getGoogleAnalyticsAudienceBreakdownTool,
     ),
+    get_youtube_channel_overview: adaptObjectTool(
+      getYouTubeChannelOverviewTool,
+    ),
+    get_youtube_video_performance: adaptObjectTool(
+      getYouTubeVideoPerformanceTool,
+    ),
+    get_youtube_traffic_sources: adaptObjectTool(getYouTubeTrafficSourcesTool),
     run_site_audit: adaptTool(runSiteAuditTool),
     get_audit_status: waitingAuditStatusTool(adaptTool),
     get_audit_issues: adaptTool(getAuditIssuesTool),
     get_audit_pages: adaptTool(getAuditPagesTool),
+    growth_get_plan: adaptTool(growthGetPlanTool),
+    growth_get_project_summary: adaptTool(growthGetProjectSummaryTool),
+    growth_get_page_context: adaptTool(growthGetPageContextTool),
+    growth_get_actions: adaptTool(growthGetActionsTool),
+    growth_get_priority_recommendations: adaptTool(
+      growthGetPriorityRecommendationsTool,
+    ),
+    growth_get_recent_changes: adaptTool(growthGetRecentChangesTool),
+    growth_get_measurements: adaptTool(growthGetMeasurementsTool),
+    growth_get_action: adaptTool(growthGetActionTool),
+    growth_get_monthly_summary: adaptTool(growthGetMonthlySummaryTool),
   };
 }

@@ -1,0 +1,805 @@
+/* eslint-disable max-lines -- live checks and their saved decline history remain one established card module */
+import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getStandardErrorMessage } from "@/client/lib/error-messages";
+import { formatGrowthPreviewDate } from "./GrowthPreviewPresentation";
+import { GrowthCheckDetail } from "./GrowthCheckDetail";
+import { GrowthPersistentRankDropCheck } from "./GrowthPersistentRankDropCheck";
+import { GrowthCriticalAuditIssueCheck } from "./GrowthCriticalAuditIssueCheck";
+import { GrowthMeasurementDueCheck } from "./GrowthMeasurementDueCheck";
+import {
+  runGrowthCheckSchema,
+  runGrowthStrikingDistanceCheckSchema,
+} from "@/types/schemas/growth-checks";
+import {
+  getGrowthCheckRun,
+  getGrowthChecksOverview,
+  runGrowthCheck,
+  runGrowthStrikingDistanceCheck,
+  runGrowthLowCtrCheck,
+} from "@/serverFunctions/growthChecks";
+
+type GrowthStrikingDistanceCheckResult = Awaited<
+  ReturnType<typeof runGrowthStrikingDistanceCheck>
+>;
+type GrowthLowCtrCheckResult = Awaited<ReturnType<typeof runGrowthLowCtrCheck>>;
+type StrikingDistanceRequest = {
+  requestKey: string;
+  keyPageId?: string;
+};
+
+function newGrowthCheckRequestKey() {
+  return crypto.randomUUID().replaceAll("-", "");
+}
+
+function pendingCheckStorageKey(projectId: string) {
+  return `growth:priority-page-check:${projectId}`;
+}
+
+function pendingStrikingDistanceStorageKey(projectId: string) {
+  return `growth:striking-distance-check:${projectId}`;
+}
+function pendingLowCtrStorageKey(projectId: string) {
+  return `growth:low-ctr-check:${projectId}`;
+}
+
+function readPendingCheck(projectId: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    const parsed = runGrowthCheckSchema.shape.requestKey.safeParse(
+      window.sessionStorage.getItem(pendingCheckStorageKey(projectId)),
+    );
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function readPendingStrikingDistanceCheck(projectId: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = window.sessionStorage.getItem(
+      pendingStrikingDistanceStorageKey(projectId),
+    );
+    const legacy = runGrowthCheckSchema.shape.requestKey.safeParse(stored);
+    if (legacy.success) return { requestKey: legacy.data };
+    const parsed = runGrowthStrikingDistanceCheckSchema
+      .pick({ requestKey: true, keyPageId: true })
+      .safeParse(JSON.parse(stored ?? "null"));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function strikingDistanceRequestForAttempt(input: {
+  newAttempt: boolean;
+  pending: StrikingDistanceRequest | null;
+  selectedKeyPageId: string;
+}): StrikingDistanceRequest {
+  if (!input.newAttempt && input.pending) return input.pending;
+  return {
+    requestKey: newGrowthCheckRequestKey(),
+    keyPageId: input.selectedKeyPageId || undefined,
+  };
+}
+function readPendingLowCtrCheck(projectId: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    const parsed = runGrowthCheckSchema.shape.requestKey.safeParse(
+      window.sessionStorage.getItem(pendingLowCtrStorageKey(projectId)),
+    );
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatCheckStartedAt(value: string) {
+  return `${new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(value))} UTC`;
+}
+
+function GrowthStrikingDistanceCheckStatus({
+  result,
+}: {
+  result: GrowthStrikingDistanceCheckResult;
+}) {
+  const resultPrefix = result.replayed ? "Retrieved the saved result. " : "";
+  const scope = result.scope
+    ? `Scope: ${result.scope.url}. `
+    : "Scope: all saved priority pages. ";
+  const foundSummary = `Found ${result.candidateCount} eligible ranking ${result.candidateCount === 1 ? "opportunity" : "opportunities"}. Newly saved: ${result.savedOpportunityCount}. Already covered: ${result.alreadyCoveredCount}.`;
+  const hasReviewableResult =
+    result.savedOpportunityCount > 0 || result.alreadyCoveredCount > 0;
+  const reviewLink = hasReviewableResult ? (
+    <>
+      {" "}
+      <a className="link font-medium" href="#growth-opportunities">
+        Review saved opportunities
+      </a>
+      .
+    </>
+  ) : null;
+
+  if (result.run.status === "running")
+    return (
+      <p role="status" className="text-sm text-base-content/70">
+        {resultPrefix}
+        {scope}This ranking-opportunity check is still running. Retry the saved
+        request to retrieve its outcome.
+      </p>
+    );
+  if (result.run.status === "failed")
+    return (
+      <div role="alert" className="alert alert-error py-3 text-sm">
+        <span>
+          {resultPrefix}
+          {scope}The ranking-opportunity check failed.{" "}
+          {result.run.failureMessage ??
+            "No ranking-opportunity suggestion was saved."}
+        </span>
+      </div>
+    );
+  if (result.run.status === "completed_with_errors")
+    return (
+      <div role="alert" className="alert alert-warning py-3 text-sm">
+        <span>
+          {resultPrefix}
+          {scope}
+          {result.run.failureCode === "INCOMPLETE_QUERY_INVENTORY"
+            ? "Search Console query data was incomplete, so no ranking opportunity was saved."
+            : `The ranking-opportunity check completed with errors. ${result.run.failureMessage ?? "Some suggestions could not be saved."} ${foundSummary}`}
+          {reviewLink}
+        </span>
+      </div>
+    );
+  if (result.candidateCount === 0)
+    return (
+      <p role="status" className="text-sm text-base-content/70">
+        {resultPrefix}
+        {scope}No eligible ranking opportunities were found in the completed
+        Search Console inventory. No new suggestion was saved.
+      </p>
+    );
+  return (
+    <p role="status" className="text-sm text-base-content/70">
+      {resultPrefix}
+      {scope}
+      {foundSummary}
+      {reviewLink}
+    </p>
+  );
+}
+function GrowthLowCtrCheckStatus({
+  result,
+}: {
+  result: GrowthLowCtrCheckResult;
+}) {
+  const prefix = result.replayed ? "Retrieved the saved result. " : "";
+  const summary = `Found ${result.candidateCount} eligible low-CTR ${result.candidateCount === 1 ? "opportunity" : "opportunities"}. Newly saved: ${result.savedOpportunityCount}. Already covered: ${result.alreadyCoveredCount}.`;
+  const hasReviewableResult =
+    result.savedOpportunityCount > 0 || result.alreadyCoveredCount > 0;
+  const reviewLink = hasReviewableResult ? (
+    <>
+      {" "}
+      <a className="link font-medium" href="#growth-opportunities">
+        Review saved opportunities
+      </a>
+      .
+    </>
+  ) : null;
+  if (result.run.status === "running")
+    return (
+      <p role="status" className="text-sm text-base-content/70">
+        {prefix}This low-CTR check is still running. Retry the saved request to
+        retrieve its outcome.
+      </p>
+    );
+  if (result.run.status === "failed")
+    return (
+      <div role="alert" className="alert alert-error py-3 text-sm">
+        <span>
+          {prefix}The low-CTR check failed.{" "}
+          {result.run.failureMessage ?? "No low-CTR opportunity was saved."}
+        </span>
+      </div>
+    );
+  if (result.run.status === "completed_with_errors")
+    return (
+      <div role="alert" className="alert alert-warning py-3 text-sm">
+        <span>
+          {prefix}
+          {result.run.failureCode === "INCOMPLETE_QUERY_INVENTORY"
+            ? "Search Console query data was incomplete, so no low-CTR opportunity was saved."
+            : `${result.run.failureMessage ?? "Some suggestions could not be saved."} ${summary}`}
+          {reviewLink}
+        </span>
+      </div>
+    );
+  if (!result.candidateCount)
+    return (
+      <p role="status" className="text-sm text-base-content/70">
+        {prefix}No eligible low-CTR opportunities were found in the complete
+        Search Console inventory. No new suggestion was saved.
+      </p>
+    );
+  return (
+    <p role="status" className="text-sm text-base-content/70">
+      {prefix}
+      {summary}
+      {reviewLink}
+    </p>
+  );
+}
+
+function shouldShowLowCtrResult(
+  result: GrowthLowCtrCheckResult | null,
+  pending: boolean,
+): result is GrowthLowCtrCheckResult {
+  return result !== null && !pending;
+}
+
+function StrikingDistanceControls({
+  pages,
+  request,
+  selectedKeyPageId,
+  isPending,
+  isReady,
+  onSelect,
+  onSubmit,
+}: {
+  pages: Array<{ id: string; url: string }>;
+  request: StrikingDistanceRequest | null;
+  selectedKeyPageId: string;
+  isPending: boolean;
+  isReady: boolean;
+  onSelect: (keyPageId: string) => void;
+  onSubmit: (newAttempt?: boolean) => void;
+}) {
+  const scopeLocked = isPending || request !== null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      <label className="form-control w-full sm:w-80">
+        <span className="label-text text-sm">Saved priority page</span>
+        <select
+          className="select select-bordered select-sm mt-1"
+          value={request?.keyPageId ?? selectedKeyPageId}
+          disabled={scopeLocked}
+          onChange={(event) => onSelect(event.target.value)}
+        >
+          <option value="">All saved priority pages</option>
+          {pages.map((page) => (
+            <option key={page.id} value={page.id}>
+              {page.url}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button
+        type="button"
+        className="btn btn-outline btn-sm"
+        aria-busy={isPending}
+        disabled={!isReady || isPending}
+        onClick={() => onSubmit()}
+      >
+        {isPending
+          ? "Finding opportunities…"
+          : request
+            ? "Retry ranking-opportunity request"
+            : "Find ranking opportunities"}
+      </button>
+      {request ? (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          disabled={!isReady || isPending}
+          onClick={() => onSubmit(true)}
+        >
+          Start new ranking-opportunity check
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+// eslint-disable-next-line max-lines-per-function -- the established card owns both retry-safe checks and decline history
+export function GrowthPriorityPageChecks({
+  projectId,
+  selectedRunId,
+  onSelectRun,
+}: {
+  projectId: string;
+  selectedRunId: string | null;
+  onSelectRun: (runId: string) => void;
+}) {
+  const client = useQueryClient();
+  const [requestKey, setRequestKey] = useState(() =>
+    readPendingCheck(projectId),
+  );
+  const [storageError, setStorageError] = useState<string | null>(null);
+  const [strikingDistanceRequest, setStrikingDistanceRequest] = useState(() =>
+    readPendingStrikingDistanceCheck(projectId),
+  );
+  const [
+    selectedStrikingDistanceKeyPageId,
+    setSelectedStrikingDistanceKeyPageId,
+  ] = useState("");
+  const [strikingDistanceStorageError, setStrikingDistanceStorageError] =
+    useState<string | null>(null);
+  const [strikingDistanceResult, setStrikingDistanceResult] =
+    useState<GrowthStrikingDistanceCheckResult | null>(null);
+  const [lowCtrRequestKey, setLowCtrRequestKey] = useState(() =>
+    readPendingLowCtrCheck(projectId),
+  );
+  const [lowCtrResult, setLowCtrResult] =
+    useState<GrowthLowCtrCheckResult | null>(null);
+  const [lowCtrStorageError, setLowCtrStorageError] = useState<string | null>(
+    null,
+  );
+  const overview = useQuery({
+    queryKey: ["growthChecks", projectId],
+    queryFn: () => getGrowthChecksOverview({ data: { projectId } }),
+    retry: false,
+  });
+  const run = useQuery({
+    queryKey: ["growthCheckRun", projectId, selectedRunId],
+    queryFn: () =>
+      getGrowthCheckRun({ data: { projectId, runId: selectedRunId! } }),
+    enabled: selectedRunId != null,
+    retry: false,
+  });
+  const start = useMutation({
+    mutationFn: (key: string) =>
+      runGrowthCheck({ data: { projectId, requestKey: key } }),
+    onSuccess: (result) => {
+      if (result.run.status !== "running") {
+        try {
+          window.sessionStorage.removeItem(pendingCheckStorageKey(projectId));
+        } catch {
+          // A stale terminal identity is safe to replay after a reload.
+        }
+        setRequestKey(null);
+      }
+      onSelectRun(result.run.id);
+      void client.invalidateQueries({ queryKey: ["growthChecks", projectId] });
+      void client.invalidateQueries({
+        queryKey: ["growthCheckRun", projectId, result.run.id],
+      });
+    },
+  });
+  const findStrikingDistance = useMutation({
+    mutationFn: (request: StrikingDistanceRequest) =>
+      runGrowthStrikingDistanceCheck({
+        data: { projectId, ...request },
+      }),
+    onSuccess: (result) => {
+      setStrikingDistanceResult(result);
+      setSelectedStrikingDistanceKeyPageId(result.scope?.id ?? "");
+      if (result.run.status !== "running") {
+        try {
+          window.sessionStorage.removeItem(
+            pendingStrikingDistanceStorageKey(projectId),
+          );
+        } catch {
+          // A stale terminal identity is safe to replay after a reload.
+        }
+        setStrikingDistanceRequest(null);
+      }
+      if (["completed", "completed_with_errors"].includes(result.run.status)) {
+        void client.invalidateQueries({
+          queryKey: ["growthPriorityRecommendations", projectId],
+        });
+        void client.invalidateQueries({
+          queryKey: ["growthProjectSummary", projectId],
+        });
+      }
+    },
+  });
+  const findLowCtr = useMutation({
+    mutationFn: (key: string) =>
+      runGrowthLowCtrCheck({ data: { projectId, requestKey: key } }),
+    onSuccess: (result) => {
+      setLowCtrResult(result);
+      if (result.run.status !== "running") {
+        try {
+          window.sessionStorage.removeItem(pendingLowCtrStorageKey(projectId));
+        } catch {
+          // A stale terminal identity is safe to replay after a reload.
+        }
+        setLowCtrRequestKey(null);
+      }
+      if (["completed", "completed_with_errors"].includes(result.run.status)) {
+        void client.invalidateQueries({
+          queryKey: ["growthPriorityRecommendations", projectId],
+        });
+        void client.invalidateQueries({
+          queryKey: ["growthProjectSummary", projectId],
+        });
+      }
+    },
+  });
+  const refresh = () => {
+    void overview.refetch();
+    if (selectedRunId) void run.refetch();
+  };
+  const submit = (newAttempt = false) => {
+    const key = (!newAttempt && requestKey) || newGrowthCheckRequestKey();
+    try {
+      // Only a retry nonce is saved here, never source data or credentials.
+      window.sessionStorage.setItem(pendingCheckStorageKey(projectId), key);
+    } catch {
+      setStorageError(
+        "Allow browser session storage before running a check so a retry can be recovered after a reload.",
+      );
+      return;
+    }
+    setStorageError(null);
+    setRequestKey(key);
+    start.mutate(key);
+  };
+  const submitStrikingDistance = (newAttempt = false) => {
+    const request = strikingDistanceRequestForAttempt({
+      newAttempt,
+      pending: strikingDistanceRequest,
+      selectedKeyPageId: selectedStrikingDistanceKeyPageId,
+    });
+    try {
+      window.sessionStorage.setItem(
+        pendingStrikingDistanceStorageKey(projectId),
+        JSON.stringify(request),
+      );
+    } catch {
+      setStrikingDistanceStorageError(
+        "Allow browser session storage before finding ranking opportunities so a retry can be recovered after a reload.",
+      );
+      return;
+    }
+    setStrikingDistanceStorageError(null);
+    setStrikingDistanceResult(null);
+    setStrikingDistanceRequest(request);
+    findStrikingDistance.mutate(request);
+  };
+  const submitLowCtr = (newAttempt = false) => {
+    const key = (!newAttempt && lowCtrRequestKey) || newGrowthCheckRequestKey();
+    try {
+      window.sessionStorage.setItem(pendingLowCtrStorageKey(projectId), key);
+    } catch {
+      setLowCtrStorageError(
+        "Allow browser session storage before finding low-CTR opportunities so a retry can be recovered after a reload.",
+      );
+      return;
+    }
+    setLowCtrStorageError(null);
+    setLowCtrResult(null);
+    setLowCtrRequestKey(key);
+    findLowCtr.mutate(key);
+  };
+
+  if (overview.isPending)
+    return (
+      <section
+        aria-labelledby="growth-live-check-title"
+        className="rounded-lg border border-base-300 bg-base-100 p-5"
+      >
+        <h2 id="growth-live-check-title" className="text-lg font-semibold">
+          Growth checks
+        </h2>
+        <p role="status" aria-busy="true">
+          Loading saved priority-page checks…
+        </p>
+      </section>
+    );
+  if (overview.isError)
+    return (
+      <section
+        aria-labelledby="growth-live-check-title"
+        className="alert alert-error flex-wrap"
+      >
+        <h2 id="growth-live-check-title" className="font-semibold">
+          Growth checks
+        </h2>
+        <p>Saved priority-page checks could not be loaded.</p>
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={() => void overview.refetch()}
+        >
+          Retry saved results
+        </button>
+      </section>
+    );
+  const data = overview.data;
+  return (
+    <section
+      aria-labelledby="growth-live-check-title"
+      className="rounded-lg border border-base-300 bg-base-100 p-4 sm:p-6"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 id="growth-live-check-title" className="text-lg font-semibold">
+            Growth checks
+          </h2>
+          <p className="mt-1 max-w-prose text-sm text-base-content/70">
+            Compare two adjacent 28-day Search Console windows. Results use
+            final data at least three Pacific days old.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={refresh}
+          >
+            Refresh saved results
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={
+              (data.setup !== "ready" && !requestKey) || start.isPending
+            }
+            onClick={() => submit()}
+          >
+            {start.isPending
+              ? "Running check…"
+              : requestKey
+                ? "Retry previous request"
+                : "Run check"}
+          </button>
+          {requestKey ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              disabled={data.setup !== "ready" || start.isPending}
+              onClick={() => submit(true)}
+            >
+              Start new check
+            </button>
+          ) : null}
+        </div>
+      </div>
+      <div className="mt-4 border-t border-base-300 pt-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold">Find ranking opportunities</h3>
+            <p className="mt-1 max-w-prose text-sm text-base-content/70">
+              Find queries ranking in positions 5–20 on configured priority
+              pages with at least 50 impressions in the current final 28-day
+              window, using the preceding 28 days as evidence.
+            </p>
+          </div>
+          <StrikingDistanceControls
+            pages={data.keyPages}
+            request={strikingDistanceRequest}
+            selectedKeyPageId={selectedStrikingDistanceKeyPageId}
+            isPending={findStrikingDistance.isPending}
+            isReady={data.setup === "ready"}
+            onSelect={setSelectedStrikingDistanceKeyPageId}
+            onSubmit={submitStrikingDistance}
+          />
+        </div>
+        {findStrikingDistance.isPending ? (
+          <p
+            role="status"
+            aria-busy="true"
+            className="mt-3 text-sm text-base-content/70"
+          >
+            Finding ranking opportunities in final Search Console data…
+          </p>
+        ) : strikingDistanceRequest && !strikingDistanceResult ? (
+          <p role="status" className="mt-3 text-sm text-base-content/70">
+            A previous ranking-opportunity request has no confirmed outcome yet.
+            Retry it to retrieve the saved result, or explicitly start a
+            separate check.
+          </p>
+        ) : null}
+        {strikingDistanceStorageError ? (
+          <p role="alert" className="mt-3 text-sm text-error">
+            {strikingDistanceStorageError}
+          </p>
+        ) : null}
+        {findStrikingDistance.isError ? (
+          <div role="alert" className="alert alert-error mt-3 py-3 text-sm">
+            <span>
+              {getStandardErrorMessage(
+                findStrikingDistance.error,
+                "Ranking opportunities could not be checked. Retry this request or start a new explicit check.",
+              )}
+            </span>
+          </div>
+        ) : null}
+        {strikingDistanceResult && !findStrikingDistance.isPending ? (
+          <div className="mt-3">
+            <GrowthStrikingDistanceCheckStatus
+              result={strikingDistanceResult}
+            />
+          </div>
+        ) : null}
+      </div>
+      <div className="mt-4 border-t border-base-300 pt-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold">Find low-CTR opportunities</h3>
+            <p className="mt-1 max-w-prose text-sm text-base-content/70">
+              Find priority-page queries with at least 100 impressions in each
+              28-day period that remain in the top four but lost at least one
+              percentage point and 25% of their prior click-through rate.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              aria-busy={findLowCtr.isPending}
+              disabled={data.setup !== "ready" || findLowCtr.isPending}
+              onClick={() => submitLowCtr()}
+            >
+              {findLowCtr.isPending
+                ? "Checking click-through rates…"
+                : lowCtrRequestKey
+                  ? "Retry low-CTR request"
+                  : "Find low-CTR opportunities"}
+            </button>
+            {lowCtrRequestKey ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={data.setup !== "ready" || findLowCtr.isPending}
+                onClick={() => submitLowCtr(true)}
+              >
+                Start new low-CTR check
+              </button>
+            ) : null}
+          </div>
+        </div>
+        {findLowCtr.isPending ? (
+          <p
+            role="status"
+            aria-busy="true"
+            className="mt-3 text-sm text-base-content/70"
+          >
+            Checking click-through rates…
+          </p>
+        ) : lowCtrRequestKey && !lowCtrResult ? (
+          <p role="status" className="mt-3 text-sm text-base-content/70">
+            A previous low-CTR request has no confirmed outcome yet. Retry it or
+            explicitly start a separate check.
+          </p>
+        ) : null}
+        {findLowCtr.isError ? (
+          <div role="alert" className="alert alert-error mt-3 py-3 text-sm">
+            <span>
+              {getStandardErrorMessage(
+                findLowCtr.error,
+                "Low-CTR opportunities could not be checked. Retry this request or start a new explicit check.",
+              )}
+            </span>
+          </div>
+        ) : null}
+        {lowCtrStorageError ? (
+          <p role="alert" className="mt-3 text-sm text-error">
+            {lowCtrStorageError}
+          </p>
+        ) : null}
+        {shouldShowLowCtrResult(lowCtrResult, findLowCtr.isPending) ? (
+          <div className="mt-3">
+            <GrowthLowCtrCheckStatus result={lowCtrResult} />
+          </div>
+        ) : null}
+      </div>
+      <GrowthPersistentRankDropCheck
+        projectId={projectId}
+        keyPageCount={data.keyPageCount}
+      />
+      <GrowthCriticalAuditIssueCheck projectId={projectId} />
+      <GrowthMeasurementDueCheck projectId={projectId} />
+      {requestKey && !start.isPending ? (
+        <p role="status" className="mt-3 text-sm text-base-content/70">
+          A previous request has no confirmed outcome yet. Retry it to retrieve
+          the saved result, or explicitly start a separate check.
+        </p>
+      ) : null}
+      {storageError ? (
+        <p role="alert" className="mt-3 text-sm text-error">
+          {storageError}
+        </p>
+      ) : null}
+      {data.setup === "missing_connection" ? (
+        <div role="alert" className="alert mt-4">
+          <span>
+            Connect a Search Console property before running a check.{" "}
+            <Link
+              className="link"
+              to="/p/$projectId/settings/integrations"
+              params={{ projectId }}
+            >
+              Open integrations
+            </Link>
+            .
+          </span>
+        </div>
+      ) : null}
+      {data.setup === "missing_key_pages" ? (
+        <div role="alert" className="alert mt-4">
+          <span>
+            Add at least one key page before running a check.{" "}
+            <Link
+              className="link"
+              to="/p/$projectId/settings/context"
+              params={{ projectId }}
+            >
+              Open project context
+            </Link>
+            .
+          </span>
+        </div>
+      ) : null}
+      {start.isError ? (
+        <div role="alert" className="alert alert-error mt-4 flex-wrap">
+          <span>
+            {getStandardErrorMessage(
+              start.error,
+              "The check could not be started. Retry this request or start a new explicit check.",
+            )}
+          </span>
+        </div>
+      ) : null}
+      <div className="mt-5 grid items-start gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
+        <div>
+          <h3 className="font-semibold">Saved checks</h3>
+          {data.runs.length === 0 ? (
+            <p className="mt-2 text-sm text-base-content/70">
+              No saved checks yet. A completed check with no declines is not
+              proof that every page is healthy.
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {data.runs.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    aria-pressed={selectedRunId === item.id}
+                    onClick={() => onSelectRun(item.id)}
+                    className={`w-full rounded-md border p-3 text-left text-sm hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-primary ${
+                      selectedRunId === item.id
+                        ? "border-primary bg-base-200"
+                        : "border-base-300"
+                    }`}
+                  >
+                    <span className="block font-medium">
+                      {formatCheckStartedAt(item.startedAt)}
+                    </span>
+                    <span className="mt-1 block text-xs text-base-content/70">
+                      {formatGrowthPreviewDate(item.periodStart)} –{" "}
+                      {formatGrowthPreviewDate(item.periodEnd)}
+                    </span>
+                    <span className="mt-1 block text-xs text-base-content/70">
+                      {item.status.replaceAll("_", " ")}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="min-w-0">
+          {run.isSuccess ? (
+            <p className="mb-2 text-sm font-medium">
+              Check started {formatCheckStartedAt(run.data.run.startedAt)}
+            </p>
+          ) : null}
+          <GrowthCheckDetail query={run} projectId={projectId} />
+        </div>
+      </div>
+    </section>
+  );
+}

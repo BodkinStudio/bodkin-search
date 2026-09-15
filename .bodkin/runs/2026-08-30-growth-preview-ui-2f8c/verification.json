@@ -1,0 +1,78 @@
+{
+  "runId": "2026-08-30-growth-preview-ui-2f8c",
+  "baseCommit": "cef8427",
+  "scope": "Current uncommitted fixture-only Growth preview, navigation, tests and isolated launcher",
+  "checks": [
+    {
+      "command": "pnpm exec vitest run --maxWorkers=2 --reporter=dot",
+      "result": "pass",
+      "details": "Final repair rerun: 177 test files passed; 1642 tests passed; 6 Postgres-only files / 11 tests skipped. No persistence changes in this checkpoint."
+    },
+    {
+      "command": "pnpm exec vitest run GrowthPreview --maxWorkers=1 --reporter=dot",
+      "result": "pass",
+      "details": "5 files, 17 tests passed on final application source. Covers sample projection, schema, middleware registration, SSR rendering and the existing route-key project remount. Registration is not an end-to-end authorization test."
+    },
+    {
+      "command": "node --test scripts/growth-preview.test.mjs",
+      "result": "pass",
+      "details": "5 tests passed: credential allowlist, source allowlist, strict port arguments, lifecycle-wide signal cancellation and an actual temporary Git repository copy with untracked-file exclusion and Tailwind scanner runtime exclusion."
+    },
+    {
+      "command": "pnpm ci:check",
+      "result": "pass",
+      "details": "Formatting, Knip, root and badseo TypeScript, type-aware Oxlint (0 errors/warnings), skill sync and clean generated plugin skills."
+    },
+    {
+      "command": "pnpm build",
+      "result": "pass",
+      "details": "Client and SSR production bundles plus TypeScript passed. Existing large-chunk warning remains. Final build was slow (SSR 5m14s), but completed successfully. Production application source did not change in repair round 1; only the launcher, a new route contract test and verification artifacts changed, so this build remains applicable."
+    },
+    {
+      "command": "node /Users/jamesward/.codex/plugins/cache/bodkin-tools/bodkin-ui/0.1.0/scripts/ui-preflight.mjs .bodkin/runs/2026-08-30-growth-preview-ui-2f8c/ui-preflight.config.json",
+      "result": "pass",
+      "details": "Initial full mechanical pass, including production build. A repair preflight reruns focused tests, launcher tests, repository checks and whitespace against the completed screenshot manifest. This mechanical pass is not a visual-review verdict."
+    },
+    {
+      "command": "node /Users/jamesward/.codex/plugins/cache/bodkin-tools/bodkin-ui/0.1.0/scripts/ui-preflight.mjs .bodkin/runs/2026-08-30-growth-preview-ui-2f8c/repair-preflight.config.json",
+      "result": "pass",
+      "details": "Final repair preflight passed against all fifteen final-source captures: 17 focused tests, 5 launcher isolation/scanner tests, pnpm ci:check and git diff --check. The earlier successful production build applies to unchanged production application source."
+    },
+    {
+      "command": "node /Users/jamesward/.codex/plugins/cache/bodkin-tools/bodkin-ui/0.1.0/skills/impeccable/scripts/detect.mjs --json src/client/features/growth",
+      "result": "pass",
+      "details": "No mechanical detector findings."
+    },
+    {
+      "command": "git diff --check",
+      "result": "pass"
+    }
+  ],
+  "runtime": {
+    "url": "http://127.0.0.1:3217/p/growth-preview/growth",
+    "launcher": "Real startup applied all existing migrations, seeded only the disposable local workspace and served the authorized sample route without provider credentials. The initial launch was stopped with Ctrl+C; its exact temporary directory was confirmed removed. A latest-source launch is running.",
+    "confirmed": [
+      "Pricing sample: 308 baseline clicks, 140 current-period clicks, -168 clicks, -54.5%, weight 3, priority 504.",
+      "All six page outcomes appeared in the page list; Growing page showed known counts 224 and 336 without a general health claim.",
+      "Filtering for incomplete selected the matching page, removed unrelated evidence and displayed two Unavailable values that fit the 390px viewport.",
+      "A zero-match filter removed detail; Reset cleared the query and restored all six pages.",
+      "Final 390px selection and Back to page list focused their respective headings and scrolled them into view. No horizontal document or metric overflow was observed.",
+      "Current context, partial non-causal history and expanded source identifiers and five limitations were inspected. Long identifiers wrap on mobile.",
+      "Temporary disposable-snapshot-only delayed/failing requests exercised the unchanged loading and error UI. Retry restored normal Pricing evidence. The temporary handler was restored and cmp matched repository source exactly.",
+      "Fifteen inspected captures cover 877x830, 1440x1000 and 390x844. See browser-verification.md and the screenshot manifest."
+    ],
+    "limitations": [
+      "Native control tabbability and selection/return focus are verified. Synthetic Tab/Enter delivery did not reliably exercise browser default actions, so a complete keyboard-only flow is not claimed; a manual keyboard smoke check remains useful.",
+      "No live provider/model calls, live-site usefulness test, end-to-end production authorization test, Postgres rerun, deployment or push was performed."
+    ],
+    "reloadRepair": "The disposable launcher omitted .gitignore, allowing Tailwind to watch D1/registry runtime files and trigger repeated Vite full reloads. Preserving ignore rules and adding snapshot-only exclusions fixed the cause. Independent observation changed from 8 full reloads in 30 seconds to zero; the actual scanner found zero runtime files."
+  },
+  "initialFailuresResolved": [
+    "Initial build found optional signal deltaPercent incompatible with the stored signal shape; explicitly normalized to null before packet validation, then typecheck/build passed.",
+    "Three initial style/lint findings were fixed before final ci:check.",
+    "Read-only launcher inspection found cancellation absent during source setup; lifecycle-wide cancellation now covers setup and command gaps, with a dedicated test.",
+    "Review found untracked files could enter the preview. The launcher now copies only Git-tracked, explicitly allowed source/asset paths, tested with a temporary Git repository.",
+    "The initial project-switch finding was invalid: the route already keys GrowthPreviewPage by projectId. A new regression test makes the remount boundary explicit.",
+    "The observed reload loop was traced to Tailwind scanning temporary runtime files and repaired in the launcher, without modifying production auth, Vite configuration or feature code."
+  ]
+}

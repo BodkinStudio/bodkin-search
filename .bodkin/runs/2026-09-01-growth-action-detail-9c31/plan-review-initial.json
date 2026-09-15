@@ -1,0 +1,31 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [
+    {
+      "summary": "Measurement-validator reuse conflicts with the stated bounded graph-read design.",
+      "location": "plan.md — Implementation approach step 3; Normative bounds; Time and state semantics",
+      "evidence": "GrowthMeasurementsService.getMeasurement calls GrowthMeasurementsRepository.getMeasurementGraph, which currently loads every Action event before assertStoredMeasurementGraph checks only the measuring/evaluated versions. Action transitions can cycle indefinitely. The same validator loads every metric, observation and Result-confounder ID without database count constraints.",
+      "impact": "Public caps would not prevent an unbounded internal read, and the Measurement branch had no testable query-budget guarantee.",
+      "recommendation": "Specify validator-compatible bounded reads for exact lifecycle versions and every validator collection, with D1/PostgreSQL tests preserving validator behavior."
+    },
+    {
+      "summary": "The public privacy allowlist is incomplete for source Run, Recommendation and Measurement projections.",
+      "location": "plan.md — Privacy and public contract; Acceptance criteria 6 and 9",
+      "evidence": "The draft named exact Signal fields but left safe Run, Recommendation, Plan, Metric and Result fields to implementation judgment despite ambiguous operational and narrative stored columns.",
+      "impact": "The strict DTO could not be independently assessed for privacy or contract stability.",
+      "recommendation": "Add a field-level allowlist, projector, display cap and flags for every narrative/URL-bearing field, and reject every non-allowlisted stored column."
+    }
+  ],
+  "do_not_change": [
+    "Keep canonical MCP authorization ahead of all detail reads, with project-leading descendant queries and indistinguishable missing/foreign Action behavior.",
+    "Preserve one shared MCP definition adapted into SAM with server-side project binding; do not create a separate Growth transport or service/API layer.",
+    "Keep the response explicitly current-not-snapshot and non-causal for Change and Measurement context; do not claim historical reconstruction or atomicity.",
+    "Include all persisted Change sources rather than retaining the existing manual-only Action-linked Change reader.",
+    "Reuse safe text and URL projectors before public truncation, and do not expose raw Signal evidence references, actor/owner identifiers, hashes, credentials, emails, provider metadata, or external references.",
+    "Keep the tool read-only, saved-data-only, zero-credit, and free of provider, browser, HTTP, CDP, Playwright, screenshot, workflow-start, and mutation paths."
+  ]
+}

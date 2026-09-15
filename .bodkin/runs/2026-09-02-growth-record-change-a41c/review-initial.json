@@ -1,0 +1,19 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "The mandatory whole-repository acceptance gates had not yet been independently evidenced for this uncommitted write slice.",
+      "location": ".bodkin/runs/2026-09-02-growth-record-change-a41c/plan.md#required-checks; .bodkin/runs/2026-09-02-growth-record-change-a41c/",
+      "evidence": "At review time the evidence covered focused tests, SQLite/D1 tests, delegated live PostgreSQL tests, TypeScript, targeted lint/format and diff checks, but did not yet establish pnpm ci:check, the one-worker full suite, production build and staged whitespace check.",
+      "impact": "This security-sensitive cross-cutting change touches OAuth, transport-time tool registration, shared Growth projection and schemas; targeted checks alone could not establish repository-wide regression safety.",
+      "recommendation": "Record sequential results for pnpm ci:check, the one-worker full test suite, the 4 GB-capped production build and both unstaged and staged git diff --check commands before final acceptance."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve the default/API-key offline_access mcp scope set, minimal protected-resource mcp metadata, callback-level grant/props no-escalation checks, capability-before-project authorization, discovery plus invocation defenses, external-MCP-only registration, fixed manual/agent provenance, principal-namespaced idempotency, delegation to existing Change Event validation/atomicity and the shared privacy projector."
+  ]
+}

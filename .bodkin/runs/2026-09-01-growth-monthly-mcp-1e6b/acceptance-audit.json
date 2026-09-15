@@ -1,0 +1,129 @@
+{
+  "verdict": "pass",
+  "criteria": [
+    {
+      "criterion": "One new growth_get_monthly_summary tool is exposed through the existing OpenSEO MCP server only.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/tools/growth-tools.ts",
+        "src/server/mcp/server.ts",
+        "src/server/mcp/server.growth.integration.test.ts"
+      ],
+      "note": "The real in-process server advertises the tool through tools/list; no second server or transport was added."
+    },
+    {
+      "criterion": "The only semantic input is projectId and canonical project authorization completes before the Growth read.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/tools/growth-tools.ts",
+        "src/server/mcp/tools/growth-tools.test.ts",
+        "src/server/mcp/project-auth.ts"
+      ],
+      "note": "Unauthorized projects fail before the monthly service or any report mutation spy is called."
+    },
+    {
+      "criterion": "Authorized execution delegates only to getGrowthMonthlyReport(projectId) and performs no build, publication, provider, scheduling or credit work.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/tools/growth-tools.ts",
+        "src/server/mcp/tools/growth-tools.test.ts"
+      ],
+      "note": "The handler has one Growth service call, and focused tests assert exact one-read/no-write behavior."
+    },
+    {
+      "criterion": "Tool annotations and description truthfully declare read-only, closed-world, non-destructive, zero-credit behavior that never builds or publishes.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/tools/growth-tools.ts",
+        "src/server/mcp/tools/growth-tools.test.ts",
+        "src/server/mcp/server.growth.integration.test.ts"
+      ],
+      "note": "Both definition-level and advertised protocol annotations are exercised."
+    },
+    {
+      "criterion": "Structured output wraps only the existing strict monthly DTO plus optional standard metadata.",
+      "status": "pass",
+      "evidence": [
+        "src/types/schemas/growth-monthly-reports.ts",
+        "src/server/mcp/tools/growth-tools.ts",
+        "src/server/mcp/tools/growth-tools.test.ts"
+      ],
+      "note": "Actual output validates, and an injected internal actor field is rejected; IDs, sources, evidence, actors and hashes are not introduced."
+    },
+    {
+      "criterion": "Ready, no-activity, Draft and Published text remains truthful and includes the bounded stored report content in order.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/tools/growth-tools.ts",
+        "src/server/mcp/tools/growth-tools.test.ts"
+      ],
+      "note": "Tests cover lifecycle-specific wording, publication timestamp behavior and every one of the eight ordered sections, items and scalar facts."
+    },
+    {
+      "criterion": "Project metadata contains the authorized project ID and canonical Growth monthly-summary deep link.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/tools/growth-tools.ts",
+        "src/server/mcp/tools/growth-tools.test.ts",
+        "src/server/mcp/server.growth.integration.test.ts"
+      ],
+      "note": "The link retains the monthly-summary fragment through the standard URL/meta helpers."
+    },
+    {
+      "criterion": "Existing MCP registration retains output validation and instrumentation and is discoverable/callable through the real protocol boundary.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/server.ts",
+        "src/server/mcp/instrumentation.ts",
+        "src/server/mcp/server.growth.integration.test.ts"
+      ],
+      "note": "An MCP Client uses linked InMemoryTransport to list and call the real createOpenSeoMcpServer without network access."
+    },
+    {
+      "criterion": "SAM mirrors the exact definition, removes projectId from model input and injects the session-bound project before authorization.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/sam/samChatTools.ts",
+        "src/server/features/sam/samChatGrowthTools.test.ts"
+      ],
+      "note": "The SAM test proves the empty model-facing schema and bound-project authorization/read calls."
+    },
+    {
+      "criterion": "The slice remains a current previous-complete-month read and adds no arbitrary history or write/share surface.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/tools/growth-tools.ts",
+        "docs/growth/05_ARCHITECTURE_DECISIONS.md"
+      ],
+      "note": "No period, mutation or share input exists; deferred boundaries are explicit in ADR-036."
+    },
+    {
+      "criterion": "No dependency, schema, migration, repository, provider, billing, auth, scope, transport, public route, UI or print change was added.",
+      "status": "pass",
+      "evidence": [
+        "git diff and untracked-file scope",
+        ".bodkin/runs/2026-09-01-growth-monthly-mcp-1e6b/review-final.json"
+      ],
+      "note": "Changes are limited to the shared tool, two registration points, tests, ADR and run evidence."
+    },
+    {
+      "criterion": "Required focused tests, full suite, repository CI, production build, diff check and independent review pass.",
+      "status": "pass",
+      "evidence": [
+        ".bodkin/runs/2026-09-01-growth-monthly-mcp-1e6b/verification.json",
+        ".bodkin/runs/2026-09-01-growth-monthly-mcp-1e6b/review-final.json"
+      ],
+      "note": "35 focused and 1,975 full-suite tests passed; ci:check, build and diff-check passed; the fresh review has no outstanding findings."
+    }
+  ],
+  "missing": [],
+  "limitations": [
+    "Raw HTTP transport and an external headless MCP consumer probe were not run because the user's standing constraint prohibits HTTP and headless/browser activity. Those layers are not claimed as passed; a real no-network MCP client/server protocol exercise is included instead."
+  ],
+  "do_not_change": [
+    "Keep the handler limited to canonical project authorization followed by one getGrowthMonthlyReport(projectId) call.",
+    "Keep the existing strict monthly DTO as the structured summary boundary.",
+    "Keep the exact shared definition registered through the existing MCP helper and SAM's server-bound project adapter.",
+    "Keep build, publication, history and sharing out of this read tool."
+  ]
+}

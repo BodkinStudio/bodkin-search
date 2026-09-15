@@ -1,0 +1,27 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "A confirmed snooze validation failure locked the proposed card instead of allowing the date to be corrected.",
+      "location": "src/client/features/growth/GrowthInvestigation.tsx; src/client/features/growth/GrowthInvestigationReviewControls.tsx",
+      "evidence": "submittedReview was cleared only on success, so a VALIDATION_ERROR left approval and review controls disabled while exact retry retained a date that could already have crossed UTC midnight.",
+      "impact": "The user could retry the rejected payload or reload, but could not choose a newly future snooze date in the current card.",
+      "recommendation": "Clear only a definitively rejected validation payload, preserve exact frozen retries for uncertain outcomes, show safe recovery copy and test corrected resubmission."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "Whole-repository acceptance evidence had not yet been recorded at review time.",
+      "location": ".bodkin/runs/2026-09-02-growth-investigation-review-4e7b/",
+      "evidence": "Focused and live PostgreSQL evidence existed, but ci:check, the full suite, production build and staged whitespace checks remained outstanding.",
+      "impact": "The focused evidence did not by itself establish repository-wide regression safety.",
+      "recommendation": "Run and record every broader gate before acceptance."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve context-derived project qualification, server-derived review transitions, expected-version CAS and the separate atomic Action approval path."
+  ]
+}

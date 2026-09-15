@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `project_key_pages_project_id_key` ON `project_key_pages` (`project_id`,`id`);

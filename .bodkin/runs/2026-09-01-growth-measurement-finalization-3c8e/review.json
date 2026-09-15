@@ -1,0 +1,40 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "resolved_findings": [
+    {
+      "summary": "Advisory candidate discovery is correctly limited to mutation preflight rather than overclaimed as a commit-time snapshot.",
+      "location": ".bodkin/runs/2026-09-01-growth-measurement-finalization-3c8e/plan.md:51-52; src/server/features/growth/services/GrowthMeasurementReview.ts:49-72; src/server/features/growth/repositories/GrowthMeasurementFinalizationWriter.ts:101-103",
+      "evidence": "The revision includes discovery state and sorted IDs only for complete discovery. The writer atomically guards the exact Observation set and selected confounders, but contains no asserted serialization of unselected candidates.",
+      "impact": "This preserves truthful advisory semantics while still rejecting stale reviewed candidate sets at preflight.",
+      "recommendation": "Preserve this boundary."
+    },
+    {
+      "summary": "Human finalization is bound to the reviewed Observation fact set without changing ordinary finalizer retry semantics.",
+      "location": "src/server/features/growth/services/GrowthWorkMeasurementService.ts:285-315; src/server/features/growth/services/GrowthMeasurementsService.ts:230-235,285-300; src/server/features/growth/repositories/GrowthMeasurementFinalizationWriter.ts:33-50,101-103",
+      "evidence": "The Work service supplies the server-derived hash; the core rejects a changed hash before and after the atomic writer attempt, while only callers without that option take the existing one-time retry path. The writer's exact-observation guard validates the locked set.",
+      "impact": "An irreversible human interpretation cannot silently incorporate evidence that arrived after review.",
+      "recommendation": "Preserve the optional expected-observation-hash path and writer guard."
+    }
+  ],
+  "do_not_change": [
+    {
+      "summary": "Keep server-derived authority and exact completed-result retry identity.",
+      "location": "src/serverFunctions/growthWork.ts:88-104; src/server/features/growth/services/GrowthWorkMeasurementService.ts:255-326; src/server/features/growth/services/GrowthMeasurementGraph.ts:218-259",
+      "evidence": "Project and actor come from middleware context; Plan and provenance are server-derived. Completed retries delegate to exact Result and actor-event verification rather than recomputing an active review revision.",
+      "impact": "Prevents browser authority injection while retaining lost-response recovery.",
+      "recommendation": "Do not relax the strict schema or completed exact-retry checks."
+    },
+    {
+      "summary": "Keep credential-safe terminal projection and non-causal presentation.",
+      "location": "src/server/features/growth/services/GrowthWorkMeasurementProjection.ts:298-315; src/server/features/growth/services/GrowthEvidencePacket.ts:128-182; src/client/features/growth/GrowthWorkMeasurementPresentation.tsx:323-379",
+      "evidence": "Result narrative and surviving Event descriptions pass through credential-aware display projection, then render as React text with explicit observational wording and a current-link-only empty state.",
+      "impact": "Avoids exposing recognised credentials or implying causal proof or permanent Event snapshots.",
+      "recommendation": "Preserve these projection and wording boundaries."
+    }
+  ]
+}

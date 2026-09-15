@@ -1,0 +1,20 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve the captured-settings-before-coordinate protocol and first-writer-wins recovery.",
+      "location": "plan.md — Pinned snapshot contract; Contention and idempotency protocol",
+      "evidence": "Settings and server time are captured before deriving and reading the monthly version-1 coordinate; contending requests return the stored winner without comparing or mutating it."
+    },
+    {
+      "summary": "Preserve the boundary between safe narrative text and internal Report source identity.",
+      "location": "plan.md — Safe frozen-content and client contracts; acceptance.md — Required behaviour 15–16",
+      "evidence": "Mutable narrative crosses named safe projections while canonical source IDs remain solely in internal source fields omitted from the DTO."
+    }
+  ]
+}

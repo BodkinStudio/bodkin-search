@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   AlertCircle,
@@ -8,7 +8,16 @@ import {
   SearchCheck,
   Sparkles,
 } from "lucide-react";
-import { explorePrompt } from "@/serverFunctions/ai-search";
+import {
+  explorePrompt,
+  getPromptExplorerSnapshot,
+  listPromptExplorerSnapshots,
+} from "@/serverFunctions/ai-search";
+import {
+  PromptExplorerSavedSnapshots,
+  PromptExplorerSnapshotComparison,
+  SavedSnapshotMetadata,
+} from "@/client/features/ai-search/components/PromptExplorerSavedSnapshots";
 import {
   HostedPlanGate,
   type HostedPlanGateState,
@@ -61,7 +70,13 @@ const PROMPT_EXPLORER_BULLETS = [
 export function PromptExplorerPage(props: Props) {
   return (
     <HostedPlanGate>
-      {(planGate) => <PromptExplorerPageInner {...props} planGate={planGate} />}
+      {(planGate) => (
+        <PromptExplorerPageInner
+          key={props.projectId}
+          {...props}
+          planGate={planGate}
+        />
+      )}
     </HostedPlanGate>
   );
 }
@@ -74,6 +89,21 @@ function PromptExplorerPageInner({
 }: Props & { planGate: HostedPlanGateState }) {
   const [form, setForm] = useState<PromptExplorerFormValues>(urlState);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const [openedId, setOpenedId] = useState<string | null>(null);
+  const [comparisonIds, setComparisonIds] = useState<
+    [string | null, string | null]
+  >([null, null]);
+  const savedSnapshotsQuery = useQuery({
+    queryKey: ["prompt-explorer-snapshots", projectId],
+    queryFn: () => listPromptExplorerSnapshots({ data: { projectId } }),
+    staleTime: 30_000,
+    retry: false,
+  });
+  const openedQuery = useSnapshot(projectId, openedId);
+  const firstQuery = useSnapshot(projectId, comparisonIds[0]);
+  const secondQuery = useSnapshot(projectId, comparisonIds[1]);
+  const openedSnapshot = openedQuery.data;
 
   const {
     history,
@@ -112,6 +142,8 @@ function PromptExplorerPageInner({
     enabled:
       hasActivePrompt && urlState.models.length > 0 && !planGate.isFreePlan,
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     retry: false,
   });
 
@@ -120,6 +152,7 @@ function PromptExplorerPageInner({
   // a new tab the form mounts populated from the URL).
   useEffect(() => {
     setForm(urlState);
+    setOpenedId(null);
     setValidationError(null);
   }, [urlState]);
 
@@ -156,6 +189,13 @@ function PromptExplorerPageInner({
     addSearch,
   ]);
 
+  useEffect(() => {
+    if (exploreQuery.data?.snapshotId)
+      void queryClient.invalidateQueries({
+        queryKey: ["prompt-explorer-snapshots", projectId],
+      });
+  }, [exploreQuery.data?.snapshotId, projectId, queryClient]);
+
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     const trimmed = form.prompt.trim();
@@ -174,6 +214,7 @@ function PromptExplorerPageInner({
       return;
     }
     setValidationError(null);
+    setOpenedId(null);
     onSubmit({
       ...form,
       prompt: trimmed,
@@ -184,8 +225,10 @@ function PromptExplorerPageInner({
   const errorMessage = exploreQuery.isError
     ? getStandardErrorMessage(exploreQuery.error)
     : null;
-  const isLoading = hasActivePrompt && exploreQuery.isPending;
+  const isLoading =
+    hasActivePrompt && !planGate.isFreePlan && exploreQuery.isPending;
   const resultData = hasActivePrompt ? exploreQuery.data : undefined;
+  const displayedResult = openedSnapshot ?? resultData;
 
   const updateForm = <K extends keyof PromptExplorerFormValues>(
     key: K,
@@ -229,47 +272,108 @@ function PromptExplorerPageInner({
               isLoading={isLoading}
               validationError={validationError}
             />
-
-            {errorMessage ? (
-              <div
-                role="alert"
-                className="flex items-start gap-2 rounded-lg border border-error/30 bg-error/10 p-3 text-sm text-error"
-              >
-                <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            ) : null}
-
-            {isLoading ? (
-              <PromptExplorerLoadingState modelCount={form.models.length} />
-            ) : resultData ? (
-              <>
-                <div>
-                  <Link
-                    from="/p/$projectId/prompt-explorer"
-                    to="/p/$projectId/prompt-explorer"
-                    params={{ projectId }}
-                    search={{}}
-                    replace
-                    className="btn btn-ghost btn-sm gap-2 px-0 text-base-content/70 hover:bg-transparent"
-                  >
-                    <ArrowLeft className="size-4" />
-                    Recent searches
-                  </Link>
-                </div>
-                <PromptExplorerResults result={resultData} />
-              </>
-            ) : !errorMessage ? (
-              <PromptExplorerHistorySection
-                projectId={projectId}
-                history={history}
-                historyLoaded={historyLoaded}
-                onRemoveHistoryItem={removeHistoryItem}
-              />
-            ) : null}
           </>
         )}
+        {errorMessage ? (
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-lg border border-error/30 bg-error/10 p-3 text-sm text-error"
+          >
+            <AlertCircle className="mt-0.5 size-4 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+        ) : null}
+
+        {openedId && openedQuery.isPending ? (
+          <p role="status">Loading saved response…</p>
+        ) : openedQuery.isError ? (
+          <p role="alert" className="text-sm text-error">
+            {getStandardErrorMessage(openedQuery.error)}
+          </p>
+        ) : isLoading && !openedSnapshot ? (
+          <PromptExplorerLoadingState modelCount={form.models.length} />
+        ) : displayedResult ? (
+          <>
+            <div>
+              <Link
+                from="/p/$projectId/prompt-explorer"
+                to="/p/$projectId/prompt-explorer"
+                params={{ projectId }}
+                search={{}}
+                replace
+                onClick={() => setOpenedId(null)}
+                className="btn btn-ghost btn-sm gap-2 px-0 text-base-content/70 hover:bg-transparent"
+              >
+                <ArrowLeft className="size-4" />
+                Recent searches
+              </Link>
+            </div>
+            {displayedResult.snapshotSaveError ? (
+              <p role="alert" className="text-sm text-warning">
+                {displayedResult.snapshotSaveError}
+              </p>
+            ) : null}
+            {openedSnapshot ? (
+              <SavedSnapshotMetadata snapshot={openedSnapshot} />
+            ) : null}
+            <PromptExplorerResults result={displayedResult} />
+          </>
+        ) : !errorMessage ? (
+          <PromptExplorerHistorySection
+            projectId={projectId}
+            history={history}
+            historyLoaded={historyLoaded}
+            onRemoveHistoryItem={removeHistoryItem}
+          />
+        ) : null}
+        <PromptExplorerSavedSnapshots
+          projectId={projectId}
+          snapshots={savedSnapshotsQuery.data ?? []}
+          isLoading={savedSnapshotsQuery.isPending}
+          error={
+            savedSnapshotsQuery.isError
+              ? getStandardErrorMessage(savedSnapshotsQuery.error)
+              : null
+          }
+          selectedIds={comparisonIds}
+          onOpen={setOpenedId}
+          onSelect={(slot, id) =>
+            setComparisonIds((current) =>
+              slot === 0
+                ? [id, current[1] === id ? null : current[1]]
+                : [current[0] === id ? null : current[0], id],
+            )
+          }
+        />
+        {(comparisonIds[0] && firstQuery.isPending) ||
+        (comparisonIds[1] && secondQuery.isPending) ? (
+          <p role="status">Loading comparison…</p>
+        ) : null}
+        {firstQuery.isError || secondQuery.isError ? (
+          <p role="alert" className="text-sm text-error">
+            {getStandardErrorMessage(firstQuery.error ?? secondQuery.error)}
+          </p>
+        ) : null}
+        {firstQuery.data && secondQuery.data ? (
+          <PromptExplorerSnapshotComparison
+            first={firstQuery.data}
+            second={secondQuery.data}
+          />
+        ) : null}
       </div>
     </div>
   );
+}
+
+function useSnapshot(projectId: string, snapshotId: string | null) {
+  return useQuery({
+    queryKey: ["prompt-explorer-snapshot", projectId, snapshotId],
+    queryFn: () =>
+      getPromptExplorerSnapshot({
+        data: { projectId, snapshotId: snapshotId! },
+      }),
+    enabled: Boolean(snapshotId),
+    staleTime: Infinity,
+    retry: false,
+  });
 }

@@ -1,6 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getBrandLookup } from "@/server/features/ai-search/services/brandLookup";
 import { explorePrompt as runExplorePrompt } from "@/server/features/ai-search/services/promptExplorer";
+import {
+  getSavedPromptExplorerSnapshot,
+  listSavedPromptExplorerSnapshots,
+} from "@/server/features/ai-search/services/promptExplorerSnapshots";
 import { customerHasPaidPlan } from "@/server/billing/subscription";
 import { AppError } from "@/server/lib/errors";
 import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
@@ -9,6 +13,7 @@ import {
   brandLookupInputSchema,
   promptExplorerInputSchema,
 } from "@/types/schemas/ai-search";
+import { z } from "zod";
 
 /**
  * AI Visibility endpoints are gated behind the paid plan in hosted mode
@@ -39,3 +44,19 @@ export const explorePrompt = createServerFn({ method: "POST" })
     await assertPaidPlan(context.organizationId);
     return runExplorePrompt({ ...data, projectId: context.projectId }, context);
   });
+
+export const listPromptExplorerSnapshots = createServerFn({ method: "GET" })
+  .middleware(requireProjectContext)
+  .validator(z.object({ projectId: z.string().min(1) }))
+  .handler(({ context }) =>
+    listSavedPromptExplorerSnapshots(context.projectId),
+  );
+
+export const getPromptExplorerSnapshot = createServerFn({ method: "GET" })
+  .middleware(requireProjectContext)
+  .validator(
+    z.object({ projectId: z.string().min(1), snapshotId: z.string().uuid() }),
+  )
+  .handler(({ data, context }) =>
+    getSavedPromptExplorerSnapshot(context.projectId, data.snapshotId),
+  );

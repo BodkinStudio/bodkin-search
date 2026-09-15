@@ -1,0 +1,185 @@
+vi.mock("@/serverFunctions/growthAssessmentInvestigations", () => ({
+  getGrowthAssessmentInvestigation: vi.fn(),
+  runGrowthAssessmentInvestigation: vi.fn(),
+}));
+vi.mock("@/serverFunctions/projectContext", () => ({
+  getProjectContext: vi.fn(),
+}));
+vi.mock("@/serverFunctions/growthAssessments", () => ({
+  getGrowthAssessment: vi.fn(),
+  generateGrowthAssessment: vi.fn(),
+  confirmGrowthAssessment: vi.fn(),
+}));
+import { createElement, type ReactNode } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { describe, expect, it, vi } from "vitest";
+import { buildGrowthPreview } from "@/server/features/growth/services/GrowthPreviewService";
+import { GrowthPreviewDetail } from "./GrowthPreviewDetail";
+import {
+  GrowthOperationsPage,
+  GrowthPreviewRequestState,
+} from "./GrowthOperationsPage";
+import { GrowthPreviewWorkspace } from "./GrowthPreviewWorkspace";
+
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({
+    to,
+    params,
+    children,
+    className,
+  }: {
+    to: string;
+    params: { projectId: string };
+    children: ReactNode;
+    className?: string;
+  }) =>
+    createElement(
+      "a",
+      { href: to.replace("$projectId", params.projectId), className },
+      children,
+    ),
+}));
+vi.mock("@/serverFunctions/growthPreview", () => ({
+  getGrowthPreview: vi.fn(),
+}));
+vi.mock("@/serverFunctions/growthChecks", () => ({
+  getGrowthChecksOverview: vi.fn(),
+  getGrowthCheckRun: vi.fn(),
+  getGrowthCheckEvidence: vi.fn(),
+  runGrowthCheck: vi.fn(),
+}));
+vi.mock("@/serverFunctions/growthChangeLog", () => ({
+  getGrowthChangeLog: vi.fn(),
+  recordGrowthPageChange: vi.fn(),
+}));
+vi.mock("@/serverFunctions/growthRunInspector", () => ({
+  getGrowthRunInspector: vi.fn(),
+}));
+vi.mock("@/serverFunctions/growthInvestigations", () => ({
+  getGrowthInvestigation: vi.fn(),
+  approveGrowthInvestigation: vi.fn(),
+  reviewGrowthInvestigation: vi.fn(),
+  getGrowthWork: vi.fn(),
+}));
+vi.mock("@/serverFunctions/growthWork", () => ({
+  getGrowthWorkChanges: vi.fn(),
+  getGrowthWorkHistory: vi.fn(),
+  getGrowthWorkMeasurement: vi.fn(),
+  linkGrowthWorkChange: vi.fn(),
+  startGrowthWorkMeasurement: vi.fn(),
+  updateGrowthWorkStatus: vi.fn(),
+}));
+vi.mock("@/serverFunctions/growthReports", () => ({
+  getGrowthMonthlyReport: vi.fn(),
+  buildGrowthMonthlyReport: vi.fn(),
+}));
+vi.mock("@/serverFunctions/growthOpportunities", () => ({
+  getGrowthOpportunities: vi.fn(),
+}));
+vi.mock("@/serverFunctions/growthOperatingOverview", () => ({
+  getGrowthOperatingOverview: vi.fn(),
+}));
+vi.mock("@/serverFunctions/growthMonthlyReview", () => ({
+  runGrowthMonthlyReview: vi.fn(),
+}));
+vi.mock("@/serverFunctions/growth", () => ({
+  getGrowthSettings: vi.fn(),
+  updateGrowthSettings: vi.fn(),
+}));
+vi.mock("@/serverFunctions/projects", () => ({
+  getProjectAccess: vi.fn(),
+}));
+
+describe("GrowthPreview rendered contract", () => {
+  it("labels the preview even before data is available", () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        {
+          client: new QueryClient(),
+        },
+        createElement(GrowthOperationsPage, {
+          projectId: "real_project",
+        }),
+      ),
+    );
+    expect(html).toContain("Growth checks");
+    expect(html).toContain("Monthly summary");
+    expect(html).toContain("Growth at a glance");
+    expect(html).toContain("Monthly review");
+    expect(html).toContain("Run monthly review");
+    expect(html).toContain("Ready for real data");
+    expect(html).toContain("Loading live Growth readiness");
+    expect(html).toContain('href="#growth-live-readiness"');
+    expect(html).toContain("Loading Growth overview");
+    expect(html).toContain("Opportunities");
+    expect(html).toContain("Loading saved opportunities");
+    expect(html).toContain("Decide what matters next, understand the evidence");
+    expect(html).toContain("Loading monthly summary");
+    expect(html).toContain('href="#growth-monthly-review"');
+    expect(html).toContain("Change log");
+    expect(html).toContain("Run inspector");
+    expect(html).toContain("Loading saved work");
+    expect(html).toContain('href="#growth-work"');
+    expect(html).toContain("Loading saved changes");
+    expect(html).toContain("View synthetic sample evidence");
+    expect(html).toContain("sample data for example.com");
+    expect(html).toContain(
+      "secondary demonstration is the same for every project",
+    );
+    expect(html).toContain("Loading sample evidence");
+    expect(html).toContain('aria-busy="true"');
+  });
+
+  it("renders flagged facts, explicit non-causal history and usable list controls", async () => {
+    const data = await buildGrowthPreview();
+    const html = renderToStaticMarkup(
+      createElement(GrowthPreviewWorkspace, { data }),
+    );
+    for (const text of [
+      "Pricing",
+      "308",
+      "140",
+      "168",
+      "-54.5%",
+      "Current sample context",
+      "Selected sample change history",
+      "Source details and limitations",
+      "No AI interpretation",
+    ]) {
+      expect(html).toContain(text);
+    }
+    expect(html).toContain('for="growth-page-filter"');
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain("do not show that a change caused the decline");
+    expect(html).not.toContain(">Accept<");
+    expect(html).not.toContain(">Run live<");
+  });
+
+  it("renders missing metrics as unavailable and never produces an evidence packet for them", async () => {
+    const data = await buildGrowthPreview();
+    const page = data.pages.find(
+      (item) => item.keyPageId === "key_incomplete",
+    )!;
+    const html = renderToStaticMarkup(
+      createElement(GrowthPreviewDetail, { page, data }),
+    );
+    expect(html.match(/Unavailable/g)).toHaveLength(2);
+    expect(html).toContain("Missing data is not zero clicks");
+    expect(html).toContain("No evidence packet or recommendation was created");
+    expect(html).not.toContain("Source details and limitations");
+  });
+
+  it("provides an accessible, non-sensitive failure message and retry", () => {
+    const html = renderToStaticMarkup(
+      createElement(GrowthPreviewRequestState, {
+        status: "error",
+        onRetry: vi.fn(),
+      }),
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Retry preview");
+    expect(html).toContain("No work has been saved");
+  });
+});

@@ -1,0 +1,33 @@
+# Preview checkpoint acceptance
+
+Outcome: accepted for the fixture-only, read-only preview scope. This is not acceptance of full Growth Phase 2 or BG-0208.
+
+| Criterion                                      | Reconciled evidence                                                                                                                                                                                                                                                                                                                            |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Existing project/auth shell                 | Project route and navigation; `requireProjectContext` registration and request tests. Auth policy is unchanged. This is not a new end-to-end production-auth certification.                                                                                                                                                                    |
+| 2. Bounded synthetic response                  | Strict preview schema, deterministic service tests and reviewed fixture → existing detector → packet composition. No repository/provider/model calls or raw observations enter the response.                                                                                                                                                   |
+| 3. Correct flagged facts                       | Service tests and rendered Pricing evidence agree on 308 → 140 clicks, -168/-54.5%, weight 3, priority 504 and comparison dates.                                                                                                                                                                                                               |
+| 4. Distinct suppressed outcomes                | All-six-page capture, known-growing counts, missing-data mobile capture, response and presentation tests. Missing data is Unavailable, not zero or a health claim.                                                                                                                                                                             |
+| 5. Working selection/filter/reset              | Browser selection, zero-match and restored-list evidence; helper tests; no unrelated selected detail survives a filter.                                                                                                                                                                                                                        |
+| 6. Evidence/context/history distinction        | Reviewed context/history and expanded-provenance captures show current fictional context and explicitly partial, non-causal change history.                                                                                                                                                                                                    |
+| 7. No implied generated/saved work             | Persistent sample disclosure, footer, rendered contract tests and no fake run/save/approval controls.                                                                                                                                                                                                                                          |
+| 8. Request states, scope and accessible layout | Temporary disposable-only request fault verified loading/error/retry; native control tabbability and actual selection/return focus observed; route-key regression test; mobile values and long identifiers fit without horizontal overflow. Full keyboard-only traversal remains a disclosed manual smoke check, not a claimed automated pass. |
+| 9. Isolated launcher                           | Five launcher tests, actual Git-copy/Tailwind-scan regressions, real migration/seed/startup and confirmed cleanup of earlier task-owned instances. Current preview remains loopback-only, credential-free and disposable.                                                                                                                      |
+
+## Gates and review reconciliation
+
+- Final full test suite: 1642 passing, 11 Postgres-only skips. No persistence implementation changed.
+- Focused preview tests: 17 passing. Launcher tests: 5 passing.
+- `pnpm ci:check`, production build and whitespace checks passed. Repair preflight re-executed all affected checks against the final screenshot manifest. Production application source did not change after the successful build.
+- Engineering review 2: pass, with no remaining findings or verification gaps. The original project-state finding was invalid because the route already keyed the page by projectId; its regression test now makes that boundary explicit.
+- UI review 2: pass, with no remaining findings. The final fifteen-image packet supplies the missing responsive/state/provenance evidence.
+- Independent criterion-level evidence audit: **PASS** from the read-only integration explorer. The fixed agent pool required reuse of existing independent agents; this was a bounded audit packet, not a newly spawned fresh-context session. None of the reviewers implemented this checkpoint.
+- Director reconciliation agrees with those results. The remaining manual keyboard smoke check, skipped Postgres-only tests and lack of live-site usefulness/provider validation are disclosed and compatible with this sample-preview scope; no broader completion is claimed.
+
+## Safe deviations
+
+One engineering repair round fixed launcher source isolation and the Tailwind runtime-file reload loop. It also added a regression test for the existing route key and completed missing browser evidence. No auth, schema, detector threshold, packet semantics, dependencies, provider behavior or review control-plane files changed.
+
+The UI extension workflow kept the screen within the incumbent OpenSEO shell and required explicit sample labels, mobile selection/return focus, readable provenance and independent rendered-state review.
+
+The next product work remains BG-0205 onward: interpretations/recommendations and subsequent persistence/workflow work, subject to the planning pack's gates and provider/cost approvals. This checkpoint makes existing evidence inspectable; it does not implement that next scope.

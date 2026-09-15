@@ -1,0 +1,26 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "The independent verification record had not yet been created.",
+      "resolution": "All required gates were independently run and are now recorded in verification.json."
+    },
+    {
+      "summary": "Repository fixtures did not prove the sixth-row cap-plus-one contract for every ordinary collection.",
+      "resolution": "Repair round 1 seeds at least seven eligible SQLite rows for Recommendations, Actions and Signals, asserts the exact six returned rows, and proves the service displays five with hasMore true. PostgreSQL also proves a capped Recommendation read."
+    },
+    {
+      "summary": "Live PostgreSQL fixtures did not explicitly prove every provider-sensitive ordering/isolation case.",
+      "resolution": "Repair round 1 adds exact C-collation ties for Recommendations, Signals, Measurement Plans and latest Runs plus a foreign Signal that would otherwise rank first."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep project-leading predicates, terminal-run filtering, asOf predicates and fixed severity order.",
+    "Keep 51-candidate Measurement overflow withholding.",
+    "Keep current-view/non-snapshot wording."
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve frozen section content as the render-authoritative snapshot while source deletion only prunes normalized navigation joins.",
+    "Preserve the first-wins one-way publication projection and exact-retry behavior after source-link pruning.",
+    "Preserve project-leading composite foreign keys and the Result-to-owning-Action derived navigation link."
+  ]
+}

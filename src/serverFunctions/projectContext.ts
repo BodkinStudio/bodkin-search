@@ -21,7 +21,10 @@ export const updateProjectContext = createServerFn({ method: "POST" })
     // project's memory; SAM and MCP writes go through the same service with
     // their own author.
     ProjectContextService.applyContextUpdates(
-      context.projectId,
+      {
+        projectId: context.projectId,
+        projectDomain: context.project.domain,
+      },
       data.updates,
       "user",
     ),

@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import {
   createSelfHostedGoogleAuthorizationUrl,
   GA4_INTEGRATION,
+  YOUTUBE_INTEGRATION,
   GSC_INTEGRATION,
   handleSelfHostedGoogleOAuthCallback,
   type SelfHostedGoogleOAuthIntegration,
@@ -12,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   hasSelfHostedGoogleOAuthConfig: vi.fn(),
   fetch: vi.fn(),
   selectLimit: vi.fn(),
-  insertValues: vi.fn(),
+  insertValues: vi.fn<(value: unknown) => unknown>(),
   updateSet: vi.fn(),
   getAuth: vi.fn(),
 }));
@@ -80,6 +82,11 @@ function callbackRequest(
 
 describe("self-hosted Google OAuth providers", () => {
   beforeEach(() => {
+    mocks.fetch.mockReset();
+    mocks.selectLimit.mockReset();
+    mocks.insertValues.mockReset();
+    mocks.updateSet.mockReset().mockReturnValue({ where: vi.fn() });
+    mocks.getAuth.mockReset();
     mocks.getGoogleOAuthClientConfig.mockResolvedValue({
       clientId: "google-client-id",
       clientSecret: "google-client-secret",
@@ -128,6 +135,34 @@ describe("self-hosted Google OAuth providers", () => {
     );
   });
 
+  it("keeps the YouTube grant in its own callback and scope namespace", async () => {
+    const url = new URL(
+      await createSelfHostedGoogleAuthorizationUrl({
+        integration: YOUTUBE_INTEGRATION,
+        user,
+        callbackURL: "https://evil.example/path",
+        publicOrigin,
+      }),
+    );
+    expect(url.searchParams.get("redirect_uri")).toBe(
+      `${publicOrigin}/api/youtube/oauth/callback`,
+    );
+    expect(url.searchParams.get("scope")).toBe(
+      "openid email profile https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly",
+    );
+    expect(url.searchParams.get("state")).not.toBeNull();
+    const state = url.searchParams.get("state")!;
+    const callback = await handleSelfHostedGoogleOAuthCallback({
+      integration: YOUTUBE_INTEGRATION,
+      request: callbackRequest(YOUTUBE_INTEGRATION, state, {
+        error: "access_denied",
+      }),
+      user,
+      publicOrigin,
+    });
+    expect(callback.headers.get("Location")).toBe("/");
+  });
+
   it("round-trips signed state, exchanges the code, and persists the GA4 grant", async () => {
     const state = await authorizationState(GA4_INTEGRATION);
     const idToken = `header.${btoa(JSON.stringify({ sub: "google-account-1" }))}.signature`;
@@ -164,6 +199,111 @@ describe("self-hosted Google OAuth providers", () => {
         userId: "user-1",
         accessToken: "access-token",
         refreshToken: "refresh-token",
+      }),
+    );
+  });
+
+  it("persists the YouTube grant under its dedicated provider", async () => {
+    const state = await authorizationState(YOUTUBE_INTEGRATION);
+    const idToken = `header.${btoa(JSON.stringify({ sub: "youtube-account-1" }))}.signature`;
+    mocks.fetch.mockResolvedValue(
+      Response.json({
+        access_token: "youtube-access-token",
+        refresh_token: "youtube-refresh-token",
+        expires_in: 3600,
+        scope: "openid youtube.readonly",
+        id_token: idToken,
+      }),
+    );
+
+    const response = await handleSelfHostedGoogleOAuthCallback({
+      integration: YOUTUBE_INTEGRATION,
+      request: callbackRequest(YOUTUBE_INTEGRATION, state, {
+        code: "youtube-code",
+      }),
+      user,
+      publicOrigin,
+    });
+
+    expect(response.status).toBe(303);
+    expect(mocks.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountId: "youtube-account-1",
+        providerId: "google-youtube",
+        userId: "user-1",
+        accessToken: "youtube-access-token",
+        refreshToken: "youtube-refresh-token",
+      }),
+    );
+  });
+
+  it("encrypts self-hosted YouTube credentials when account encryption is enabled", async () => {
+    mocks.getAuth.mockReturnValue({
+      $context: Promise.resolve({
+        options: { account: { encryptOAuthTokens: true } },
+        secretConfig: "a-long-better-auth-secret-for-tests-only",
+      }),
+    });
+    const state = await authorizationState(YOUTUBE_INTEGRATION);
+    const idToken = `header.${btoa(JSON.stringify({ sub: "youtube-account-1" }))}.signature`;
+    mocks.fetch.mockResolvedValue(
+      Response.json({
+        access_token: "raw-youtube-access-token",
+        refresh_token: "raw-youtube-refresh-token",
+        id_token: idToken,
+      }),
+    );
+
+    await handleSelfHostedGoogleOAuthCallback({
+      integration: YOUTUBE_INTEGRATION,
+      request: callbackRequest(YOUTUBE_INTEGRATION, state, {
+        code: "youtube-code",
+      }),
+      user,
+      publicOrigin,
+    });
+
+    const stored = z
+      .object({
+        providerId: z.string(),
+        accessToken: z.string(),
+        refreshToken: z.string(),
+      })
+      .parse(mocks.insertValues.mock.calls[0]?.[0]);
+    expect(stored.providerId).toBe("google-youtube");
+    expect(stored.accessToken).not.toContain("raw-youtube-access-token");
+    expect(stored.refreshToken).not.toContain("raw-youtube-refresh-token");
+  });
+
+  it("retains an existing YouTube refresh token when Google omits it", async () => {
+    mocks.selectLimit.mockResolvedValue([
+      { id: "grant-1", refreshToken: "saved-refresh-token" },
+    ]);
+    const state = await authorizationState(YOUTUBE_INTEGRATION);
+    const idToken = `header.${btoa(JSON.stringify({ sub: "youtube-account-1" }))}.signature`;
+    mocks.fetch.mockResolvedValue(
+      Response.json({
+        access_token: "replacement-access-token",
+        expires_in: 3600,
+        id_token: idToken,
+      }),
+    );
+
+    await handleSelfHostedGoogleOAuthCallback({
+      integration: YOUTUBE_INTEGRATION,
+      request: callbackRequest(YOUTUBE_INTEGRATION, state, {
+        code: "youtube-code",
+      }),
+      user,
+      publicOrigin,
+    });
+
+    expect(mocks.insertValues).not.toHaveBeenCalled();
+    expect(mocks.updateSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerId: "google-youtube",
+        accessToken: "replacement-access-token",
+        refreshToken: "saved-refresh-token",
       }),
     );
   });

@@ -12,7 +12,20 @@ import * as sqliteAuth from "./better-auth-schema";
 import * as sqliteBilling from "./billing.schema";
 import * as sqliteGa4 from "./ga4.schema";
 import * as sqliteGsc from "./gsc.schema";
+import * as sqliteYouTube from "./youtube.schema";
+import * as sqliteLinkedIn from "./linkedin.schema";
 import * as sqliteTelemetry from "./telemetry.schema";
+import * as sqliteGrowth from "./growth.schema";
+import * as sqliteGrowthInsights from "./growth-insights.schema";
+import * as sqliteGrowthWorkstreams from "./growth-workstreams.schema";
+import * as sqliteGrowthActions from "./growth-actions.schema";
+import * as sqliteGrowthEvidenceSeries from "./growth-evidence-series.schema";
+import * as sqliteGrowthChangeEvents from "./growth-change-events.schema";
+import * as sqliteGrowthMeasurements from "./growth-measurements.schema";
+import * as sqliteGrowthReports from "./growth-reports.schema";
+import * as sqlitePromptExplorerSnapshots from "./prompt-explorer-snapshots.schema";
+import * as sqliteGrowthAssessments from "./growth-assessments.schema";
+import * as sqliteGrowthAssessmentInvestigations from "./growth-assessment-investigations.schema";
 import * as pgApp from "./pg/app.schema";
 import * as pgProjectContext from "./pg/project-context.schema";
 import * as pgAudit from "./pg/audit.schema";
@@ -21,7 +34,20 @@ import * as pgAuth from "./pg/better-auth-schema";
 import * as pgBilling from "./pg/billing.schema";
 import * as pgGa4 from "./pg/ga4.schema";
 import * as pgGsc from "./pg/gsc.schema";
+import * as pgYouTube from "./pg/youtube.schema";
+import * as pgLinkedIn from "./pg/linkedin.schema";
 import * as pgTelemetry from "./pg/telemetry.schema";
+import * as pgGrowth from "./pg/growth.schema";
+import * as pgGrowthInsights from "./pg/growth-insights.schema";
+import * as pgGrowthWorkstreams from "./pg/growth-workstreams.schema";
+import * as pgGrowthActions from "./pg/growth-actions.schema";
+import * as pgGrowthEvidenceSeries from "./pg/growth-evidence-series.schema";
+import * as pgGrowthChangeEvents from "./pg/growth-change-events.schema";
+import * as pgGrowthMeasurements from "./pg/growth-measurements.schema";
+import * as pgGrowthReports from "./pg/growth-reports.schema";
+import * as pgPromptExplorerSnapshots from "./pg/prompt-explorer-snapshots.schema";
+import * as pgGrowthAssessments from "./pg/growth-assessments.schema";
+import * as pgGrowthAssessmentInvestigations from "./pg/growth-assessment-investigations.schema";
 
 // Guards the ONE structural artifact `db:generate` does not regenerate: the
 // hand-written Postgres schema. The provider-aware `db`/`@/db/schema` barrel
@@ -120,19 +146,19 @@ function primaryKeyColumns(table: Table, dialect: Dialect): string[] {
   return sortStrings([...pk]);
 }
 
-// FK as "cols->refTable.refCols onDelete=action" so a dropped/changed cascade is
-// caught (the parity property repositories rely on for cascading deletes).
+// FK as positional "local->foreign" pairs so a swapped composite relationship
+// cannot pass parity merely because both sides contain the same column names.
 function foreignKeys(table: Table, dialect: Dialect): string[] {
   const config = getConfig(table, dialect);
   return sortStrings(
     config.foreignKeys.map((fk) => {
       const ref = fk.reference();
-      const cols = sortStrings(ref.columns.map((c) => c.name)).join(",");
       const refTable = getTableName(ref.foreignTable);
-      const refCols = sortStrings(ref.foreignColumns.map((c) => c.name)).join(
-        ",",
+      const pairs = ref.columns.map(
+        (column, index) =>
+          `${column.name}->${refTable}.${ref.foreignColumns[index]?.name ?? "missing"}`,
       );
-      return `${cols}->${refTable}.${refCols} onDelete=${fk.onDelete ?? "none"}`;
+      return `${sortStrings(pairs).join(",")} onDelete=${fk.onDelete ?? "none"}`;
     }),
   );
 }
@@ -151,7 +177,20 @@ const sqliteAppTables = tablesFrom(
   sqliteBilling,
   sqliteGa4,
   sqliteGsc,
+  sqliteYouTube,
+  sqliteLinkedIn,
   sqliteTelemetry,
+  sqliteGrowth,
+  sqliteGrowthInsights,
+  sqliteGrowthWorkstreams,
+  sqliteGrowthActions,
+  sqliteGrowthEvidenceSeries,
+  sqliteGrowthChangeEvents,
+  sqliteGrowthMeasurements,
+  sqliteGrowthReports,
+  sqlitePromptExplorerSnapshots,
+  sqliteGrowthAssessments,
+  sqliteGrowthAssessmentInvestigations,
 );
 const pgAppTables = tablesFrom(
   pgApp,
@@ -161,7 +200,20 @@ const pgAppTables = tablesFrom(
   pgBilling,
   pgGa4,
   pgGsc,
+  pgYouTube,
+  pgLinkedIn,
   pgTelemetry,
+  pgGrowth,
+  pgGrowthInsights,
+  pgGrowthWorkstreams,
+  pgGrowthActions,
+  pgGrowthEvidenceSeries,
+  pgGrowthChangeEvents,
+  pgGrowthMeasurements,
+  pgGrowthReports,
+  pgPromptExplorerSnapshots,
+  pgGrowthAssessments,
+  pgGrowthAssessmentInvestigations,
 );
 const sqliteAuthTables = tablesFrom(sqliteAuth);
 const pgAuthTables = tablesFrom(pgAuth);

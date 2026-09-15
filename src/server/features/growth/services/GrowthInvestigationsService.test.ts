@@ -1,0 +1,1078 @@
+/* eslint-disable max-lines -- one shared fixture keeps controller and suppressed projections auditable together */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppError } from "@/server/lib/errors";
+
+const repositories = vi.hoisted(() => ({
+  getSignal: vi.fn(),
+  listSignals: vi.fn(),
+  getRun: vi.fn(),
+  findRecommendationForSignal: vi.fn(),
+  getDecisionControllerSource: vi.fn(),
+  getApprovedAiBriefAction: vi.fn().mockResolvedValue(null),
+  getActionByKey: vi.fn(),
+  getActionGraph: vi.fn(),
+  getRecommendationSource: vi.fn(),
+  listInvestigationWork: vi.fn(),
+  listActionTargetsForActions: vi.fn(),
+  listRecentActionEvents: vi.fn(),
+  getSnapshotsByIds: vi.fn(),
+  getRankRunById: vi.fn(),
+  getRankConfigById: vi.fn(),
+  getAuditForProject: vi.fn(),
+  getIssuesForAudit: vi.fn(),
+  projectDomain: vi.fn(),
+}));
+const services = vi.hoisted(() => ({
+  getRecommendation: vi.fn(),
+  getInsight: vi.fn(),
+  reviewRecommendation: vi.fn(),
+  createAction: vi.fn(),
+  approveProposedRecommendation: vi.fn(),
+  transitionAction: vi.fn(),
+}));
+
+vi.mock("./GrowthAssessmentsService", () => ({
+  GrowthAssessmentsService: {
+    requireReadyForPage: vi.fn(async () => ({
+      assessment: {
+        id: "assessment_1",
+        version: 1,
+        objective: "Increase qualified enquiries",
+        market: "US",
+        audience: "IT buyers",
+        successMeasure: "Qualified enquiries",
+        comparisonRationale: "This page supports the agreed objective",
+      },
+      selected: {
+        title: "Investigate pricing",
+        businessRelevance: "Help buyers evaluate",
+        observation: "Saved evidence",
+        evidenceSource: "Saved report",
+        evidenceDate: "2026-09-09",
+        evidenceScope: "US",
+        uncertainty: "No causal evidence",
+        nextValidation: "Validate enquiry baseline",
+      },
+      page: { url: "https://example.com/pricing" },
+    })),
+  },
+}));
+
+vi.mock("../repositories/GrowthRunsRepository", () => ({
+  GrowthRunsRepository: {
+    getSignal: repositories.getSignal,
+    listSignals: repositories.listSignals,
+    getRun: repositories.getRun,
+  },
+}));
+vi.mock("../repositories/GrowthInsightsRepository", () => ({
+  GrowthInsightsRepository: {
+    findRecommendationForSignal: repositories.findRecommendationForSignal,
+    projectDomain: repositories.projectDomain,
+  },
+}));
+vi.mock("../repositories/GrowthOpportunityDecisionsRepository", () => ({
+  GrowthOpportunityDecisionsRepository: {
+    getDecisionControllerSource: repositories.getDecisionControllerSource,
+  },
+}));
+vi.mock("../repositories/GrowthActionsRepository", () => ({
+  GrowthActionsRepository: {
+    getApprovedAiBriefAction: repositories.getApprovedAiBriefAction,
+    getActionByKey: repositories.getActionByKey,
+    getActionGraph: repositories.getActionGraph,
+    getRecommendationSource: repositories.getRecommendationSource,
+    listInvestigationWork: repositories.listInvestigationWork,
+    listActionTargetsForActions: repositories.listActionTargetsForActions,
+    listRecentActionEvents: repositories.listRecentActionEvents,
+  },
+}));
+vi.mock("./GrowthInsightsService", () => ({
+  GrowthInsightsService: {
+    getRecommendation: services.getRecommendation,
+    getInsight: services.getInsight,
+    reviewRecommendation: services.reviewRecommendation,
+  },
+}));
+vi.mock("./GrowthActionsService", () => ({
+  GrowthActionsService: {
+    createAction: services.createAction,
+    approveProposedRecommendation: services.approveProposedRecommendation,
+    transitionAction: services.transitionAction,
+  },
+}));
+vi.mock(
+  "@/server/features/rank-tracking/repositories/RankTrackingRepository",
+  () => ({
+    RankTrackingRepository: {
+      getRunById: repositories.getRankRunById,
+      getConfigById: repositories.getRankConfigById,
+    },
+  }),
+);
+vi.mock("@/server/features/rank-tracking/repositories/snapshotQueries", () => ({
+  getSnapshotsByIds: repositories.getSnapshotsByIds,
+}));
+vi.mock("@/server/features/audit/repositories/AuditRepository", () => ({
+  AuditRepository: {
+    getAuditForProject: repositories.getAuditForProject,
+    getIssuesForAudit: repositories.getIssuesForAudit,
+  },
+}));
+
+import { GrowthInvestigationsService } from "./GrowthInvestigationsService";
+
+const signal = {
+  id: "signal_1",
+  runId: "run_1",
+  signalType: "priority_page_click_decline",
+  entityType: "key_page",
+  metric: "gsc_clicks",
+  evidenceKind: "gsc_period",
+};
+const run = {
+  id: "run_1",
+  runType: "manual_analysis",
+  cadenceSlot: "priority-page-check:one",
+  detectorVersion: "priority-page-click-decline-v1",
+  analysisVersion: "priority-page-investigation-v1",
+  status: "completed",
+};
+const graph = {
+  recommendation: {
+    id: "recommendation_1",
+    status: "proposed" as const,
+    reviewVersion: 0,
+    dismissalReason: null,
+    snoozedUntil: null,
+    title: "Investigate declining search clicks",
+    rationale: "Cause is unknown.",
+    creationKey: "priority-page-investigation-v1:recommendation:signal_1",
+    category: "investigation",
+  },
+  insightIds: ["insight_1"],
+  targets: [
+    { targetType: "url" as const, targetValue: "https://example.com/pricing" },
+  ],
+  steps: [{ position: 0, content: "Review saved evidence." }],
+};
+const insightGraph = {
+  insight: {
+    id: "insight_1",
+    creationKey: "priority-page-investigation-v1:insight:signal_1",
+  },
+  signalIds: ["signal_1"],
+};
+const action = {
+  id: "action_1",
+  recommendationId: "recommendation_1",
+  runId: "run_1",
+  title: graph.recommendation.title,
+  status: "approved" as const,
+  dueAt: "2026-09-01T00:00:00.000Z",
+  createdAt: "2026-08-30T10:00:00.000Z",
+  stateVersion: 0,
+};
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  repositories.getSignal.mockResolvedValue(signal);
+  repositories.projectDomain.mockResolvedValue("example.com");
+  repositories.listSignals.mockResolvedValue([signal]);
+  repositories.getRun.mockResolvedValue(run);
+  repositories.findRecommendationForSignal.mockResolvedValue({
+    id: "recommendation_1",
+    runId: "run_1",
+  });
+  repositories.getDecisionControllerSource.mockResolvedValue(null);
+  services.getRecommendation.mockResolvedValue(graph);
+  services.getInsight.mockResolvedValue(insightGraph);
+  repositories.getRecommendationSource.mockResolvedValue({ runId: "run_1" });
+  repositories.getActionGraph.mockResolvedValue({
+    action,
+    targets: graph.targets,
+    creationEvent: {
+      actorType: "user",
+      actorId: "original_user",
+      note: "Original approval",
+    },
+  });
+  services.createAction.mockResolvedValue({ action, targets: graph.targets });
+  services.approveProposedRecommendation.mockResolvedValue({
+    action,
+    targets: graph.targets,
+  });
+  services.reviewRecommendation.mockResolvedValue(graph.recommendation);
+  services.transitionAction.mockResolvedValue({ action, event: {} });
+});
+
+// The cases intentionally share strict graph mocks so projection and mutation
+// authorization cannot drift between controller and suppressed identities.
+// eslint-disable-next-line max-lines-per-function
+describe("GrowthInvestigationsService", () => {
+  it("accepts exactly four aligned low-CTR facts and rejects incomplete, extra, wrong, or tampered evidence", async () => {
+    const { lowCtrEvidenceRef } =
+      await import("./HighImpressionLowCtrDetector");
+    const evidenceRef = await lowCtrEvidenceRef({
+      projectId: "project_1",
+      site: "example.com",
+      query: "web design bath",
+      page: "https://example.com/pricing",
+      capturedAt: "2026-09-02T10:00:00.000Z",
+      baselineWindow: { startDate: "2026-07-07", endDate: "2026-08-03" },
+      currentWindow: { startDate: "2026-08-04", endDate: "2026-08-31" },
+      baseline: { position: 2, impressions: 100, clicks: 4, ctr: 0.04 },
+      current: { position: 2, impressions: 100, clicks: 3, ctr: 0.03 },
+    });
+    const lowCtrRun = {
+      ...run,
+      id: "low_ctr_run",
+      cadenceSlot: "low-ctr-check:one",
+      detectorVersion: "high-impression-low-ctr-v1",
+      analysisVersion: "high-impression-low-ctr-investigation-v1",
+    };
+    const ctr = {
+      ...signal,
+      id: "low_ctr",
+      runId: lowCtrRun.id,
+      signalType: "ctr_below_expected",
+      entityType: "search_query",
+      entityRef: "web design bath",
+      metric: "gsc_ctr",
+      periodStart: "2026-08-04",
+      periodEnd: "2026-08-31",
+      baselineValue: 0.04,
+      currentValue: 0.03,
+      deltaValue: 0.03 - 0.04,
+      evidenceRef,
+      capturedAt: "2026-09-02T10:00:00.000Z",
+    };
+    const clicks = {
+      ...ctr,
+      id: "low_clicks",
+      metric: "gsc_clicks",
+      baselineValue: 4,
+      currentValue: 3,
+      deltaValue: -1,
+    };
+    const impressions = {
+      ...ctr,
+      id: "low_impressions",
+      metric: "gsc_impressions",
+      baselineValue: 100,
+      currentValue: 100,
+      deltaValue: 0,
+    };
+    const position = {
+      ...ctr,
+      id: "low_position",
+      metric: "gsc_average_position",
+      baselineValue: 2,
+      currentValue: 2,
+      deltaValue: 0,
+    };
+    const facts = [ctr, clicks, impressions, position];
+    repositories.getSignal.mockResolvedValue(ctr);
+    repositories.getRun.mockResolvedValue(lowCtrRun);
+    repositories.getDecisionControllerSource.mockResolvedValue({
+      relationship: "controller",
+      recommendationId: "low_recommendation",
+      controllerRunId: lowCtrRun.id,
+      controllerSignalId: ctr.id,
+      suppressionReason: null,
+      policyVersion: "high-impression-low-ctr-repeat-suppression-v1",
+      controllerReleasedAt: null,
+    });
+    services.getRecommendation.mockResolvedValue({
+      ...graph,
+      recommendation: {
+        ...graph.recommendation,
+        id: "low_recommendation",
+        creationKey:
+          "high-impression-low-ctr-investigation-v1:recommendation:low_ctr",
+      },
+      targets: [
+        { targetType: "keyword", targetValue: "web design bath" },
+        { targetType: "url", targetValue: "https://example.com/pricing" },
+        { targetType: "site", targetValue: "example.com" },
+      ],
+    });
+    services.getInsight.mockResolvedValue({
+      insight: {
+        id: "low_insight",
+        creationKey: "high-impression-low-ctr-investigation-v1:insight:low_ctr",
+      },
+      signalIds: facts.map((fact) => fact.id),
+    });
+    repositories.listSignals.mockResolvedValue(facts);
+    repositories.getActionByKey.mockResolvedValue(null);
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", ctr.id),
+    ).resolves.toMatchObject({
+      relationship: "controller",
+      evidenceSummary: {
+        kind: "high_impression_low_ctr_query",
+        baseline: { ctr: 0.04, clicks: 4, impressions: 100, position: 2 },
+        current: { ctr: 0.03, clicks: 3, impressions: 100, position: 2 },
+      },
+    });
+    for (const invalid of [
+      facts.slice(0, 3),
+      [ctr, clicks, impressions, { ...position, metric: "gsc_clicks" }],
+      [
+        { ...ctr, currentValue: 0.02, deltaValue: -0.02 },
+        clicks,
+        impressions,
+        position,
+      ],
+    ]) {
+      repositories.listSignals.mockResolvedValue(invalid);
+      await expect(
+        GrowthInvestigationsService.getInvestigation("project_1", ctr.id),
+      ).resolves.toBeNull();
+    }
+    services.getInsight.mockResolvedValue({
+      insight: {
+        id: "low_insight",
+        creationKey: "high-impression-low-ctr-investigation-v1:insight:low_ctr",
+      },
+      signalIds: [...facts.map((fact) => fact.id), "extra"],
+    });
+    repositories.listSignals.mockResolvedValue([
+      ...facts,
+      { ...ctr, id: "extra" },
+    ]);
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", ctr.id),
+    ).resolves.toBeNull();
+  });
+  it("reconstructs three-fact striking-distance evidence and approves qualifying Work", async () => {
+    const { strikingDistanceEvidenceRef } =
+      await import("./StrikingDistanceQueryDetector");
+    const evidenceRef = await strikingDistanceEvidenceRef({
+      projectId: "project_1",
+      site: "example.com",
+      query: "web design bath",
+      page: "https://example.com/pricing/?plan=pro",
+      capturedAt: "2026-09-02T10:00:00.000Z",
+      baselineWindow: { startDate: "2026-07-07", endDate: "2026-08-03" },
+      currentWindow: { startDate: "2026-08-04", endDate: "2026-08-31" },
+      baseline: { position: 9, impressions: 80, clicks: 2 },
+      current: { position: 6, impressions: 150, clicks: 1 },
+    });
+    const strikingRun = {
+      ...run,
+      id: "striking_run",
+      cadenceSlot: "striking-distance-check:one",
+      detectorVersion: "striking-distance-query-v1",
+      analysisVersion: "striking-distance-investigation-v1",
+    };
+    const impressions = {
+      ...signal,
+      id: "striking_impressions",
+      runId: strikingRun.id,
+      signalType: "striking_distance_query",
+      entityType: "search_query",
+      entityRef: "web design bath",
+      metric: "gsc_impressions",
+      periodStart: "2026-08-04",
+      periodEnd: "2026-08-31",
+      baselineValue: 80,
+      currentValue: 150,
+      deltaValue: 70,
+      evidenceRef,
+      capturedAt: "2026-09-02T10:00:00.000Z",
+    };
+    const position = {
+      ...impressions,
+      id: "striking_position",
+      metric: "gsc_average_position",
+      baselineValue: 9,
+      currentValue: 6,
+      deltaValue: -3,
+    };
+    const clicks = {
+      ...impressions,
+      id: "striking_clicks",
+      metric: "gsc_clicks",
+      baselineValue: 2,
+      currentValue: 1,
+      deltaValue: -1,
+    };
+    repositories.getSignal.mockResolvedValue(impressions);
+    repositories.getRun.mockResolvedValue(strikingRun);
+    repositories.listSignals.mockResolvedValue([position, impressions, clicks]);
+    repositories.getDecisionControllerSource.mockResolvedValue({
+      relationship: "controller",
+      recommendationId: "striking_recommendation",
+      controllerRunId: strikingRun.id,
+      controllerSignalId: impressions.id,
+      suppressionReason: null,
+      policyVersion: "striking-distance-repeat-suppression-v1",
+      controllerReleasedAt: null,
+    });
+    const strikingGraph = {
+      ...graph,
+      recommendation: {
+        ...graph.recommendation,
+        id: "striking_recommendation",
+        creationKey:
+          "striking-distance-investigation-v1:recommendation:striking_impressions",
+      },
+      targets: [
+        { targetType: "keyword" as const, targetValue: "web design bath" },
+        {
+          targetType: "url" as const,
+          targetValue: "https://example.com/pricing/?plan=pro",
+        },
+        { targetType: "site" as const, targetValue: "example.com" },
+      ],
+    };
+    services.getRecommendation.mockResolvedValue(strikingGraph);
+    services.getInsight.mockResolvedValue({
+      insight: {
+        id: "striking_insight",
+        creationKey:
+          "striking-distance-investigation-v1:insight:striking_impressions",
+      },
+      signalIds: [position.id, impressions.id, clicks.id],
+    });
+    repositories.getActionByKey.mockResolvedValue(null);
+    const view = await GrowthInvestigationsService.getInvestigation(
+      "project_1",
+      impressions.id,
+    );
+    expect(view).toMatchObject({
+      relationship: "controller",
+      evidenceSummary: {
+        kind: "striking_distance_query",
+        query: "web design bath",
+        page: "https://example.com/pricing/?plan=pro",
+        current: { position: 6, impressions: 150, clicks: 1 },
+      },
+    });
+    repositories.listSignals.mockResolvedValue(
+      [position, impressions, clicks].map((fact) => ({
+        ...fact,
+        capturedAt: "2026-09-03T10:00:00.000Z",
+      })),
+    );
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", impressions.id),
+    ).resolves.toBeNull();
+    repositories.listSignals.mockResolvedValue([position, impressions, clicks]);
+    await GrowthInvestigationsService.approveInvestigation({
+      projectId: "project_1",
+      signalId: impressions.id,
+      dueOn: "2026-09-10",
+      actorId: "user_1",
+    });
+    expect(services.approveProposedRecommendation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        creationKey:
+          "striking-distance-investigation-v1:action:striking_impressions",
+        recommendationId: "striking_recommendation",
+        // eslint-disable-next-line typescript-eslint/no-unsafe-assignment -- Vitest's asymmetric matcher is intentionally untyped
+        targets: expect.arrayContaining([
+          expect.objectContaining({
+            value: "https://example.com/pricing/?plan=pro",
+          }),
+        ]),
+      }),
+      0,
+      "key_page_identity",
+    );
+  });
+  it("rehydrates and validates four canonical rank snapshots", async () => {
+    const rankSignal = {
+      ...signal,
+      id: "rank_signal",
+      runId: "rank_growth_run",
+      signalType: "tracked_rank_drop",
+      entityType: "tracked_keyword",
+      entityRef: "keyword_1",
+      metric: "organic_rank_position_floor",
+      evidenceKind: "rank_snapshot",
+      evidenceRef: "rank_snapshot:v1:20:1,2,3,4",
+      periodStart: "2026-08-01",
+      periodEnd: "2026-08-22",
+      baselineValue: 4,
+      currentValue: 21,
+      deltaValue: 17,
+    };
+    const rankGrowthRun = {
+      ...run,
+      id: "rank_growth_run",
+      cadenceSlot: "persistent-rank-drop-check:one",
+      detectorVersion: "persistent-tracked-rank-drop-v1",
+      analysisVersion: "persistent-tracked-rank-drop-investigation-v1",
+    };
+    repositories.getSignal.mockResolvedValue(rankSignal);
+    repositories.getRun.mockResolvedValue(rankGrowthRun);
+    repositories.getDecisionControllerSource.mockResolvedValue({
+      relationship: "controller",
+      recommendationId: "rank_recommendation",
+      controllerRunId: rankGrowthRun.id,
+      controllerSignalId: rankSignal.id,
+      suppressionReason: null,
+      policyVersion: "persistent-rank-drop-repeat-suppression-v1",
+      controllerReleasedAt: null,
+    });
+    services.getRecommendation.mockResolvedValue({
+      ...graph,
+      recommendation: {
+        ...graph.recommendation,
+        id: "rank_recommendation",
+        creationKey:
+          "persistent-tracked-rank-drop-investigation-v1:recommendation:rank_signal",
+      },
+      targets: [
+        { targetType: "keyword", targetValue: "commercial query" },
+        { targetType: "url", targetValue: "https://example.com/pricing" },
+        { targetType: "site", targetValue: "example.com" },
+      ],
+    });
+    services.getInsight.mockResolvedValue({
+      insight: {
+        id: "rank_insight",
+        creationKey:
+          "persistent-tracked-rank-drop-investigation-v1:insight:rank_signal",
+      },
+      signalIds: [rankSignal.id],
+    });
+    repositories.getSnapshotsByIds.mockResolvedValue(
+      [4, 9, 10, null].map((position, index) => ({
+        id: index + 1,
+        runId: `rank_run_${index + 1}`,
+        trackingKeywordId: "keyword_1",
+        keyword: "commercial query",
+        device: "desktop",
+        position,
+        url: "https://example.com/pricing",
+      })),
+    );
+    repositories.getRankRunById.mockImplementation(async (runId: string) => {
+      const index = Number(runId.at(-1));
+      return {
+        id: runId,
+        projectId: "project_1",
+        configId: "config_1",
+        status: "completed",
+        isSubsetRun: false,
+        startedAt: `2026-08-${String(1 + (index - 1) * 7).padStart(2, "0")}T00:00:00.000Z`,
+      };
+    });
+    repositories.getRankConfigById.mockResolvedValue({
+      id: "config_1",
+      projectId: "project_1",
+      serpDepth: 50,
+    });
+    repositories.getActionByKey.mockResolvedValue(null);
+
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", rankSignal.id),
+    ).resolves.toMatchObject({
+      relationship: "controller",
+      evidenceSummary: {
+        kind: "persistent_tracked_rank_drop",
+        keyword: "commercial query",
+        device: "desktop",
+        serpDepth: 20,
+        checks: [
+          { position: 4 },
+          { position: 9 },
+          { position: 10 },
+          { position: null },
+        ],
+      },
+    });
+    repositories.getSnapshotsByIds.mockResolvedValueOnce(
+      [4, 6, 10, null].map((position, index) => ({
+        id: index + 1,
+        runId: `rank_run_${index + 1}`,
+        trackingKeywordId: "keyword_1",
+        keyword: "commercial query",
+        device: "desktop",
+        position,
+        url: "https://example.com/pricing",
+      })),
+    );
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", rankSignal.id),
+    ).resolves.toBeNull();
+  });
+  it("rehydrates both audits and proves a critical issue is new", async () => {
+    const auditSignal = {
+      ...signal,
+      id: "audit_signal",
+      runId: "audit_growth_run",
+      signalType: "new_critical_audit_issue",
+      entityType: "audit_issue",
+      entityRef: "issue_new",
+      metric: "critical_audit_issue_presence",
+      severity: "critical",
+      evidenceKind: "audit_result",
+      evidenceRef: "audit_result:v1:audit_old:audit_new:issue_new",
+      periodStart: "2026-08-01",
+      periodEnd: "2026-09-01",
+      baselineValue: 0,
+      currentValue: 1,
+      deltaValue: 1,
+    };
+    repositories.getSignal.mockResolvedValue(auditSignal);
+    repositories.getRun.mockResolvedValue({
+      ...run,
+      id: "audit_growth_run",
+      cadenceSlot: "critical-audit-issue-check:one",
+      detectorVersion: "new-critical-audit-issue-v1",
+      analysisVersion: "new-critical-audit-issue-investigation-v1",
+    });
+    repositories.getDecisionControllerSource.mockResolvedValue({
+      relationship: "controller",
+      recommendationId: "audit_recommendation",
+      controllerRunId: "audit_growth_run",
+      controllerSignalId: "audit_signal",
+      suppressionReason: null,
+      policyVersion: "new-critical-audit-issue-repeat-suppression-v1",
+      controllerReleasedAt: null,
+    });
+    services.getRecommendation.mockResolvedValue({
+      ...graph,
+      recommendation: {
+        ...graph.recommendation,
+        id: "audit_recommendation",
+        creationKey:
+          "new-critical-audit-issue-investigation-v1:recommendation:audit_signal",
+      },
+      targets: [
+        { targetType: "site", targetValue: "example.com" },
+        { targetType: "url", targetValue: "https://example.com/pricing" },
+      ],
+    });
+    services.getInsight.mockResolvedValue({
+      insight: {
+        id: "audit_insight",
+        creationKey:
+          "new-critical-audit-issue-investigation-v1:insight:audit_signal",
+      },
+      signalIds: ["audit_signal"],
+    });
+    const auditConfig = JSON.stringify({
+      maxPages: 100,
+      lighthouseStrategy: "none",
+    });
+    repositories.getAuditForProject.mockImplementation(
+      async (auditId: string) => ({
+        id: auditId,
+        projectId: "project_1",
+        startUrl: "https://example.com/",
+        status: "completed",
+        config: auditConfig,
+        startedAt:
+          auditId === "audit_old"
+            ? "2026-08-01T00:00:00.000Z"
+            : "2026-09-01T00:00:00.000Z",
+      }),
+    );
+    const currentIssue = {
+      id: "issue_new",
+      auditId: "audit_new",
+      pageUrl: "https://example.com/pricing",
+      issueType: "missing-title",
+      severity: "critical",
+      detailsJson: null,
+    };
+    repositories.getIssuesForAudit.mockImplementation(async (auditId) =>
+      auditId === "audit_new" ? [currentIssue] : [],
+    );
+    repositories.getActionByKey.mockResolvedValue(null);
+
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", auditSignal.id),
+    ).resolves.toMatchObject({
+      relationship: "controller",
+      evidenceSummary: {
+        kind: "new_critical_audit_issue",
+        issueType: "missing-title",
+        title: "Missing title tag",
+        page: "https://example.com/pricing",
+        baselineAuditAt: "2026-08-01T00:00:00.000Z",
+        currentAuditAt: "2026-09-01T00:00:00.000Z",
+      },
+    });
+    repositories.getIssuesForAudit.mockImplementationOnce(async () => [
+      { ...currentIssue, auditId: "audit_old", id: "issue_old" },
+    ]);
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", auditSignal.id),
+    ).resolves.toBeNull();
+  });
+  it.each([
+    ["v1", "priority-page-click-decline-v1"],
+    ["v2", "priority-page-click-decline-v2"],
+  ])(
+    "reads only the saved, same-run template suggestion for a persisted %s run",
+    async (_label, detectorVersion) => {
+      repositories.getRun.mockResolvedValue({ ...run, detectorVersion });
+      repositories.getActionByKey.mockResolvedValue(null);
+      await expect(
+        GrowthInvestigationsService.getInvestigation("project_1", "signal_1"),
+      ).resolves.toMatchObject({
+        relationship: "controller",
+        recommendationId: "recommendation_1",
+        status: "proposed",
+        displayUrls: ["https://example.com/pricing"],
+        actionId: null,
+        reviewVersion: 0,
+        dismissalReason: null,
+        snoozedUntil: null,
+      });
+    },
+  );
+
+  it("rejects an unsupported persisted detector version before graph reads", async () => {
+    repositories.getRun.mockResolvedValue({
+      ...run,
+      detectorVersion: "priority-page-click-decline-v3",
+    });
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", "signal_1"),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(repositories.getDecisionControllerSource).not.toHaveBeenCalled();
+    expect(repositories.findRecommendationForSignal).not.toHaveBeenCalled();
+  });
+
+  it("projects a repeated Signal through its controller without old evidence", async () => {
+    const controllerSignal = {
+      ...signal,
+      id: "signal_controller",
+      runId: "run_controller",
+    };
+    const controllerRun = { ...run, id: "run_controller" };
+    repositories.getSignal.mockImplementation(async (_projectId, signalId) =>
+      signalId === controllerSignal.id ? controllerSignal : signal,
+    );
+    repositories.getRun.mockImplementation(async (_projectId, runId) =>
+      runId === controllerRun.id ? controllerRun : run,
+    );
+    repositories.getDecisionControllerSource.mockResolvedValue({
+      relationship: "suppressed",
+      recommendationId: "recommendation_1",
+      controllerRunId: controllerRun.id,
+      controllerSignalId: controllerSignal.id,
+      suppressionReason: "existing_action",
+      policyVersion: "priority-page-repeat-suppression-v1",
+      controllerReleasedAt: null,
+    });
+    services.getRecommendation.mockResolvedValue({
+      ...graph,
+      recommendation: {
+        ...graph.recommendation,
+        creationKey:
+          "priority-page-investigation-v1:recommendation:signal_controller",
+      },
+    });
+    services.getInsight.mockResolvedValue({
+      insight: {
+        ...insightGraph.insight,
+        creationKey: "priority-page-investigation-v1:insight:signal_controller",
+      },
+      signalIds: [controllerSignal.id],
+    });
+    repositories.getActionByKey.mockResolvedValue(action);
+
+    await expect(
+      GrowthInvestigationsService.getInvestigation("project_1", "signal_1"),
+    ).resolves.toEqual({
+      relationship: "suppressed",
+      recommendationId: "recommendation_1",
+      title: "Investigate declining search clicks",
+      status: "proposed",
+      suppressionReason: "existing_action",
+      policyVersion: "priority-page-repeat-suppression-v1",
+      actionId: "action_1",
+      dueOn: "2026-09-01",
+    });
+    expect(repositories.getActionByKey).toHaveBeenCalledWith(
+      "project_1",
+      "priority-page-investigation-v1:action:signal_controller",
+    );
+  });
+
+  it("rejects approval through a suppressed Signal identity", async () => {
+    repositories.getDecisionControllerSource.mockResolvedValue({
+      relationship: "suppressed",
+      recommendationId: "recommendation_1",
+      controllerRunId: "run_1",
+      controllerSignalId: "signal_1",
+      suppressionReason: "existing_proposal",
+      policyVersion: "priority-page-repeat-suppression-v1",
+      controllerReleasedAt: null,
+    });
+    await expect(
+      GrowthInvestigationsService.approveInvestigation({
+        projectId: "project_1",
+        signalId: "signal_1",
+        dueOn: "2026-09-01",
+        actorId: "user_1",
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(services.approveProposedRecommendation).not.toHaveBeenCalled();
+  });
+
+  it("returns an identical existing action without changing its actor or due date", async () => {
+    repositories.getActionByKey.mockResolvedValue(action);
+    await expect(
+      GrowthInvestigationsService.approveInvestigation({
+        projectId: "project_1",
+        signalId: "signal_1",
+        dueOn: "2026-09-01",
+        actorId: "another_user",
+      }),
+    ).resolves.toMatchObject({ id: "action_1", dueOn: "2026-09-01" });
+    expect(services.reviewRecommendation).not.toHaveBeenCalled();
+    expect(services.approveProposedRecommendation).not.toHaveBeenCalled();
+    expect(services.createAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorType: "user",
+        actorId: "original_user",
+        note: "Original approval",
+        dueAt: "2026-09-01T00:00:00.000Z",
+      }),
+    );
+  });
+
+  it("rejects a changed due date or mismatched recommendation under a stable action key", async () => {
+    repositories.getActionByKey.mockResolvedValue(action);
+    await expect(
+      GrowthInvestigationsService.approveInvestigation({
+        projectId: "project_1",
+        signalId: "signal_1",
+        dueOn: "2026-10-01",
+        actorId: "user_1",
+      }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    repositories.getActionByKey.mockResolvedValue({
+      ...action,
+      recommendationId: "different_recommendation",
+    });
+    await expect(
+      GrowthInvestigationsService.approveInvestigation({
+        projectId: "project_1",
+        signalId: "signal_1",
+        dueOn: "2026-09-01",
+        actorId: "user_1",
+      }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+  });
+
+  it("atomically approves a stable action from server-derived facts", async () => {
+    repositories.getActionByKey.mockResolvedValue(null);
+    await GrowthInvestigationsService.approveInvestigation({
+      projectId: "project_1",
+      signalId: "signal_1",
+      dueOn: "2026-09-01",
+      actorId: "user_1",
+    });
+    expect(services.reviewRecommendation).not.toHaveBeenCalled();
+    expect(services.createAction).not.toHaveBeenCalled();
+    expect(services.approveProposedRecommendation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        creationKey: "priority-page-investigation-v1:action:signal_1",
+        dueAt: "2026-09-01T00:00:00.000Z",
+        actorId: "user_1",
+        targets: graph.targets.map(({ targetType, targetValue }) => ({
+          type: targetType,
+          value: targetValue,
+        })),
+      }),
+      0,
+    );
+  });
+
+  it("rejects a legacy accepted recommendation without a saved action", async () => {
+    repositories.getActionByKey.mockResolvedValue(null);
+    services.getRecommendation.mockResolvedValue({
+      ...graph,
+      recommendation: { ...graph.recommendation, status: "accepted" as const },
+    });
+    await expect(
+      GrowthInvestigationsService.approveInvestigation({
+        projectId: "project_1",
+        signalId: "signal_1",
+        dueOn: "2026-09-01",
+        actorId: "user_1",
+      }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(services.reviewRecommendation).not.toHaveBeenCalled();
+    expect(services.createAction).not.toHaveBeenCalled();
+    expect(services.approveProposedRecommendation).not.toHaveBeenCalled();
+  });
+
+  it("re-reads and validates the saved winner after a concurrent approval conflict", async () => {
+    repositories.getActionByKey
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(action);
+    services.approveProposedRecommendation.mockRejectedValue(
+      new AppError("CONFLICT"),
+    );
+    await expect(
+      GrowthInvestigationsService.approveInvestigation({
+        projectId: "project_1",
+        signalId: "signal_1",
+        dueOn: "2026-09-01",
+        actorId: "retry_user",
+      }),
+    ).resolves.toMatchObject({ id: "action_1" });
+    expect(services.createAction).toHaveBeenCalledWith(
+      expect.objectContaining({ actorId: "original_user" }),
+    );
+  });
+
+  it("does not report a saved approval when its creation event is missing", async () => {
+    repositories.getActionByKey.mockResolvedValue(action);
+    repositories.getActionGraph.mockResolvedValue({
+      action,
+      targets: graph.targets,
+      creationEvent: null,
+    });
+    await expect(
+      GrowthInvestigationsService.approveInvestigation({
+        projectId: "project_1",
+        signalId: "signal_1",
+        dueOn: "2026-09-01",
+        actorId: "retry_user",
+      }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(services.createAction).not.toHaveBeenCalled();
+    expect(services.approveProposedRecommendation).not.toHaveBeenCalled();
+  });
+
+  it("lists only projected investigation work with one bulk target read", async () => {
+    repositories.listInvestigationWork.mockResolvedValue([action]);
+    repositories.listActionTargetsForActions.mockResolvedValue([
+      { actionId: "action_1", ...graph.targets[0] },
+    ]);
+    await expect(
+      GrowthInvestigationsService.getWork("project_1"),
+    ).resolves.toEqual({
+      actions: [
+        expect.objectContaining({
+          id: "action_1",
+          runId: "run_1",
+          displayUrls: ["https://example.com/pricing"],
+        }),
+      ],
+      limit: 50,
+    });
+    expect(repositories.listActionTargetsForActions).toHaveBeenCalledWith(
+      "project_1",
+      ["action_1"],
+    );
+    expect(repositories.getActionGraph).not.toHaveBeenCalled();
+  });
+
+  it("requires an exact qualified Action before changing its status", async () => {
+    repositories.listInvestigationWork.mockResolvedValue([]);
+    await expect(
+      GrowthInvestigationsService.updateWorkStatus({
+        projectId: "project_1",
+        actionId: "foreign_action",
+        expectedStatus: "approved",
+        expectedVersion: 0,
+        status: "ready",
+        actorId: "user_1",
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(repositories.listInvestigationWork).toHaveBeenCalledWith(
+      "project_1",
+      1,
+      "foreign_action",
+    );
+    expect(services.transitionAction).not.toHaveBeenCalled();
+  });
+
+  it("derives a user transition and projects the persisted winner", async () => {
+    repositories.listInvestigationWork.mockResolvedValue([action]);
+    repositories.listActionTargetsForActions.mockResolvedValue([
+      { actionId: "action_1", ...graph.targets[0] },
+    ]);
+    services.transitionAction.mockResolvedValue({
+      action: { ...action, status: "ready", stateVersion: 1 },
+      event: {},
+    });
+    await expect(
+      GrowthInvestigationsService.updateWorkStatus({
+        projectId: "project_1",
+        actionId: "action_1",
+        expectedStatus: "approved",
+        expectedVersion: 0,
+        status: "ready",
+        note: "  Ready to deliver  ",
+        actorId: "user_authorized",
+      }),
+    ).resolves.toMatchObject({ status: "ready", stateVersion: 1 });
+    expect(services.transitionAction).toHaveBeenCalledWith({
+      projectId: "project_1",
+      actionId: "action_1",
+      expectedStatus: "approved",
+      expectedVersion: 0,
+      status: "ready",
+      note: "  Ready to deliver  ",
+      actorId: "user_authorized",
+      actorType: "user",
+    });
+  });
+
+  it("returns only the latest safe history fields in descending order", async () => {
+    repositories.listInvestigationWork.mockResolvedValue([action]);
+    repositories.listRecentActionEvents.mockResolvedValue([
+      {
+        actionVersion: 2,
+        eventType: "status_changed",
+        fromStatus: "ready",
+        toStatus: "in_progress",
+        note: "Started",
+        createdAt: "2026-08-31T10:00:00.000Z",
+        actorId: "must_not_escape",
+        factHash: "must_not_escape",
+      },
+      {
+        actionVersion: 0,
+        eventType: "created",
+        fromStatus: null,
+        toStatus: "approved",
+        note: null,
+        createdAt: "2026-08-30T10:00:00.000Z",
+      },
+    ]);
+    await expect(
+      GrowthInvestigationsService.getWorkHistory("project_1", "action_1"),
+    ).resolves.toEqual({
+      actionId: "action_1",
+      limit: 50,
+      events: [
+        {
+          version: 2,
+          eventType: "status_changed",
+          fromStatus: "ready",
+          toStatus: "in_progress",
+          note: "Started",
+          recordedAt: "2026-08-31T10:00:00.000Z",
+        },
+        {
+          version: 0,
+          eventType: "created",
+          fromStatus: null,
+          toStatus: "approved",
+          note: null,
+          recordedAt: "2026-08-30T10:00:00.000Z",
+        },
+      ],
+    });
+    expect(repositories.listRecentActionEvents).toHaveBeenCalledWith(
+      "project_1",
+      "action_1",
+    );
+  });
+});

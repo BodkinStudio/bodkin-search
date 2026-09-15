@@ -1,0 +1,54 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "A PostgreSQL Run can become terminal after the controller is released but before the candidate source is locked, committing a released controller with no successor or suppression decision.",
+      "location": "src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.ts:285-317 and 395-409",
+      "evidence": "The first transaction statement updates controller_released_at after an unlocked EXISTS check that the candidate Run is running. The SELECT FOR SHARE source lock is only executed later as part of the Insight insert, allowing a concurrent terminal update to invalidate later graph and suppression statements after the release has already succeeded.",
+      "impact": "The active controller can be removed without creating the next controller, preventing the issue from reopening reliably.",
+      "recommendation": "Acquire and hold the candidate Signal/Run share lock before any release mutation and add a live PostgreSQL interleaving regression."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "The recorded PostgreSQL concurrency verification does not exercise a terminal-Run race during an evaluated-controller release.",
+      "location": ".bodkin/runs/2026-09-02-growth-controller-release-7f3a/verification.json; src/server/features/growth/repositories/GrowthInsightsRepository.postgres.test.ts",
+      "evidence": "The live race covers two later Signals against an evaluated controller, while the existing terminal-first test covers generic Insight creation rather than a batch that has already updated controller_released_at.",
+      "impact": "The running-Run invariant for the new release path is not yet established.",
+      "recommendation": "Add and independently record a targeted live PostgreSQL release-versus-terminalization race."
+    },
+    {
+      "summary": "Required pre-commit whitespace and credential-scan evidence is absent.",
+      "location": ".bodkin/runs/2026-09-02-growth-controller-release-7f3a/plan.md; verification.json; acceptance.md",
+      "evidence": "The plan requires unstaged and staged whitespace checks plus a staged credential-pattern scan, but the slice has not yet reached staging.",
+      "impact": "Acceptance evidence must be completed after staging and before commit.",
+      "recommendation": "Record unstaged diff checking, then staged whitespace and credential scans at the pre-commit gate."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve parsed-instant, fail-closed timestamp comparison.",
+      "location": "src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.ts:250-270",
+      "evidence": "SQLite/D1 uses non-null julianday comparisons and PostgreSQL uses validity guards with casts only in a CASE THEN branch.",
+      "impact": "Protects equivalent timestamp ordering and malformed historical data behavior across providers.",
+      "recommendation": "Retain the predicate shape while repairing transaction ordering."
+    },
+    {
+      "summary": "Preserve the exact Action and project qualification boundary.",
+      "location": "src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.ts:260-269",
+      "evidence": "Release qualification is bound to project, controlling Recommendation, controller Signal-derived creation key, evaluated state and non-null evaluatedAt.",
+      "impact": "Prevents unrelated or foreign Actions from gaining release authority.",
+      "recommendation": "Keep these predicates in the repaired locked release operation."
+    },
+    {
+      "summary": "Preserve deterministic successor identity and guarded graph creation.",
+      "location": "src/server/features/growth/services/GrowthOpportunityDecisionsService.ts; src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.ts",
+      "evidence": "The service derives a cycle key from the prior controller Recommendation and the repository guards candidate creation with the release marker and active-controller absence.",
+      "impact": "Maintains retry stability and avoids duplicate successor graphs.",
+      "recommendation": "Repair only the candidate-Run locking window without weakening these guards."
+    }
+  ]
+}

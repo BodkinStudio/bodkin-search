@@ -1,0 +1,47 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "The provider-gated PostgreSQL repository test did not enter the request-scoped client context.",
+      "location": "src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.sources.postgres.test.ts",
+      "evidence": "PostgreSQL repository reads use the db proxy, which requires withPgClient; the first test called the repository directly.",
+      "impact": "The live test would fail before exercising project, relationship and release filtering.",
+      "recommendation": "Import withPgClient and wrap the repository read, following the established sibling provider-test pattern."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "The run had no final verification record yet.",
+      "location": ".bodkin/runs/2026-09-02-growth-opportunities-inbox-c9e4/verification.json",
+      "evidence": "Repository-wide checks and live PostgreSQL were intentionally pending review.",
+      "impact": "Acceptance must wait for the planned commands and durable evidence.",
+      "recommendation": "Run and record focused, live-provider and repository-wide verification after repair."
+    },
+    {
+      "summary": "Error and refresh interactions lacked direct component coverage.",
+      "location": "src/client/features/growth/GrowthOpportunities.test.ts",
+      "evidence": "The initial test covered the pure list while the page render covered only pending copy.",
+      "impact": "The new retry and manual-refresh controls could regress without dispatch evidence.",
+      "recommendation": "Add a query-state harness covering labelled loading/fetching, error retry and manual refresh."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve the app-only source boundary.",
+      "location": "src/types/schemas/growth-opportunities.ts; src/server/features/growth/services/GrowthOpportunitiesService.ts",
+      "evidence": "The strict wrapper exposes only the safe Recommendation and nullable Signal ID.",
+      "impact": "Prevents Run IDs, graph relationships and raw evidence from crossing the client or MCP boundary.",
+      "recommendation": "Keep the DTO and existing signal-qualified review path unchanged."
+    },
+    {
+      "summary": "Preserve active-controller qualification and accepted-card read-only behavior.",
+      "location": "src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.ts; src/client/features/growth/GrowthOpportunities.tsx",
+      "evidence": "The read is project/request/controller/unreleased-qualified, and accepted cards never render investigation controls.",
+      "impact": "Protects tenant isolation and legacy lifecycle safety.",
+      "recommendation": "Do not add read-time source inference or accepted review controls."
+    }
+  ]
+}

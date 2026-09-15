@@ -1,0 +1,16 @@
+{
+  "runId": "2026-08-30-growth-work-status-f61b",
+  "status": "fail",
+  "generatedAt": "2026-08-30T20:55:34.303Z",
+  "checks": [
+    {
+      "name": "Focused Growth regressions before test mock repair",
+      "command": "pnpm exec vitest run GrowthApproval GrowthInvestigation growth-investigation growthInvestigations growthWork GrowthWork growth-work GrowthActions GrowthPriorityPageCheck GrowthPreview --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": 42820,
+      "output": "RUN  v3.2.6 /Users/jamesward/Documents/Dev/bodkin-search\n\n\n\n⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  src/client/features/growth/GrowthPreviewRender.test.ts [ src/client/features/growth/GrowthPreviewRender.test.ts ]\nError: Cannot find package 'cloudflare:workers' imported from '/Users/jamesward/Documents/Dev/bodkin-search/src/db/provider.ts'\n ❯ src/db/provider.ts:1:1\n      1| import { env } from \"cloudflare:workers\";\n       | ^\n      2| \n      3| type DatabaseProvider = \"d1\" | \"postgres\";\n\nCaused by: Error: Failed to load url cloudflare:workers (resolved id: cloudflare:workers) in /Users/jamesward/Documents/Dev/bodkin-search/src/db/provider.ts. Does the file exist?\n ❯ loadAndTransform node_modules/.pnpm/vite@7.3.6_@types+node@22.19.11_jiti@2.7.0_lightningcss@1.32.0_tsx@4.22.4_yaml@2.9.0/node_modules/vite/dist/node/chunks/config.js:22739:33\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n\n Test Files  1 failed | 21 passed | 2 skipped (24)\n      Tests  142 passed | 7 skipped (149)\n   Start at  21:55:38\n   Duration  42.82s (transform 7.19s, setup 0ms, collect 15.49s, tests 9.52s, environment 5ms, prepare 3.57s)"
+    }
+  ]
+}
