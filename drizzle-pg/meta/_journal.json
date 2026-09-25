@@ -358,6 +358,55 @@
       "when": 1789451158696,
       "tag": "0050_old_makkari",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1789504123409,
+      "tag": "0051_worthless_wolverine",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1789504837582,
+      "tag": "0052_young_smiling_tiger",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1789508210842,
+      "tag": "0053_fat_carlie_cooper",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1789508933955,
+      "tag": "0054_smooth_magneto",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1789679347446,
+      "tag": "0055_polite_ezekiel",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1789680745450,
+      "tag": "0056_cold_triton",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1790346978732,
+      "tag": "0057_steep_luckman",
+      "breakpoints": true
     }
   ]
 }

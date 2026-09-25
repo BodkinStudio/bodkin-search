@@ -512,6 +512,55 @@
       "when": 1789451157777,
       "tag": "0072_organic_amazoness",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "6",
+      "when": 1789504122340,
+      "tag": "0073_aspiring_inertia",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "6",
+      "when": 1789504836315,
+      "tag": "0074_right_mephisto",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "6",
+      "when": 1789508209606,
+      "tag": "0075_panoramic_namora",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "6",
+      "when": 1789508932881,
+      "tag": "0076_dazzling_wolf_cub",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "6",
+      "when": 1789679346397,
+      "tag": "0077_funny_wendell_vaughn",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "6",
+      "when": 1789680743960,
+      "tag": "0078_tricky_eternity",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "6",
+      "when": 1790346977697,
+      "tag": "0079_wandering_zarda",
+      "breakpoints": true
     }
   ]
 }

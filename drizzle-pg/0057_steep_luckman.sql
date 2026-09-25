@@ -1,0 +1,1 @@
+ALTER TABLE "analytics_settings" ADD COLUMN "anonymous_collection" boolean DEFAULT false NOT NULL;
