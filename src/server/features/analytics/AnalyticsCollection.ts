@@ -20,20 +20,22 @@ export type AnalyticsSecrets = {
   identitySecret?: string;
   serverSecret?: string;
 };
+// Emails, 4+ digit runs, 16+ hex runs and 32+ character tokens, except
+// readable lowercase hyphenated slugs, which stay however long.
+const unsafe = /@|\d{4,}|[a-fA-F0-9]{16,}|^(?![a-z]+(-[a-z]+)+$).*[\w-]{32,}/;
+/** Keep identical to safeJourneyPath in src/client/analytics/tracker.ts. */
 export function safeAnalyticsPath(path: string) {
   return path
     .split(/[?#]/)[0]
     .split("/")
     .map((segment) => {
-      let s: string;
+      let decoded: string;
       try {
-        s = decodeURIComponent(segment);
+        decoded = decodeURIComponent(segment);
       } catch {
         return ":redacted";
       }
-      return /@|\d{4,}|[a-f0-9]{16,}|[\w-]{32,}/i.test(s)
-        ? ":redacted"
-        : segment;
+      return unsafe.test(decoded) ? ":redacted" : segment;
     })
     .join("/")
     .slice(0, 500);

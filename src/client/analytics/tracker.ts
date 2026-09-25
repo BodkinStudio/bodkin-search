@@ -68,9 +68,13 @@ const denied: JourneyConsent = {
   policyVersion: "unknown",
 };
 
-/** Drops queries/fragments and potentially identifying dynamic path segments. */
+// Emails, 4+ digit runs, 16+ hex runs and 32+ character tokens, except
+// readable lowercase hyphenated slugs, which stay however long.
+const unsafe = /@|\d{4,}|[a-fA-F0-9]{16,}|^(?![a-z]+(-[a-z]+)+$).*[\w-]{32,}/;
+/** Drops queries/fragments and identifying segments. Mirrors safeAnalyticsPath. */
 export function safeJourneyPath(path: string): string {
   return path
+    .split(/[?#]/)[0]
     .split("/")
     .map((segment) => {
       let decoded: string;
@@ -79,9 +83,7 @@ export function safeJourneyPath(path: string): string {
       } catch {
         return ":redacted";
       }
-      return /@|\d{4,}|[a-f0-9]{16,}|[A-Za-z0-9_-]{32,}/i.test(decoded)
-        ? ":redacted"
-        : segment;
+      return unsafe.test(decoded) ? ":redacted" : segment;
     })
     .join("/")
     .slice(0, 500);
