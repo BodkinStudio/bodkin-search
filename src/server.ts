@@ -183,14 +183,6 @@ function handleFetch(
     return handleGdprStorageErasure(publicRequest, env);
   }
 
-  if (
-    env.CLIENT_WORKSPACES_ENABLED === "true" &&
-    /^\/api\/(gsc|ga4|youtube|linkedin)\/oauth\//.test(pathname)
-  )
-    return new Response(
-      "This integration is not enabled in client workspaces",
-      { status: 403 },
-    );
   if (pathname.startsWith("/agents/")) {
     return routeChatAgents(publicRequest, env);
   }
