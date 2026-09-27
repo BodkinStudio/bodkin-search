@@ -26,6 +26,11 @@ import { maybeSendSelfHostHeartbeat } from "@/server/lib/self-host-telemetry";
 import { handleGdprStorageErasure } from "@/server/gdpr/storage-erasure";
 import { GDPR_STORAGE_ERASURE_PATH } from "@/shared/gdpr-erasure";
 import { AnalyticsService } from "@/server/features/analytics/AnalyticsService";
+import {
+  clientWorkspacesEnabled,
+  requireWorkspaceMembership,
+} from "@/server/features/workspaces/WorkspaceAccess";
+import { asAppError } from "@/server/lib/errors";
 
 const appFetch = createStartHandler(defaultStreamHandler);
 const openSeoOAuthProvider = createOpenSeoOAuthProvider(appFetch);
@@ -38,6 +43,13 @@ async function authorizeOnboardingChat(
   request: Request,
   projectId: string,
 ): Promise<Response | undefined> {
+  // The onboarding chat is the hosted free-signup preview; client workspaces
+  // have no signup funnel (SAM is their agent).
+  if (clientWorkspacesEnabled())
+    return new Response(
+      "Onboarding chat is not available in client workspaces",
+      { status: 403 },
+    );
   let context;
   try {
     context = await resolveUserContextFromHeaders(request.headers);
@@ -65,7 +77,9 @@ async function authorizeOnboardingChat(
 // Object. The DO instance name is the sessionId (set client-side); we resolve
 // the session here and authorize the caller against the session's project via
 // the same canonical project-access check the rest of the app uses, so the DO
-// can trust its `name` and derive org/project/user from the session row.
+// can trust its `name` and derive org/project/user from the session row. In
+// client workspaces the caller must hold "run" in the workspace that owns the
+// session's project (the DO re-checks it every turn).
 async function authorizeSamChat(
   request: Request,
   sessionId: string,
@@ -80,20 +94,38 @@ async function authorizeSamChat(
     sessionId,
     context.userId,
   );
-  const project = session
-    ? await ProjectRepository.getProjectForOrganization(
-        session.projectId,
-        context.organizationId,
-      )
-    : null;
+  const clientMode = clientWorkspacesEnabled();
+  const project = !session
+    ? null
+    : clientMode
+      ? await ProjectRepository.getProjectById(session.projectId)
+      : await ProjectRepository.getProjectForOrganization(
+          session.projectId,
+          context.organizationId,
+        );
   if (!session || !project) {
     return new Response("Forbidden", { status: 403 });
+  }
+  if (clientMode) {
+    try {
+      await requireWorkspaceMembership(
+        context.userId,
+        project.organizationId,
+        "run",
+      );
+    } catch (error) {
+      if (asAppError(error)?.code !== "FORBIDDEN") throw error;
+      return new Response("Forbidden", { status: 403 });
+    }
   }
   // Same as onboarding above: make sure the Autumn customer (and its default
   // free-plan credits) exists before the DO's balance gate runs, or a brand-new
   // org's first message hits a false "out of credits".
   if (await isHostedServerAuthMode()) {
-    await getOrCreateOrganizationCustomer(context);
+    await getOrCreateOrganizationCustomer({
+      ...context,
+      organizationId: project.organizationId,
+    });
   }
   return undefined;
 }
@@ -153,16 +185,13 @@ function handleFetch(
 
   if (
     env.CLIENT_WORKSPACES_ENABLED === "true" &&
-    (pathname === MCP_ROUTE ||
-      /^\/api\/(gsc|ga4|youtube|linkedin)\/oauth\//.test(pathname))
+    /^\/api\/(gsc|ga4|youtube|linkedin)\/oauth\//.test(pathname)
   )
     return new Response(
       "This integration is not enabled in client workspaces",
       { status: 403 },
     );
   if (pathname.startsWith("/agents/")) {
-    if (env.CLIENT_WORKSPACES_ENABLED === "true")
-      return new Response("Client chat is not enabled", { status: 403 });
     return routeChatAgents(publicRequest, env);
   }
 

@@ -1,8 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import {
-  WorkspaceSwitcher,
-  workspaceSessionOptions,
-} from "@/client/features/workspaces/WorkspaceSwitcher";
+import { WorkspaceSwitcher } from "@/client/features/workspaces/WorkspaceSwitcher";
+import { useWorkspaceAccess } from "@/client/features/workspaces/useWorkspaceAccess";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import type { LinkOptions } from "@tanstack/react-router";
 import { useEffect, useState, type ComponentType } from "react";
@@ -82,12 +79,17 @@ function SidebarNavLink({
 }
 
 export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
-  const workspaceSession = useQuery(workspaceSessionOptions());
-  const clientMode = workspaceSession.data?.enabled === true;
+  const access = useWorkspaceAccess();
+  const canChat = access.can("run");
   const navGroups = [
     ...(projectId ? getProjectNavGroups(projectId) : []),
-    ...(clientMode ? [] : [connectNavGroup]),
-  ].filter((group) => !clientMode || group.label !== "Research");
+    connectNavGroup,
+  ]
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => access.can(item.capability)),
+    }))
+    .filter((group) => group.items.length > 0);
   const navigate = useNavigate();
   const location = useLocation();
   const onSamRoute = location.pathname.includes("/sam");
@@ -155,7 +157,7 @@ export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
         />
       </div>
 
-      {projectId && !clientMode ? (
+      {projectId && canChat ? (
         // Same underline tab idiom as the in-page tab strips (e.g. Domain
         // Overview's Top Keywords / Top Pages).
         <div className="px-3 pb-1">
@@ -176,7 +178,7 @@ export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
         </div>
       ) : null}
 
-      {view === "chat" && projectId && !clientMode ? (
+      {view === "chat" && projectId && canChat ? (
         <SamSidebarPanel projectId={projectId} onNavigate={onNavigate} />
       ) : (
         <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
@@ -186,7 +188,7 @@ export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
                 {group.label}
               </div>
               {group.items.map((item) => {
-                const { icon, label, ...linkProps } = item;
+                const { icon, label, capability: _, ...linkProps } = item;
                 return (
                   <SidebarNavLink
                     key={linkProps.to}
@@ -236,8 +238,7 @@ function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
   const { data: session } = useSession();
   const isHostedMode = isHostedClientAuthMode();
   const email = session?.user?.email;
-  const workspaceSession = useQuery(workspaceSessionOptions());
-  const clientMode = workspaceSession.data?.enabled === true;
+  const { clientWorkspaces } = useWorkspaceAccess();
 
   const closeMenu = () => {
     closeDropdown();
@@ -276,7 +277,7 @@ function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
                 Settings
               </Link>
             </li>
-            {isHostedMode && !clientMode ? (
+            {isHostedMode && !clientWorkspaces ? (
               <li>
                 <Link to={BILLING_ROUTE} onClick={closeMenu}>
                   <CreditCard className="h-4 w-4" />

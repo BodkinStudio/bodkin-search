@@ -7,18 +7,21 @@ import { getAuthMode } from "@/lib/auth-mode";
 import { db } from "@/db";
 import { member } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
+import { AppError } from "@/server/lib/errors";
+import { canWorkspace } from "@/shared/workspaces/permissions";
+
+// Analytics administration (tracking setup, per-person journeys, erasure) is
+// the workspace "configure" capability. Client workspaces also require an
+// active workspace; other modes keep their operator allowances.
 export async function canAdministerAnalytics(
   userId: string,
   organizationId: string,
 ) {
-  if (clientWorkspacesEnabled()) {
-    try {
-      await requireWorkspaceMembership(userId, organizationId, "admin");
-      return true;
-    } catch {
-      return false;
-    }
-  }
+  if (clientWorkspacesEnabled())
+    return requireWorkspaceMembership(userId, organizationId, "configure").then(
+      () => true,
+      () => false,
+    );
   const mode = getAuthMode(env.AUTH_MODE);
   if (mode === "local_noauth" && userId === "local-admin") return true;
   if (
@@ -36,12 +39,15 @@ export async function canAdministerAnalytics(
       and(eq(member.userId, userId), eq(member.organizationId, organizationId)),
     )
     .limit(1);
-  return !!membership && ["owner", "admin"].includes(membership.role);
+  return !!membership && canWorkspace(membership.role, "configure");
 }
 export async function requireAnalyticsAdmin(
   userId: string,
   organizationId: string,
 ) {
   if (!(await canAdministerAnalytics(userId, organizationId)))
-    throw new Error("Workspace administrator permission required");
+    throw new AppError(
+      "FORBIDDEN",
+      "Workspace administrator permission required",
+    );
 }

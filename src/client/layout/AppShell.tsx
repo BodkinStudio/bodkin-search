@@ -13,9 +13,7 @@ import { BILLING_ROUTE } from "@/shared/billing";
 import { getSeoApiKeyStatus } from "@/serverFunctions/config";
 import { getProjects } from "@/serverFunctions/projects";
 import { getLastProjectId } from "@/client/lib/active-project";
-
-import { workspaceSessionOptions } from "@/client/features/workspaces/WorkspaceSwitcher";
-import { canWorkspace } from "@/shared/workspaces/permissions";
+import { useWorkspaceAccess } from "@/client/features/workspaces/useWorkspaceAccess";
 
 const DATAFORSEO_HELP_PATH = "/help/dataforseo-api-key";
 
@@ -29,13 +27,8 @@ export function AuthenticatedAppLayout({
   banner?: React.ReactNode;
 }) {
   const location = useLocation();
-  const workspace = useQuery(workspaceSessionOptions());
-  const activeRole = workspace.data?.memberships.find(
-    (membership) => membership.id === workspace.data?.organizationId,
-  )?.role;
-  const canConfigure =
-    workspace.isSuccess &&
-    (!workspace.data.enabled || canWorkspace(activeRole ?? "", "admin"));
+  const access = useWorkspaceAccess();
+  const canConfigure = access.can("configure");
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const setupModalRef = React.useRef<HTMLDivElement | null>(null);
   const [showMissingSeoApiKeyModal, setShowMissingSeoApiKeyModal] =
@@ -167,10 +160,14 @@ export function AuthenticatedAppLayout({
         onClose={() => setShowMissingSeoApiKeyModal(false)}
       />
 
-      <GscReEngagementModal
-        projectId={sidebarProjectId}
-        suppressed={!canConfigure || shouldShowMissingSeoApiKeyModal}
-      />
+      {/* A hosted-onboarding nudge: its onboarding calls are blocked in
+          client workspaces, whose members never onboard. */}
+      {access.clientWorkspaces ? null : (
+        <GscReEngagementModal
+          projectId={sidebarProjectId}
+          suppressed={shouldShowMissingSeoApiKeyModal}
+        />
+      )}
     </div>
   );
 }

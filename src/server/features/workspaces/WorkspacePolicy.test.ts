@@ -2,7 +2,11 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import ts from "typescript";
 import policy from "./server-function-policy.json";
-import { canManageRole, canWorkspace } from "@/shared/workspaces/permissions";
+import {
+  canManageRole,
+  canWorkspace,
+  workspaceCapabilitySchema,
+} from "@/shared/workspaces/permissions";
 
 describe("workspace server operation policy", () => {
   it("covers every server function by its compiler metadata name and source path", () => {
@@ -27,6 +31,10 @@ describe("workspace server operation policy", () => {
       visit(source);
     }
     expect(Object.keys(policy).toSorted()).toEqual(discovered.toSorted());
+    // ensureUser parses these at request time; a stale name would 500.
+    for (const rule of Object.values(policy))
+      if (rule.capability !== "self" && rule.capability !== "blocked")
+        expect(workspaceCapabilitySchema.parse(rule.capability)).toBeTruthy();
     expect(
       Object.hasOwn(
         policy,
@@ -34,10 +42,13 @@ describe("workspace server operation policy", () => {
       ),
     ).toBe(false);
   });
-  it("gives viewers only reads, rejects legacy roles and limits administrators", () => {
+  it("gives viewers only reads, lets editors run paid work, rejects legacy roles and limits administrators", () => {
     expect(canWorkspace("viewer", "read")).toBe(true);
-    for (const capability of ["edit", "admin", "owner"] as const)
+    for (const capability of workspaceCapabilitySchema.options.slice(1))
       expect(canWorkspace("viewer", capability)).toBe(false);
+    expect(canWorkspace("editor", "run")).toBe(true);
+    expect(canWorkspace("editor", "configure")).toBe(false);
+    expect(canWorkspace("admin", "own")).toBe(false);
     expect(canWorkspace("member", "read")).toBe(false);
     expect(canManageRole("admin", "owner", "viewer")).toBe(false);
     expect(canManageRole("admin", "viewer", "admin")).toBe(false);

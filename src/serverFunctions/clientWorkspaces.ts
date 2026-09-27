@@ -22,6 +22,14 @@ export const getWorkspaceSession = createServerFn({ method: "GET" })
       ? await listMemberships(context.userId)
       : [],
   }));
+// Takes `id`, not `projectId`: the project may sit outside the active
+// workspace, which the middleware's project check would reject.
+export const getProjectWorkspace = createServerFn({ method: "GET" })
+  .middleware(requireAuthenticatedContext)
+  .validator(z.object({ id: z.string().min(1).max(128) }))
+  .handler(({ data, context }) =>
+    service.projectWorkspace(context.userId, data.id),
+  );
 export const selectWorkspace = createServerFn({ method: "POST" })
   .middleware(requireAuthenticatedContext)
   .validator(workspaceInput)

@@ -13,9 +13,12 @@ const state = vi.hoisted(() => ({
         memberships: { id: string; role: string }[];
       },
 }));
-vi.mock("@tanstack/react-query", () => ({ useQuery: () => state }));
-vi.mock("@/client/features/workspaces/WorkspaceSwitcher", () => ({
-  workspaceSessionOptions: () => ({}),
+vi.mock("@tanstack/react-query", () => ({
+  queryOptions: (options: unknown) => options,
+  useQuery: () => state,
+}));
+vi.mock("@/serverFunctions/clientWorkspaces", () => ({
+  getWorkspaceSession: vi.fn(),
 }));
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => () => ({

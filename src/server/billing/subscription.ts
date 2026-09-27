@@ -1,5 +1,7 @@
-import { requireLegacyAutomationMode } from "@/server/features/workspaces/workspace-mode";
 import { env } from "cloudflare:workers";
+import { clientWorkspacesEnabled } from "@/server/features/workspaces/workspace-mode";
+import { getWorkspace } from "@/server/features/workspaces/WorkspaceRepository";
+import { getOptionalEnvValue } from "@/server/lib/runtime-env";
 import type { EnsuredUserContext } from "@/middleware/ensure-user/types";
 import {
   AUTUMN_MANAGED_ACCESS_FEATURE_ID,
@@ -32,21 +34,43 @@ const CUSTOMER_ENSURED_TTL_SECONDS = 24 * 60 * 60;
 const customerEnsuredKey = (organizationId: string) =>
   `autumn:customer-ensured:${organizationId}`;
 
+// A self-hosted operator running client workspaces without Autumn pays
+// DataForSEO and model providers directly, so there is nothing to meter or
+// gate. Outside client-workspace mode billing is unchanged.
+export async function usageMeteringDisabled() {
+  return (
+    clientWorkspacesEnabled() &&
+    !(await getOptionalEnvValue("AUTUMN_SECRET_KEY"))
+  );
+}
+
+// In client-workspace mode usage is charged to the workspace's payer
+// organization, never the workspace the member happens to be in. Every
+// exported billing call resolves through here so callers keep passing their
+// own organization id. A payer's own configuration names itself, so resolving
+// an id twice is harmless.
+async function billingCustomerId(organizationId: string) {
+  if (!clientWorkspacesEnabled()) return organizationId;
+  const workspace = await getWorkspace(organizationId);
+  return workspace?.payerOrganizationId ?? organizationId;
+}
+
 export async function getOrCreateOrganizationCustomer(
   context: BillingCustomerContext,
 ): Promise<{ id: string }> {
-  requireLegacyAutomationMode();
-  const cacheKey = customerEnsuredKey(context.organizationId);
+  const customerId = await billingCustomerId(context.organizationId);
+  if (await usageMeteringDisabled()) return { id: customerId };
+  const cacheKey = customerEnsuredKey(customerId);
   try {
     if (await env.KV.get(cacheKey)) {
-      return { id: context.organizationId };
+      return { id: customerId };
     }
   } catch (error) {
     console.warn("billing.customer-cache-read failed:", error);
   }
 
   const customer = await autumn.customers.getOrCreate({
-    customerId: context.organizationId,
+    customerId,
     email: context.userEmail,
   });
 
@@ -66,9 +90,11 @@ export async function getOrCreateOrganizationCustomer(
 }
 
 export async function customerHasPaidPlan(
-  customerId: string,
+  organizationId: string,
   opts: { retryDenied?: boolean } = {},
 ) {
+  if (await usageMeteringDisabled()) return true;
+  const customerId = await billingCustomerId(organizationId);
   const result = await autumn.check({
     customerId,
     featureId: AUTUMN_PAID_PLAN_FEATURE_ID,
@@ -88,7 +114,9 @@ export async function customerHasPaidPlan(
   return retry.allowed;
 }
 
-export async function customerHasManagedAccess(customerId: string) {
+export async function customerHasManagedAccess(organizationId: string) {
+  if (await usageMeteringDisabled()) return true;
+  const customerId = await billingCustomerId(organizationId);
   const result = await autumn.check({
     customerId,
     featureId: AUTUMN_MANAGED_ACCESS_FEATURE_ID,
@@ -159,8 +187,10 @@ async function getUsageCreditsRemaining(customerId: string): Promise<{
 export async function checkUsageCreditsDepleted(
   customer: BillingCustomerContext,
 ): Promise<{ depleted: boolean; monthlyRemaining: number }> {
-  requireLegacyAutomationMode();
-  const check = await getUsageCreditsRemaining(customer.organizationId);
+  if (await usageMeteringDisabled())
+    return { depleted: false, monthlyRemaining: 0 };
+  const customerId = await billingCustomerId(customer.organizationId);
+  const check = await getUsageCreditsRemaining(customerId);
   if (check.monthlyRemaining + check.topupRemaining > 0) {
     return { depleted: false, monthlyRemaining: check.monthlyRemaining };
   }
@@ -169,7 +199,7 @@ export async function checkUsageCreditsDepleted(
   // the whole gate errors rather than guessing — the turn fails generically
   // and retryably instead of refusing with a possibly-false paywall.
   const full = await autumn.customers.getOrCreate({
-    customerId: customer.organizationId,
+    customerId,
     email: customer.userEmail,
   });
   const confirmed = {
@@ -185,6 +215,7 @@ export async function checkUsageCreditsDepleted(
         "customer object shows credits; proceeding on the customer reading",
       {
         organizationId: customer.organizationId,
+        customerId,
         check,
         confirmed,
       },
@@ -210,11 +241,12 @@ export async function checkUsageCreditsDepleted(
  * Returns the monthly remaining so a caller can split spend monthly-first.
  */
 export async function assertUsageCreditsAvailable(
-  customerId: string,
+  organizationId: string,
 ): Promise<{ monthlyRemaining: number }> {
-  requireLegacyAutomationMode();
-  const { monthlyRemaining, topupRemaining } =
-    await getUsageCreditsRemaining(customerId);
+  if (await usageMeteringDisabled()) return { monthlyRemaining: 0 };
+  const { monthlyRemaining, topupRemaining } = await getUsageCreditsRemaining(
+    await billingCustomerId(organizationId),
+  );
 
   if (monthlyRemaining + topupRemaining <= 0) {
     throw new AppError("INSUFFICIENT_CREDITS");
@@ -238,7 +270,8 @@ export async function trackUsageCreditSpend(args: {
   monthlyRemaining: number;
   properties?: Record<string, unknown>;
 }): Promise<void> {
-  requireLegacyAutomationMode();
+  if (await usageMeteringDisabled()) return;
+  const customerId = await billingCustomerId(args.customerId);
   const totalCostUsd = roundUsdForBilling(args.costUsd * SEO_DATA_COST_MARKUP);
   const totalCostCredits = Math.ceil(
     totalCostUsd * AUTUMN_SEO_DATA_CREDITS_PER_USD,
@@ -264,7 +297,7 @@ export async function trackUsageCreditSpend(args: {
   if (monthlyDeduct > 0) {
     await autumn.track(
       {
-        customerId: args.customerId,
+        customerId,
         featureId: AUTUMN_SEO_DATA_BALANCE_FEATURE_ID,
         value: monthlyDeduct,
         properties: {
@@ -279,7 +312,7 @@ export async function trackUsageCreditSpend(args: {
   if (topupDeduct > 0) {
     await autumn.track(
       {
-        customerId: args.customerId,
+        customerId,
         featureId: AUTUMN_SEO_DATA_TOPUP_BALANCE_FEATURE_ID,
         value: topupDeduct,
         properties: {

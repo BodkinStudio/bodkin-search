@@ -1,3 +1,4 @@
+import { ProjectRepository } from "@/server/features/projects/repositories/ProjectRepository";
 import { env } from "cloudflare:workers";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -24,7 +25,7 @@ export async function workspacePeople(actor: Actor, organizationId: string) {
   const membership = await requireWorkspaceMembership(
     actor.userId,
     organizationId,
-    "admin",
+    "manage_people",
   );
   const workspace = await repo.getWorkspace(organizationId);
   if (workspace?.status !== "active") throw new AppError("NOT_FOUND");
@@ -45,7 +46,7 @@ export async function createWorkspace(
   name: string,
 ) {
   requireClientWorkspaces();
-  await requireWorkspaceMembership(actor.userId, sourceOrganizationId, "owner");
+  await requireWorkspaceMembership(actor.userId, sourceOrganizationId, "own");
   const source = await repo.getWorkspace(sourceOrganizationId);
   if (source?.status !== "active") throw new AppError("NOT_FOUND");
   const id = await repo.createWorkspaceRecord(
@@ -54,7 +55,7 @@ export async function createWorkspace(
     name,
     source.payerOrganizationId,
   );
-  await requireWorkspaceMembership(actor.userId, id, "owner");
+  await requireWorkspaceMembership(actor.userId, id, "own");
   return { id };
 }
 export async function changeMember(
@@ -67,7 +68,7 @@ export async function changeMember(
   const own = await requireWorkspaceMembership(
     actor.userId,
     organizationId,
-    "admin",
+    "manage_people",
   );
   const [target] = await db
     .select()
@@ -118,7 +119,7 @@ export async function sendInvitation(
   const own = await requireWorkspaceMembership(
     actor.userId,
     organizationId,
-    "admin",
+    "manage_people",
   );
   if (!canManageRole(own.role, role) || role === "owner")
     throw new AppError("FORBIDDEN");
@@ -215,7 +216,7 @@ export async function revokeInvitation(
   const own = await requireWorkspaceMembership(
     actor.userId,
     organizationId,
-    "admin",
+    "manage_people",
   );
   const invite = await repo.findInvitation(id);
   if (
@@ -335,7 +336,11 @@ export async function resendInvitation(
   id: string,
 ) {
   requireClientWorkspaces();
-  await requireWorkspaceMembership(actor.userId, organizationId, "admin");
+  await requireWorkspaceMembership(
+    actor.userId,
+    organizationId,
+    "manage_people",
+  );
   const invite = await repo.findInvitation(id);
   if (
     !invite ||
@@ -356,7 +361,7 @@ export async function transferWorkspaceOwnership(
   successorId: string,
 ) {
   requireClientWorkspaces();
-  await requireWorkspaceMembership(actor.userId, organizationId, "owner");
+  await requireWorkspaceMembership(actor.userId, organizationId, "own");
   await repo.transferOwnership(organizationId, actor.userId, successorId);
   const [after] = await db
     .select()
@@ -375,4 +380,17 @@ export async function transferWorkspaceOwnership(
         reason:
           "Choose another current member. Your permissions may have changed.",
       };
+}
+
+// Which of the caller's workspaces holds a project, so a link into another
+// workspace can offer a switch instead of a dead end. Answers only for
+// workspaces the caller already belongs to, so it reveals nothing new.
+export async function projectWorkspace(userId: string, projectId: string) {
+  const project = await ProjectRepository.getProjectById(projectId);
+  if (!project) return null;
+  const memberships = await repo.listMemberships(userId);
+  const workspace = memberships.find(
+    (item) => item.id === project.organizationId,
+  );
+  return workspace ? { id: workspace.id, name: workspace.name } : null;
 }

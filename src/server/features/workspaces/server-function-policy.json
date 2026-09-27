@@ -1,10 +1,10 @@
 {
   "src/serverFunctions/ahrefs.ts:getAhrefsDomainRatings": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/ai-search.ts:explorePrompt": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/ai-search.ts:getPromptExplorerSnapshot": {
@@ -16,27 +16,27 @@
     "projectRequired": true
   },
   "src/serverFunctions/ai-search.ts:lookupBrand": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:correctAnalyticsAttribution": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:createAnalyticsDiagnosticToken": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:createAnalyticsSource": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:eraseAnalyticsContext": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:eraseAnalyticsCustomer": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:getAnalyticsAcquisitionDimensions": {
@@ -44,11 +44,11 @@
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:getAnalyticsCustomerEvidence": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:getAnalyticsCustomers": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:getAnalyticsFunnels": {
@@ -56,15 +56,15 @@
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:getAnalyticsHealth": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:getAnalyticsJourney": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:getAnalyticsJourneyMap": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:getAnalyticsOverview": {
@@ -72,19 +72,19 @@
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:getAnalyticsSettings": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:listAnalyticsJourneys": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:listAnalyticsSources": {
-    "capability": "admin",
+    "capability": "read",
     "projectRequired": true
   },
   "src/serverFunctions/analytics.ts:saveAnalyticsSettings": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analyticsConfiguration.ts:getAnalyticsCapabilities": {
@@ -108,19 +108,19 @@
     "projectRequired": true
   },
   "src/serverFunctions/analyticsConfiguration.ts:getAnalyticsTrackingRules": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analyticsConfiguration.ts:saveAnalyticsReportingSettings": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analyticsConfiguration.ts:saveAnalyticsStages": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/analyticsConfiguration.ts:saveAnalyticsTrackingRules": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/audit.ts:deleteAudit": {
@@ -144,23 +144,23 @@
     "projectRequired": true
   },
   "src/serverFunctions/audit.ts:startAudit": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/backlinks.ts:getBacklinksOverview": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/backlinks.ts:getBacklinksReferringDomains": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/backlinks.ts:getBacklinksRows": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/backlinks.ts:getBacklinksTopPages": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/billing.ts:getBillingUsageEvents": {
@@ -168,7 +168,7 @@
     "projectRequired": false
   },
   "src/serverFunctions/competitorResearch.ts:getCompetitorResearch": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/config.ts:getSeoApiKeyStatus": {
@@ -196,31 +196,31 @@
     "projectRequired": true
   },
   "src/serverFunctions/dashboard.ts:refreshDashboardBacklinkSnapshot": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/domain.ts:getDomainKeywordSuggestions": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/domain.ts:getDomainKeywordsPage": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/domain.ts:getDomainOverview": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/domain.ts:getDomainPagesPage": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/ga4.ts:disconnectGa4": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/ga4.ts:getGa4Connection": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/ga4.ts:getGa4DashboardReport": {
@@ -228,15 +228,15 @@
     "projectRequired": true
   },
   "src/serverFunctions/ga4.ts:listGa4Properties": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/ga4.ts:setGa4Property": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/ga4.ts:startSelfHostedGa4Link": {
-    "capability": "blocked",
+    "capability": "configure",
     "projectRequired": false
   },
   "src/serverFunctions/growth.ts:getGrowthSettings": {
@@ -244,7 +244,7 @@
     "projectRequired": true
   },
   "src/serverFunctions/growth.ts:updateGrowthSettings": {
-    "capability": "blocked",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/growthAssessmentInvestigations.ts:getGrowthAssessmentInvestigation": {
@@ -252,7 +252,7 @@
     "projectRequired": true
   },
   "src/serverFunctions/growthAssessmentInvestigations.ts:runGrowthAssessmentInvestigation": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/growthAssessments.ts:confirmGrowthAssessment": {
@@ -260,7 +260,7 @@
     "projectRequired": true
   },
   "src/serverFunctions/growthAssessments.ts:generateGrowthAssessment": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/growthAssessments.ts:getGrowthAssessment": {
@@ -288,27 +288,27 @@
     "projectRequired": true
   },
   "src/serverFunctions/growthChecks.ts:runGrowthCheck": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/growthChecks.ts:runGrowthCriticalAuditIssueCheck": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/growthChecks.ts:runGrowthLowCtrCheck": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/growthChecks.ts:runGrowthMeasurementDueCheck": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/growthChecks.ts:runGrowthPersistentRankDropCheck": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/growthChecks.ts:runGrowthStrikingDistanceCheck": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/growthInvestigations.ts:approveGrowthAiInvestigationBrief": {
@@ -320,7 +320,7 @@
     "projectRequired": true
   },
   "src/serverFunctions/growthInvestigations.ts:generateGrowthAiInvestigationBrief": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/growthInvestigations.ts:getGrowthInvestigation": {
@@ -344,7 +344,7 @@
     "projectRequired": true
   },
   "src/serverFunctions/growthMonthlyReview.ts:runGrowthMonthlyReview": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/growthOperatingOverview.ts:getGrowthOperatingOverview": {
@@ -408,7 +408,7 @@
     "projectRequired": true
   },
   "src/serverFunctions/growthReports.ts:buildGrowthMonthlyReport": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/growthReports.ts:getGrowthMonthlyPublicationStatus": {
@@ -420,19 +420,19 @@
     "projectRequired": true
   },
   "src/serverFunctions/growthReports.ts:publishGrowthMonthlyReport": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/growthRunInspector.ts:appendGrowthMonthlyCycleOperatorObservation": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/growthRunInspector.ts:getGrowthRunInspector": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/growthWork.ts:collectGrowthWorkMeasurement": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/growthWork.ts:finalizeGrowthWorkMeasurement": {
@@ -456,7 +456,7 @@
     "projectRequired": true
   },
   "src/serverFunctions/growthWork.ts:startGrowthWorkMeasurement": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/growthWork.ts:updateGrowthWorkStatus": {
@@ -464,11 +464,11 @@
     "projectRequired": true
   },
   "src/serverFunctions/gsc.ts:disconnectGsc": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/gsc.ts:getGscConnection": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/gsc.ts:getGscGrantStatus": {
@@ -476,15 +476,15 @@
     "projectRequired": false
   },
   "src/serverFunctions/gsc.ts:listGscSites": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/gsc.ts:setGscSite": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/gsc.ts:startSelfHostedGscLink": {
-    "capability": "blocked",
+    "capability": "configure",
     "projectRequired": false
   },
   "src/serverFunctions/keywords.ts:deleteSavedKeywordTag": {
@@ -500,11 +500,11 @@
     "projectRequired": true
   },
   "src/serverFunctions/keywords.ts:getSerpAnalysis": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/keywords.ts:refreshSavedKeywordMetrics": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/keywords.ts:removeSavedKeywords": {
@@ -512,7 +512,7 @@
     "projectRequired": true
   },
   "src/serverFunctions/keywords.ts:researchKeywords": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/keywords.ts:saveKeywords": {
@@ -536,11 +536,11 @@
     "projectRequired": true
   },
   "src/serverFunctions/linkedin.ts:disconnectLinkedIn": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/linkedin.ts:getLinkedInConnection": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/linkedin.ts:getLinkedInPageOverview": {
@@ -556,15 +556,15 @@
     "projectRequired": true
   },
   "src/serverFunctions/linkedin.ts:listLinkedInPages": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/linkedin.ts:setLinkedInPage": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/linkedin.ts:startLinkedInLink": {
-    "capability": "blocked",
+    "capability": "configure",
     "projectRequired": false
   },
   "src/serverFunctions/onboarding.ts:dismissGscNudge": {
@@ -588,19 +588,19 @@
     "projectRequired": false
   },
   "src/serverFunctions/projectContext.ts:getProjectContext": {
-    "capability": "admin",
+    "capability": "read",
     "projectRequired": true
   },
   "src/serverFunctions/projectContext.ts:updateProjectContext": {
-    "capability": "edit",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/projects.ts:archiveProject": {
-    "capability": "edit",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/projects.ts:createProject": {
-    "capability": "edit",
+    "capability": "configure",
     "projectRequired": false
   },
   "src/serverFunctions/projects.ts:getArchivedProjects": {
@@ -616,27 +616,27 @@
     "projectRequired": false
   },
   "src/serverFunctions/projects.ts:restoreProject": {
-    "capability": "edit",
+    "capability": "configure",
     "projectRequired": false
   },
   "src/serverFunctions/projects.ts:setProjectDomain": {
-    "capability": "edit",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/projects.ts:setProjectMarket": {
-    "capability": "edit",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/projects.ts:updateProject": {
-    "capability": "edit",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/rank-tracking.ts:addTrackingKeywords": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/rank-tracking.ts:createRankTrackingConfig": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/rank-tracking.ts:estimateRankCheckCost": {
@@ -672,31 +672,31 @@
     "projectRequired": true
   },
   "src/serverFunctions/rank-tracking.ts:refreshTrackingKeywordMetrics": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/rank-tracking.ts:removeTrackingKeywords": {
-    "capability": "admin",
+    "capability": "edit",
     "projectRequired": true
   },
   "src/serverFunctions/rank-tracking.ts:triggerRankCheck": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/rank-tracking.ts:updateRankTrackingConfig": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/sam.ts:archiveSamSession": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": false
   },
   "src/serverFunctions/sam.ts:createSamSession": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/sam.ts:listSamSessions": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": true
   },
   "src/serverFunctions/samAccess.ts:getSamAccessSetupStatus": {
@@ -716,11 +716,11 @@
     "projectRequired": true
   },
   "src/serverFunctions/serp-locations.ts:prewarmSerpLocations": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": false
   },
   "src/serverFunctions/serp-locations.ts:searchSerpLocations": {
-    "capability": "blocked",
+    "capability": "run",
     "projectRequired": false
   },
   "src/serverFunctions/workspace.ts:getWorkspaceMergeStatus": {
@@ -732,7 +732,7 @@
     "projectRequired": false
   },
   "src/serverFunctions/youtube.ts:disconnectYouTube": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/youtube.ts:getYouTubeChannelOverview": {
@@ -740,7 +740,7 @@
     "projectRequired": true
   },
   "src/serverFunctions/youtube.ts:getYouTubeConnection": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/youtube.ts:getYouTubeTrafficSources": {
@@ -752,18 +752,22 @@
     "projectRequired": true
   },
   "src/serverFunctions/youtube.ts:listYouTubeChannels": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/youtube.ts:setYouTubeChannel": {
-    "capability": "admin",
+    "capability": "configure",
     "projectRequired": true
   },
   "src/serverFunctions/youtube.ts:startSelfHostedYouTubeLink": {
-    "capability": "blocked",
+    "capability": "configure",
     "projectRequired": false
   },
   "src/serverFunctions/clientWorkspaces.ts:getWorkspaceSession": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:getProjectWorkspace": {
     "capability": "self",
     "projectRequired": false
   },

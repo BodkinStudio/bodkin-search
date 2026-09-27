@@ -34,11 +34,15 @@ export const ensureUserMiddleware = createMiddleware({
   if (clientWorkspacesEnabled()) {
     const key = `${serverFnMeta.filename}:${serverFnMeta.name}`;
     const rule = operationPolicy.get(key);
-    if (
-      !rule ||
-      rule.capability === "blocked" ||
-      (rule.projectRequired && !projectId)
-    )
+    // "blocked" marks legacy or hosted-only flows (hosted onboarding, legacy
+    // workspace merge, hosted billing history) that have no meaning in a
+    // client workspace, so no role can call them.
+    if (rule?.capability === "blocked")
+      throw new AppError(
+        "FORBIDDEN",
+        "This action does not apply to client workspaces.",
+      );
+    if (!rule || (rule.projectRequired && !projectId))
       throw new AppError(
         "FORBIDDEN",
         "This action is unavailable in client workspaces.",

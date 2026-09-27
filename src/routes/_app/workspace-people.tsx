@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { workspaceSessionOptions } from "@/client/features/workspaces/WorkspaceSwitcher";
+import { useWorkspaceAccess } from "@/client/features/workspaces/useWorkspaceAccess";
 import {
   createClientWorkspace,
   resendWorkspaceInvitation,
@@ -23,12 +23,11 @@ export const Route = createFileRoute("/_app/workspace-people")({
 });
 function WorkspacePeople() {
   const cache = useQueryClient();
-  const session = useQuery(workspaceSessionOptions());
+  const access = useWorkspaceAccess();
+  const session = access.session;
   const organizationId = session.data?.organizationId ?? "";
-  const active = session.data?.memberships.find(
-    (item) => item.id === organizationId,
-  );
-  const allowed = active?.role === "owner" || active?.role === "admin";
+  const active = access.workspace;
+  const allowed = access.can("manage_people");
   const people = useQuery({
     queryKey: ["workspace-people", organizationId],
     queryFn: () => getWorkspacePeople({ data: { organizationId } }),

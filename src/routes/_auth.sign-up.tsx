@@ -1,3 +1,4 @@
+import { clientWorkspacesBuild } from "@/client/features/workspaces/useWorkspaceAccess";
 import { useForm } from "@tanstack/react-form";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -52,7 +53,10 @@ function SignUpPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const { redirectTo, isHostedMode } = useAuthPageState(search.redirect);
-  const postSignupRedirect = redirectTo === "/" ? "/onboarding" : redirectTo;
+  // Client workspaces have no hosted onboarding: invited members land on
+  // their workspace's projects.
+  const postSignupRedirect =
+    redirectTo === "/" && !clientWorkspacesBuild() ? "/onboarding" : redirectTo;
   const [showEmailForm, setShowEmailForm] = useState(false);
   const google = useGoogleSignUp({ redirectTo, postSignupRedirect });
 

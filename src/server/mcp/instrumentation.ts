@@ -1,4 +1,3 @@
-import { requireLegacyAutomationMode } from "@/server/features/workspaces/workspace-mode";
 import { waitUntil } from "cloudflare:workers";
 import type { CallToolResult } from "@modelcontextprotocol/server";
 import type { z } from "zod";
@@ -7,6 +6,7 @@ import { recordExternalMcpToolCall } from "@/server/features/activation/mcpActiv
 import { captureServerError, captureServerEvent } from "@/server/lib/posthog";
 import { shouldCaptureAppErrorCode } from "@/shared/error-codes";
 import { type ToolContext } from "@/server/mcp/context";
+import { authorizeMcpToolCall } from "@/server/mcp/workspace-auth";
 import { incrementSelfHostMcpToolCallCount } from "@/server/lib/self-host-telemetry";
 
 type ToolHandler<TArgs> = (
@@ -84,10 +84,11 @@ export function instrumentMcpToolHandler<TArgs>(
   outputSchema: z.ZodType | undefined,
   handler: ToolHandler<TArgs>,
 ): (args: TArgs, context: ToolContext) => Promise<CallToolResult> {
-  return async (args, context) => {
+  return async (args, requestContext) => {
     const startedAt = performance.now();
+    let context = requestContext;
     try {
-      requireLegacyAutomationMode();
+      context = await authorizeMcpToolCall(toolName, args, requestContext);
       const result = await handler(args, context);
       // The SDK converts an output-schema mismatch into a client-visible
       // JSON-RPC error, so count it as a failed call, not a success.

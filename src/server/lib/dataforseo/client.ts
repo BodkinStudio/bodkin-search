@@ -6,6 +6,7 @@ import {
   assertUsageCreditsAvailable,
   getOrCreateOrganizationCustomer,
   trackUsageCreditSpend,
+  usageMeteringDisabled,
 } from "@/server/billing/subscription";
 import type { BillingCustomerContext } from "@/server/billing/subscription";
 // Type-only namespace import: erased at compile, so the section modules (and
@@ -158,7 +159,9 @@ async function meterDataforseoCall<T>(
 ): Promise<T> {
   const isHostedMode = await isHostedServerAuthMode();
 
-  if (!isHostedMode) {
+  // The billing layer charges the workspace's payer organization (the
+  // customer id below), so callers keep passing the member's own context.
+  if (!isHostedMode || (await usageMeteringDisabled())) {
     const result = await execute();
     return result.data;
   }

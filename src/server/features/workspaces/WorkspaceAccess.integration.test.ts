@@ -132,7 +132,7 @@ describe("client workspace isolation", () => {
       ),
     ).rejects.toThrow();
     expect(
-      await access.requireWorkspaceMembership("owner", "a", "owner"),
+      await access.requireWorkspaceMembership("owner", "a", "own"),
     ).toBeTruthy();
   });
   it("delivers a recipient-bound single-use invite and never stores the token", async () => {

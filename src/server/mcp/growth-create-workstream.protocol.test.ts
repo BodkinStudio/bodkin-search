@@ -5,6 +5,7 @@ import {
   MCP_OAUTH_SUPPORTED_SCOPES,
 } from "@/lib/oauth-resource";
 import { createWorkersOAuthMcpProps } from "./context";
+import { MCP_TOOL_CAPABILITIES } from "./workspace-auth";
 
 // The in-memory MCP client handshake takes ~3s; the default 5s budget
 // times out whenever other test workers compete for CPU.
@@ -171,6 +172,10 @@ describe("self-hosted scope set", () => {
           "growth_create_workstream",
           "growth_record_change",
         ]),
+      );
+      // Client workspaces refuse any tool without a capability (fail closed).
+      expect(names.filter((name) => !(name in MCP_TOOL_CAPABILITIES))).toEqual(
+        [],
       );
     } finally {
       await selfHosted.client.close();

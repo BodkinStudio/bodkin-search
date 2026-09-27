@@ -1,4 +1,3 @@
-import { workspaceSessionOptions } from "@/client/features/workspaces/WorkspaceSwitcher";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -21,11 +20,6 @@ export const Route = createFileRoute("/_app/")({
 
 function IndexRedirect() {
   const navigate = useNavigate();
-  const workspace = useQuery(workspaceSessionOptions());
-  const role = workspace.data?.memberships.find(
-    (item) => item.id === workspace.data.organizationId,
-  )?.role;
-
   const { data, error, isError, refetch } = useQuery({
     queryKey: ["projects"],
     queryFn: () => getProjects(),

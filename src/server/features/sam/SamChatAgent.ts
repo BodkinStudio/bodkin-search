@@ -1,4 +1,3 @@
-import { requireLegacyAutomationMode } from "@/server/features/workspaces/workspace-mode";
 import { Think } from "@cloudflare/think";
 import type {
   ChatErrorContext,
@@ -22,6 +21,10 @@ import {
 import { SamSessionRepository } from "@/server/features/sam/SamSessionRepository";
 import { ProjectContextService } from "@/server/features/project-context/services/ProjectContextService";
 import { ProjectRepository } from "@/server/features/projects/repositories/ProjectRepository";
+import {
+  clientWorkspacesEnabled,
+  requireWorkspaceMembership,
+} from "@/server/features/workspaces/WorkspaceAccess";
 import { buildSamMcpTools } from "@/server/features/sam/samChatTools";
 import { buildSamSkillSource } from "@/server/features/sam/samSkills";
 import { buildSamSystemPrompt } from "@/server/features/sam/samSystemPrompt";
@@ -251,7 +254,6 @@ export class SamChatAgent extends Think {
   }
 
   async beforeTurn(_ctx: TurnContext): Promise<TurnConfig> {
-    requireLegacyAutomationMode();
     this.turnCostUsd = 0;
     this.turnMonthlyRemaining = null;
     return withPgClient(async (): Promise<TurnConfig> => {
@@ -261,6 +263,14 @@ export class SamChatAgent extends Think {
           "I couldn't find this chat session. Please start a new one.",
         );
       }
+      // Re-checked every turn (not only at connect) so a member demoted to
+      // viewer, or removed, mid-session can no longer run AI work.
+      if (clientWorkspacesEnabled())
+        await requireWorkspaceMembership(
+          ctx.row.userId,
+          ctx.project.organizationId,
+          "run",
+        );
 
       // Gate every turn on credits in hosted mode: SAM is open to every plan
       // (including free), and LLM tokens plus DataForSEO tool calls all draw

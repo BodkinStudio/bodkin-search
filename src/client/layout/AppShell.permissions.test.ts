@@ -16,12 +16,13 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: React.ReactNode }) =>
     createElement("a", {}, children),
 }));
-vi.mock("@/client/features/workspaces/WorkspaceSwitcher", () => ({
-  workspaceSessionOptions: () => ({ queryKey: ["workspace"] }),
+vi.mock("@/serverFunctions/clientWorkspaces", () => ({
+  getWorkspaceSession: vi.fn(),
 }));
 vi.mock("@tanstack/react-query", () => ({
+  queryOptions: (options: unknown) => options,
   useQuery: (options: { queryKey: string[]; enabled?: boolean }) => {
-    if (options.queryKey[0] === "workspace")
+    if (options.queryKey[0] === "workspace-session")
       return {
         isSuccess: state.success,
         data: state.success

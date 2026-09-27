@@ -5,15 +5,27 @@ import {
   AUTUMN_SEO_DATA_TOPUP_BALANCE_FEATURE_ID,
 } from "@/shared/billing";
 
-const { checkMock, getOrCreateMock, kvGetMock, kvPutMock } = vi.hoisted(() => ({
-  checkMock: vi.fn(),
-  getOrCreateMock: vi.fn(),
-  kvGetMock: vi.fn(),
-  kvPutMock: vi.fn(),
-}));
+const { checkMock, getOrCreateMock, kvGetMock, kvPutMock, runtime } =
+  vi.hoisted(() => ({
+    checkMock: vi.fn(),
+    getOrCreateMock: vi.fn(),
+    kvGetMock: vi.fn(),
+    kvPutMock: vi.fn(),
+    runtime: { CLIENT_WORKSPACES_ENABLED: "false" },
+  }));
 
 vi.mock("cloudflare:workers", () => ({
-  env: { KV: { get: kvGetMock, put: kvPutMock } },
+  env: {
+    KV: { get: kvGetMock, put: kvPutMock },
+    get CLIENT_WORKSPACES_ENABLED() {
+      return runtime.CLIENT_WORKSPACES_ENABLED;
+    },
+  },
+}));
+
+vi.mock("@/server/features/workspaces/WorkspaceRepository", () => ({
+  getWorkspace: async (id: string) =>
+    id === "client_ws" ? { payerOrganizationId: "agency_org" } : undefined,
 }));
 
 vi.mock("@/server/billing/autumn", () => ({
@@ -27,6 +39,7 @@ vi.mock("@/server/billing/autumn", () => ({
 
 vi.mock("@/server/lib/runtime-env", () => ({
   isHostedServerAuthMode: vi.fn(),
+  getOptionalEnvValue: async () => "autumn_key",
 }));
 
 // subscription.ts now imports posthog (for trackUsageCreditSpend); stub it so
@@ -50,6 +63,19 @@ describe("subscription billing", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    runtime.CLIENT_WORKSPACES_ENABLED = "false";
+  });
+
+  it("charges a client workspace's usage to its payer organization", async () => {
+    runtime.CLIENT_WORKSPACES_ENABLED = "true";
+    checkMock.mockResolvedValue({ allowed: true });
+
+    await customerHasPaidPlan("client_ws");
+
+    expect(checkMock).toHaveBeenCalledWith({
+      customerId: "agency_org",
+      featureId: AUTUMN_PAID_PLAN_FEATURE_ID,
+    });
   });
 
   it("checks the paid plan entitlement", async () => {

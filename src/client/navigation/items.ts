@@ -15,26 +15,34 @@ import {
 import { linkOptions } from "@tanstack/react-router";
 import { GoogleGlyphMuted } from "@/client/features/gsc/GoogleGlyph";
 
+// Each item names the capability that makes the page useful. Pages that show
+// data already collected (reports, tracked ranks, saved keywords, audits) need
+// only read and hide their run/edit actions inside; point-at-anything research
+// tools start metered work on every lookup, so they need run.
 const projectNavItems = [
   {
     to: "/p/$projectId/analytics" as const,
     label: "Analytics",
     icon: ChartNoAxesCombined,
+    capability: "read",
   },
   {
     to: "/p/$projectId/competitors" as const,
     label: "Competitor Research",
     icon: ScanSearch,
+    capability: "run",
   },
   {
     to: "/p/$projectId/growth" as const,
     label: "Growth",
     icon: ScanSearch,
+    capability: "read",
   },
   {
     to: "/p/$projectId" as const,
     label: "Dashboard",
     icon: LayoutDashboard,
+    capability: "read",
     // Without exact matching, the index path is a prefix of every project
     // route and the Dashboard item would render active everywhere.
     activeOptions: { exact: true, includeSearch: false },
@@ -43,46 +51,55 @@ const projectNavItems = [
     to: "/p/$projectId/keywords" as const,
     label: "Keyword Research",
     icon: Search,
+    capability: "run",
   },
   {
     to: "/p/$projectId/saved" as const,
     label: "Saved Keywords",
     icon: Bookmark,
+    capability: "read",
   },
   {
     to: "/p/$projectId/rank-tracking" as const,
     label: "Rank Tracking",
     icon: TrendingUp,
+    capability: "read",
   },
   {
     to: "/p/$projectId/search-performance" as const,
     label: "GSC Insights",
     icon: GoogleGlyphMuted,
+    capability: "read",
   },
   {
     to: "/p/$projectId/domain" as const,
     label: "Domain Overview",
     icon: Globe,
+    capability: "run",
   },
   {
     to: "/p/$projectId/backlinks" as const,
     label: "Backlinks",
     icon: Link2,
+    capability: "run",
   },
   {
     to: "/p/$projectId/audit" as const,
     label: "Site Audit",
     icon: ClipboardCheck,
+    capability: "read",
   },
   {
     to: "/p/$projectId/brand-lookup" as const,
     label: "Brand Lookup",
     icon: Sparkles,
+    capability: "run",
   },
   {
     to: "/p/$projectId/prompt-explorer" as const,
     label: "Prompt Explorer",
     icon: MessageSquare,
+    capability: "run",
   },
 ] as const;
 
@@ -90,9 +107,10 @@ const aiNavItem = linkOptions({
   to: "/ai" as const,
   label: "AI & MCP",
   icon: Bot,
+  capability: "run",
 });
 
-// Always-visible sidebar group (not project-scoped, unlike the groups below).
+// Account-level sidebar group (not project-scoped, unlike the groups below).
 export const connectNavGroup = {
   label: "Connect",
   items: [aiNavItem],

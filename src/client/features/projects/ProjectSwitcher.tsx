@@ -1,4 +1,4 @@
-import { workspaceSessionOptions } from "@/client/features/workspaces/WorkspaceSwitcher";
+import { useWorkspaceAccess } from "@/client/features/workspaces/useWorkspaceAccess";
 import * as React from "react";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -31,14 +31,7 @@ export function ProjectSwitcher({
   // useMatches() would re-render the whole sidebar on every route change for
   // a value only a click needs.
   const router = useRouter();
-  const workspaceSession = useQuery(workspaceSessionOptions());
-  const canEdit =
-    !workspaceSession.data?.enabled ||
-    ["owner", "admin", "editor"].includes(
-      workspaceSession.data.memberships.find(
-        (item) => item.id === workspaceSession.data.organizationId,
-      )?.role ?? "",
-    );
+  const canEdit = useWorkspaceAccess().can("configure");
   const [creating, setCreating] = React.useState(false);
   // Controlled open state rather than daisyUI's CSS focus-within dropdown:
   // focus-within can't guarantee the search input ends up focused on open

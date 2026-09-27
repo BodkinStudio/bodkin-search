@@ -1,4 +1,5 @@
-import { requireLegacyAutomationMode } from "@/server/features/workspaces/workspace-mode";
+import { clientWorkspacesEnabled } from "@/server/features/workspaces/workspace-mode";
+import { AppError } from "@/server/lib/errors";
 import { AIChatAgent } from "@cloudflare/ai-chat";
 import {
   convertToModelMessages,
@@ -110,7 +111,13 @@ export class OnboardingChatAgent extends AIChatAgent {
     onFinish: StreamTextOnFinishCallback<ToolSet>,
     options?: OnChatMessageOptions,
   ): Promise<Response | undefined> {
-    requireLegacyAutomationMode();
+    // Onboarding chat is the hosted free-signup preview; client workspaces
+    // have no signup funnel, so it stays closed there (SAM is the agent).
+    if (clientWorkspacesEnabled())
+      throw new AppError(
+        "FORBIDDEN",
+        "Onboarding chat is not available in client workspaces.",
+      );
     const project = await ProjectRepository.getProjectById(this.name);
     if (!project) {
       return staticAssistantResponse(

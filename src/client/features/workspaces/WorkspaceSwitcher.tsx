@@ -1,34 +1,34 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import {
-  getWorkspaceSession,
-  selectWorkspace,
-} from "@/serverFunctions/clientWorkspaces";
+import { selectWorkspace } from "@/serverFunctions/clientWorkspaces";
 import { clearLastProjectId } from "@/client/lib/active-project";
+import { useWorkspaceAccess } from "@/client/features/workspaces/useWorkspaceAccess";
 
-export const workspaceSessionOptions = () => ({
-  queryKey: ["workspace-session"],
-  queryFn: () => getWorkspaceSession(),
-  staleTime: 0,
-  retry: false as const,
-});
+/** Selects a workspace, drops every cached query from the old one and reloads. */
+export async function switchWorkspace(
+  cache: QueryClient,
+  organizationId: string,
+  to = "/",
+) {
+  await selectWorkspace({ data: { organizationId } });
+  await cache.cancelQueries();
+  cache.clear();
+  clearLastProjectId();
+  window.location.assign(to);
+}
 
 export function WorkspaceSwitcher() {
-  const session = useQuery(workspaceSessionOptions());
+  const access = useWorkspaceAccess();
+  const session = access.session;
   const cache = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const previous = useRef<string | null>(null);
-  const membershipKey = session.data?.enabled
-    ? JSON.stringify([
-        session.data.organizationId,
-        session.data.memberships.find(
-          (item) => item.id === session.data.organizationId,
-        )?.role,
-      ])
+  const membershipKey = access.clientWorkspaces
+    ? JSON.stringify([session.data?.organizationId, access.role])
     : null;
   useEffect(() => {
-    if (!membershipKey) return;
+    if (!membershipKey || !session.isSuccess) return;
     if (previous.current && previous.current !== membershipKey) {
       void cache.cancelQueries().then(() => {
         cache.clear();
@@ -37,11 +37,10 @@ export function WorkspaceSwitcher() {
       });
     }
     previous.current = membershipKey;
-  }, [membershipKey, cache]);
+  }, [membershipKey, session.isSuccess, cache]);
   if (!session.data?.enabled) return null;
-  const active = session.data.memberships.find(
-    (item) => item.id === session.data.organizationId,
-  );
+  const active = access.workspace;
+  const accessRemoved = !access.can("read");
   return (
     <div className="space-y-2 px-3 py-2">
       <label className="text-xs font-medium" htmlFor="workspace-select">
@@ -56,34 +55,36 @@ export function WorkspaceSwitcher() {
           setBusy(true);
           setError("");
           try {
-            await selectWorkspace({
-              data: { organizationId: event.target.value },
-            });
-            await cache.cancelQueries();
-            cache.clear();
-            clearLastProjectId();
-            window.location.assign("/");
+            await switchWorkspace(cache, event.target.value);
           } catch {
             setError("Could not switch workspace. Try again.");
             setBusy(false);
           }
         }}
       >
-        {!active && <option value="">No workspace access</option>}
+        {!active && <option value="">Choose a workspace</option>}
         {session.data.memberships.map((workspace) => (
           <option key={workspace.id} value={workspace.id}>
             {workspace.name}
           </option>
         ))}
       </select>
-      {active && (
-        <p className="text-xs text-base-content/60">
-          {active.role === "viewer"
-            ? "Viewer · read-only access"
-            : active.role.charAt(0).toUpperCase() + active.role.slice(1)}
+      {accessRemoved ? (
+        <p role="status" className="text-xs text-warning">
+          {session.data.memberships.length === 0
+            ? "You don't have access to any workspace. Ask the workspace owner to invite you."
+            : "Your access to this workspace has been removed. Ask the workspace owner to restore it, or choose another workspace."}
         </p>
+      ) : (
+        access.role && (
+          <p className="text-xs text-base-content/60">
+            {access.role === "viewer"
+              ? "Viewer · read-only access"
+              : access.role.charAt(0).toUpperCase() + access.role.slice(1)}
+          </p>
+        )
       )}
-      {(active?.role === "owner" || active?.role === "admin") && (
+      {access.can("manage_people") && (
         <a className="link text-xs" href="/workspace-people">
           Manage people
         </a>

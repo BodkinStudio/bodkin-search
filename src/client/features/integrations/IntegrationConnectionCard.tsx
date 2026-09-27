@@ -73,3 +73,20 @@ function ConnectionStatusPill({
     </span>
   );
 }
+
+/** Shown instead of a connect flow to members who can't configure integrations. */
+export function AdminConnectsIntegrationCard({
+  title,
+  icon,
+}: {
+  title: string;
+  icon?: ReactNode;
+}) {
+  return (
+    <IntegrationConnectionCard title={title} icon={icon} status="disconnected">
+      <p className="text-sm text-base-content/70">
+        Not connected yet. Ask a workspace owner or admin to connect {title}.
+      </p>
+    </IntegrationConnectionCard>
+  );
+}
