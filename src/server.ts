@@ -26,6 +26,7 @@ import { maybeSendSelfHostHeartbeat } from "@/server/lib/self-host-telemetry";
 import { handleGdprStorageErasure } from "@/server/gdpr/storage-erasure";
 import { GDPR_STORAGE_ERASURE_PATH } from "@/shared/gdpr-erasure";
 import { AnalyticsService } from "@/server/features/analytics/AnalyticsService";
+import { GrowthWatchService } from "@/server/features/growth/services/GrowthWatchService";
 import {
   clientWorkspacesEnabled,
   requireWorkspaceMembership,
@@ -249,8 +250,6 @@ export default {
       return;
     }
 
-    if (env.CLIENT_WORKSPACES_ENABLED === "true") return;
-
     if (controller.cron === GROWTH_MONTHLY_REVIEW_CRON) {
       await withPgClient(() => runScheduledGrowthMonthlyReviews(env));
       return;
@@ -258,6 +257,9 @@ export default {
 
     if (controller.cron === GROWTH_WEEKLY_REVIEW_CRON) {
       await withPgClient(() => runScheduledGrowthWeeklyReviews(env));
+      // The Growth watch rides the same hourly tick (Cloudflare caps a
+      // worker's cron triggers); each project is checked once a week.
+      await withPgClient(() => GrowthWatchService.runWatchTick());
       return;
     }
 
