@@ -1,3 +1,4 @@
+import { humanizeEvent, visitorLabel } from "./AnalyticsOverview";
 import { AttributionLabel } from "./AnalyticsOverview";
 
 type Funnel = {
@@ -38,14 +39,14 @@ export function AnalyticsFunnelPanel({
 }) {
   return (
     <div className="max-w-3xl space-y-5">
-      <h2 className="text-lg font-semibold">Funnel stages</h2>
+      <h2 className="text-lg font-semibold">Funnel</h2>
       <div className="flex flex-wrap gap-2" aria-label="Funnel template">
         {(
           [
-            ["enquiry", "Website enquiry"],
-            ["signup", "Browser signup"],
-            ["external", "External product"],
-            ["sales", "Sales-led customer"],
+            ["enquiry", "Enquiry form"],
+            ["signup", "Sign-up on the site"],
+            ["external", "Sign-up in your app"],
+            ["sales", "Sales-led"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -59,8 +60,9 @@ export function AnalyticsFunnelPanel({
         ))}
       </div>
       <p className="text-sm text-base-content/70">
-        Observed stages use a defined cohort and completion window. “Not
-        observed” means tracking coverage is absent, not proven abandonment.
+        Follows the visitors who entered in this period through each step.
+        &ldquo;Not tracked&rdquo; means we can&rsquo;t see that step, not that
+        people dropped out.
       </p>
       {pending ? (
         <p>Loading stages…</p>
@@ -84,31 +86,57 @@ export function AnalyticsFunnelPanel({
               <dd className="font-medium tabular-nums">{data.pending}</dd>
             </div>
           </dl>
-          {data.stages.map((stage, index) => (
-            <div
-              key={stage.name}
-              className="flex items-center justify-between border-b border-base-300 py-4"
-            >
-              <span className="text-sm">
-                <span className="mr-4 text-base-content/60">{index + 1}</span>
-                {stage.label ?? stage.name.replaceAll("_", " ")}
-              </span>
-              <span className="text-sm tabular-nums">
-                {stage.coverage === "Not observed"
-                  ? "Not observed"
-                  : stage.count}
-              </span>
-            </div>
-          ))}
+          <ol className="space-y-3">
+            {data.stages.map((stage, index) => {
+              const first = data.stages[0]?.count ?? 0;
+              const previous = index > 0 ? data.stages[index - 1] : null;
+              const tracked = stage.coverage !== "Not observed";
+              return (
+                <li key={stage.name}>
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <span>
+                      <span className="mr-3 tabular-nums text-base-content/60">
+                        {index + 1}
+                      </span>
+                      {humanizeEvent(stage.label ?? stage.name)}
+                    </span>
+                    <span className="tabular-nums">
+                      {tracked ? stage.count : "Not tracked"}
+                      {tracked &&
+                      previous &&
+                      previous.coverage !== "Not observed" &&
+                      previous.count > 0 ? (
+                        <span className="ml-2 text-xs text-base-content/60">
+                          {Math.round((stage.count / previous.count) * 100)}% of
+                          step {index}
+                        </span>
+                      ) : null}
+                    </span>
+                  </div>
+                  <div className="mt-1 h-2 rounded-full bg-base-200">
+                    {tracked && first > 0 ? (
+                      <div
+                        aria-hidden="true"
+                        className="h-2 rounded-full bg-primary"
+                        style={{ width: `${(stage.count / first) * 100}%` }}
+                      />
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
           {!!data.unknown && (
             <p className="text-sm">
               {data.unknown} journeys have incomplete coverage; their completion
               is unknown.
             </p>
           )}
-          <div className="overflow-x-auto">
+          <details className="overflow-x-auto">
+            <summary className="cursor-pointer text-sm font-medium">
+              Visitors in this funnel ({data.cohorts?.length ?? 0})
+            </summary>
             <table className="table table-sm">
-              <caption className="text-left font-medium">Entry cohort</caption>
               <thead>
                 <tr>
                   <th>Journey</th>
@@ -124,7 +152,7 @@ export function AnalyticsFunnelPanel({
                         className="text-primary"
                         onClick={() => onOpenJourney(c.contextId)}
                       >
-                        Visitor {c.contextId.slice(0, 6)}
+                        {visitorLabel(c.contextId)}
                       </button>
                     </td>
                     <td>{c.enteredAt.slice(0, 10)}</td>
@@ -133,7 +161,7 @@ export function AnalyticsFunnelPanel({
                 ))}
               </tbody>
             </table>
-          </div>
+          </details>
           <p className="text-xs text-base-content/60">
             {data.definition ?? `Completion window: ${data.completionWindow}`}
           </p>
@@ -227,20 +255,22 @@ export function AnalyticsCustomerPanel({
                       </p>
                     </td>
                     <td>
-                      <button
-                        className="text-primary hover:underline"
-                        onClick={() => onOpenCustomer(customer.id)}
-                      >
-                        Inspect evidence
-                      </button>
-                      {journey && (
+                      <div className="flex flex-col items-start gap-1 whitespace-nowrap">
                         <button
-                          className="mt-2 text-primary hover:underline"
-                          onClick={() => onOpenJourney(journey.contextId)}
+                          className="text-primary hover:underline"
+                          onClick={() => onOpenCustomer(customer.id)}
                         >
-                          View journey
+                          Inspect evidence
                         </button>
-                      )}
+                        {journey && (
+                          <button
+                            className="text-primary hover:underline"
+                            onClick={() => onOpenJourney(journey.contextId)}
+                          >
+                            View journey
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

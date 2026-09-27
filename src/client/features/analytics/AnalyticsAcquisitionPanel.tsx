@@ -2,6 +2,13 @@ import { AnalyticsSearchEvidence } from "./AnalyticsSearchEvidence";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { getAnalyticsAcquisitionDimensions } from "@/serverFunctions/analytics";
+const DIMENSION_LABELS = {
+  sources: "Source",
+  campaigns: "Campaign",
+  pages: "Landing page",
+  destinations: "Destination",
+} as const;
+
 export function AnalyticsAcquisitionPanel({
   filters,
   dimension,
@@ -14,7 +21,7 @@ export function AnalyticsAcquisitionPanel({
     from: string;
     to: string;
   };
-  dimension: string;
+  dimension: keyof typeof DIMENSION_LABELS;
   onDimension: (
     value: "sources" | "campaigns" | "pages" | "destinations",
   ) => void;
@@ -40,7 +47,7 @@ export function AnalyticsAcquisitionPanel({
               aria-pressed={dimension === d}
               onClick={() => onDimension(d)}
             >
-              {d[0].toUpperCase() + d.slice(1)}
+              {DIMENSION_LABELS[d]}
             </button>
           ),
         )}
@@ -58,12 +65,27 @@ export function AnalyticsAcquisitionPanel({
             <table className="table table-sm">
               <thead>
                 <tr>
-                  <th>{dimension}</th>
-                  <th>Visitors</th>
-                  <th>Landings</th>
-                  <th>Assisted customers</th>
-                  <th>CTA customers</th>
-                  <th>Attributed customers</th>
+                  <th>{DIMENSION_LABELS[dimension]}</th>
+                  <th className="text-right">Visitors</th>
+                  <th className="text-right">Landings</th>
+                  <th
+                    className="text-right"
+                    title="Customers who passed through here at any point"
+                  >
+                    Assisted
+                  </th>
+                  <th
+                    className="text-right"
+                    title="Customers who clicked a call to action here"
+                  >
+                    Via call to action
+                  </th>
+                  <th
+                    className="text-right"
+                    title="Customers whose journey began here"
+                  >
+                    Customers
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -90,11 +112,11 @@ export function AnalyticsAcquisitionPanel({
                           r.label
                         )}
                       </td>
-                      <td>{r.visitors}</td>
-                      <td>{r.landings}</td>
-                      <td>{r.assists}</td>
-                      <td>{r.cta}</td>
-                      <td>{r.customers}</td>
+                      <td className="text-right tabular-nums">{r.visitors}</td>
+                      <td className="text-right tabular-nums">{r.landings}</td>
+                      <td className="text-right tabular-nums">{r.assists}</td>
+                      <td className="text-right tabular-nums">{r.cta}</td>
+                      <td className="text-right tabular-nums">{r.customers}</td>
                     </tr>
                   ))}
               </tbody>

@@ -2,7 +2,9 @@ import { validTimezone } from "@/shared/analytics/calendar";
 import { z } from "zod";
 export const analyticsSearchSchema = z.object({
   timezone: z.string().refine(validTimezone).optional().catch(undefined),
-  compare: z.boolean().catch(false),
+  // On unless the reader turns it off: a number means little without the one
+  // before it.
+  compare: z.boolean().catch(true),
   dimension: z
     .enum(["sources", "campaigns", "pages", "destinations"])
     .catch("sources"),
@@ -13,7 +15,9 @@ export const analyticsSearchSchema = z.object({
   view: z
     .enum(["overview", "journeys", "acquisition", "funnels", "customers"])
     .catch("overview"),
-  environment: z.enum(["production", "test"]).catch("production"),
+  // Unset until the reader picks one; the page then shows live data when a
+  // live source exists and test data otherwise (see resolveEnvironment).
+  environment: z.enum(["production", "test"]).optional().catch(undefined),
   days: z.union([z.literal(7), z.literal(30), z.literal(90)]).catch(30),
   display: z.enum(["list", "map"]).catch("list"),
   context: z.string().optional(),
@@ -23,3 +27,21 @@ export const analyticsSearchSchema = z.object({
   method: z.enum(["all", "exact", "ip_time", "unattributed"]).catch("all"),
 });
 export type AnalyticsSearch = z.infer<typeof analyticsSearchSchema>;
+
+export type AnalyticsEnvironment = "production" | "test";
+export type ResolvedAnalyticsSearch = AnalyticsSearch & {
+  environment: AnalyticsEnvironment;
+};
+
+// New sources start in test, so defaulting to production left first-time
+// users on an empty report. Live data wins whenever a live source exists.
+export function resolveEnvironment(
+  chosen: AnalyticsEnvironment | undefined,
+  sources: { environment: string }[] | undefined,
+): AnalyticsEnvironment {
+  if (chosen) return chosen;
+  if (!sources?.some((source) => source.environment === "production")) {
+    if (sources?.some((source) => source.environment === "test")) return "test";
+  }
+  return "production";
+}

@@ -1,28 +1,26 @@
-import type { AnalyticsSearch } from "./analytics-search";
+import type {
+  AnalyticsSearch,
+  ResolvedAnalyticsSearch,
+} from "./analytics-search";
+
+// One compact row: which days, compared with what, and (only when the project
+// has both) live or test data. Days run in the project's reporting timezone.
 export function AnalyticsPeriodControls({
   search,
   timezone,
+  environments,
   onSearch,
 }: {
-  search: AnalyticsSearch;
+  search: ResolvedAnalyticsSearch;
   timezone: string;
+  environments: string[];
   onSearch: (patch: Partial<AnalyticsSearch>) => void;
 }) {
-  const zones = [
-    ...new Set([
-      timezone,
-      "UTC",
-      "Europe/London",
-      "America/New_York",
-      "America/Los_Angeles",
-      "Asia/Tokyo",
-      "Australia/Sydney",
-    ]),
-  ];
+  const filter = search.page ?? search.source;
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      <label className="grid gap-1 text-xs text-base-content/70">
-        Period
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <label className="flex items-center gap-2 text-sm">
+        <span className="sr-only">Period</span>
         <select
           className="select select-sm"
           value={search.days}
@@ -38,51 +36,46 @@ export function AnalyticsPeriodControls({
           <option value={90}>Last 90 days</option>
         </select>
       </label>
-      <label className="grid gap-1 text-xs text-base-content/70">
-        Environment
-        <select
-          className="select select-sm"
-          value={search.environment}
-          onChange={(e) =>
-            onSearch({
-              environment: e.target.value === "test" ? "test" : "production",
-              context: undefined,
-            })
-          }
-        >
-          <option value="production">Production</option>
-          <option value="test">Test</option>
-        </select>
-      </label>
-      <label className="grid gap-1 text-xs text-base-content/70">
-        Calendar timezone
-        <select
-          className="select select-sm max-w-56"
-          value={timezone}
-          onChange={(e) => onSearch({ timezone: e.target.value })}
-        >
-          {zones.map((z) => (
-            <option key={z}>{z}</option>
-          ))}
-        </select>
-      </label>
-      <label className="flex items-center gap-2 pb-2 text-xs">
+      <label className="flex items-center gap-2 text-sm">
         <input
-          className="checkbox checkbox-sm"
+          className="toggle toggle-sm toggle-primary"
           type="checkbox"
           checked={search.compare}
           onChange={(e) => onSearch({ compare: e.target.checked })}
         />
-        Compare preceding period
+        Compare with the previous period
       </label>
-      {(search.page || search.source) && (
+      {environments.length > 1 ? (
+        <label className="flex items-center gap-2 text-sm">
+          <span className="text-base-content/70">Data</span>
+          <select
+            className="select select-sm"
+            value={search.environment}
+            onChange={(e) =>
+              onSearch({
+                environment: e.target.value === "test" ? "test" : "production",
+                context: undefined,
+              })
+            }
+          >
+            <option value="production">Live</option>
+            <option value="test">Test</option>
+          </select>
+        </label>
+      ) : null}
+      {filter ? (
         <button
-          className="btn btn-ghost btn-sm"
+          type="button"
+          className="badge badge-lg gap-1 badge-primary badge-outline"
           onClick={() => onSearch({ page: undefined, source: undefined })}
+          aria-label={`Clear the ${filter} filter`}
         >
-          Clear {search.page ?? search.source} filter ×
+          {filter} <span aria-hidden="true">×</span>
         </button>
-      )}
+      ) : null}
+      <p className="text-xs text-base-content/60 sm:ml-auto">
+        Days run in {timezone}
+      </p>
     </div>
   );
 }

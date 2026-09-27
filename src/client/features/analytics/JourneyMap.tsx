@@ -121,15 +121,17 @@ export function JourneyMap({
           aria-label={`Website map with ${visibleNodes.length} pages and directional transitions`}
         >
           <defs>
+            {/* Sized in user space so arrowheads stay small on thick edges. */}
             <marker
               id={marker}
-              markerWidth="7"
-              markerHeight="7"
-              refX="6"
-              refY="3.5"
+              markerUnits="userSpaceOnUse"
+              markerWidth="10"
+              markerHeight="10"
+              refX="9"
+              refY="5"
               orient="auto"
             >
-              <path d="M0 0L7 3.5L0 7" fill="currentColor" />
+              <path d="M0 0L10 5L0 10z" fill="currentColor" />
             </marker>
           </defs>
           {graph.edges.map((edge) => {

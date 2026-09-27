@@ -1,9 +1,13 @@
+import { visitorLabel } from "./AnalyticsOverview";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type {
   getAnalyticsJourneyMap,
   listAnalyticsJourneys,
 } from "@/serverFunctions/analytics";
-import type { AnalyticsSearch } from "./analytics-search";
+import type {
+  AnalyticsSearch,
+  ResolvedAnalyticsSearch,
+} from "./analytics-search";
 import { JourneyMap } from "./JourneyMap";
 import { AttributionLabel } from "./AnalyticsOverview";
 export function AnalyticsJourneysPanel({
@@ -12,7 +16,7 @@ export function AnalyticsJourneysPanel({
   map,
   journeys,
 }: {
-  search: AnalyticsSearch;
+  search: ResolvedAnalyticsSearch;
   onSearch: (patch: Partial<AnalyticsSearch>) => void;
   map: UseQueryResult<Awaited<ReturnType<typeof getAnalyticsJourneyMap>>>;
   journeys: UseQueryResult<Awaited<ReturnType<typeof listAnalyticsJourneys>>>;
@@ -106,7 +110,7 @@ export function AnalyticsJourneysPanel({
                       className="font-medium text-primary hover:underline"
                       onClick={() => openJourney(j.contextId)}
                     >
-                      Visitor {j.contextId.slice(0, 6).toUpperCase()}
+                      {visitorLabel(j.contextId)}
                     </button>
                     {j.organizationId && (
                       <p className="mt-1 text-xs text-base-content/60">
