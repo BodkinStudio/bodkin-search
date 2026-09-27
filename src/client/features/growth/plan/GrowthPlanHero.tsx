@@ -2,35 +2,25 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { updateGrowthPlanNarrative } from "@/serverFunctions/growthPlan";
-import {
-  GROWTH_EVIDENCE_KIND_DESCRIPTIONS,
-  GROWTH_EVIDENCE_KIND_LABELS,
-  type GrowthActionEvidenceDto,
-  type GrowthWorkstreamDto,
-} from "@/types/schemas/growth-plan";
+import type { GrowthWorkstreamDto } from "@/types/schemas/growth-plan";
 import { formatGrowthPreviewDate } from "../GrowthPreviewPresentation";
-import { GrowthEvidenceSeriesChart } from "./GrowthEvidenceSeriesChart";
+import { formatMonthLabel } from "./GrowthEvidenceChart";
 import {
   GrowthPlanNarrativeForm,
   type GrowthPlanNarrativeDraft,
 } from "./GrowthPlanNarrativeForm";
+import { CARD, EYEBROW } from "./GrowthPlanPresentation";
 import {
-  CARD,
-  EYEBROW,
-  GROWTH_EVIDENCE_KIND_BADGES,
-} from "./GrowthPlanPresentation";
-import type { GrowthPlanSeriesEntry } from "./growthPlanSeries";
-
-const DEFAULT_LEDE =
-  "What we are working on, why, and how we will know it worked.";
+  latestMonthlyPoint,
+  type GrowthPlanSeriesEntry,
+} from "./growthPlanSeries";
 
 export function GrowthPlanHero({
   projectId,
   thesis,
   lede,
   target,
-  series,
-  fallbackEvidence,
+  targetSeries,
   editing,
 }: {
   projectId: string;
@@ -38,10 +28,8 @@ export function GrowthPlanHero({
   lede?: string | null;
   // The first active workstream carrying a target, or null when none does.
   target: GrowthWorkstreamDto | null;
-  // Up to two monthly series, drawn beside the thesis.
-  series: GrowthPlanSeriesEntry[];
-  // Shown instead when the plan has no series yet, so the column is never empty.
-  fallbackEvidence: GrowthActionEvidenceDto[];
+  // That workstream's own charts; the first monthly one gives the latest reading.
+  targetSeries?: GrowthPlanSeriesEntry[];
   editing: boolean;
 }) {
   const client = useQueryClient();
@@ -57,26 +45,23 @@ export function GrowthPlanHero({
     },
   });
 
-  const baseline = target?.targetBaseline;
-  const value = target?.targetValue;
-  const showMeter =
-    typeof baseline === "number" && typeof value === "number" && value > 0;
-
   return (
-    <section className="grid items-start gap-10 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+    <section className="grid items-start gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
       <div className="min-w-0">
-        <p className={EYEBROW}>Why this plan exists</p>
-        <h1 className="mt-3 max-w-[20ch] text-[clamp(28px,3.4vw,40px)] leading-[1.1] font-semibold tracking-[-0.01em] text-balance">
+        <p className={EYEBROW}>The plan in one line</p>
+        <h2 className="mt-2 max-w-[28ch] text-3xl leading-tight font-semibold text-balance">
           {thesis || "Growth plan"}
-        </h1>
-        <p className="mt-4 max-w-[56ch] text-[15px] whitespace-pre-wrap text-base-content/70">
-          {lede || DEFAULT_LEDE}
-        </p>
+        </h2>
+        {lede ? (
+          <p className="mt-3 max-w-[60ch] whitespace-pre-wrap text-base-content/70">
+            {lede}
+          </p>
+        ) : null}
         {editing ? (
           <div className="mt-3">
             <button
               type="button"
-              className="btn btn-ghost btn-xs"
+              className="btn btn-ghost btn-sm"
               onClick={() => setOpen((current) => !current)}
             >
               Edit thesis and lede
@@ -100,70 +85,74 @@ export function GrowthPlanHero({
             ) : null}
           </div>
         ) : null}
-        {target?.targetLabel ? (
-          <div className={`mt-6 ${CARD} px-[18px] py-4`}>
-            <div className="flex flex-wrap items-baseline justify-between gap-3">
-              {showMeter ? (
-                <p className="text-[38px] leading-none font-semibold tabular-nums">
-                  {baseline.toLocaleString("en-GB")}
-                  <span className="ml-2 text-base font-medium text-base-content/60">
-                    of {value.toLocaleString("en-GB")}
-                  </span>
-                </p>
-              ) : null}
-              <p className="max-w-[24ch] text-[13px] text-base-content/70 md:text-right">
-                {target.targetLabel}
-              </p>
-            </div>
-            {showMeter ? (
-              <progress
-                className="progress progress-primary mt-4 w-full"
-                aria-label={target.targetLabel}
-                value={Math.max(baseline, 0)}
-                max={value}
-              />
-            ) : null}
-            <div className="mt-2 flex flex-wrap justify-between gap-x-6 gap-y-1 text-xs text-base-content/60">
-              <span>
-                {target.targetDueOn
-                  ? `Judged on ${formatGrowthPreviewDate(target.targetDueOn)}`
-                  : `Workstream ${target.position}: ${target.title}`}
-              </span>
-              <span>Target is proposed, not forecast</span>
-            </div>
-          </div>
-        ) : null}
       </div>
-      <div className="grid min-w-0 gap-3">
-        {series.length > 0
-          ? series.map((entry) => (
-              <div key={entry.series.id} className={`${CARD} px-[18px] py-4`}>
-                <GrowthEvidenceSeriesChart evidence={entry.evidence} />
-              </div>
-            ))
-          : null}
-        {series.length === 0 && fallbackEvidence.length > 0 ? (
-          <div className={`${CARD} px-[18px] py-4`}>
-            <h2 className={EYEBROW}>What we saw</h2>
-            <ul className="mt-3 space-y-3 text-[13.5px]">
-              {fallbackEvidence.map((item) => (
-                <li key={item.id} className="[overflow-wrap:anywhere]">
-                  <span
-                    className={`badge badge-sm mr-2 align-middle ${GROWTH_EVIDENCE_KIND_BADGES[item.kind]}`}
-                    title={GROWTH_EVIDENCE_KIND_DESCRIPTIONS[item.kind]}
-                  >
-                    {GROWTH_EVIDENCE_KIND_LABELS[item.kind]}
-                  </span>
-                  {item.statement}{" "}
-                  <span className="text-base-content/60">
-                    — {item.sourceLabel}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-      </div>
+      {target?.targetLabel ? (
+        <GrowthPlanTarget target={target} series={targetSeries} />
+      ) : null}
     </section>
+  );
+}
+
+// The headline target as a range from where we started to where we said we
+// would get. Progress is only drawn from a real reading in the workstream's
+// own series, never inferred from the baseline.
+function GrowthPlanTarget({
+  target,
+  series,
+}: {
+  target: GrowthWorkstreamDto;
+  series?: GrowthPlanSeriesEntry[];
+}) {
+  const baseline = target.targetBaseline;
+  const goal = target.targetValue;
+  const hasRange = typeof baseline === "number" && typeof goal === "number";
+  const latest = hasRange ? latestMonthlyPoint(series) : null;
+  const progress =
+    hasRange && latest?.value != null && goal !== baseline
+      ? Math.min(Math.max((latest.value - baseline) / (goal - baseline), 0), 1)
+      : null;
+
+  return (
+    <div className={`${CARD} p-5`}>
+      <p className={EYEBROW}>Target</p>
+      <p className="mt-2 font-medium [overflow-wrap:anywhere]">
+        {target.targetLabel}
+      </p>
+      {hasRange ? (
+        <p className="mt-3 flex flex-wrap items-baseline gap-x-2 text-2xl font-semibold tabular-nums">
+          {baseline.toLocaleString("en-GB")}
+          <span aria-hidden="true" className="text-base-content/40">
+            →
+          </span>
+          <span className="sr-only">to</span>
+          {goal.toLocaleString("en-GB")}
+        </p>
+      ) : null}
+      {latest?.value != null ? (
+        <>
+          <p className="mt-2 text-sm text-base-content/70">
+            Latest reading{" "}
+            <span className="font-medium tabular-nums text-base-content">
+              {latest.value.toLocaleString("en-GB")}
+            </span>{" "}
+            in {formatMonthLabel(latest.label)}
+          </p>
+          {progress !== null ? (
+            <progress
+              className="progress progress-primary mt-3 w-full"
+              aria-label={`Progress from baseline to target: ${Math.round(progress * 100)}%`}
+              value={progress}
+              max={1}
+            />
+          ) : null}
+        </>
+      ) : null}
+      <p className="mt-3 text-xs text-base-content/60">
+        {target.targetDueOn
+          ? `Judged on ${formatGrowthPreviewDate(target.targetDueOn)}`
+          : `Workstream ${target.position}: ${target.title}`}
+        {" · "}a proposal we are prepared to be judged on, not a forecast
+      </p>
+    </div>
   );
 }

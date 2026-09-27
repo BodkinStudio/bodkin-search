@@ -1,3 +1,4 @@
+import { chartAxisTick } from "@/client/lib/chartTheme";
 import { Area, AreaChart, Tooltip, XAxis, YAxis } from "recharts";
 import type { TooltipContentProps } from "recharts";
 import { useChartWidth } from "@/client/features/rank-tracking/RankTrackingTrendChart";
@@ -166,7 +167,7 @@ export function GrowthEvidenceMonthlyChart({
             dataKey="month"
             ticks={ticks}
             tickFormatter={formatMonthLabel}
-            tick={{ fontSize: 10, fill: "#888" }}
+            tick={chartAxisTick}
             tickLine={false}
             axisLine={false}
           />
@@ -174,7 +175,7 @@ export function GrowthEvidenceMonthlyChart({
             domain={[0, "auto"]}
             width={40}
             tickCount={3}
-            tick={{ fontSize: 10, fill: "#888" }}
+            tick={chartAxisTick}
             tickFormatter={(value: number) => value.toLocaleString("en-GB")}
             tickLine={false}
             axisLine={false}

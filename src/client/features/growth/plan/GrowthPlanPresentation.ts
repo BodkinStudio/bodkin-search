@@ -1,32 +1,49 @@
 import type { GrowthActionStatus } from "@/types/schemas/growth-actions";
+import { GROWTH_WORK_STATUS_LABELS } from "../GrowthWorkPresentation";
 import type {
   GrowthActionEvidenceDto,
   GrowthEvidenceKind,
 } from "@/types/schemas/growth-plan";
 
-// The plan speaks to a client, not an operator: it reports where a piece of
-// work has got to, not which lifecycle transition is legal next.
+// One vocabulary for work status across the plan and the operations views.
 export const GROWTH_PLAN_STATUS_BADGES: Record<
   GrowthActionStatus,
   { label: string; className: string }
 > = {
-  approved: { label: "Ready", className: "badge-ghost" },
-  ready: { label: "Ready", className: "badge-ghost" },
-  in_progress: { label: "In progress", className: "badge-primary" },
-  blocked: { label: "Blocked", className: "badge-warning" },
-  implemented: { label: "Shipped", className: "badge-success" },
-  measuring: { label: "Measuring", className: "badge-info" },
-  evaluated: { label: "Evaluated", className: "badge-success badge-outline" },
-  cancelled: { label: "Cancelled", className: "badge-ghost line-through" },
+  approved: {
+    label: GROWTH_WORK_STATUS_LABELS.approved,
+    className: "badge-ghost",
+  },
+  ready: { label: GROWTH_WORK_STATUS_LABELS.ready, className: "badge-ghost" },
+  in_progress: {
+    label: GROWTH_WORK_STATUS_LABELS.in_progress,
+    className: "badge-primary",
+  },
+  blocked: {
+    label: GROWTH_WORK_STATUS_LABELS.blocked,
+    className: "badge-warning",
+  },
+  implemented: {
+    label: GROWTH_WORK_STATUS_LABELS.implemented,
+    className: "badge-success",
+  },
+  measuring: {
+    label: GROWTH_WORK_STATUS_LABELS.measuring,
+    className: "badge-info",
+  },
+  evaluated: {
+    label: GROWTH_WORK_STATUS_LABELS.evaluated,
+    className: "badge-success badge-outline",
+  },
+  cancelled: {
+    label: GROWTH_WORK_STATUS_LABELS.cancelled,
+    className: "badge-ghost line-through",
+  },
 };
 
-export const GROWTH_EVIDENCE_KIND_BADGES: Record<GrowthEvidenceKind, string> = {
-  measured: "badge-success",
-  sampled: "badge-info",
-  estimate: "badge-warning",
-  judgement: "badge-secondary",
-  reference: "badge-ghost",
-};
+// Evidence kinds are labels, not verdicts: one neutral badge so a colour never
+// reads as good or bad. The kinds are explained in the evidence disclosure.
+export const EVIDENCE_KIND_BADGE = "badge-ghost";
 
 export const GROWTH_PLAN_SHIPPED_STATUSES: readonly GrowthActionStatus[] = [
   "implemented",
@@ -42,16 +59,12 @@ export const GROWTH_PLAN_READY_STATUSES: readonly GrowthActionStatus[] = [
   "ready",
 ];
 
-// Small-caps mono label, used for section eyebrows and column headings so the
-// page's structure reads before any of its prose does.
+// Type roles for the plan, on the app's own scale.
 export const EYEBROW =
-  "font-mono text-[11px] font-medium tracking-[0.08em] text-base-content/60 uppercase";
-
-// One rhythm for the whole page: a hairline rule with 40px above it and 20px
-// below, and nothing else adding vertical space between major sections.
-export const SECTION = "mt-10 border-t border-base-300 pt-5";
-export const SECTION_TITLE = "text-[22px] font-semibold";
-export const SECTION_SUB = "text-[13.5px] text-base-content/60";
+  "text-xs font-medium tracking-wide text-base-content/60 uppercase";
+export const SECTION = "mt-10 border-t border-base-300 pt-6";
+export const SECTION_TITLE = "text-xl font-semibold";
+export const SECTION_SUB = "text-sm text-base-content/60";
 
 // Every card on the plan is the same object: a hairline box, no shadow.
 export const CARD = "rounded-lg border border-base-300 bg-base-100";

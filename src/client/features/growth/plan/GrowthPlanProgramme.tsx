@@ -19,6 +19,13 @@ const PHASES = [
 ] as const;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+const formatDay = (day: number) =>
+  new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(day * DAY_MS));
 const TITLE_LIMIT = 4;
 
 const dayNumber = (value: string) =>
@@ -49,6 +56,7 @@ export function GrowthPlanProgramme({
   const phases = PHASES.map((phase, index) => ({
     ...phase,
     index,
+    startDay: index === 0 ? 0 : PHASES[index - 1].endDay,
     entries: dated
       .filter((entry) => phaseIndexFor(entry.day - start) === index)
       .map((entry) => entry.action),
@@ -61,30 +69,38 @@ export function GrowthPlanProgramme({
           Programme
         </h2>
         <p className={SECTION_SUB}>
-          A focused first quarter, then evidence-led expansion
+          From {formatDay(start)}, grouped by when each action is due
         </p>
       </div>
-      <ol className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] items-stretch gap-3">
+      <ol className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] items-stretch gap-3">
         {phases.map((phase) => (
           <li
             key={phase.label}
-            className={`${CARD} px-[14px] py-3 ${
+            className={`${CARD} px-4 py-3 ${
               phase.index === currentIndex ? "border-t-2 border-t-primary" : ""
             }`}
           >
             <div className="flex items-baseline justify-between gap-2">
-              <h3 className={EYEBROW}>{phase.label}</h3>
+              <div>
+                <h3 className={EYEBROW}>{phase.label}</h3>
+                <p className="text-xs tabular-nums text-base-content/60">
+                  {formatDay(start + phase.startDay)}–
+                  {Number.isFinite(phase.endDay)
+                    ? formatDay(start + phase.endDay - 1)
+                    : "onwards"}
+                </p>
+              </div>
               {phase.index === currentIndex ? (
                 <span className="badge badge-primary badge-sm">Now</span>
               ) : null}
             </div>
-            <ul className="mt-2 space-y-1 text-[13.5px] [overflow-wrap:anywhere]">
+            <ul className="mt-2 space-y-1 text-sm [overflow-wrap:anywhere]">
               {phase.entries.slice(0, TITLE_LIMIT).map((action) => (
                 <li key={action.id}>{action.title}</li>
               ))}
             </ul>
             {phase.entries.length > TITLE_LIMIT ? (
-              <p className="mt-2 text-[13.5px] text-base-content/60">
+              <p className="mt-2 text-sm text-base-content/60">
                 +{phase.entries.length - TITLE_LIMIT} more
               </p>
             ) : null}

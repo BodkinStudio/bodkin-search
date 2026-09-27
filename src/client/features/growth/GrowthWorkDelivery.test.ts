@@ -152,7 +152,7 @@ describe("Work delivery rendered contract", () => {
     },
   );
 
-  it("labels completed delivery as Done in history, retaining its original source state", () => {
+  it("labels completed delivery as Shipped in history, retaining its original source state", () => {
     const html = renderToStaticMarkup(
       createElement(GrowthWorkHistoryList, {
         data: {
@@ -161,7 +161,7 @@ describe("Work delivery rendered contract", () => {
         },
       }),
     );
-    expect(html).toContain("Approved to Done");
+    expect(html).toContain("Approved to Shipped");
     expect(html).not.toContain("Evaluated");
     expect(html).not.toContain("In progress");
   });

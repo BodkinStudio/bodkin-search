@@ -4,7 +4,7 @@ import {
   type GrowthActionEvidenceDto,
 } from "@/types/schemas/growth-plan";
 import { formatGrowthPreviewDate } from "../GrowthPreviewPresentation";
-import { GROWTH_EVIDENCE_KIND_BADGES } from "./GrowthPlanPresentation";
+import { EVIDENCE_KIND_BADGE } from "./GrowthPlanPresentation";
 
 export function GrowthPlanEvidence({
   evidence,
@@ -29,7 +29,7 @@ export function GrowthPlanEvidence({
           className="flex items-start gap-2 text-sm [overflow-wrap:anywhere]"
         >
           <span
-            className={`badge badge-sm shrink-0 ${GROWTH_EVIDENCE_KIND_BADGES[item.kind]}`}
+            className={`badge badge-sm shrink-0 ${EVIDENCE_KIND_BADGE}`}
             title={GROWTH_EVIDENCE_KIND_DESCRIPTIONS[item.kind]}
           >
             {GROWTH_EVIDENCE_KIND_LABELS[item.kind]}

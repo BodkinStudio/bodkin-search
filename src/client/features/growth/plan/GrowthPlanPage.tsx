@@ -15,25 +15,24 @@ import type {
   GrowthWorkstreamDto,
 } from "@/types/schemas/growth-plan";
 import { formatGrowthPreviewDate } from "../GrowthPreviewPresentation";
+import { Link } from "@tanstack/react-router";
 import { GrowthPlanBelief } from "./GrowthPlanBelief";
 import { GrowthPlanHero } from "./GrowthPlanHero";
 import { GrowthPlanLedger } from "./GrowthPlanLedger";
 import {
+  CARD,
   SECTION,
   SECTION_SUB,
   SECTION_TITLE,
-  orderGrowthEvidence,
 } from "./GrowthPlanPresentation";
 import { GrowthPlanProgramme } from "./GrowthPlanProgramme";
-import { GrowthPlanTiles } from "./GrowthPlanTiles";
+import { GrowthPlanStatus } from "./GrowthPlanStatus";
 import { GrowthPlanWorkstream } from "./GrowthPlanWorkstream";
 import {
   GrowthWorkstreamForm,
   type GrowthWorkstreamDraft,
 } from "./GrowthWorkstreamForm";
 import { allocateGrowthPlanCharts } from "./growthPlanSeries";
-
-const HERO_FALLBACK_EVIDENCE = 4;
 
 export function GrowthPlanPage({
   projectId,
@@ -111,7 +110,6 @@ export function GrowthPlanPage({
 
   const workstreams = query.data?.workstreams ?? [];
   const actions = workstreams.flatMap((workstream) => workstream.actions);
-  const evidence = actions.flatMap((action) => action.evidence);
   const charts = allocateGrowthPlanCharts(workstreams);
   const heroTarget =
     workstreams.find(
@@ -126,75 +124,70 @@ export function GrowthPlanPage({
     reorder.mutate(ids);
   };
   const failure = add.error ?? reorder.error ?? remove.error;
+  const empty = query.isSuccess && workstreams.length === 0;
 
   return (
-    <div className="px-6 py-6 pb-24 md:pb-12">
-      <div className="mx-auto max-w-[1120px]">
-        <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-base-300 pb-3">
-          {projectName ? (
-            <span className="text-sm font-medium">{projectName}</span>
-          ) : null}
-          <span className="text-sm text-base-content/70">Growth plan</span>
-          {query.data?.updatedAt ? (
-            <span className="text-xs tabular-nums text-base-content/60">
-              Updated {formatGrowthPreviewDate(query.data.updatedAt)}
-            </span>
-          ) : null}
-          {canEdit ? (
-            <button
-              type="button"
-              className="btn btn-ghost btn-xs ml-auto"
-              aria-pressed={editing}
-              onClick={() => setEditing((current) => !current)}
-            >
-              {editing ? "Done editing" : "Edit plan"}
-            </button>
-          ) : null}
-        </header>
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-base-content/60">
+          {query.data?.updatedAt
+            ? `Updated ${formatGrowthPreviewDate(query.data.updatedAt)}`
+            : null}
+        </p>
+        {canEdit && !empty ? (
+          <button
+            type="button"
+            className={`btn btn-sm ${editing ? "btn-primary" : "btn-outline"}`}
+            aria-pressed={editing}
+            onClick={() => setEditing((current) => !current)}
+          >
+            {editing ? "Done editing" : "Edit plan"}
+          </button>
+        ) : null}
+      </div>
 
-        {query.isPending ? (
-          <p role="status" aria-busy="true" className="mt-4 text-sm">
-            Loading the plan…
-          </p>
-        ) : null}
-        {query.isError ? (
-          <p role="alert" className="mt-4 text-sm">
-            The plan could not be loaded. Reload the page to try again.
-          </p>
-        ) : null}
-        {failure ? (
-          <p role="alert" className="mt-4 text-sm">
-            {getStandardErrorMessage(failure, "That change was not saved.")}
-          </p>
-        ) : null}
+      {failure ? (
+        <p role="alert" className="alert alert-error text-sm">
+          {getStandardErrorMessage(failure, "That change was not saved.")}
+        </p>
+      ) : null}
 
-        <div className="mt-8">
+      {query.isPending ? <GrowthPlanSkeleton /> : null}
+      {query.isError ? (
+        <div role="alert" className="alert">
+          <span>The plan could not be loaded.</span>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => void query.refetch()}
+          >
+            Try again
+          </button>
+        </div>
+      ) : null}
+
+      {empty ? (
+        <GrowthPlanEmpty
+          canEdit={canEdit}
+          adding={adding}
+          onStart={() => {
+            setEditing(true);
+            setAdding(true);
+          }}
+        />
+      ) : null}
+
+      {query.isSuccess && !empty ? (
+        <>
           <GrowthPlanHero
             projectId={projectId}
-            thesis={query.data?.thesis}
-            lede={query.data?.lede}
+            thesis={query.data.thesis}
+            lede={query.data.lede}
             target={heroTarget}
-            series={charts.hero}
-            fallbackEvidence={orderGrowthEvidence(
-              workstreams[0]?.actions.flatMap((action) => action.evidence) ??
-                [],
-              HERO_FALLBACK_EVIDENCE,
-            )}
+            targetSeries={heroTarget ? charts.get(heroTarget.id) : undefined}
             editing={editing}
           />
-        </div>
-
-        <div className="mt-8">
-          <GrowthPlanTiles
-            actions={actions}
-            evidence={evidence}
-            sparkline={charts.tile}
-          />
-        </div>
-
-        <GrowthPlanBelief />
-
-        {workstreams.length > 0 ? (
+          <GrowthPlanStatus projectId={projectId} workstreams={workstreams} />
           <div
             className={`${SECTION} flex flex-wrap items-end justify-between gap-3`}
           >
@@ -207,70 +200,119 @@ export function GrowthPlanPage({
               Each pairs the evidence with the work it justifies
             </p>
           </div>
-        ) : null}
+        </>
+      ) : null}
 
-        {editing ? (
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={() => setAdding((current) => !current)}
-            >
-              Add workstream
-            </button>
-          </div>
-        ) : null}
-        {editing && adding ? (
-          <GrowthWorkstreamForm
-            pending={add.isPending}
-            error={null}
-            onSubmit={(draft) => add.mutate(draft)}
-            onCancel={() => setAdding(false)}
-          />
-        ) : null}
+      {editing && !empty ? (
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={() => setAdding((current) => !current)}
+        >
+          Add workstream
+        </button>
+      ) : null}
+      {editing && adding ? (
+        <GrowthWorkstreamForm
+          pending={add.isPending}
+          error={null}
+          onSubmit={(draft) => add.mutate(draft)}
+          onCancel={() => setAdding(false)}
+        />
+      ) : null}
 
-        {workstreams.map((workstream, index) => (
-          <GrowthPlanWorkstream
-            key={workstream.id}
-            projectId={projectId}
-            projectName={projectName}
-            workstream={workstream}
-            workstreams={workstreams}
-            canMoveUp={index > 0}
-            canMoveDown={index < workstreams.length - 1}
-            reordering={reorder.isPending}
-            deleting={remove.isPending}
-            evidence={evidenceQuery.data?.workstreams.find(
-              (series) => series.workstreamId === workstream.id,
-            )}
-            evidencePending={evidenceQuery.isPending}
-            evidenceFailed={evidenceQuery.isError}
-            series={charts.byWorkstream.get(workstream.id) ?? null}
-            editing={editing}
-            onMove={(direction) => move(workstream, direction)}
-            onDelete={() => remove.mutate(workstream.id)}
-          />
-        ))}
+      {workstreams.map((workstream, index) => (
+        <GrowthPlanWorkstream
+          key={workstream.id}
+          projectId={projectId}
+          projectName={projectName}
+          workstream={workstream}
+          workstreams={workstreams}
+          canMoveUp={index > 0}
+          canMoveDown={index < workstreams.length - 1}
+          reordering={reorder.isPending}
+          deleting={remove.isPending}
+          evidence={evidenceQuery.data?.workstreams.find(
+            (series) => series.workstreamId === workstream.id,
+          )}
+          evidencePending={evidenceQuery.isPending}
+          evidenceFailed={evidenceQuery.isError}
+          series={charts.get(workstream.id) ?? []}
+          editing={editing}
+          onMove={(direction) => move(workstream, direction)}
+          onDelete={() => remove.mutate(workstream.id)}
+        />
+      ))}
 
-        {query.data && workstreams.length === 0 ? (
-          <section className="mt-8 rounded-lg border border-base-300 bg-base-100 p-6">
-            <p className="max-w-prose text-sm">
-              {canEdit
-                ? "No plan yet. Switch to Edit plan to add the first workstream."
-                : "Your Growth plan is not ready yet. Your workspace team will add it here."}
-            </p>
-          </section>
-        ) : null}
-
-        <GrowthPlanProgramme actions={actions} />
-
-        <GrowthPlanLedger projectId={projectId} />
-
-        <p className="mt-10 text-[12.5px] text-base-content/60">
-          Action statuses and evidence are entered by the plan&rsquo;s authors;
-          every figure carries its source above.
-        </p>
-      </div>
+      {query.isSuccess && !empty ? (
+        <>
+          <GrowthPlanProgramme actions={actions} />
+          <GrowthPlanLedger projectId={projectId} />
+          <GrowthPlanBelief />
+        </>
+      ) : null}
     </div>
+  );
+}
+
+function GrowthPlanSkeleton() {
+  return (
+    <div role="status" aria-busy="true" className="space-y-6">
+      <span className="sr-only">Loading the plan…</span>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <div className="space-y-3">
+          <div className="skeleton h-4 w-32" />
+          <div className="skeleton h-9 w-4/5" />
+          <div className="skeleton h-4 w-3/5" />
+        </div>
+        <div className="skeleton h-40" />
+      </div>
+      <div className="skeleton h-48" />
+    </div>
+  );
+}
+
+function GrowthPlanEmpty({
+  canEdit,
+  adding,
+  onStart,
+}: {
+  canEdit: boolean;
+  adding: boolean;
+  onStart: () => void;
+}) {
+  return (
+    <section className={`${CARD} max-w-2xl p-6`}>
+      <h2 className="text-lg font-semibold">No plan yet</h2>
+      {canEdit ? (
+        <>
+          <p className="mt-2 text-sm text-base-content/70">
+            A plan sets out a few workstreams, the work in each, and the number
+            each one is judged on. The quickest way to write one is to ask your
+            AI assistant, connected through Bodkin&rsquo;s MCP server, to draft
+            it from your data. You can also start it here.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {adding ? null : (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={onStart}
+              >
+                Add the first workstream
+              </button>
+            )}
+            <Link to="/ai" className="btn btn-ghost btn-sm">
+              Connect an AI assistant
+            </Link>
+          </div>
+        </>
+      ) : (
+        <p className="mt-2 text-sm text-base-content/70">
+          Your Growth plan is not ready yet. Your workspace team will publish it
+          here.
+        </p>
+      )}
+    </section>
   );
 }

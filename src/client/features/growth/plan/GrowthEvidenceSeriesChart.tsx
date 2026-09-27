@@ -1,3 +1,4 @@
+import { chartAxisTick, chartGridProps } from "@/client/lib/chartTheme";
 import {
   Area,
   AreaChart,
@@ -16,7 +17,7 @@ import {
 } from "@/types/schemas/growth-plan";
 import { formatGrowthPreviewDate } from "../GrowthPreviewPresentation";
 import { formatDeltaLine, formatMonthLabel } from "./GrowthEvidenceChart";
-import { GROWTH_EVIDENCE_KIND_BADGES } from "./GrowthPlanPresentation";
+import { EVIDENCE_KIND_BADGE } from "./GrowthPlanPresentation";
 
 type SeriesPoint = GrowthEvidenceSeriesDto["points"][number];
 
@@ -81,9 +82,9 @@ export function GrowthEvidenceSeriesChart({
     <figure className="min-w-0">
       <figcaption>
         <h3 className="text-sm font-semibold">{series.title}</h3>
-        <p className="mt-1 truncate text-[12.5px] text-base-content/60">
+        <p className="mt-1 truncate text-xs text-base-content/60">
           <span
-            className={`badge badge-sm mr-2 align-middle ${GROWTH_EVIDENCE_KIND_BADGES[evidence.kind]}`}
+            className={`badge badge-sm mr-2 align-middle ${EVIDENCE_KIND_BADGE}`}
             title={GROWTH_EVIDENCE_KIND_DESCRIPTIONS[evidence.kind]}
           >
             {GROWTH_EVIDENCE_KIND_LABELS[evidence.kind]}
@@ -99,7 +100,7 @@ export function GrowthEvidenceSeriesChart({
         <MatrixSeries series={series} projectName={projectName} />
       ) : null}
       {showFinding ? (
-        <p className="mt-3 border-l-[3px] border-primary pl-3 text-[13.5px] text-base-content/70">
+        <p className="mt-3 border-l-[3px] border-primary pl-3 text-sm text-base-content/70">
           {evidence.statement}
         </p>
       ) : null}
@@ -155,17 +156,12 @@ function MonthlySeries({
             role="img"
             aria-label={series.title}
           >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="currentColor"
-              opacity={0.12}
-              vertical={false}
-            />
+            <CartesianGrid {...chartGridProps} vertical={false} />
             <XAxis
               dataKey="label"
               ticks={ticks}
               tickFormatter={(label: string) => pointLabel(series, label)}
-              tick={{ fontSize: 10, fill: "#888" }}
+              tick={chartAxisTick}
               tickLine={false}
               axisLine={false}
               minTickGap={16}
@@ -175,7 +171,7 @@ function MonthlySeries({
               ticks={hasNegative ? undefined : [0, top / 2, top]}
               width={44}
               tickCount={3}
-              tick={{ fontSize: 10, fill: "#888" }}
+              tick={chartAxisTick}
               tickFormatter={(value: number) => value.toLocaleString("en-GB")}
               tickLine={false}
               axisLine={false}
@@ -212,7 +208,7 @@ function MonthlySeries({
         ) : null}
       </div>
       {delta ? (
-        <p className="mt-2 font-mono text-[12.5px] tabular-nums text-base-content/60">
+        <p className="mt-2 font-mono text-xs tabular-nums text-base-content/60">
           {delta}
         </p>
       ) : null}
@@ -232,7 +228,7 @@ function BarsSeries({ series }: { series: GrowthEvidenceSeriesDto }) {
       {series.points.map((point) => (
         <li
           key={`${point.position}:${point.label}`}
-          className="grid grid-cols-[minmax(220px,auto)_minmax(0,1fr)] items-center gap-3 text-[13px]"
+          className="grid grid-cols-1 gap-1 text-sm sm:grid-cols-[minmax(12rem,auto)_minmax(0,1fr)] sm:items-center sm:gap-3"
           title={`${point.label}: ${formatValue(point.value)} ${series.unit}`}
         >
           <span className="text-base-content/70">{point.label}</span>
@@ -295,7 +291,7 @@ function MatrixSeries({
             <tr>
               <th />
               {columns.map((column) => (
-                <th key={column} className="text-center text-[12px]">
+                <th key={column} className="text-center text-xs">
                   {column}
                   {projectName &&
                   column.toLowerCase() === projectName.toLowerCase() ? (
@@ -310,9 +306,7 @@ function MatrixSeries({
           <tbody>
             {rows.map((row) => (
               <tr key={row}>
-                <td className="text-[12.5px] [overflow-wrap:anywhere]">
-                  {row}
-                </td>
+                <td className="text-xs [overflow-wrap:anywhere]">{row}</td>
                 {columns.map((column) => {
                   const value =
                     series.points.find(
@@ -321,7 +315,7 @@ function MatrixSeries({
                   return (
                     <td
                       key={column}
-                      className={`text-center text-[12px] tabular-nums ${shade(value)}`}
+                      className={`text-center text-xs tabular-nums ${shade(value)}`}
                     >
                       {formatValue(value)}
                     </td>
@@ -354,7 +348,7 @@ function SeriesNumbers({
         Show the numbers
       </summary>
       <div className="mt-2 overflow-x-auto">
-        <p className="mb-2 text-[12.5px] text-base-content/60">
+        <p className="mb-2 text-xs text-base-content/60">
           {evidence.sourceLabel}
           {evidence.observedOn
             ? `, observed ${formatGrowthPreviewDate(evidence.observedOn)}`

@@ -183,7 +183,7 @@ function KeywordPositions({
                     </span>
                   ) : null}
                   {column.device === "mobile" ? (
-                    <span className="block text-[10px] font-normal text-base-content/60">
+                    <span className="block text-xs font-normal text-base-content/60">
                       mobile
                     </span>
                   ) : null}
@@ -222,7 +222,7 @@ function KeywordPositions({
         </table>
       </div>
       <p className="mt-2 text-xs text-base-content/60">
-        Darker = higher position · — = not found in latest check
+        Darker = closer to position 1 · — = not found in latest check
         {checkedAt
           ? ` · Latest check ${formatGrowthPreviewDate(checkedAt)}`
           : ""}

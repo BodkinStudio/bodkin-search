@@ -59,9 +59,9 @@ export function GrowthPlanWorkstream({
   evidence?: GrowthPlanEvidenceSeriesDto;
   evidencePending: boolean;
   evidenceFailed: boolean;
-  // The author's own chart for this workstream, when one of its evidence items
-  // carries a data series.
-  series: GrowthPlanSeriesEntry | null;
+  // The author's own charts for this workstream, from evidence carrying a
+  // data series.
+  series: GrowthPlanSeriesEntry[];
   editing: boolean;
   onMove: (direction: -1 | 1) => void;
   onDelete: () => void;
@@ -111,7 +111,7 @@ export function GrowthPlanWorkstream({
     evidence?.pages.state === "no_data";
   // The column split is decided by what the plan holds, not by the mode, so
   // toggling edit never moves the work list.
-  const twoColumn = Boolean(series) || liveRead;
+  const twoColumn = series.length > 0 || liveRead;
 
   return (
     <section
@@ -119,10 +119,10 @@ export function GrowthPlanWorkstream({
       aria-labelledby={`growth-workstream-${workstream.id}-title`}
       className={SECTION}
     >
-      <div className="flex items-baseline gap-[14px]">
+      <div className="flex items-baseline gap-3">
         <p
           aria-hidden="true"
-          className="text-[32px] leading-none font-bold tracking-tight tabular-nums text-primary"
+          className="text-3xl leading-none font-bold tracking-tight tabular-nums text-primary"
         >
           {workstream.position}
         </p>
@@ -142,7 +142,7 @@ export function GrowthPlanWorkstream({
               </span>
             )}
           </div>
-          <p className="mt-2 max-w-[68ch] text-[15px] leading-[1.55] whitespace-pre-wrap text-base-content/80 [overflow-wrap:anywhere]">
+          <p className="mt-2 max-w-[68ch] text-base leading-relaxed whitespace-pre-wrap text-base-content/80 [overflow-wrap:anywhere]">
             {workstream.commercialReason}
           </p>
           {editing ? (
@@ -207,15 +207,15 @@ export function GrowthPlanWorkstream({
       >
         {twoColumn ? (
           <div className="min-w-0 space-y-4">
-            {series ? (
-              <div className={`${CARD} px-[18px] py-4`}>
+            {series.map((entry) => (
+              <div key={entry.series.id} className={`${CARD} px-5 py-4`}>
                 <GrowthEvidenceSeriesChart
-                  evidence={series.evidence}
+                  evidence={entry.evidence}
                   projectName={projectName}
                   showFinding
                 />
               </div>
-            ) : null}
+            ))}
             {editing || liveRead ? (
               <GrowthWorkstreamChart
                 series={evidence}
@@ -227,7 +227,7 @@ export function GrowthPlanWorkstream({
         ) : null}
         <GrowthPlanCase
           workstream={workstream}
-          chartedEvidenceId={series?.evidence.id}
+          chartedEvidenceIds={series.map((entry) => entry.evidence.id)}
         />
       </div>
 

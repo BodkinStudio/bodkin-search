@@ -112,7 +112,7 @@ describe("Growth work list", () => {
     expect(open).toHaveBeenCalledExactlyOnceWith("source_run_1");
   });
 
-  it("keeps finished work visible as Done without labelling its impact evaluated", () => {
+  it("keeps finished work visible as Shipped without labelling its impact evaluated", () => {
     const html = renderToStaticMarkup(
       createElement(GrowthWorkList, {
         projectId: "project_1",
@@ -125,7 +125,7 @@ describe("Growth work list", () => {
         onOpenCheck: vi.fn(),
       }),
     );
-    expect(html).toContain("Done");
+    expect(html).toContain("Shipped");
     expect(html).toContain("View status history");
     expect(html).toContain("Start measurement");
     expect(html).not.toContain("Choose a linked change");

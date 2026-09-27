@@ -6,7 +6,7 @@ import {
 import { formatGrowthPreviewDate } from "../GrowthPreviewPresentation";
 import {
   EYEBROW,
-  GROWTH_EVIDENCE_KIND_BADGES,
+  EVIDENCE_KIND_BADGE,
   orderGrowthEvidence,
 } from "./GrowthPlanPresentation";
 
@@ -16,16 +16,16 @@ const CASE_EVIDENCE_LIMIT = 3;
 // evidence that is not already drawn as its chart.
 export function GrowthPlanCase({
   workstream,
-  chartedEvidenceId,
+  chartedEvidenceIds,
 }: {
   workstream: GrowthWorkstreamDto;
-  // Evidence already shown as this workstream's chart; it is not repeated here.
-  chartedEvidenceId?: string;
+  // Evidence already drawn as this workstream's charts; not repeated here.
+  chartedEvidenceIds: string[];
 }) {
   const evidence = orderGrowthEvidence(
     workstream.actions
       .flatMap((action) => action.evidence)
-      .filter((item) => item.id !== chartedEvidenceId),
+      .filter((item) => !chartedEvidenceIds.includes(item.id)),
     CASE_EVIDENCE_LIMIT,
   );
   const measures = workstream.actions.filter((action) => action.successMeasure);
@@ -35,10 +35,10 @@ export function GrowthPlanCase({
 
   return (
     <div className="min-w-0 space-y-4">
-      <section className="rounded-lg bg-primary/5 px-[18px] py-4">
+      <section className="rounded-lg bg-primary/5 px-5 py-4">
         <h3 className={EYEBROW}>How we will know</h3>
         {workstream.targetLabel ? (
-          <p className="mt-2 text-[13.5px] [overflow-wrap:anywhere]">
+          <p className="mt-2 text-sm [overflow-wrap:anywhere]">
             <span className="font-semibold">{workstream.targetLabel}</span>{" "}
             <span className="tabular-nums text-base-content/70">
               {hasTargetRange
@@ -51,14 +51,14 @@ export function GrowthPlanCase({
           </p>
         ) : null}
         {measures.length > 0 ? (
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-[13.5px] [overflow-wrap:anywhere]">
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm [overflow-wrap:anywhere]">
             {measures.map((action) => (
               <li key={action.id}>{action.successMeasure}</li>
             ))}
           </ul>
         ) : null}
         {!workstream.targetLabel && measures.length === 0 ? (
-          <p className="mt-2 text-[13.5px] text-base-content/70">
+          <p className="mt-2 text-sm text-base-content/70">
             No target or measure recorded yet.
           </p>
         ) : null}
@@ -67,23 +67,23 @@ export function GrowthPlanCase({
       <section>
         <h3 className={EYEBROW}>What we saw</h3>
         {evidence.length === 0 ? (
-          <p className="mt-2 text-[13.5px] text-base-content/70">
+          <p className="mt-2 text-sm text-base-content/70">
             No evidence recorded yet.
           </p>
         ) : (
           <ul className="mt-2 space-y-3">
             {evidence.map((item) => (
               <li key={item.id} className="[overflow-wrap:anywhere]">
-                <p className="text-[13.5px]">
+                <p className="text-sm">
                   <span
-                    className={`badge badge-sm mr-2 align-middle ${GROWTH_EVIDENCE_KIND_BADGES[item.kind]}`}
+                    className={`badge badge-sm mr-2 align-middle ${EVIDENCE_KIND_BADGE}`}
                     title={GROWTH_EVIDENCE_KIND_DESCRIPTIONS[item.kind]}
                   >
                     {GROWTH_EVIDENCE_KIND_LABELS[item.kind]}
                   </span>
                   {item.statement}
                 </p>
-                <p className="mt-1 text-[12.5px] text-base-content/60">
+                <p className="mt-1 text-xs text-base-content/60">
                   {item.sourceLabel}
                   {item.observedOn
                     ? `, observed ${formatGrowthPreviewDate(item.observedOn)}`

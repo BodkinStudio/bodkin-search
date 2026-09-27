@@ -22,6 +22,10 @@ vi.mock("@/serverFunctions/growthPlan", () => ({
   removeGrowthActionEvidence: vi.fn(),
   transitionGrowthPlanAction: vi.fn(),
 }));
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children }: { children: React.ReactNode }) =>
+    createElement("a", {}, children),
+}));
 vi.mock("@/serverFunctions/growthChangeLog", () => ({
   getGrowthChangeLog: vi.fn(),
 }));
@@ -194,7 +198,7 @@ describe("Growth plan page", () => {
     expect(html).toContain("The Teams page lost two thirds");
     expect(html).toContain("Win the Teams comparison searches");
     expect(html).toContain("What we saw");
-    expect(html).toContain("Why you should believe this");
+    expect(html).toContain("How we work with evidence");
     expect(html).not.toContain("<form");
     expect(html.match(/<button/g)).toHaveLength(1);
     expect(html).toContain("Edit plan");
@@ -219,6 +223,7 @@ describe("Growth plan page", () => {
   it("explains how to start a plan when there is none", () => {
     const html = render({ ...plan, workstreams: [], updatedAt: null });
     expect(html).toContain("No plan yet");
-    expect(html).toContain("Switch to Edit plan");
+    expect(html).toContain("Add the first workstream");
+    expect(html).toContain("MCP");
   });
 });

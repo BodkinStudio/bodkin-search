@@ -20,7 +20,7 @@ export function GrowthPlanLedger({ projectId }: { projectId: string }) {
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h2 id="growth-plan-ledger-title" className={SECTION_TITLE}>
-          What changed, and what happened
+          Change log
         </h2>
         <p className={SECTION_SUB}>
           A record of work done, not proof that it caused a result
@@ -37,7 +37,7 @@ export function GrowthPlanLedger({ projectId }: { projectId: string }) {
         </p>
       ) : null}
       {query.data && changes.length === 0 ? (
-        <p className="mt-2 text-[13.5px] text-base-content/60">
+        <p className="mt-2 text-sm text-base-content/60">
           No changes recorded yet.
         </p>
       ) : null}
@@ -50,7 +50,7 @@ export function GrowthPlanLedger({ projectId }: { projectId: string }) {
                   {GROWTH_CHANGE_LABELS[change.changeType]}
                 </p>
                 <p className="tabular-nums text-base-content/70">
-                  {formatGrowthPreviewDate(change.happenedAt)} (UTC)
+                  {formatGrowthPreviewDate(change.happenedAt)}
                 </p>
               </div>
               <p className="mt-1 max-w-prose whitespace-pre-wrap [overflow-wrap:anywhere]">
