@@ -266,14 +266,21 @@ export function AnalyticsOverview({
   );
 }
 
+// Below this, a percentage change says more about the small base than the
+// metric (3 -> 800 reads as "+26,567%"), so the tile states the base instead.
+const MIN_COMPARABLE = 10;
+
 function change(m: Metric | undefined) {
-  return m ? percentDelta(m.current, m.previous) : null;
+  return m && m.previous >= MIN_COMPARABLE
+    ? percentDelta(m.current, m.previous)
+    : null;
 }
 
 function newSinceZero(m: Metric | undefined) {
-  return m && m.previous === 0 && m.current > 0
+  if (!m || m.previous >= MIN_COMPARABLE) return null;
+  return m.previous === 0
     ? "None in the previous period"
-    : null;
+    : `Only ${m.previous} in the previous period`;
 }
 
 /** A short, stable name for an anonymous visitor, the same on every view. */
@@ -287,9 +294,15 @@ export function humanizeEvent(name: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+// Small rates keep a decimal: 0.4% is not 0%.
+function formatRate(rate: number) {
+  const percent = rate * 100;
+  return `${percent < 10 && percent > 0 ? percent.toFixed(1) : percent.toFixed(0)}%`;
+}
+
 function conversionHint(outcomes: number, visitors: number) {
   if (visitors === 0) return null;
-  return `${((outcomes / visitors) * 100).toFixed(1)}% of visitors`;
+  return `${formatRate(outcomes / visitors)} of visitors`;
 }
 
 function formatNet(r: { currency: string; receipts: number; refunds: number }) {
@@ -386,7 +399,7 @@ function RankedTable({
                       </td>
                       <td className="text-right tabular-nums text-base-content/70">
                         {row.visitors
-                          ? `${((row.outcomes / row.visitors) * 100).toFixed(0)}%`
+                          ? formatRate(row.outcomes / row.visitors)
                           : "—"}
                       </td>
                     </>
