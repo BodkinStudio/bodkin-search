@@ -130,8 +130,12 @@ const channelAccounts = [
   },
 ];
 
-function render(connection: QueryResult, channels: QueryResult = {}) {
-  state.queries = [connection, channels];
+function render(
+  connection: QueryResult,
+  channels: QueryResult = {},
+  report: QueryResult = {},
+) {
+  state.queries = [connection, channels, report];
   state.hookIndex = 0;
   state.mutationHookIndex = 0;
   return renderToStaticMarkup(
@@ -207,6 +211,33 @@ describe("YouTubeConnectionCard", () => {
     });
     expect(markup).toContain("Reconnect with Google");
     expect(markup).toContain("enable YouTube Analytics reporting");
+  });
+
+  it("asks to reconnect when Google rejects a grant that has the scope", () => {
+    // The stored grant looks ready, but the report shows Google refused the
+    // token (expired or revoked), so "Connected" would be a dead end.
+    const markup = render(
+      {
+        data: {
+          googleOAuthConfigured: true,
+          connected: true,
+          analyticsReady: true,
+          currentUserCanReconnect: true,
+          channelTitle: "Studio Channel",
+          channelCustomUrl: "@studio",
+          channelId: "channel-1",
+        },
+      },
+      {},
+      {
+        data: {
+          status: "error",
+          error: { code: "youtube_reconnect_required" },
+        },
+      },
+    );
+    expect(markup).toContain('data-status="reconnect_required"');
+    expect(markup).toContain("Reconnect with Google");
   });
 
   it("does not offer an ineffective reconnect for another member's grant", () => {

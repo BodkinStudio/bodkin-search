@@ -5,6 +5,7 @@ import { IntegrationConnectionCard } from "@/client/features/integrations/Integr
 import { startGoogleLink } from "@/client/features/integrations/startGoogleLink";
 import {
   disconnectYouTube,
+  getYouTubeChannelOverview,
   getYouTubeConnection,
   listYouTubeChannels,
   setYouTubeChannel,
@@ -141,6 +142,18 @@ export function YouTubeConnectionCard({ projectId }: { projectId: string }) {
       }),
   });
   const data = connection.data;
+  // The stored grant can carry the Analytics scope while Google has stopped
+  // accepting its token (expired or revoked), so ask for the same report the
+  // Channels card shows; the shared cache means no extra call when both show.
+  const report = useQuery({
+    queryKey: ["youtubeAnalytics", projectId],
+    queryFn: () => getYouTubeChannelOverview({ data: { projectId } }),
+    enabled: Boolean(data?.connected && data.analyticsReady),
+  });
+  const tokenRejected =
+    report.data?.status === "error" &&
+    report.data.error.code === "youtube_reconnect_required";
+  const analyticsReady = Boolean(data?.analyticsReady) && !tokenRejected;
   return (
     <IntegrationConnectionCard
       title="YouTube"
@@ -151,7 +164,9 @@ export function YouTubeConnectionCard({ projectId }: { projectId: string }) {
           : data && !data.googleOAuthConfigured
             ? "setup_required"
             : data?.connected
-              ? "connected"
+              ? analyticsReady
+                ? "connected"
+                : "reconnect_required"
               : "disconnected"
       }
     >
@@ -184,7 +199,7 @@ export function YouTubeConnectionCard({ projectId }: { projectId: string }) {
               {data.connectedByEmail ? ` · ${data.connectedByEmail}` : ""}
             </p>
             <YouTubeAnalyticsStatus
-              analyticsReady={data.analyticsReady}
+              analyticsReady={analyticsReady}
               canReconnect={data.currentUserCanReconnect}
               disabled={remove.isPending}
             />
