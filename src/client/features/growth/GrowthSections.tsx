@@ -8,6 +8,7 @@ import { GrowthOperatingOverview } from "./GrowthOperatingOverview";
 import { GrowthOpportunities } from "./GrowthOpportunities";
 import { GrowthPriorityPageChecks } from "./GrowthPriorityPageChecks";
 import { GrowthRunInspector } from "./GrowthRunInspector";
+import { GrowthPlanActionsTable } from "./GrowthPlanActionsTable";
 import { GrowthWork } from "./GrowthWork";
 import { GROWTH_SECTIONS, type GrowthSectionName } from "./growthSectionList";
 
@@ -54,6 +55,7 @@ export function GrowthSection({
       ) : null}
       {section === "work" ? (
         <>
+          <GrowthPlanActionsTable projectId={projectId} />
           <GrowthWork projectId={projectId} onOpenCheck={onOpenCheck} />
           <GrowthChangeLog projectId={projectId} />
         </>

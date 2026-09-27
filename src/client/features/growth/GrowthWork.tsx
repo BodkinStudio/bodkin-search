@@ -31,7 +31,7 @@ export function GrowthWork({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="growth-work-title" className="text-lg font-semibold">
-            Work
+            From saved checks
           </h2>
           <p className="mt-1 max-w-prose text-sm text-base-content/70">
             Investigations you have approved from saved checks. Approval plans

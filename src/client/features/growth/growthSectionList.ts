@@ -21,7 +21,7 @@ export const GROWTH_SECTIONS: readonly {
     value: "work",
     label: "Work",
     description:
-      "Work approved from saved checks, and the changes made to the site. Actions written into the plan are tracked on the Plan tab.",
+      "Everything in flight: plan actions, work approved from saved checks, and the changes made to the site.",
   },
   {
     value: "reports",
