@@ -91,6 +91,10 @@
     "capability": "read",
     "projectRequired": true
   },
+  "src/serverFunctions/analyticsConfiguration.ts:getAnalyticsTrackingHealth": {
+    "capability": "read",
+    "projectRequired": true
+  },
   "src/serverFunctions/analyticsConfiguration.ts:getAnalyticsReportingSettings": {
     "capability": "read",
     "projectRequired": true

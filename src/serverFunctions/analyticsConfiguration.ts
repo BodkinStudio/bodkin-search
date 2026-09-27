@@ -14,6 +14,7 @@ import {
   saveTrackingRules,
 } from "@/server/features/analytics/AnalyticsReportingConfiguration";
 import { AnalyticsRepository as repo } from "@/server/features/analytics/AnalyticsRepository";
+import { trackingHealth } from "@/server/features/analytics/AnalyticsTrackingHealth";
 import { validTimezone } from "@/shared/analytics/calendar";
 import { analyticsEventNames } from "@/shared/analytics/funnels";
 import { analyticsQuerySchema } from "@/types/schemas/analytics";
@@ -139,3 +140,16 @@ export const getAnalyticsRetainedHistory = createServerFn({ method: "POST" })
       data.to?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
     );
   });
+// Aggregate tracking health for the Analytics status line and the setup
+// checklist; open to readers because it carries no personal data.
+export const getAnalyticsTrackingHealth = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(
+    z.object({
+      projectId: z.string(),
+      environment: z.enum(["production", "test"]),
+    }),
+  )
+  .handler(({ context, data }) =>
+    trackingHealth(context.projectId, data.environment),
+  );

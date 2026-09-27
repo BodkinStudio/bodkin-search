@@ -3,19 +3,25 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getAnalyticsSettings,
   saveAnalyticsSettings,
-  getAnalyticsHealth,
+  listAnalyticsSources,
 } from "@/serverFunctions/analytics";
+import { resolveEnvironment } from "./analytics-search";
+import { AnalyticsTrackingChecklist } from "./AnalyticsTrackingHealth";
 export function AnalyticsConfiguration({ projectId }: { projectId: string }) {
   const config = useQuery({
     queryKey: ["analyticsSettings", projectId],
     queryFn: () => getAnalyticsSettings({ data: { projectId } }),
   });
-  const health = useQuery({
-    queryKey: ["analyticsHealth", projectId],
-    queryFn: () => getAnalyticsHealth({ data: { projectId } }),
+  const sources = useQuery({
+    queryKey: ["analyticsSources", projectId],
+    queryFn: () => listAnalyticsSources({ data: { projectId } }),
   });
   return (
     <>
+      <AnalyticsTrackingChecklist
+        projectId={projectId}
+        environment={resolveEnvironment(undefined, sources.data)}
+      />
       <section className="border-t border-base-300 pt-6">
         <h3 className="mb-4 font-medium">Measurement and access</h3>
         {config.data ? (
@@ -24,52 +30,6 @@ export function AnalyticsConfiguration({ projectId }: { projectId: string }) {
           <p role="alert">Could not load configuration.</p>
         ) : (
           <p>Loading configuration…</p>
-        )}
-      </section>
-      <section className="space-y-3 border-t border-base-300 pt-6">
-        <h3 className="font-medium">Tracking health</h3>
-        {health.data ? (
-          <>
-            <dl className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <dt className="text-base-content/70">Registered sources</dt>
-                <dd className="mt-1 font-semibold">{health.data.sources}</dd>
-              </div>
-              <div>
-                <dt className="text-base-content/70">Accepted events</dt>
-                <dd className="mt-1 font-semibold">
-                  {health.data.acceptedEvents}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-base-content/70">Pending deliveries</dt>
-                <dd className="mt-1 font-semibold">
-                  {health.data.pendingDeliveries}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-base-content/70">Failed attempts</dt>
-                <dd className="mt-1 font-semibold">
-                  {health.data.failedDeliveries}
-                </dd>
-              </div>
-            </dl>
-            <p className="text-xs text-base-content/70">
-              {health.data.coverage}
-            </p>
-            {health.data.deliveryStatus.map((d) => (
-              <p key={d.id} className="text-sm">
-                {d.lastError ?? "Waiting for configured webhook"} · {d.attempts}{" "}
-                attempts
-              </p>
-            ))}
-          </>
-        ) : (
-          <p>
-            {health.isError
-              ? "Tracking health could not load."
-              : "Checking ingestion…"}
-          </p>
         )}
       </section>
     </>

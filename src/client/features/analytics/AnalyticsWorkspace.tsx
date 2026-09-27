@@ -1,4 +1,5 @@
 import { AnalyticsNoSources } from "./AnalyticsNoSources";
+import { AnalyticsTrackingStatus } from "./AnalyticsTrackingHealth";
 import {
   AnalyticsHeaderActions,
   AnalyticsOverviewTab,
@@ -169,6 +170,11 @@ function AnalyticsWebsite({
         timezone={timezone}
         environments={environments}
         onSearch={onSearch}
+      />
+      <AnalyticsTrackingStatus
+        projectId={projectId}
+        environment={search.environment}
+        canConfigure={canAdminister}
       />
       {search.environment === "test" ? (
         <AnalyticsTestDataBanner
