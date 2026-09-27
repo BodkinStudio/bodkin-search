@@ -1,3 +1,4 @@
+import { workspaceSessionOptions } from "@/client/features/workspaces/WorkspaceSwitcher";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -20,6 +21,10 @@ export const Route = createFileRoute("/_app/")({
 
 function IndexRedirect() {
   const navigate = useNavigate();
+  const workspace = useQuery(workspaceSessionOptions());
+  const role = workspace.data?.memberships.find(
+    (item) => item.id === workspace.data.organizationId,
+  )?.role;
 
   const { data, error, isError, refetch } = useQuery({
     queryKey: ["projects"],
@@ -76,7 +81,7 @@ function IndexRedirect() {
       return (
         <div className="flex items-center justify-center h-full p-4">
           <UnauthenticatedErrorCard
-            message="Please sign in to access your OpenSEO workspace."
+            message="Please sign in to access your Bodkin Search workspace."
             onRetry={() => {
               void refetch();
             }}
@@ -110,6 +115,17 @@ function IndexRedirect() {
       </div>
     );
   }
+
+  if (data?.length === 0)
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-semibold">No projects yet</h1>
+        <p className="mt-3">
+          Ask your workspace owner to add a project, or select another
+          workspace.
+        </p>
+      </div>
+    );
 
   return (
     <div className="flex items-center justify-center h-full">

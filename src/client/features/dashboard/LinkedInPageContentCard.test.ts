@@ -47,7 +47,7 @@ const report = {
   projectId: "project-1",
   source: {
     provider: "linkedin_page_content_manual" as const,
-    pageName: "OpenSEO",
+    pageName: "Bodkin Search",
     startDate: "2026-08-01",
     endDate: "2026-08-31",
     importedAt: "2026-09-01T00:00:00Z",
@@ -85,7 +85,7 @@ describe("LinkedInPageContentCard", () => {
   it("renders imported provenance, partial disclosure, comparison, and top posts", () => {
     const markup = render();
     expect(markup).toContain("LinkedIn Page analytics");
-    expect(markup).toContain("OpenSEO");
+    expect(markup).toContain("Bodkin Search");
     expect(markup).toContain("Imported");
     expect(markup).toContain("1,200");
     expect(markup).toContain("period change");

@@ -17,7 +17,7 @@ export const Route = createFileRoute(
       title: "How to Find Your Real SEO Competitors",
       description: frontmatter.description,
       path: PATH,
-      titleSuffix: "OpenSEO Library",
+      titleSuffix: "Bodkin Search Library",
       ogType: "article",
     }),
   component: () => (

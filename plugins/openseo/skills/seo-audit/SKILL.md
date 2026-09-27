@@ -3,7 +3,7 @@ name: seo-audit
 description: "Audit a website and deliver a one-page, plain-language SEO report anyone can act on, centered on a single do-this-week action."
 ---
 
-# OpenSEO SEO Audit
+# Bodkin Search SEO Audit
 
 ## Goal
 
@@ -25,9 +25,9 @@ The project-context tools are free and shared with the app and other agents.
 3. Before spending credits, check the research log. If the same research ran within the last 30 days, reuse that result and say so instead of re-buying it.
 4. On finish, write back what is durable — a corrected `business_overview`, the pages the report singles out via `addKeyPages` — and append a research log entry: `{ appendResearchLog: { summary: "Site audit: <domain>. Verdict: <conclusion>" } }`.
 
-## OpenSEO MCP tools
+## Bodkin Search MCP tools
 
-- `whoami`: confirm connection and remaining credits before spending anything. If OpenSEO is not connected, stop and ask the user to connect it.
+- `whoami`: confirm connection and remaining credits before spending anything. If Bodkin Search is not connected, stop and ask the user to connect it.
 - `list_projects` / `create_project`: resolve the `projectId`.
 - `run_site_audit`: start the crawl (default page budget). Leave Lighthouse off (its default) — it adds several minutes and this report doesn't need it; pass `runLighthouse: true` only when the user asks for performance/Core Web Vitals depth. Then check `get_audit_status` (the crawl takes a minute or two — wait between checks rather than polling in a loop) and read `get_audit_issues`. Use `get_audit_pages` when per-page evidence helps.
 - `get_backlinks_overview`: backlink and referring-domain picture; usually the deciding data for the "one thing".

@@ -1,0 +1,4 @@
+ALTER TABLE "invitation" ADD CONSTRAINT "invitation_role_domain" CHECK ("invitation"."role" is null or "invitation"."role" in ('owner', 'admin', 'editor', 'viewer', 'member'));--> statement-breakpoint
+ALTER TABLE "invitation" ADD CONSTRAINT "invitation_status_domain" CHECK ("invitation"."status" in ('pending', 'accepted', 'revoked', 'canceled', 'rejected'));--> statement-breakpoint
+ALTER TABLE "member" ADD CONSTRAINT "member_role_domain" CHECK ("member"."role" in ('owner', 'admin', 'editor', 'viewer', 'member'));--> statement-breakpoint
+ALTER TABLE "workspace_configuration" ADD CONSTRAINT "workspace_status_domain" CHECK ("workspace_configuration"."status" in ('active', 'suspended'));

@@ -15,6 +15,8 @@ import * as sqliteGsc from "./gsc.schema";
 import * as sqliteYouTube from "./youtube.schema";
 import * as sqliteLinkedIn from "./linkedin.schema";
 import * as sqliteTelemetry from "./telemetry.schema";
+import * as sqliteAnalytics from "./analytics.schema";
+import * as sqliteAnalyticsReporting from "./analytics-reporting.schema";
 import * as sqliteGrowth from "./growth.schema";
 import * as sqliteGrowthInsights from "./growth-insights.schema";
 import * as sqliteGrowthWorkstreams from "./growth-workstreams.schema";
@@ -37,6 +39,8 @@ import * as pgGsc from "./pg/gsc.schema";
 import * as pgYouTube from "./pg/youtube.schema";
 import * as pgLinkedIn from "./pg/linkedin.schema";
 import * as pgTelemetry from "./pg/telemetry.schema";
+import * as pgAnalytics from "./pg/analytics.schema";
+import * as pgAnalyticsReporting from "./pg/analytics-reporting.schema";
 import * as pgGrowth from "./pg/growth.schema";
 import * as pgGrowthInsights from "./pg/growth-insights.schema";
 import * as pgGrowthWorkstreams from "./pg/growth-workstreams.schema";
@@ -180,6 +184,8 @@ const sqliteAppTables = tablesFrom(
   sqliteYouTube,
   sqliteLinkedIn,
   sqliteTelemetry,
+  sqliteAnalytics,
+  sqliteAnalyticsReporting,
   sqliteGrowth,
   sqliteGrowthInsights,
   sqliteGrowthWorkstreams,
@@ -203,6 +209,8 @@ const pgAppTables = tablesFrom(
   pgYouTube,
   pgLinkedIn,
   pgTelemetry,
+  pgAnalytics,
+  pgAnalyticsReporting,
   pgGrowth,
   pgGrowthInsights,
   pgGrowthWorkstreams,

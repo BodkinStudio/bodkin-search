@@ -38,7 +38,7 @@ May connect CMS, deployment and project-management systems.
 
 # 2. Project configuration
 
-Every Growth-enabled OpenSEO project requires additional Growth settings.
+Every Growth-enabled Bodkin Search project requires additional Growth settings.
 
 ## Required
 
@@ -64,7 +64,7 @@ Every Growth-enabled OpenSEO project requires additional Growth settings.
 
 ## Requirement
 
-Growth settings extend the existing OpenSEO project. Do not create a parallel project model.
+Growth settings extend the existing Bodkin Search project. Do not create a parallel project model.
 
 ---
 
@@ -783,7 +783,7 @@ growth_analyse_page
 growth_research_topic
 ```
 
-These may orchestrate existing OpenSEO services.
+These may orchestrate existing Bodkin Search services.
 
 ## Write tools - controlled
 
@@ -843,7 +843,7 @@ Where permitted, Sherpa can create a Change Event after work is published.
 
 # 24. Permissions
 
-Reuse OpenSEO organisation/project authorisation.
+Reuse Bodkin Search organisation/project authorisation.
 
 Growth adds operation-level permission checks.
 
@@ -860,7 +860,7 @@ growth:report:publish
 growth:admin
 ```
 
-MVP may map these to existing OpenSEO roles rather than implementing a full custom RBAC matrix.
+MVP may map these to existing Bodkin Search roles rather than implementing a full custom RBAC matrix.
 
 ---
 
@@ -868,11 +868,11 @@ MVP may map these to existing OpenSEO roles rather than implementing a full cust
 
 ## P0
 
-- DataForSEO via OpenSEO;
-- Google Search Console via OpenSEO;
-- OpenSEO rank tracking;
-- OpenSEO site audit;
-- OpenSEO MCP.
+- DataForSEO via Bodkin Search;
+- Google Search Console via Bodkin Search;
+- Bodkin Search rank tracking;
+- Bodkin Search site audit;
+- Bodkin Search MCP.
 
 ## P1/P2
 
@@ -957,7 +957,7 @@ Prefer:
 
 MVP is accepted only when all are true:
 
-1. `bodkin.studio` is a Growth-enabled OpenSEO project.
+1. `bodkin.studio` is a Growth-enabled Bodkin Search project.
 2. At least 28 days of useful data can be queried or a development fixture can simulate it.
 3. A monthly Growth run can execute without manual data assembly.
 4. Deterministic detectors create signals.

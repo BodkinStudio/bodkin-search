@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_marketing/pricing")({
       description:
         "Start at $10/mo. The $10 includes $10 of usage, enough for most people. Move the sliders to estimate what your month would cost.",
       path: "/pricing",
-      titleSuffix: "OpenSEO",
+      titleSuffix: "Bodkin Search",
     }),
   component: Pricing,
 });
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_marketing/pricing")({
  *   creditsCharged = ceil(billedUsd * 1000)
  *   1 credit = $0.001  (1,000 credits = $1.00)
  * ------------------------------------------------------------------ */
-const MARKUP = 1.28; // OpenSEO's flat 28% premium over raw DataForSEO cost
+const MARKUP = 1.28; // Bodkin Search's flat 28% premium over raw DataForSEO cost
 const CREDIT_USD = 0.001; // $ value of a single credit
 const BASE_PRICE_USD = 10; // Base Plan / month
 const BASE_INCLUDED_CREDIT_USD = 10; // $10 of usage credits included, reset monthly
@@ -37,7 +37,7 @@ const RANK_CHECK_LABELS: Record<number, string> = {
   7: "Daily",
 };
 
-// Raw DataForSEO per-call cost in USD (NOT including OpenSEO's markup).
+// Raw DataForSEO per-call cost in USD (NOT including Bodkin Search's markup).
 const RAW_COST_USD = {
   // Scheduled checks use the queued API. The app defaults to one device and
   // the top 40 results: $0.0006 for page one + $0.00045 per extra page.
@@ -193,7 +193,7 @@ function Pricing() {
         Starts at $10/month
       </h1>
       <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--color-brand-muted)]">
-        Other SEO tools are too expensive. OpenSEO grows with you.
+        Other SEO tools are too expensive. Bodkin Search grows with you.
       </p>
 
       {/* 2. Base Plan */}
@@ -420,7 +420,7 @@ function Pricing() {
             </dt>
             <dd className="mt-1.5 text-sm leading-6 text-[var(--color-brand-muted)]">
               Yes. The free trial includes $0.50 of credits so you can test
-              OpenSEO before subscribing.
+              Bodkin Search before subscribing.
             </dd>
           </div>
           <div className="py-4 first:pt-0 last:pb-0">
@@ -468,7 +468,7 @@ function Pricing() {
             </dt>
             <dd className="mt-1.5 text-sm leading-6 text-[var(--color-brand-muted)]">
               While top-up Usage Credits roll over and don&apos;t expire, you
-              need an active subscription in order to use OpenSEO.
+              need an active subscription in order to use Bodkin Search.
             </dd>
           </div>
         </dl>

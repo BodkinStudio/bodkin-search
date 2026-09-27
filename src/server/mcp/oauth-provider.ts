@@ -414,7 +414,7 @@ function createProvider(appFetch: AppFetch, resource: string) {
     resourceMetadata: {
       resource,
       scopes_supported: [MCP_SCOPE],
-      resource_name: "OpenSEO MCP",
+      resource_name: "Bodkin Search MCP",
     },
     tokenExchangeCallback: ({ props, requestedScope, scope }) => {
       if (!requestedScope.includes(MCP_SCOPE)) {

@@ -3,7 +3,7 @@ name: competitor-analysis
 description: "Analyze one competitor's organic footprint, ranking keywords, content themes, backlinks, and gaps."
 ---
 
-# OpenSEO Competitor Analysis
+# Bodkin Search Competitor Analysis
 
 ## Goal
 
@@ -27,7 +27,7 @@ The project-context tools are free and shared with the app and other agents.
 3. Before spending credits, check the research log. If the same research ran within the last 30 days, reuse that result and say so instead of re-buying it.
 4. On finish, write back what is durable with `update_project_context` — an `addCompetitors` upsert for this domain with a short note on its strengths and where it is vulnerable — and append a research log entry: `{ appendResearchLog: { summary: "Competitor analysis: <domain>. Verdict: <conclusion>" } }`.
 
-## OpenSEO MCP tools
+## Bodkin Search MCP tools
 
 - `get_domain_overview`: baseline organic traffic and keyword count.
 - `get_search_console_performance`: when comparing to the user's own domain and Search Console is connected, use it as the first-party baseline (real clicks/impressions/CTR/position) instead of estimating the user's own performance from third-party data.
@@ -71,7 +71,7 @@ Start with:
 
 Then include:
 
-| Area | Competitor pattern | Evidence | OpenSEO opportunity |
+| Area | Competitor pattern | Evidence | Bodkin Search opportunity |
 | ---- | ------------------ | -------- | ------------------- |
 
 Include sections for:

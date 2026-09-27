@@ -236,7 +236,7 @@ export function YouTubeConnectionCard({ projectId }: { projectId: string }) {
           <>
             <p className="text-sm">
               Connect a YouTube channel for this project to view read-only
-              channel analytics in OpenSEO and MCP.
+              channel analytics in Bodkin Search and MCP.
             </p>
             <button
               type="button"

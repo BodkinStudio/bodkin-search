@@ -48,7 +48,7 @@ const overview = {
   projectId: "project-1",
   source: {
     provider: "linkedin_page_content_manual" as const,
-    pageName: "OpenSEO",
+    pageName: "Bodkin Search",
     startDate: "2026-08-01",
     endDate: "2026-08-31",
     importedAt: "2026-09-01T12:00:00.000Z",
@@ -86,7 +86,7 @@ describe("LinkedIn Page Content MCP tools", () => {
       },
     });
     expect(getLinkedInPageOverviewTool.config.description).toContain(
-      "no OpenSEO credits",
+      "no Bodkin Search credits",
     );
     expect(getLinkedInPageOverviewTool.config.annotations).toMatchObject({
       readOnlyHint: true,

@@ -3,11 +3,11 @@ name: keyword-research
 description: "Discover keyword opportunities, evaluate metrics and SERPs, and save/tag promising terms."
 ---
 
-# OpenSEO Keyword Research
+# Bodkin Search Keyword Research
 
 ## Goal
 
-Turn seed topics into a prioritized keyword opportunity set using OpenSEO MCP data. The output should help the user decide what to target, what to save, and what to research next.
+Turn seed topics into a prioritized keyword opportunity set using Bodkin Search MCP data. The output should help the user decide what to target, what to save, and what to research next.
 
 ## Required inputs
 
@@ -26,7 +26,7 @@ The project-context tools are free and shared with the app and other agents.
 3. Before spending credits, check the research log. If the same research ran within the last 30 days, reuse that result and say so instead of re-buying it.
 4. On finish, write back what is durable — a sharpened `business_overview` or `current_goal`, competitors that kept appearing in the SERPs via `addCompetitors`, pages the keywords should land on via `addKeyPages` — and append a research log entry: `{ appendResearchLog: { summary: "Keyword research: <seeds/market>. Verdict: <conclusion>" } }`.
 
-## OpenSEO MCP tools
+## Bodkin Search MCP tools
 
 - `research_keywords`: primary discovery tool. Use 1-5 seeds per call and prefer 150 results unless the user asks for exhaustive research.
 - `get_keyword_metrics`: hydrate up to 700 known keywords with volume, keyword difficulty (KD), search intent, CPC, and monthly trends in one call. Use it to score candidate or known terms — including the Search Console striking-distance queries from step 1.
@@ -74,6 +74,6 @@ End with next actions, including whether to run keyword clustering, create a con
 
 ## Guardrails
 
-- Do not invent metrics. If OpenSEO does not return a value, write `unknown`.
+- Do not invent metrics. If Bodkin Search does not return a value, write `unknown`.
 - Do not call `save_keywords` without explicit confirmation.
 - Prefer business-fit and intent-fit over chasing the largest volume term.

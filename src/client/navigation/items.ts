@@ -1,5 +1,6 @@
 import {
   Bookmark,
+  ChartNoAxesCombined,
   Bot,
   ClipboardCheck,
   Globe,
@@ -15,6 +16,11 @@ import { linkOptions } from "@tanstack/react-router";
 import { GoogleGlyphMuted } from "@/client/features/gsc/GoogleGlyph";
 
 const projectNavItems = [
+  {
+    to: "/p/$projectId/analytics" as const,
+    label: "Analytics",
+    icon: ChartNoAxesCombined,
+  },
   {
     to: "/p/$projectId/competitors" as const,
     label: "Competitor Research",
@@ -112,7 +118,11 @@ export function getProjectNavGroups(projectId: string) {
   return [
     {
       label: "Overview",
-      items: [byPath("/p/$projectId"), byPath("/p/$projectId/growth")],
+      items: [
+        byPath("/p/$projectId"),
+        byPath("/p/$projectId/growth"),
+        byPath("/p/$projectId/analytics"),
+      ],
     },
     {
       label: "Research",

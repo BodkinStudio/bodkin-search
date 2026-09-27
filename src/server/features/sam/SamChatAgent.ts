@@ -1,3 +1,4 @@
+import { requireLegacyAutomationMode } from "@/server/features/workspaces/workspace-mode";
 import { Think } from "@cloudflare/think";
 import type {
   ChatErrorContext,
@@ -207,7 +208,7 @@ export class SamChatAgent extends Think {
     return withPgClient(async () => {
       const ctx = await this.loadSamContext();
       if (!ctx) {
-        return "You are SAM, the SEO agent inside OpenSEO. This chat session no longer exists; tell the user to start a new chat.";
+        return "You are SAM, the SEO agent inside Bodkin Search. This chat session no longer exists; tell the user to start a new chat.";
       }
       const context = await ProjectContextService.getProjectContext(
         ctx.project.id,
@@ -250,6 +251,7 @@ export class SamChatAgent extends Think {
   }
 
   async beforeTurn(_ctx: TurnContext): Promise<TurnConfig> {
+    requireLegacyAutomationMode();
     this.turnCostUsd = 0;
     this.turnMonthlyRemaining = null;
     return withPgClient(async (): Promise<TurnConfig> => {

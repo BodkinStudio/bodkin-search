@@ -119,7 +119,7 @@ async function setChannel(input: {
   )
     throw new AppError(
       "NOT_FOUND",
-      "That Google account isn't connected to your OpenSEO account.",
+      "That Google account isn't connected to your Bodkin Search account.",
     );
   const client = createYouTubeClient({
     userId: input.userId,

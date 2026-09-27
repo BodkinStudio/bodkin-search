@@ -181,7 +181,7 @@ async function invokeDefaultHandler(
   return rawResponse;
 }
 
-describe("OpenSEO OAuth provider configuration", () => {
+describe("Bodkin Search OAuth provider configuration", () => {
   beforeEach(() => {
     mocks.options.length = 0;
     mocks.requests.length = 0;
@@ -199,7 +199,7 @@ describe("OpenSEO OAuth provider configuration", () => {
     expect(mocks.options[0]?.resourceMetadata).toEqual({
       resource: "https://app.openseo.so/mcp",
       scopes_supported: ["mcp"],
-      resource_name: "OpenSEO MCP",
+      resource_name: "Bodkin Search MCP",
     });
     expect(mocks.options[0]?.scopesSupported).toEqual([
       "offline_access",

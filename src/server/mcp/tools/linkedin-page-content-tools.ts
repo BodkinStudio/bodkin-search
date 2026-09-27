@@ -184,7 +184,7 @@ export const getLinkedInPageOverviewTool = {
   config: {
     title: "Get LinkedIn Page overview",
     description:
-      "Read a LinkedIn Page overview, preferring a fresh API cache and falling back to a labelled manual export when needed. Read-only and uses no OpenSEO credits.",
+      "Read a LinkedIn Page overview, preferring a fresh API cache and falling back to a labelled manual export when needed. Read-only and uses no Bodkin Search credits.",
     inputSchema,
     outputSchema: overviewOutputSchema,
     annotations: readOnlyAnnotations,
@@ -199,7 +199,7 @@ export const getLinkedInPostPerformanceTool = {
   config: {
     title: "Get LinkedIn post performance",
     description:
-      "Read up to 10 posts ordered by reported impressions from the latest manually imported LinkedIn Page Content report. Read-only and uses no OpenSEO credits.",
+      "Read up to 10 posts ordered by reported impressions from the latest manually imported LinkedIn Page Content report. Read-only and uses no Bodkin Search credits.",
     inputSchema,
     outputSchema: postOutputSchema,
     annotations: readOnlyAnnotations,

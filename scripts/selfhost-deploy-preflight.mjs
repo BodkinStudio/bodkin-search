@@ -52,6 +52,33 @@ if (!env.DATAFORSEO_API_KEY) {
 // application) and needs neither ACCESS_ALLOWED_EMAILS nor the access:write
 // login scope.
 const managedAccess = !(env.TEAM_DOMAIN && env.POLICY_AUD);
+if (env.ANALYTICS_PUBLIC_INGESTION === "true") {
+  const hostedClientMode =
+    env.AUTH_MODE === "hosted" && env.CLIENT_WORKSPACES_ENABLED === "true";
+  if (
+    (env.AUTH_MODE !== "cloudflare_access" && !hostedClientMode) ||
+    !env.SELFHOST_CUSTOM_HOSTNAME
+  ) {
+    fail(
+      "Public analytics requires Cloudflare Access or hosted client workspaces, and SELFHOST_CUSTOM_HOSTNAME.",
+    );
+  }
+  const requiredAnalyticsSecrets = [
+    "ANALYTICS_NETWORK_HMAC_SECRET",
+    "ANALYTICS_IDENTITY_ASSERTION_SECRET",
+    "ANALYTICS_SERVER_EVENT_SECRET",
+    "ANALYTICS_ERASURE_HMAC_SECRET",
+  ];
+  const missing = requiredAnalyticsSecrets.filter(
+    (key) => !env[key] || env[key].length < 32,
+  );
+  if (missing.length) {
+    fail(
+      `Set independent high-entropy secrets (at least 32 characters) in ${envFile}: ${missing.join(", ")}.`,
+      "Keep these values stable across deployments, especially the erasure key.",
+    );
+  }
+}
 if (managedAccess && !env.ACCESS_ALLOWED_EMAILS) {
   fail(
     `${em("ACCESS_ALLOWED_EMAILS")} is not set in ${envFile} — list who may sign in through`,

@@ -1,3 +1,5 @@
+import { clientWorkspacesEnabled } from "@/server/features/workspaces/workspace-mode";
+import { selectWorkspaceContext } from "@/server/features/workspaces/WorkspaceContext";
 import { env } from "cloudflare:workers";
 import { getAuthMode, isHostedAuthMode } from "@/lib/auth-mode";
 import { resolveCloudflareAccessContext } from "./cloudflareAccess";
@@ -12,11 +14,12 @@ export async function resolveUserContextFromHeaders(
   headers: Headers,
 ): Promise<EnsuredUserContext> {
   const authMode = getAuthMode(env.AUTH_MODE);
-  if (authMode === "local_noauth") {
-    return resolveLocalNoAuthContext();
-  }
-  if (isHostedAuthMode(authMode)) {
-    return resolveHostedContext(headers);
-  }
-  return resolveCloudflareAccessContext(headers);
+  const context = await (authMode === "local_noauth"
+    ? resolveLocalNoAuthContext()
+    : isHostedAuthMode(authMode)
+      ? resolveHostedContext(headers)
+      : resolveCloudflareAccessContext(headers));
+  return clientWorkspacesEnabled()
+    ? selectWorkspaceContext(context, headers)
+    : context;
 }

@@ -6,7 +6,7 @@ import {
 } from "./parsePageContent";
 
 const meta = {
-  pageName: "OpenSEO",
+  pageName: "Bodkin Search",
   startDate: "2026-08-01",
   endDate: "2026-08-31",
 };

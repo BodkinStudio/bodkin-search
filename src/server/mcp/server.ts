@@ -81,6 +81,7 @@ import { growthGetActionsTool } from "@/server/mcp/tools/growth-action-tools";
 import { growthGetPriorityRecommendationsTool } from "@/server/mcp/tools/growth-priority-recommendations-tool";
 import { growthGetRecentChangesTool } from "@/server/mcp/tools/growth-recent-changes-tool";
 import { growthRecordChangeTool } from "@/server/mcp/tools/growth-record-change-tool";
+import { analyticsQueryTool } from "@/server/mcp/tools/analytics-tool";
 import { growthGetPlanTool } from "@/server/mcp/tools/growth-plan-tool";
 import {
   growthAddActionEvidenceTool,
@@ -159,8 +160,8 @@ function registerOpenSeoTool<Input extends ToolSchema>(
 export function createOpenSeoMcpServer(authProps: McpProps) {
   const server = new McpServer(
     {
-      name: "OpenSEO MCP",
-      title: "OpenSEO",
+      name: "Bodkin Search MCP",
+      title: "Bodkin Search",
       version: "0.0.12",
       description:
         "SEO research tools for AI agents: keyword research and metrics, SERP and local SERP results, domain and backlink analysis, rank tracking, and Google Search Console performance.",
@@ -175,7 +176,7 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
     },
     {
       instructions:
-        "OpenSEO research tools use credits. Proceed with normal focused research, but ask the user for confirmation before planned batches over 2,000 credits.",
+        "Bodkin Search research tools use credits. Proceed with normal focused research, but ask the user for confirmation before planned batches over 2,000 credits.",
     },
   );
 
@@ -242,6 +243,7 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
   if (hasMcpOperationScope(authProps, GROWTH_CHANGE_CREATE_SCOPE))
     register(growthRecordChangeTool);
   register(growthGetPlanTool);
+  register(analyticsQueryTool);
   if (hasMcpOperationScope(authProps, GROWTH_PLAN_WRITE_SCOPE)) {
     register(growthCreateWorkstreamTool);
     register(growthUpdateWorkstreamTool);

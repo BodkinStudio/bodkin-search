@@ -44,3 +44,14 @@ describe("sanitizePostHogProperties", () => {
     });
   });
 });
+
+it("redacts invitation credentials from direct and auth-return URLs", () => {
+  expect(sanitizePostHogUrl("/workspace-invitation?token=secret")).toBe(
+    "/workspace-invitation",
+  );
+  expect(
+    sanitizePostHogUrl(
+      "https://app.example.test/sign-in?redirect=%2Fworkspace-invitation%3Ftoken%3Dsecret",
+    ),
+  ).toBe("https://app.example.test/sign-in");
+});

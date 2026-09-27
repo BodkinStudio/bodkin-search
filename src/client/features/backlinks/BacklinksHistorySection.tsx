@@ -50,6 +50,7 @@ export function BacklinksHistorySection({
             className="group flex items-center gap-2 rounded-lg border border-base-300 bg-base-100 p-2"
           >
             <Link
+              from="/p/$projectId/backlinks"
               to="/p/$projectId/backlinks"
               params={{ projectId }}
               search={(prev) => ({

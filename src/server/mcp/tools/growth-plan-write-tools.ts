@@ -56,7 +56,7 @@ export const growthCreateWorkstreamTool = {
   name: "growth_create_workstream",
   config: {
     title: "Create Growth Workstream",
-    description: `Appends one Workstream to the end of the project's Growth Plan. ${PLAN_PURPOSE} commercialReason is read by non-specialists, so write it without SEO jargon. ${REQUEST_KEY_NOTE} This writes saved OpenSEO state but uses zero credits and makes no provider calls.`,
+    description: `Appends one Workstream to the end of the project's Growth Plan. ${PLAN_PURPOSE} commercialReason is read by non-specialists, so write it without SEO jargon. ${REQUEST_KEY_NOTE} This writes saved Bodkin Search state but uses zero credits and makes no provider calls.`,
     inputSchema: growthCreateWorkstreamRequestSchema,
     outputSchema: workstreamOutputSchema,
     annotations: writeAnnotations,
@@ -81,7 +81,7 @@ export const growthUpdateWorkstreamTool = {
   name: "growth_update_workstream",
   config: {
     title: "Update Growth Workstream",
-    description: `Edits one saved Workstream in place: its title, its plain-language commercialReason, its status (active, done, dropped) and its target (label, baseline, value, due date). ${PLAN_PURPOSE} Omitted fields are left unchanged. This writes saved OpenSEO state but uses zero credits and makes no provider calls; it does not reorder the plan or change any Action.`,
+    description: `Edits one saved Workstream in place: its title, its plain-language commercialReason, its status (active, done, dropped) and its target (label, baseline, value, due date). ${PLAN_PURPOSE} Omitted fields are left unchanged. This writes saved Bodkin Search state but uses zero credits and makes no provider calls; it does not reorder the plan or change any Action.`,
     inputSchema: updateGrowthWorkstreamInputSchema,
     outputSchema: workstreamOutputSchema,
     annotations: writeAnnotations,
@@ -106,7 +106,7 @@ export const growthCreateActionTool = {
   name: "growth_create_action",
   config: {
     title: "Create Growth Plan Action",
-    description: `Appends one Action to the end of a Workstream. ${PLAN_PURPOSE} rationale explains, to a reader who knows nothing about SEO, why this work is in the plan; successMeasure names the number it should move. ${EVIDENCE_KINDS} Tag every evidence item honestly — an estimate must not be presented as measured. ${SERIES_NOTE} The Action is saved as approved and is not started, implemented or measured by this call. ${REQUEST_KEY_NOTE} It writes saved OpenSEO state but uses zero credits and makes no provider calls.`,
+    description: `Appends one Action to the end of a Workstream. ${PLAN_PURPOSE} rationale explains, to a reader who knows nothing about SEO, why this work is in the plan; successMeasure names the number it should move. ${EVIDENCE_KINDS} Tag every evidence item honestly — an estimate must not be presented as measured. ${SERIES_NOTE} The Action is saved as approved and is not started, implemented or measured by this call. ${REQUEST_KEY_NOTE} It writes saved Bodkin Search state but uses zero credits and makes no provider calls.`,
     inputSchema: growthCreateActionRequestSchema,
     outputSchema: actionOutputSchema,
     annotations: writeAnnotations,
@@ -131,7 +131,7 @@ export const growthAddActionEvidenceTool = {
   name: "growth_add_action_evidence",
   config: {
     title: "Add Growth Action Evidence",
-    description: `Appends one tagged evidence item to a saved Action. ${EVIDENCE_KINDS} Tag it honestly and put the numbers and dates in the statement itself, so a reader can judge how firmly the Action is grounded. ${SERIES_NOTE} ${REQUEST_KEY_NOTE} This writes saved OpenSEO state but uses zero credits and makes no provider calls; it does not change the Action's status.`,
+    description: `Appends one tagged evidence item to a saved Action. ${EVIDENCE_KINDS} Tag it honestly and put the numbers and dates in the statement itself, so a reader can judge how firmly the Action is grounded. ${SERIES_NOTE} ${REQUEST_KEY_NOTE} This writes saved Bodkin Search state but uses zero credits and makes no provider calls; it does not change the Action's status.`,
     inputSchema: growthAddActionEvidenceRequestSchema,
     outputSchema: actionOutputSchema,
     annotations: writeAnnotations,
@@ -158,7 +158,7 @@ export const growthUpdatePlanNarrativeTool = {
   name: "growth_update_plan_narrative",
   config: {
     title: "Update Growth Plan Narrative",
-    description: `Sets the two pieces of writing at the top of the Growth Plan. The thesis is the one-sentence case for the whole plan, the first thing a client reads: what this work is meant to achieve commercially. The lede is the two- to four-sentence explanation underneath it, saying where the business is now, what the plan changes, and how progress will be judged. ${PLAN_PURPOSE} Write both without SEO jargon. Both fields are required in the call: send the existing text to keep it, and send null to clear it. No requestKey: the write replaces the stored text, so repeating it is safe. It writes saved OpenSEO state but uses zero credits and makes no provider calls; it does not change any Workstream or Action.`,
+    description: `Sets the two pieces of writing at the top of the Growth Plan. The thesis is the one-sentence case for the whole plan, the first thing a client reads: what this work is meant to achieve commercially. The lede is the two- to four-sentence explanation underneath it, saying where the business is now, what the plan changes, and how progress will be judged. ${PLAN_PURPOSE} Write both without SEO jargon. Both fields are required in the call: send the existing text to keep it, and send null to clear it. No requestKey: the write replaces the stored text, so repeating it is safe. It writes saved Bodkin Search state but uses zero credits and makes no provider calls; it does not change any Workstream or Action.`,
     inputSchema: updateGrowthPlanNarrativeInputSchema,
     outputSchema: z.strictObject({
       narrative: z.strictObject({

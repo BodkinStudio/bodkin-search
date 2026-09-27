@@ -1,10 +1,10 @@
 # Bodkin Growth - AGENTS.md Appendix
 
-> Append or reference this beneath the upstream OpenSEO `AGENTS.md`. Do not delete or weaken upstream agent guidance.
+> Append or reference this beneath the upstream Bodkin Search `AGENTS.md`. Do not delete or weaken upstream agent guidance.
 
 ## Scope
 
-These rules apply to Bodkin Growth work in the OpenSEO fork.
+These rules apply to Bodkin Growth work in the Bodkin Search fork.
 
 ## Product invariant
 
@@ -28,7 +28,7 @@ Before implementing a Growth feature:
 
 1. search the current repository for existing services, schemas and UI patterns;
 2. check recent upstream changes/issues when the capability is likely to be evolving;
-3. reuse existing OpenSEO services instead of calling DataForSEO/Google directly;
+3. reuse existing Bodkin Search services instead of calling DataForSEO/Google directly;
 4. document any intentional duplication.
 
 ## Avoid speculative architecture
@@ -48,13 +48,13 @@ without an explicit ADR.
 
 Prefer Growth-specific code under clearly named feature boundaries.
 
-Avoid broad modifications to unrelated OpenSEO features.
+Avoid broad modifications to unrelated Bodkin Search features.
 
 When a core change is unavoidable, keep it minimal and explain why in the PR/task summary.
 
 ## Dual database rule
 
-Any schema/query change must remain compatible with OpenSEO's SQLite/D1 and Postgres paths.
+Any schema/query change must remain compatible with Bodkin Search's SQLite/D1 and Postgres paths.
 
 Generate/update both migration paths as required by current upstream instructions.
 
@@ -92,7 +92,7 @@ Never expose secrets, OAuth tokens or provider credentials to model context.
 
 ## Cost
 
-Prefer cached/existing OpenSEO data.
+Prefer cached/existing Bodkin Search data.
 
 Any new scheduled provider call must have a clear cadence and cost rationale.
 
@@ -131,4 +131,4 @@ For every non-trivial task:
 5. run upstream-required CI checks;
 6. report changed files, tests and any unresolved risks.
 
-Do not opportunistically redesign or refactor unrelated OpenSEO code while implementing Growth.
+Do not opportunistically redesign or refactor unrelated Bodkin Search code while implementing Growth.

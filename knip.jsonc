@@ -2,6 +2,9 @@
   "entry": [
     // Alchemy deploy stack (run by the alchemy CLI, not imported by the app)
     "alchemy.run.ts",
+    "playwright.analytics.config.ts",
+    "src/client/analytics/tracker.ts",
+    "src/client/analytics/useJourneyTracker.ts",
     "alchemy.preview-access.run.ts",
     // Detect Tanstack Start Routes
     "cli-auth.ts",
@@ -20,6 +23,9 @@
     "src/db/pg/schema.ts",
     // Standalone CLI/dev scripts, invoked via package.json scripts
     "scripts/**",
+    // Operational privacy/retention entry points used during backup recovery.
+    "src/server/features/analytics/AnalyticsErasure.ts",
+    "src/server/features/analytics/AnalyticsRetention.ts",
     // DataForSEO section barrel — consumed via the dynamic import in
     // client.ts (loadDataforseoSections) + property access, which knip
     // can't trace
@@ -35,12 +41,14 @@
     "!.alchemy/**",
     "!badseo/**",
   ],
-  "ignore": ["drizzle-prod.config.ts"],
+  "ignore": ["drizzle-prod.config.ts", "public/bodkin-journeys.js"],
   // Disable Drizzle plugin - it tries to load drizzle.config.ts which imports cloudflare:workers
   "drizzle": false,
   "ignoreDependencies": [
     // Tailwindcss used via @tailwindcss/vite plugin
     "tailwindcss",
+    // Oxlint JS plugin loaded through .oxlintrc.json
+    "@shadcn/lint",
     "daisyui",
   ],
 }

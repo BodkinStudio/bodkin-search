@@ -1,3 +1,4 @@
+import { requireLegacyAutomationMode } from "@/server/features/workspaces/workspace-mode";
 import { env } from "cloudflare:workers";
 import type { EnsuredUserContext } from "@/middleware/ensure-user/types";
 import {
@@ -34,6 +35,7 @@ const customerEnsuredKey = (organizationId: string) =>
 export async function getOrCreateOrganizationCustomer(
   context: BillingCustomerContext,
 ): Promise<{ id: string }> {
+  requireLegacyAutomationMode();
   const cacheKey = customerEnsuredKey(context.organizationId);
   try {
     if (await env.KV.get(cacheKey)) {
@@ -157,6 +159,7 @@ async function getUsageCreditsRemaining(customerId: string): Promise<{
 export async function checkUsageCreditsDepleted(
   customer: BillingCustomerContext,
 ): Promise<{ depleted: boolean; monthlyRemaining: number }> {
+  requireLegacyAutomationMode();
   const check = await getUsageCreditsRemaining(customer.organizationId);
   if (check.monthlyRemaining + check.topupRemaining > 0) {
     return { depleted: false, monthlyRemaining: check.monthlyRemaining };
@@ -209,6 +212,7 @@ export async function checkUsageCreditsDepleted(
 export async function assertUsageCreditsAvailable(
   customerId: string,
 ): Promise<{ monthlyRemaining: number }> {
+  requireLegacyAutomationMode();
   const { monthlyRemaining, topupRemaining } =
     await getUsageCreditsRemaining(customerId);
 
@@ -234,6 +238,7 @@ export async function trackUsageCreditSpend(args: {
   monthlyRemaining: number;
   properties?: Record<string, unknown>;
 }): Promise<void> {
+  requireLegacyAutomationMode();
   const totalCostUsd = roundUsdForBilling(args.costUsd * SEO_DATA_COST_MARKUP);
   const totalCostCredits = Math.ceil(
     totalCostUsd * AUTUMN_SEO_DATA_CREDITS_PER_USD,

@@ -1,3 +1,4 @@
+import { clientWorkspacesEnabled } from "@/server/features/workspaces/workspace-mode";
 import { createFileRoute } from "@tanstack/react-router";
 import type { autumnHandler } from "autumn-js/fetch";
 import { env } from "cloudflare:workers";
@@ -24,6 +25,8 @@ function loadHandler() {
 }
 
 async function handleAutumnRequest(request: Request) {
+  if (clientWorkspacesEnabled())
+    return new Response("Client billing is not enabled", { status: 403 });
   if (!isHostedAuthMode(env.AUTH_MODE)) {
     return new Response("Not found", {
       status: 404,

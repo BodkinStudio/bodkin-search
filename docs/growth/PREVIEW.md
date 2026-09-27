@@ -10,7 +10,7 @@ Open [the local Growth preview](http://127.0.0.1:3217/p/growth-preview/growth) o
 
 The launcher copies only Git-tracked application source and allowed assets into a temporary directory, links the installed packages and migrates a disposable local D1 database. Stage new source files before starting a preview; untracked files are deliberately excluded. It seeds a local sample workspace without a domain or provider connections. It does not copy `.env`, `.dev.vars`, the normal `.wrangler` database or cloud credentials. Package caches stay local to the preview. No dependencies are installed.
 
-The server binds to `127.0.0.1` using OpenSEO's existing trusted-local `local_noauth` mode. Do not expose or tunnel this server. Stop with Ctrl+C to remove the disposable workspace and data. Restart after source edits because the preview runs from a snapshot.
+The server binds to `127.0.0.1` using Bodkin Search's existing trusted-local `local_noauth` mode. Do not expose or tunnel this server. Stop with Ctrl+C to remove the disposable workspace and data. Restart after source edits because the preview runs from a snapshot.
 
 The existing app may show a provider-key setup prompt. Dismiss it; no key is needed for Growth preview. Do not connect providers or create real project content in this disposable app.
 

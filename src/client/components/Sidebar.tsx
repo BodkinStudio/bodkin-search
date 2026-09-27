@@ -1,3 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
+import {
+  WorkspaceSwitcher,
+  workspaceSessionOptions,
+} from "@/client/features/workspaces/WorkspaceSwitcher";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import type { LinkOptions } from "@tanstack/react-router";
 import { useEffect, useState, type ComponentType } from "react";
@@ -77,10 +82,12 @@ function SidebarNavLink({
 }
 
 export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
+  const workspaceSession = useQuery(workspaceSessionOptions());
+  const clientMode = workspaceSession.data?.enabled === true;
   const navGroups = [
     ...(projectId ? getProjectNavGroups(projectId) : []),
-    connectNavGroup,
-  ];
+    ...(clientMode ? [] : [connectNavGroup]),
+  ].filter((group) => !clientMode || group.label !== "Research");
   const navigate = useNavigate();
   const location = useLocation();
   const onSamRoute = location.pathname.includes("/sam");
@@ -126,7 +133,7 @@ export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
           onClick={onNavigate}
           className="text-base font-semibold text-base-content"
         >
-          OpenSEO
+          Bodkin Search
         </Link>
         {onClose ? (
           <button
@@ -141,13 +148,14 @@ export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
       </div>
 
       <div className="px-3 pb-1">
+        <WorkspaceSwitcher />
         <ProjectSwitcher
           activeProjectId={projectId}
           onCloseDrawer={onNavigate}
         />
       </div>
 
-      {projectId ? (
+      {projectId && !clientMode ? (
         // Same underline tab idiom as the in-page tab strips (e.g. Domain
         // Overview's Top Keywords / Top Pages).
         <div className="px-3 pb-1">
@@ -168,7 +176,7 @@ export function Sidebar({ projectId, onNavigate, onClose }: SidebarProps) {
         </div>
       ) : null}
 
-      {view === "chat" && projectId ? (
+      {view === "chat" && projectId && !clientMode ? (
         <SamSidebarPanel projectId={projectId} onNavigate={onNavigate} />
       ) : (
         <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
@@ -228,6 +236,8 @@ function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
   const { data: session } = useSession();
   const isHostedMode = isHostedClientAuthMode();
   const email = session?.user?.email;
+  const workspaceSession = useQuery(workspaceSessionOptions());
+  const clientMode = workspaceSession.data?.enabled === true;
 
   const closeMenu = () => {
     closeDropdown();
@@ -266,7 +276,7 @@ function SidebarFooter({ onNavigate }: { onNavigate?: () => void }) {
                 Settings
               </Link>
             </li>
-            {isHostedMode ? (
+            {isHostedMode && !clientMode ? (
               <li>
                 <Link to={BILLING_ROUTE} onClick={closeMenu}>
                   <CreditCard className="h-4 w-4" />

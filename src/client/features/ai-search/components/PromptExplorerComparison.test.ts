@@ -11,7 +11,7 @@ import type { PromptExplorerResult } from "@/types/schemas/ai-search";
 
 function resultWith(
   results: PromptExplorerResult["results"],
-  highlightBrand: string | null = "OpenSEO",
+  highlightBrand: string | null = "Bodkin Search",
 ): PromptExplorerResult {
   return {
     prompt: "Which SEO tools should I use?",
@@ -162,13 +162,13 @@ describe("PromptExplorerComparison", () => {
   });
 
   it("uses distinct reported brand-observation labels", () => {
-    expect(brandObservationLabel("OpenSEO", true)).toBe(
+    expect(brandObservationLabel("Bodkin Search", true)).toBe(
       "Reported in answer or citations",
     );
-    expect(brandObservationLabel("OpenSEO", false)).toBe(
+    expect(brandObservationLabel("Bodkin Search", false)).toBe(
       "Not reported in answer or citations",
     );
-    expect(brandObservationLabel("OpenSEO", null)).toBe(
+    expect(brandObservationLabel("Bodkin Search", null)).toBe(
       "No brand observation returned",
     );
   });

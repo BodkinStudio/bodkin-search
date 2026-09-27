@@ -13,13 +13,13 @@ Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `BETTER_AUTH_SECRET`, then a
 
 Create a Google Cloud OAuth web client, enable **YouTube Data API v3** and **YouTube Analytics API**, and configure the consent screen. While the app is in Google testing mode, add each connecting Google account as a test user. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `BETTER_AUTH_SECRET` in the deployment environment, then restart the app.
 
-The consent request uses identity scopes plus `https://www.googleapis.com/auth/youtube.readonly` for channel discovery and `https://www.googleapis.com/auth/yt-analytics.readonly` for reporting. Both scopes are read-only. OpenSEO does not request permission to upload videos, manage the channel, or access advertising or monetary data. Existing YouTube connections made before Analytics was added must reconnect to grant the new reporting scope.
+The consent request uses identity scopes plus `https://www.googleapis.com/auth/youtube.readonly` for channel discovery and `https://www.googleapis.com/auth/yt-analytics.readonly` for reporting. Both scopes are read-only. Bodkin Search does not request permission to upload videos, manage the channel, or access advertising or monetary data. Existing YouTube connections made before Analytics was added must reconnect to grant the new reporting scope.
 
 ## Connect and disconnect
 
 Open Project settings → Integrations → YouTube, choose **Connect with Google**, then choose a channel and save it. The app stores only the selected channel ID, title, optional custom URL, connector provenance, and timestamps. OAuth tokens stay encrypted in Better Auth's account table.
 
-Disconnect always removes this project's selected channel. It removes the matching Google grant only when the same user connected it and no other project still uses it; other grants and other members' grants remain untouched. Channel, video, and traffic-source data is retrieved on demand; OpenSEO does not store report rows.
+Disconnect always removes this project's selected channel. It removes the matching Google grant only when the same user connected it and no other project still uses it; other grants and other members' grants remain untouched. Channel, video, and traffic-source data is retrieved on demand; Bodkin Search does not store report rows.
 
 ## Limitations and troubleshooting
 

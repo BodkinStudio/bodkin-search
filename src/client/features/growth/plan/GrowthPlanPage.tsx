@@ -38,14 +38,17 @@ const HERO_FALLBACK_EVIDENCE = 4;
 export function GrowthPlanPage({
   projectId,
   defaultEdit = false,
+  canEdit,
 }: {
   projectId: string;
   defaultEdit?: boolean;
+  canEdit: boolean;
 }) {
   const client = useQueryClient();
   // The plan is a document first: everything that lets someone change it is
   // behind one switch, so the default read is as calm as the printed page.
-  const [editing, setEditing] = useState(defaultEdit);
+  const [editRequested, setEditing] = useState(defaultEdit);
+  const editing = canEdit && editRequested;
   const [adding, setAdding] = useState(false);
   const planKey = ["growthPlan", projectId];
   const query = useQuery({
@@ -137,14 +140,16 @@ export function GrowthPlanPage({
               Updated {formatGrowthPreviewDate(query.data.updatedAt)}
             </span>
           ) : null}
-          <button
-            type="button"
-            className="btn btn-ghost btn-xs ml-auto"
-            aria-pressed={editing}
-            onClick={() => setEditing((current) => !current)}
-          >
-            {editing ? "Done editing" : "Edit plan"}
-          </button>
+          {canEdit ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs ml-auto"
+              aria-pressed={editing}
+              onClick={() => setEditing((current) => !current)}
+            >
+              {editing ? "Done editing" : "Edit plan"}
+            </button>
+          ) : null}
         </header>
 
         {query.isPending ? (
@@ -250,9 +255,9 @@ export function GrowthPlanPage({
         {query.data && workstreams.length === 0 ? (
           <section className="mt-8 rounded-lg border border-base-300 bg-base-100 p-6">
             <p className="max-w-prose text-sm">
-              No plan yet. Switch to Edit plan to add the first workstream, or
-              write the plan from a chat session with the
-              growth_create_workstream and growth_create_action MCP tools.
+              {canEdit
+                ? "No plan yet. Switch to Edit plan to add the first workstream."
+                : "Your Growth plan is not ready yet. Your workspace team will add it here."}
             </p>
           </section>
         ) : null}

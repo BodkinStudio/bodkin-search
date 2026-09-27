@@ -1,12 +1,12 @@
 # Codex Start Prompt
 
-Use this after creating the Bodkin fork of OpenSEO and copying the Growth planning pack into the repository, for example under `docs/growth/`.
+Use this after creating the Bodkin fork of Bodkin Search and copying the Growth planning pack into the repository, for example under `docs/growth/`.
 
 ---
 
 You are working in a Bodkin-maintained fork of `every-app/open-seo`.
 
-Your job is to help implement **Bodkin Growth**, an agency SEO operating layer that extends OpenSEO.
+Your job is to help implement **Bodkin Growth**, an agency SEO operating layer that extends Bodkin Search.
 
 Read these files before doing anything:
 
@@ -80,6 +80,6 @@ Finish by proposing the **smallest Phase 1 implementation sequence** based on th
 
 The guiding rule is:
 
-> Reuse OpenSEO. Build only the missing Growth operating layer.
+> Reuse Bodkin Search. Build only the missing Growth operating layer.
 
 Do not create a separate Growth service, database, auth system or MCP server unless you discover a concrete blocker and document it for review first.

@@ -52,11 +52,11 @@ workflow changes proceed independently of the live AI-quality and operating gate
 
 ## Goal
 
-Establish the OpenSEO fork and replace assumptions in this planning pack with verified repository facts.
+Establish the Bodkin Search fork and replace assumptions in this planning pack with verified repository facts.
 
 ## Tasks
 
-### BG-0001 Fork OpenSEO
+### BG-0001 Fork Bodkin Search
 
 - create Bodkin fork;
 - configure `origin` and `upstream`;
@@ -111,7 +111,7 @@ Must explicitly test the path required for:
 
 Do not begin Growth schema work until:
 
-- OpenSEO builds/tests;
+- Bodkin Search builds/tests;
 - upstream map exists;
 - duplicate planned features are removed;
 - current MCP auth path is understood.
@@ -220,7 +220,7 @@ through service-level tests or minimal dev UI.
 
 ## Goal
 
-Prove that live/fixture OpenSEO data can become a useful Recommendation.
+Prove that live/fixture Bodkin Search data can become a useful Recommendation.
 
 Use only one detector first.
 
@@ -234,7 +234,7 @@ Create a deterministic fixture representing 90 days of data.
 
 ### BG-0202 Search performance adapter
 
-Reuse OpenSEO GSC service.
+Reuse Bodkin Search GSC service.
 
 Return a narrow Growth DTO.
 
@@ -433,7 +433,7 @@ Recommended order:
 
 ### BG-0403 Scheduled monthly execution
 
-Use existing OpenSEO scheduling/workflows.
+Use existing Bodkin Search scheduling/workflows.
 
 ### BG-0404 Weekly review
 
@@ -620,7 +620,7 @@ At least 2-3 client projects can run without data leakage or unreasonable operat
 
 Connect search work to business outcomes.
 
-Before implementing, inspect current OpenSEO GA4 state.
+Before implementing, inspect current Bodkin Search GA4 state.
 
 ### BG-0801 Analytics ADR
 

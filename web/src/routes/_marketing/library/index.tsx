@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_marketing/library/")({
       title: "SEO Strategy Library",
       description,
       path: PATH,
-      titleSuffix: "OpenSEO",
+      titleSuffix: "Bodkin Search",
     }),
   component: StrategyLibraryIndexPage,
 });

@@ -3,7 +3,7 @@
 **Status:** Recommended direction after architecture review
 **Date:** 29 August 2026
 **Working name:** Bodkin Growth
-**Foundation:** OpenSEO
+**Foundation:** Bodkin Search
 
 This folder is the source-of-truth planning pack for building Bodkin Growth.
 
@@ -32,19 +32,19 @@ Learn
 
 ## Recommended implementation direction
 
-After reviewing the current OpenSEO codebase and product capabilities, the recommended starting architecture is:
+After reviewing the current Bodkin Search codebase and product capabilities, the recommended starting architecture is:
 
-1. Fork OpenSEO.
+1. Fork Bodkin Search.
 2. Keep the fork as close to upstream as practical.
-3. Add Bodkin-specific "Growth" features as clearly isolated modules within the OpenSEO application.
-4. Reuse OpenSEO's existing organisation/project tenancy, DataForSEO integrations, GSC, rank tracking, audits, snapshots, auth, workflows, MCP and UI patterns.
+3. Add Bodkin-specific "Growth" features as clearly isolated modules within the Bodkin Search application.
+4. Reuse Bodkin Search's existing organisation/project tenancy, DataForSEO integrations, GSC, rank tracking, audits, snapshots, auth, workflows, MCP and UI patterns.
 5. Add the missing operating layer: signals, insights, recommendations, actions, change events, measurement and reports.
-6. Extend OpenSEO's existing MCP with high-level Growth tools rather than building a second MCP gateway immediately.
+6. Extend Bodkin Search's existing MCP with high-level Growth tools rather than building a second MCP gateway immediately.
 7. Prove the entire loop on `bodkin.studio`.
 8. Add one or two retained client sites only after the system is useful internally.
 9. Extract Growth into a separate service only if a real architectural reason emerges.
 
-This is a deliberate change from an earlier concept that assumed a separate Growth application and database from the beginning. The current OpenSEO codebase already provides too much of the required substrate for that duplication to be justified.
+This is a deliberate change from an earlier concept that assumed a separate Growth application and database from the beginning. The current Bodkin Search codebase already provides too much of the required substrate for that duplication to be justified.
 
 ## Reading order
 
@@ -66,7 +66,7 @@ This is a deliberate change from an earlier concept that assumed a separate Grow
    - Reporting and measurement.
 
 4. `03_TECHNICAL_ARCHITECTURE.md`
-   - How to extend OpenSEO.
+   - How to extend Bodkin Search.
    - Data model.
    - scheduled analysis.
    - AI boundary.
@@ -82,7 +82,7 @@ This is a deliberate change from an earlier concept that assumed a separate Grow
    - ADR-style decisions Codex should preserve unless explicitly revisited.
 
 7. `AGENTS_BODKIN_APPENDIX.md`
-   - Bodkin-specific agent rules to append beneath upstream OpenSEO's existing `AGENTS.md` guidance.
+   - Bodkin-specific agent rules to append beneath upstream Bodkin Search's existing `AGENTS.md` guidance.
 
 8. `CODEX_START_PROMPT.md`
    - A practical first prompt for Codex once the fork exists.

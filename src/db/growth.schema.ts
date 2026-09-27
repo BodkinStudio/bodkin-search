@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/sqlite-core";
 import { projects } from "./app.schema";
 
-// One operational Growth settings row per OpenSEO project. Qualitative project
+// One operational Growth settings row per Bodkin Search project. Qualitative project
 // context, competitors and key pages keep their existing canonical tables.
 export const growthProjectSettings = sqliteTable(
   "growth_project_settings",

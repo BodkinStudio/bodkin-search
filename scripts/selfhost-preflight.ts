@@ -54,7 +54,7 @@ async function sendPreflightFailedBeacon(failedChecks: string[]) {
 
 const result = runSelfhostPreflight(process.env);
 
-console.log("--- OpenSEO self-host preflight ---");
+console.log("--- Bodkin Search self-host preflight ---");
 console.log(formatPreflightReport(result));
 
 if (result.failed) {

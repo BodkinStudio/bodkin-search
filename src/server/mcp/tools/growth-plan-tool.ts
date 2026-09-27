@@ -41,7 +41,7 @@ export const growthGetPlanTool = {
   config: {
     title: "Get Growth Plan",
     description:
-      "Returns the project's Growth Plan: an ordered list of Workstreams, each stating in plain language why it matters commercially, each owning Actions that carry a rationale, a success measure and tagged evidence. Evidence kinds are measured (read from the project's own accounts), sampled (observed once on a date), estimate (a third-party estimate), judgement (the author's interpretation) and reference (documentation or a public record). Reads saved OpenSEO data only, uses zero credits, makes no provider calls, and never changes the plan.",
+      "Returns the project's Growth Plan: an ordered list of Workstreams, each stating in plain language why it matters commercially, each owning Actions that carry a rationale, a success measure and tagged evidence. Evidence kinds are measured (read from the project's own accounts), sampled (observed once on a date), estimate (a third-party estimate), judgement (the author's interpretation) and reference (documentation or a public record). Reads saved Bodkin Search data only, uses zero credits, makes no provider calls, and never changes the plan.",
     inputSchema,
     outputSchema: z.strictObject({
       plan: growthPlanDtoSchema,

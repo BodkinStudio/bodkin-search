@@ -1,3 +1,4 @@
+import { requireLegacyAutomationMode } from "@/server/features/workspaces/workspace-mode";
 import type { WorkflowStep, WorkflowStepConfig } from "cloudflare:workers";
 import { withPgClient } from "@/db";
 
@@ -23,7 +24,10 @@ export function pgStep<T extends Rpc.Serializable<T>>(
   config: WorkflowStepConfig | undefined,
   fn: () => Promise<T>,
 ): Promise<T> {
-  return config
-    ? step.do(name, config, () => withPgClient(fn))
-    : step.do(name, () => withPgClient(fn));
+  requireLegacyAutomationMode();
+  const guarded = () => {
+    requireLegacyAutomationMode();
+    return withPgClient(fn);
+  };
+  return config ? step.do(name, config, guarded) : step.do(name, guarded);
 }

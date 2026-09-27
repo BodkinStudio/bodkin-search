@@ -1,10 +1,10 @@
 {
   "name": "openseo",
   "owner": {
-    "name": "OpenSEO",
+    "name": "Bodkin Search",
     "url": "https://openseo.so"
   },
-  "description": "OpenSEO's official Codex plugin marketplace.",
+  "description": "Bodkin Search's official Codex plugin marketplace.",
   "plugins": [
     {
       "name": "openseo",

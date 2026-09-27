@@ -39,6 +39,17 @@ export function AuthMethodChooser({
   onContinueWithGoogle: () => void;
   onContinueWithEmail: () => void;
 }) {
+  if (import.meta.env.CLIENT_WORKSPACES_ENABLED === "true")
+    return (
+      <button
+        className="btn btn-primary w-full"
+        type="button"
+        onClick={onContinueWithEmail}
+        disabled={disabled || isBusy}
+      >
+        Continue with email
+      </button>
+    );
   return (
     <div className="space-y-3">
       <button
@@ -102,7 +113,7 @@ export function AuthPageCard({
       <div className="text-center space-y-3">
         <img
           src="/transparent-logo.png"
-          alt="OpenSEO"
+          alt="Bodkin Search"
           className="mx-auto size-10 rounded-lg"
         />
         <div>

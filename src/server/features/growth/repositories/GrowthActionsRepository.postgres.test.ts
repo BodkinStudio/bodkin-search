@@ -206,7 +206,7 @@ async function verifyAlignedLowCtrWork() {
 describePostgres("GrowthActionsRepository Postgres", () => {
   beforeAll(async () => {
     // TEST_POSTGRES_DATABASE_URL explicitly opts into a disposable migrated
-    // OpenSEO database. This test never creates, drops, or migrates databases.
+    // Bodkin Search database. This test never creates, drops, or migrates databases.
     sql = postgres(testUrl!, { max: 8 });
     ({ GrowthActionsRepository } = await import("./GrowthActionsRepository"));
     ({ withPgClient } = await import("@/db"));

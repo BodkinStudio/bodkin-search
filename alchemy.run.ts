@@ -9,6 +9,7 @@ import { Redacted } from "effect";
 import { unstable_readConfig } from "wrangler";
 import { z } from "zod";
 import {
+  configurePublicAnalyticsAccess,
   emailAccessGate,
   HOSTED_PROD_STAGE,
   readWorkersSubdomain,
@@ -248,7 +249,10 @@ const resolveSelfHostAccess = (
         policyName: `open-seo ${stage} self-host users`,
         applicationName: `open-seo ${stage}`,
         domain: `${workerName(stage)}.${subdomain}`,
-        additionalDomains: customHostname ? [customHostname] : undefined,
+        additionalDomains: [
+          `*-${workerName(stage)}.${subdomain}`,
+          ...(customHostname ? [customHostname] : []),
+        ],
         emails: allowedEmails,
       });
       policyAud = application.aud;
@@ -274,6 +278,26 @@ const dataEnv = {
   AUTUMN_SECRET_KEY: optionalSecret("AUTUMN_SECRET_KEY"),
   AUTUMN_WEBHOOK_SECRET: optionalSecret("AUTUMN_WEBHOOK_SECRET"),
   GDPR_ERASURE_SECRET: optionalSecret("GDPR_ERASURE_SECRET"),
+  ANALYTICS_NETWORK_HMAC_SECRET: optionalSecret(
+    "ANALYTICS_NETWORK_HMAC_SECRET",
+  ),
+  ANALYTICS_IDENTITY_ASSERTION_SECRET: optionalSecret(
+    "ANALYTICS_IDENTITY_ASSERTION_SECRET",
+  ),
+  ANALYTICS_SERVER_EVENT_SECRET: optionalSecret(
+    "ANALYTICS_SERVER_EVENT_SECRET",
+  ),
+  ANALYTICS_ERASURE_HMAC_SECRET: optionalSecret(
+    "ANALYTICS_ERASURE_HMAC_SECRET",
+  ),
+  ANALYTICS_WEBHOOK_HOSTS: optionalVar("ANALYTICS_WEBHOOK_HOSTS"),
+  CLIENT_WORKSPACES_ENABLED: optionalVar("CLIENT_WORKSPACES_ENABLED"),
+  WORKSPACE_INVITATIONS_ENABLED: optionalVar("WORKSPACE_INVITATIONS_ENABLED"),
+  WORKSPACE_APP_URL: optionalVar("WORKSPACE_APP_URL"),
+  LOOPS_TRANSACTIONAL_WORKSPACE_INVITE_ID: optionalVar(
+    "LOOPS_TRANSACTIONAL_WORKSPACE_INVITE_ID",
+  ),
+  ANALYTICS_ADMIN_USER_IDS: optionalVar("ANALYTICS_ADMIN_USER_IDS"),
   LOOPS_API_KEY: optionalSecret("LOOPS_API_KEY"),
   LOOPS_TRANSACTIONAL_VERIFY_EMAIL_ID: optionalVar(
     "LOOPS_TRANSACTIONAL_VERIFY_EMAIL_ID",
@@ -314,13 +338,47 @@ export default Alchemy.Stack(
       "SELFHOST_CUSTOM_HOSTNAME",
     )).trim();
     const saasZone = (yield* optionalVar("SELFHOST_SAAS_ZONE")).trim();
+    const clientWorkspaces =
+      (yield* optionalVar("CLIENT_WORKSPACES_ENABLED")) === "true";
+    const isolatedClientStaging = stage === "workspace-staging";
+    if (
+      isolatedClientStaging &&
+      (authMode !== "hosted" ||
+        !clientWorkspaces ||
+        (yield* optionalVar("POLICY_AUD")))
+    ) {
+      return yield* Effect.die(
+        new Error(
+          "workspace-staging requires hosted client workspaces and its own Alchemy-managed Access gate.",
+        ),
+      );
+    }
+    const stagedClientAuth =
+      ["selfhost", "workspace-staging"].includes(stage) &&
+      authMode === "hosted" &&
+      clientWorkspaces;
+    const appLoginOnly =
+      (yield* optionalVar("SELFHOST_APP_LOGIN_ONLY")) === "true";
+    if (
+      appLoginOnly &&
+      (stage !== "selfhost" ||
+        !stagedClientAuth ||
+        !customHostname ||
+        (yield* optionalVar("POLICY_AUD")))
+    ) {
+      return yield* Effect.die(
+        new Error(
+          "SELFHOST_APP_LOGIN_ONLY requires selfhost hosted client workspaces, a custom hostname, and Alchemy-managed Access for Worker URLs.",
+        ),
+      );
+    }
     if (customHostname || saasZone) {
       const hostname = z
         .string()
         .regex(/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/);
       if (
         stage !== "selfhost" ||
-        authMode !== "cloudflare_access" ||
+        (authMode !== "cloudflare_access" && !stagedClientAuth) ||
         !hostname.safeParse(customHostname).success ||
         !hostname.safeParse(saasZone).success ||
         (yield* optionalVar("POLICY_AUD"))
@@ -355,6 +413,8 @@ export default Alchemy.Stack(
           ),
         );
       }
+    } else if (stagedClientAuth && customHostname) {
+      authUrl = `https://${customHostname}`;
     } else if (workersSubdomain) {
       authUrl = `https://${workerName(stage)}.${workersSubdomain}`;
     } else if (authMode === "hosted") {
@@ -371,10 +431,20 @@ export default Alchemy.Stack(
 
     const access = yield* resolveSelfHostAccess(
       stage,
-      authMode === "cloudflare_access" && !prod,
+      (authMode === "cloudflare_access" || stagedClientAuth) && !prod,
       workersSubdomain,
-      customHostname || undefined,
+      // App authentication protects the public domain after an explicit cutover.
+      // Worker and version-preview hostnames retain their email Access gate.
+      appLoginOnly ? undefined : customHostname || undefined,
     );
+
+    yield* configurePublicAnalyticsAccess({
+      enabled: (yield* optionalVar("ANALYTICS_PUBLIC_INGESTION")) === "true",
+      stage,
+      authMode,
+      stagedClientAuth,
+      customHostname,
+    });
 
     const app = yield* Cloudflare.Worker("open-seo", {
       name: workerName(stage),
@@ -402,7 +472,7 @@ export default Alchemy.Stack(
       // Configurable CPU limits are a paid-plan feature, and self-host
       // deploys (cloudflare_access) may run on the free plan — which rejects
       // them — so those get the plan default instead.
-      ...(authMode === "cloudflare_access"
+      ...(stage === "selfhost" || isolatedClientStaging
         ? {}
         : { limits: { cpuMs: 300_000 } }),
       observability: {
@@ -416,6 +486,10 @@ export default Alchemy.Stack(
       env: {
         ...makeResources(stage),
         ...dataEnv,
+        // Workspace auth staging has no paid SEO provider credentials.
+        ...(isolatedClientStaging
+          ? { DATAFORSEO_API_KEY: Redacted.make("") }
+          : {}),
         AUTH_MODE: authMode,
         DATABASE_PROVIDER: databaseProvider || "d1",
         BETTER_AUTH_URL: authUrl,

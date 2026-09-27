@@ -53,7 +53,7 @@ async function waitForBlockedGrowthRunLock(runId: string) {
 describePostgres("GrowthRunsRepository Postgres concurrency", () => {
   beforeAll(async () => {
     // TEST_POSTGRES_DATABASE_URL is the explicit opt-in for a disposable
-    // OpenSEO container. This test does not create, drop, or migrate databases.
+    // Bodkin Search container. This test does not create, drop, or migrate databases.
     sql = postgres(testUrl!, { max: 3 });
     ({ GrowthRunsRepository } = await import("./GrowthRunsRepository"));
     ({ withPgClient } = await import("@/db"));

@@ -34,7 +34,7 @@ export const growthGetPageContextTool = {
   config: {
     title: "Get Growth page context",
     description:
-      "Reads one authorised project page's current curation, bounded saved Growth context, saved rank context and final Search Console performance. It creates or changes nothing, uses no OpenSEO/DataForSEO credits, and is not an atomic historical snapshot.",
+      "Reads one authorised project page's current curation, bounded saved Growth context, saved rank context and final Search Console performance. It creates or changes nothing, uses no Bodkin Search/DataForSEO credits, and is not an atomic historical snapshot.",
     inputSchema,
     outputSchema: z.strictObject({
       context: growthPageContextDtoSchema,

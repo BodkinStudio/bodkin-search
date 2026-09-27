@@ -117,7 +117,7 @@ const toolCategories: ToolCategory[] = [
       {
         name: "save_keywords",
         title: "Save keywords",
-        description: "Save keywords back to OpenSEO.",
+        description: "Save keywords back to Bodkin Search.",
       },
     ],
   },

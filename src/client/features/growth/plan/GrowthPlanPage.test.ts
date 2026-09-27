@@ -142,7 +142,7 @@ const evidence: GrowthPlanEvidenceDto = {
   workstreams: [],
 };
 
-function render(data: GrowthPlanDto, defaultEdit = false) {
+function render(data: GrowthPlanDto, defaultEdit = false, canEdit = true) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
@@ -152,12 +152,43 @@ function render(data: GrowthPlanDto, defaultEdit = false) {
     createElement(
       QueryClientProvider,
       { client },
-      createElement(GrowthPlanPage, { projectId: "project_1", defaultEdit }),
+      createElement(GrowthPlanPage, {
+        projectId: "project_1",
+        defaultEdit,
+        canEdit,
+      }),
     ),
   );
 }
 
 describe("Growth plan page", () => {
+  it("keeps a Viewer read-only even when an edit deep link is requested", () => {
+    const html = render(plan, true, false);
+    expect(html).toContain("Win the Teams comparison searches");
+    for (const control of [
+      "Edit plan",
+      "Done editing",
+      "Add workstream",
+      "Add action",
+      "Add evidence",
+      "Edit thesis and lede",
+      "<form",
+    ]) {
+      expect(html).not.toContain(control);
+    }
+  });
+
+  it("gives Viewers an empty state without authoring instructions", () => {
+    const html = render(
+      { ...plan, workstreams: [], updatedAt: null },
+      true,
+      false,
+    );
+    expect(html).toContain("Your Growth plan is not ready yet");
+    expect(html).not.toContain("Edit plan");
+    expect(html).not.toContain("MCP");
+  });
+
   it("reads as a document, with one control", () => {
     const html = render(plan);
     expect(html).toContain("The Teams page lost two thirds");
@@ -188,7 +219,6 @@ describe("Growth plan page", () => {
   it("explains how to start a plan when there is none", () => {
     const html = render({ ...plan, workstreams: [], updatedAt: null });
     expect(html).toContain("No plan yet");
-    expect(html).toContain("growth_create_workstream");
-    expect(html).toContain("growth_create_action");
+    expect(html).toContain("Switch to Edit plan");
   });
 });

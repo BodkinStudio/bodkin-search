@@ -5,6 +5,7 @@ import {
   integer,
   index,
   uniqueIndex,
+  check,
 } from "drizzle-orm/sqlite-core";
 
 export const user = sqliteTable("user", {
@@ -135,8 +136,16 @@ export const member = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   },
   (table) => [
+    check(
+      "member_role_domain",
+      sql`${table.role} in ('owner', 'admin', 'editor', 'viewer', 'member')`,
+    ),
     index("member_organizationId_idx").on(table.organizationId),
     index("member_userId_idx").on(table.userId),
+    uniqueIndex("member_workspace_user_uidx").on(
+      table.organizationId,
+      table.userId,
+    ),
   ],
 );
 
@@ -159,6 +168,14 @@ export const invitation = sqliteTable(
       .references(() => user.id, { onDelete: "cascade" }),
   },
   (table) => [
+    check(
+      "invitation_role_domain",
+      sql`${table.role} is null or ${table.role} in ('owner', 'admin', 'editor', 'viewer', 'member')`,
+    ),
+    check(
+      "invitation_status_domain",
+      sql`${table.status} in ('pending', 'accepted', 'revoked', 'canceled', 'rejected')`,
+    ),
     index("invitation_organizationId_idx").on(table.organizationId),
     index("invitation_email_idx").on(table.email),
   ],

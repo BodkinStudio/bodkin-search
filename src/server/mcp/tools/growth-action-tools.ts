@@ -47,7 +47,7 @@ export const growthGetActionsTool = {
   config: {
     title: "Get Growth Actions",
     description:
-      "Lists current saved Growth Actions for a project, newest first, with optional status, exact category, minimum-priority, page-limit, and continuation-cursor filters. Reads saved OpenSEO data only, uses zero credits, makes no provider calls, and never creates or changes Actions. Results are sanitized and bounded to 50 Actions; use the returned nextCursor unchanged only when hasMore is true.",
+      "Lists current saved Growth Actions for a project, newest first, with optional status, exact category, minimum-priority, page-limit, and continuation-cursor filters. Reads saved Bodkin Search data only, uses zero credits, makes no provider calls, and never creates or changes Actions. Results are sanitized and bounded to 50 Actions; use the returned nextCursor unchanged only when hasMore is true.",
     inputSchema,
     outputSchema: z.strictObject({
       page: growthActionsReadPageDtoSchema,

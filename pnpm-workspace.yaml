@@ -1,5 +1,7 @@
 minimumReleaseAge: 11520
 minimumReleaseAgeExclude:
+  # Requested design-system linter, first release 2026-09-14; exact pinned.
+  - "@shadcn/lint"
   - "@every-app/*"
   # TEMPORARY (remove after 2026-08-15): workers-oauth-provider 0.10.2 was
   # published 2026-08-07; needed for the MCP SDK v2 migration plus the

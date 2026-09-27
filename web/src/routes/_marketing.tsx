@@ -165,7 +165,7 @@ function MarketingLayout() {
               to="/"
               className="text-sm font-semibold hover:opacity-80 transition-opacity"
             >
-              OpenSEO
+              Bodkin Search
             </Link>
 
             <div className="hidden items-center justify-center gap-5 md:flex">
@@ -217,7 +217,7 @@ function MarketingLayout() {
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex h-11 items-center justify-center rounded-xl bg-neutral-950 px-3 text-sm font-semibold text-white transition-colors hover:bg-neutral-800"
                 >
-                  Try OpenSEO
+                  Try Bodkin Search
                 </a>
                 <a
                   href="https://app.openseo.so/sign-in"
@@ -271,12 +271,12 @@ function ResourcesDropdown() {
     {
       label: "MCP",
       href: "/docs/mcp",
-      description: "Connect OpenSEO to AI clients.",
+      description: "Connect Bodkin Search to AI clients.",
     },
     {
       label: "Skills",
       href: "/docs/skills",
-      description: "Focused OpenSEO workflows.",
+      description: "Focused Bodkin Search workflows.",
     },
     {
       label: "Strategy Library",
@@ -382,7 +382,7 @@ function FeatureDropdown() {
                   className="block rounded-md p-2 transition-colors hover:bg-[#f5f1ec]"
                 >
                   <span className="text-sm font-semibold text-neutral-900">
-                    OpenSEO MCP
+                    Bodkin Search MCP
                   </span>
                   <span className="mt-0.5 block text-xs leading-relaxed text-neutral-600">
                     Connect Claude, Codex, and agents.

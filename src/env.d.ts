@@ -3,6 +3,10 @@
 
 declare namespace Cloudflare {
   interface Env {
+    CLIENT_WORKSPACES_ENABLED?: string;
+    WORKSPACE_INVITATIONS_ENABLED?: string;
+    LOOPS_TRANSACTIONAL_WORKSPACE_INVITE_ID?: string;
+    WORKSPACE_APP_URL?: string;
     R2: R2Bucket;
     OAUTH_KV: KVNamespace;
 
@@ -40,6 +44,12 @@ declare namespace Cloudflare {
     AUTUMN_WEBHOOK_SECRET?: string;
     // HMAC secret for the operator-only GDPR storage-erasure endpoint.
     GDPR_ERASURE_SECRET?: string;
+    ANALYTICS_NETWORK_HMAC_SECRET?: string;
+    ANALYTICS_ERASURE_HMAC_SECRET?: string;
+    ANALYTICS_ADMIN_USER_IDS?: string;
+    ANALYTICS_IDENTITY_ASSERTION_SECRET?: string;
+    ANALYTICS_SERVER_EVENT_SECRET?: string;
+    ANALYTICS_WEBHOOK_HOSTS?: string;
 
     // Cloudflare Turnstile — signup captcha (hosted only). Secret verifies
     // tokens server-side; site key is public and inlined into the client build.
@@ -57,6 +67,7 @@ declare namespace Cloudflare {
 }
 
 interface ImportMetaEnv {
+  readonly CLIENT_WORKSPACES_ENABLED?: string;
   readonly AUTH_MODE?: "cloudflare_access" | "local_noauth" | "hosted";
   readonly DATABASE_PROVIDER?: "d1" | "postgres";
   readonly BYPASS_EMAIL_VERIFICATION?: string;

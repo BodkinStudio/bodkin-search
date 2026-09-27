@@ -1,6 +1,6 @@
-# Running OpenSEO on Postgres locally
+# Running Bodkin Search on Postgres locally
 
-OpenSEO runs on **Cloudflare D1 (SQLite) by default**. Postgres is an opt-in
+Bodkin Search runs on **Cloudflare D1 (SQLite) by default**. Postgres is an opt-in
 backend for installs that outgrow D1's storage ceiling. The application code is
 written once against a provider-aware `db` layer (see `src/db/`), so the only
 difference at runtime is the `DATABASE_PROVIDER` flag and a connection string.

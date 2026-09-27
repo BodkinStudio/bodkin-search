@@ -4,17 +4,17 @@ These are lightweight ADRs. Codex should treat accepted decisions as constraints
 
 ---
 
-## ADR-001 - Build on OpenSEO
+## ADR-001 - Build on Bodkin Search
 
 **Status:** Accepted
 
 ### Decision
 
-Bodkin Growth begins as a fork/extension of OpenSEO.
+Bodkin Growth begins as a fork/extension of Bodkin Search.
 
 ### Why
 
-OpenSEO already provides the core SEO data and agent substrate.
+Bodkin Search already provides the core SEO data and agent substrate.
 
 ### Consequence
 
@@ -32,7 +32,7 @@ Do not create a standalone Growth API/database/MCP for the MVP.
 
 ### Why
 
-It duplicates OpenSEO tenancy, auth, data and MCP.
+It duplicates Bodkin Search tenancy, auth, data and MCP.
 
 ### Revisit when
 
@@ -46,7 +46,7 @@ A concrete extraction condition in `00_REVIEW_AND_DECISIONS.md` is met.
 
 ### Decision
 
-Add project-scoped `growth_*` tools to OpenSEO's MCP.
+Add project-scoped `growth_*` tools to Bodkin Search's MCP.
 
 ### Why
 
@@ -164,7 +164,7 @@ MVP can automatically detect/analyse/recommend but does not autonomously publish
 
 ---
 
-## ADR-012 - Reuse existing OpenSEO data history
+## ADR-012 - Reuse existing Bodkin Search data history
 
 **Status:** Accepted
 
@@ -180,7 +180,7 @@ Do not duplicate rank/backlink/etc history unless reproducibility requires a spe
 
 ### Decision
 
-Growth schema and queries follow OpenSEO's dual-provider requirements.
+Growth schema and queries follow Bodkin Search's dual-provider requirements.
 
 ---
 
@@ -226,7 +226,7 @@ A single score tends to obscure rather than improve decisions.
 
 ---
 
-## ADR-017 - OpenSEO upstream remains active dependency
+## ADR-017 - Bodkin Search upstream remains active dependency
 
 **Status:** Accepted
 
@@ -236,7 +236,7 @@ Regularly inspect/merge upstream and delete redundant fork code.
 
 ### Why
 
-OpenSEO is moving quickly and may implement planned features first.
+Bodkin Search is moving quickly and may implement planned features first.
 
 ---
 
@@ -246,7 +246,7 @@ OpenSEO is moving quickly and may implement planned features first.
 
 ### Decision
 
-Generic OpenSEO enhancements should be considered for upstream PRs.
+Generic Bodkin Search enhancements should be considered for upstream PRs.
 
 Bodkin-specific commercial workflow remains in the fork.
 
@@ -282,7 +282,7 @@ Historic decisions must remain explainable when models/prompts change.
 
 ### Decision
 
-Bodkin Growth extends the existing OpenSEO project and Project Context models.
+Bodkin Growth extends the existing Bodkin Search project and Project Context models.
 
 - `growth_project_settings` is a one-to-one, project-keyed operational settings row. It stores only Growth enabled state, report scheduling preferences and scalar measurement-window defaults.
 - Existing business prose remains in `project_context_sections`; competitors remain in `project_competitors`.
@@ -297,7 +297,7 @@ Report cadence is either weekly or monthly. Weekly `report_day` uses ISO weekday
 
 ### Why
 
-OpenSEO already owns project identity, tenancy, context, competitors, key pages and authorization. Reusing those records keeps Growth state project-scoped, makes its metadata immediately available to existing Project Context readers, and avoids two sources of truth.
+Bodkin Search already owns project identity, tenancy, context, competitors, key pages and authorization. Reusing those records keeps Growth state project-scoped, makes its metadata immediately available to existing Project Context readers, and avoids two sources of truth.
 
 ### Deferred
 
@@ -407,7 +407,7 @@ Site-wide targets, event correction/void/supersession, unlinking, link audit met
 
 ### Why
 
-This is the smallest model that completes the existing Action lifecycle without allowing `measuring` Actions with no Plan, `evaluated` Actions with no Result or later observations that silently rewrite a reported outcome. It preserves scalar arithmetic truth and provenance while leaving data collection to the OpenSEO services that already own GSC, GA4, rank, backlink and audit semantics.
+This is the smallest model that completes the existing Action lifecycle without allowing `measuring` Actions with no Plan, `evaluated` Actions with no Result or later observations that silently rewrite a reported outcome. It preserves scalar arithmetic truth and provenance while leaving data collection to the Bodkin Search services that already own GSC, GA4, rank, backlink and audit semantics.
 
 ### Deferred
 
@@ -448,7 +448,7 @@ Automatic source selection, historical as-of queries, KPI/provider collection, s
 ### Decision
 
 - Growth collects search facts through `GscService.getPerformance` and reads the existing project's curated key pages. It does not add Google OAuth, a provider client, source tables or another scheduler.
-- A collection covers explicit inclusive dates, at most 90 days, in Google's `America/Los_Angeles` source calendar. It requests `web` and `final` data, with an end at least three calendar days before the supplied capture date. The adapter checks the actual request returned by OpenSEO so its 16-month clamp cannot silently shorten a comparison.
+- A collection covers explicit inclusive dates, at most 90 days, in Google's `America/Los_Angeles` source calendar. It requests `web` and `final` data, with an end at least three calendar days before the supplied capture date. The adapter checks the actual request returned by Bodkin Search so its 16-month clamp cannot silently shorten a comparison.
 - Version 2 collects bounded exact `page equals` alias queries grouped by date instead of using the unfiltered page/date feed to prove a page had traffic every calendar day. The four HTTP/HTTPS and www/non-www aliases retained by the existing normalizer are queried serially, with the existing 25-call cap; an alias set that cannot be fully covered is explicitly capped/incomplete. Omitted dates within a successfully completed exact query mean no reported traffic for that alias/window, while a capped or malformed request remains unknown. Google's [query reference](https://developers.google.com/webmaster-tools/v1/searchanalytics/query) and [performance guide](https://developers.google.com/webmaster-tools/v1/how-tos/all-your-data) document this sparse-row behavior.
 - The DTO holds bounded observed daily click/impression facts and source URLs, plus property, capture and retrieval metadata. It excludes connection email, tokens and raw provider payloads. Provider/request/property drift, duplicate raw URL/day coordinates and invalid source facts fail collection.
 - URL matching reuses the existing key-page normalizer unchanged. HTTP/HTTPS, leading `www` and root-slash aliases can map to one key-page ID; meaningful queries, path case, non-root trailing slashes and subdomains remain distinct. Numeric aggregation preserves source coordinates and rejects unsafe sums.
@@ -576,7 +576,7 @@ remain deferred.
 
 ### Why
 
-OpenSEO already owns Search Console authentication and retrieval, while the
+Bodkin Search already owns Search Console authentication and retrieval, while the
 Growth Measurement aggregate already owns immutable scalar evidence. Joining
 those boundaries closes the data-collection gap without creating a second data
 platform and without turning Google's omitted rows into invented zero traffic.
@@ -767,7 +767,7 @@ Historical or custom-period reads, build and publication actions, scheduled deli
   Structured content returns only the sanitized Action summaries, bounded target
   projections and truthful continuation cursor approved by the shared DTO.
   Human-readable text is derived from that same page.
-- The tool reads saved OpenSEO data, uses zero credits and makes no provider or
+- The tool reads saved Bodkin Search data, uses zero credits and makes no provider or
   mutation call. The external MCP server and project-bound SAM agent share the
   exact definition; SAM strips the model-visible project ID, injects its bound
   session project, and preserves the remaining filters and cursor unchanged.

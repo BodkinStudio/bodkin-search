@@ -22,7 +22,7 @@ const repo = {
 const currentImport: LinkedInImportRecord = {
   id: "current",
   projectId: "project-1",
-  pageName: "OpenSEO",
+  pageName: "Bodkin Search",
   startDate: "2026-08-01",
   endDate: "2026-08-31",
   importedAt: "2026-09-01T12:00:00.000Z",
@@ -62,7 +62,7 @@ function metricRow(
 
 const importCommand = {
   projectId: "project-1",
-  pageName: "OpenSEO",
+  pageName: "Bodkin Search",
   startDate: "2026-08-01",
   endDate: "2026-08-31",
   posts: [
@@ -103,7 +103,7 @@ describe("LinkedInPageContentService", () => {
     const stored = repo.replaceImport.mock.calls[0]?.[0];
     expect(stored).toMatchObject({
       projectId: "project-1",
-      pageName: "OpenSEO",
+      pageName: "Bodkin Search",
     });
     expect(stored?.posts[0]?.postKey).toMatch(/^[a-f0-9]{64}$/);
   });

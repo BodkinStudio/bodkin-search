@@ -1,9 +1,9 @@
 ---
-title: "Set up OpenSEO MCP"
-description: "Connect OpenSEO MCP to Claude, Codex, and other AI clients."
+title: "Set up Bodkin Search MCP"
+description: "Connect Bodkin Search MCP to Claude, Codex, and other AI clients."
 ---
 
-OpenSEO MCP lets compatible AI clients call OpenSEO tools for keyword research, SERP inspection, local business research, competitive search intelligence, domain research, backlink overview, saved keywords, rank tracking, shared project context, and Google Search Console performance and URL inspection.
+Bodkin Search MCP lets compatible AI clients call Bodkin Search tools for keyword research, SERP inspection, local business research, competitive search intelligence, domain research, backlink overview, saved keywords, rank tracking, shared project context, and Google Search Console performance and URL inspection.
 
 The hosted MCP server URL is:
 
@@ -11,28 +11,28 @@ The hosted MCP server URL is:
 https://app.openseo.so/mcp
 ```
 
-The first connection sends you through OpenSEO login. After authorization, your MCP client can call OpenSEO tools with the project context and account scopes you approved. For headless environments and CI, [connect with an API key](#connect-with-an-api-key) instead.
+The first connection sends you through Bodkin Search login. After authorization, your MCP client can call Bodkin Search tools with the project context and account scopes you approved. For headless environments and CI, [connect with an API key](#connect-with-an-api-key) instead.
 
-For the most current setup UI and a copyable endpoint, open [AI & MCP in OpenSEO](https://app.openseo.so/ai).
+For the most current setup UI and a copyable endpoint, open [AI & MCP in Bodkin Search](https://app.openseo.so/ai).
 
 ## Claude Code
 
-The [OpenSEO plugin](/docs/claude-code-plugin) is the preferred way to connect Claude Code — one install adds MCP and all nine Agent Skills together. Use the steps below only if you want MCP on its own.
+The [Bodkin Search plugin](/docs/claude-code-plugin) is the preferred way to connect Claude Code — one install adds MCP and all nine Agent Skills together. Use the steps below only if you want MCP on its own.
 
-Use user scope to make OpenSEO available across projects. Use local scope for the current repository.
+Use user scope to make Bodkin Search available across projects. Use local scope for the current repository.
 
 ```bash
 claude mcp add --transport http --scope user openseo https://app.openseo.so/mcp
 ```
 
-After adding the server, approve the OpenSEO login when prompted.
+After adding the server, approve the Bodkin Search login when prompted.
 
 ## Claude Desktop
 
 1. Open Settings -> Connectors.
 2. Click Add custom connector.
 3. Paste `https://app.openseo.so/mcp`.
-4. Approve the OpenSEO login when prompted.
+4. Approve the Bodkin Search login when prompted.
 
 Claude Desktop custom connectors require a Claude plan that supports custom connectors.
 
@@ -52,11 +52,11 @@ Claude Desktop custom connectors require a Claude plan that supports custom conn
 }
 ```
 
-4. Approve the OpenSEO login when prompted.
+4. Approve the Bodkin Search login when prompted.
 
 ## Codex CLI
 
-The [OpenSEO plugin](/docs/codex-plugin) is the preferred way to connect Codex CLI — one install adds MCP and all nine Agent Skills together. Use the steps below only if you want MCP on its own.
+The [Bodkin Search plugin](/docs/codex-plugin) is the preferred way to connect Codex CLI — one install adds MCP and all nine Agent Skills together. Use the steps below only if you want MCP on its own.
 
 Run this in your terminal:
 
@@ -71,13 +71,13 @@ Approve the login when prompted.
 1. Open Settings -> Integrations & MCP.
 2. Click Add your own.
 3. Paste `https://app.openseo.so/mcp`.
-4. Approve the OpenSEO login when prompted.
+4. Approve the Bodkin Search login when prompted.
 
 ## Connect with an API key
 
 Use an API key in headless environments, CI, or clients where OAuth is inconvenient. API keys are personal: anything an agent does with your key acts as you in your workspace.
 
-In the [OpenSEO app](https://app.openseo.so/settings), open **Settings -> API keys**, create a key, and copy it when it appears. It won't be shown again.
+In the [Bodkin Search app](https://app.openseo.so/settings), open **Settings -> API keys**, create a key, and copy it when it appears. It won't be shown again.
 
 For Claude Code, run:
 
@@ -111,7 +111,7 @@ Any other client that supports custom HTTP headers can send `Authorization: Bear
 
 ## Available tools
 
-OpenSEO MCP exposes tools for SEO research workflows:
+Bodkin Search MCP exposes tools for SEO research workflows:
 
 - Research keywords with volume, difficulty, and CPC.
 - Fetch live Google organic SERP results for keywords.
@@ -124,8 +124,8 @@ OpenSEO MCP exposes tools for SEO research workflows:
 - Look up valid Google Business category slugs.
 - Check Google Maps rank at each point of a grid around a business.
 - Hydrate keywords with search volume, difficulty, intent, CPC, and trends.
-- List saved keywords from an OpenSEO project.
-- Save useful keywords back to OpenSEO.
+- List saved keywords from a Bodkin Search project.
+- Save useful keywords back to Bodkin Search.
 - Read rank tracker configs and latest keyword positions.
 - Summarize a domain's organic footprint.
 - Find keywords a domain already ranks for.
@@ -136,7 +136,7 @@ OpenSEO MCP exposes tools for SEO research workflows:
 
 ## What to do after setup
 
-Once OpenSEO MCP is connected, [set up OpenSEO Agent Skills](/docs/skills/setup). MCP gives your agent access to OpenSEO data. Skills are separate `SKILL.md` files that tell your agent how to use that data for specific SEO jobs.
+Once Bodkin Search MCP is connected, [set up Bodkin Search Agent Skills](/docs/skills/setup). MCP gives your agent access to Bodkin Search data. Skills are separate `SKILL.md` files that tell your agent how to use that data for specific SEO jobs.
 
 Start with one focused workflow instead of asking your agent to "do SEO" broadly.
 
@@ -154,6 +154,6 @@ If your client cannot connect, check that the server URL is exactly `https://app
 
 If Codex reports `Authorization server response missing required issuer: expected https://app.openseo.so`, upgrade Codex CLI or the Codex desktop app to 0.147.0 or later. Codex 0.143 through 0.146 drop the issuer from the OAuth callback. You can also [connect with an API key](#connect-with-an-api-key) instead of OAuth.
 
-If authorization fails, disconnect the OpenSEO server in your client, add it again, and repeat the login flow.
+If authorization fails, disconnect the Bodkin Search server in your client, add it again, and repeat the login flow.
 
-If your agent cannot find a project, ask it to list OpenSEO projects first and use the returned project ID in later tool calls.
+If your agent cannot find a project, ask it to list Bodkin Search projects first and use the returned project ID in later tool calls.

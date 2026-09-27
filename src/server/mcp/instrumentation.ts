@@ -1,3 +1,4 @@
+import { requireLegacyAutomationMode } from "@/server/features/workspaces/workspace-mode";
 import { waitUntil } from "cloudflare:workers";
 import type { CallToolResult } from "@modelcontextprotocol/server";
 import type { z } from "zod";
@@ -86,6 +87,7 @@ export function instrumentMcpToolHandler<TArgs>(
   return async (args, context) => {
     const startedAt = performance.now();
     try {
+      requireLegacyAutomationMode();
       const result = await handler(args, context);
       // The SDK converts an output-schema mismatch into a client-visible
       // JSON-RPC error, so count it as a failed call, not a success.

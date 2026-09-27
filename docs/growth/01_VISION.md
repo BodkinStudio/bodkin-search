@@ -59,7 +59,7 @@ Through project configuration and eventually Sherpa:
 
 ## Search performance
 
-Through OpenSEO and first-party sources:
+Through Bodkin Search and first-party sources:
 
 - queries;
 - pages;
@@ -351,13 +351,13 @@ Report evidence of improvement without pretending to have perfect causal attribu
 
 Do not overwrite the reason a decision was made.
 
-## 8.9 Use OpenSEO rather than rebuilding OpenSEO
+## 8.9 Use Bodkin Search rather than rebuilding Bodkin Search
 
 Growth should extend the base product instead of copying it.
 
 ## 8.10 Upstream-friendly engineering
 
-Avoid unnecessary divergence from OpenSEO's conventions and architecture.
+Avoid unnecessary divergence from Bodkin Search's conventions and architecture.
 
 ---
 
@@ -373,7 +373,7 @@ The initial product is not:
 - a public multi-tenant SaaS;
 - a black-box "SEO score";
 - a promise of exact SEO attribution;
-- a reason to rebuild existing OpenSEO features.
+- a reason to rebuild existing Bodkin Search features.
 
 ---
 

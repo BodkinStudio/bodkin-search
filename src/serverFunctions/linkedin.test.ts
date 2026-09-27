@@ -112,7 +112,7 @@ describe("LinkedIn server functions", () => {
     await registration.handlers[0]?.({
       data: {
         projectId: "forged",
-        pageName: "OpenSEO",
+        pageName: "Bodkin Search",
         startDate: "2026-08-01",
         endDate: "2026-08-31",
         posts: [post],
@@ -149,7 +149,7 @@ describe("LinkedIn server functions", () => {
       invoke(importLinkedInPageContent, {
         data: {
           projectId: "p",
-          pageName: "OpenSEO",
+          pageName: "Bodkin Search",
           startDate: "2026-08-01",
           endDate: "2026-08-31",
           posts: [post],

@@ -1,10 +1,10 @@
 # Sources and Assumptions
 
-This planning pack was updated on 29 August 2026 against the then-current public OpenSEO repository/documentation.
+This planning pack was updated on 29 August 2026 against the then-current public Bodkin Search repository/documentation.
 
 Codex should treat implementation facts as potentially stale and inspect current upstream before coding.
 
-## OpenSEO
+## Bodkin Search
 
 - Repository: https://github.com/every-app/open-seo
 - Product: https://openseo.so/
@@ -15,7 +15,7 @@ Codex should treat implementation facts as potentially stale and inspect current
 
 At review time the repository exposed organisation-scoped projects, rank-history tables, backlink-history tables, GSC/MCP tooling, Cloudflare workflows, D1 and Postgres paths, Better Auth and an MCP server.
 
-## Relevant OpenSEO areas that were changing
+## Relevant Bodkin Search areas that were changing
 
 Recent public issues/PRs included work or proposals around:
 

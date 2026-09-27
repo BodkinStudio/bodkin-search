@@ -85,7 +85,7 @@ describe("LinkedInPageContentRepository", () => {
     await repository.replaceImport({
       id: "august-old",
       projectId: "project-1",
-      pageName: "OpenSEO",
+      pageName: "Bodkin Search",
       startDate: "2026-08-01",
       endDate: "2026-08-31",
       importedAt: "2026-09-01T00:00:00.000Z",
@@ -94,7 +94,7 @@ describe("LinkedInPageContentRepository", () => {
     await repository.replaceImport({
       id: "july",
       projectId: "project-1",
-      pageName: "OpenSEO",
+      pageName: "Bodkin Search",
       startDate: "2026-07-01",
       endDate: "2026-07-31",
       importedAt: "2026-08-01T00:00:00.000Z",
@@ -112,7 +112,7 @@ describe("LinkedInPageContentRepository", () => {
     await repository.replaceImport({
       id: "august-new",
       projectId: "project-1",
-      pageName: "OpenSEO",
+      pageName: "Bodkin Search",
       startDate: "2026-08-01",
       endDate: "2026-08-31",
       importedAt: "2026-09-02T00:00:00.000Z",
@@ -141,7 +141,7 @@ describe("LinkedInPageContentRepository", () => {
     await repository.replaceImport({
       id: "september",
       projectId: "project-1",
-      pageName: "OpenSEO",
+      pageName: "Bodkin Search",
       startDate: "2026-09-01",
       endDate: "2026-09-30",
       importedAt: "2026-10-01T00:00:00.000Z",

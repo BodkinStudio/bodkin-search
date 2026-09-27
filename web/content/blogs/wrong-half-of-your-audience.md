@@ -17,21 +17,21 @@ A property manager fills a vacancy without help from you. Zillow does that. The 
 
 Both audiences search for property management and land on the same contact form, and only one of them pays.
 
-If you want an agent to run the audit below, connect the [OpenSEO MCP](/docs/mcp) first so it can pull your live ranking and Search Console data.
+If you want an agent to run the audit below, connect the [Bodkin Search MCP](/docs/mcp) first so it can pull your live ranking and Search Console data.
 
 ## Table of Contents
 
 - [The variable intent mapping leaves out](#the-variable-intent-mapping-leaves-out)
 - [Three stages of owner intent](#three-stages-of-owner-intent)
 - [The rungs above the stages](#the-rungs-above-the-stages)
-- [Do it with OpenSEO](#do-it-with-openseo)
+- [Do it with Bodkin Search](#do-it-with-openseo)
 - [What to do Monday morning](#what-to-do-monday-morning)
 
 ## The variable intent mapping leaves out
 
 Sort "rental homes in Baldwin Park" and "property management companies Baldwin Park" through the standard four-type model and both come back commercial. Run them through the hot, warm, and cold map in our [search intent guide](/library/keyword-research/search-intent-mapping) and both look warm. That model describes what a searcher wants to do. It carries nothing about who the searcher is, and in a two-sided business that variable decides whether the click has any value at all.
 
-![OpenSEO keyword research results for property management in Orlando, where the intent column labels both tenant queries and owner queries as commercial, with an added audience column marking each row tenant or owner](/blog/wrong-half-of-your-audience/audience-intent-table-openseo.png)
+![Bodkin Search keyword research results for property management in Orlando, where the intent column labels both tenant queries and owner queries as commercial, with an added audience column marking each row tenant or owner](/blog/wrong-half-of-your-audience/audience-intent-table-openseo.png)
 
 Any company with a supply side and a demand side inherits the problem. Recruiters and candidates. Hosts and guests. The keyword database cannot see the split, because both sides reach for the same nouns.
 
@@ -59,7 +59,7 @@ Stack Alyssa's ladder on Alex's stages and the output is a grid instead of a lis
 
 ![A three by three grid of owner buying stages against content ladder rungs, with two cells filled to show existing pages and seven left empty](/blog/wrong-half-of-your-audience/audience-rung-grid-openseo.png)
 
-## Do it with OpenSEO
+## Do it with Bodkin Search
 
 No keyword tool can label audience for you. That label lives in your sales calls, not in a database, so pull the vocabulary each side uses from your own recordings first. Our [seed keywords guide](/library/keyword-research/seed-from-conversation) covers the extraction. Then hand your agent the labels and let it sort what you already rank for.
 
@@ -108,4 +108,4 @@ Open your five highest-traffic pages and name the customer each one was written 
 
 Then run the prompt against the rest of the site. The number to watch is the share: how much of your organic footprint you built for people who were never going to buy from you. Alex's clients keep finding that their best page by every metric in the report was written for the customer who does not buy, which reorders the content calendar before a single new keyword gets mined.
 
-[OpenSEO](https://openseo.so/) is an affordable, open-source SEO tool that connects your ranking, keyword, and Search Console data in one place, so an audit like this runs as a prompt instead of a spreadsheet afternoon.
+[Bodkin Search](https://openseo.so/) is an affordable, open-source SEO tool that connects your ranking, keyword, and Search Console data in one place, so an audit like this runs as a prompt instead of a spreadsheet afternoon.

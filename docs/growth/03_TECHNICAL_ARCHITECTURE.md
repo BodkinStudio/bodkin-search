@@ -2,7 +2,7 @@
 
 ## 1. Architecture stance
 
-Build Bodkin Growth as a **modular extension of an OpenSEO fork**.
+Build Bodkin Growth as a **modular extension of a Bodkin Search fork**.
 
 Do not create a second application until a specific need justifies it.
 
@@ -10,9 +10,9 @@ Target:
 
 ```text
 ┌──────────────────────────────────────────────┐
-│              Bodkin OpenSEO Fork             │
+│              Bodkin Bodkin Search Fork             │
 │                                              │
-│  Existing OpenSEO                            │
+│  Existing Bodkin Search                            │
 │  ├─ projects / organisations                 │
 │  ├─ DataForSEO                               │
 │  ├─ keyword research                         │
@@ -43,7 +43,7 @@ Target:
 
 # 2. Upstream assumptions
 
-At the time this plan was written, OpenSEO uses:
+At the time this plan was written, Bodkin Search uses:
 
 - TypeScript;
 - React;
@@ -58,7 +58,7 @@ At the time this plan was written, OpenSEO uses:
 - MCP SDK/server packages;
 - Cloudflare workflow primitives.
 
-OpenSEO's own `AGENTS.md` requires:
+Bodkin Search's own `AGENTS.md` requires:
 
 - simple, readable code;
 - reuse of existing implementations;
@@ -88,7 +88,7 @@ Or equivalent depending on fork creation.
 Maintain:
 
 ```text
-upstream/main = OpenSEO
+upstream/main = Bodkin Search
 origin/main   = Bodkin maintained branch
 ```
 
@@ -159,7 +159,7 @@ src/server/mcp/tools/
 └── ...
 ```
 
-Exact paths should match current OpenSEO conventions discovered in the fork.
+Exact paths should match current Bodkin Search conventions discovered in the fork.
 
 ---
 
@@ -509,7 +509,7 @@ Report content may reasonably contain bounded structured JSON because it is a fr
 
 ---
 
-# 7. Reuse existing OpenSEO data
+# 7. Reuse existing Bodkin Search data
 
 Codex should first locate canonical services for:
 
@@ -524,7 +524,7 @@ Codex should first locate canonical services for:
 
 Growth services should call these services/repositories.
 
-Do not call DataForSEO directly from Growth if an OpenSEO service already wraps the same operation.
+Do not call DataForSEO directly from Growth if a Bodkin Search service already wraps the same operation.
 
 Benefits:
 
@@ -768,7 +768,7 @@ Rules:
 
 # 13. Scheduler / workflows
 
-Use OpenSEO's existing scheduling/workflow infrastructure.
+Use Bodkin Search's existing scheduling/workflow infrastructure.
 
 Do not introduce a second queue framework without evidence the current one is insufficient.
 
@@ -851,7 +851,7 @@ GSC-derived search metrics first
 GA4 adapter later
 ```
 
-Inspect OpenSEO upstream before writing any GA4 OAuth/storage layer because active upstream work may make custom implementation unnecessary.
+Inspect Bodkin Search upstream before writing any GA4 OAuth/storage layer because active upstream work may make custom implementation unnecessary.
 
 ---
 
@@ -888,11 +888,11 @@ This preserves a clean boundary.
 
 # 17. MCP architecture
 
-Extend OpenSEO's existing MCP server.
+Extend Bodkin Search's existing MCP server.
 
 ## Tool pattern
 
-Follow current OpenSEO conventions:
+Follow current Bodkin Search conventions:
 
 - one file per tool;
 - Zod input;
@@ -960,7 +960,7 @@ Requirements:
 
 # 18. MCP permissions
 
-OpenSEO API keys are user-level credentials.
+Bodkin Search API keys are user-level credentials.
 
 For Bodkin production, add explicit Growth operation checks.
 
@@ -1137,7 +1137,7 @@ Before client rollout, evaluate:
 - backup requirements;
 - migration operational maturity.
 
-Use OpenSEO's supported Postgres path if needed.
+Use Bodkin Search's supported Postgres path if needed.
 
 Do not create an entirely separate database for Growth.
 
@@ -1147,7 +1147,7 @@ Do not create an entirely separate database for Growth.
 
 Requirements:
 
-- reuse OpenSEO organisation/project authorisation;
+- reuse Bodkin Search organisation/project authorisation;
 - no raw OAuth tokens in model context;
 - no secrets in Growth evidence;
 - validate URLs belong to project domain where required;
@@ -1155,7 +1155,7 @@ Requirements:
 - log AI model/prompt version;
 - redact PII from analytics context;
 - least-privilege Google scopes;
-- encryption of stored credentials using existing OpenSEO patterns;
+- encryption of stored credentials using existing Bodkin Search patterns;
 - test cross-project access.
 
 ## Security tests
@@ -1183,7 +1183,7 @@ Every run should answer:
 - what did it cost?
 - did it create duplicate work?
 
-Use existing OpenSEO logging/telemetry patterns where possible.
+Use existing Bodkin Search logging/telemetry patterns where possible.
 
 Add a developer/admin run inspector before adding complicated auto-retry behaviour.
 
@@ -1284,7 +1284,7 @@ Sherpa / agents
 Bodkin Growth API/MCP
       ↓
 ┌───────────────┬──────────────┬───────────────┐
-│ OpenSEO       │ Analytics    │ Delivery      │
+│ Bodkin Search       │ Analytics    │ Delivery      │
 │ provider      │ provider     │ integrations  │
 └───────────────┴──────────────┴───────────────┘
 ```
@@ -1295,7 +1295,7 @@ The internal service interfaces proposed now should make extraction easier witho
 
 # 31. Technical definition of done for P0
 
-- no duplicated OpenSEO provider integration;
+- no duplicated Bodkin Search provider integration;
 - Growth schema works in both DB dialects;
 - monthly run deterministic core is testable without AI;
 - AI outputs validated;

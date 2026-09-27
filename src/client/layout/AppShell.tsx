@@ -14,6 +14,9 @@ import { getSeoApiKeyStatus } from "@/serverFunctions/config";
 import { getProjects } from "@/serverFunctions/projects";
 import { getLastProjectId } from "@/client/lib/active-project";
 
+import { workspaceSessionOptions } from "@/client/features/workspaces/WorkspaceSwitcher";
+import { canWorkspace } from "@/shared/workspaces/permissions";
+
 const DATAFORSEO_HELP_PATH = "/help/dataforseo-api-key";
 
 export function AuthenticatedAppLayout({
@@ -26,6 +29,13 @@ export function AuthenticatedAppLayout({
   banner?: React.ReactNode;
 }) {
   const location = useLocation();
+  const workspace = useQuery(workspaceSessionOptions());
+  const activeRole = workspace.data?.memberships.find(
+    (membership) => membership.id === workspace.data?.organizationId,
+  )?.role;
+  const canConfigure =
+    workspace.isSuccess &&
+    (!workspace.data.enabled || canWorkspace(activeRole ?? "", "admin"));
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const setupModalRef = React.useRef<HTMLDivElement | null>(null);
   const [showMissingSeoApiKeyModal, setShowMissingSeoApiKeyModal] =
@@ -56,7 +66,8 @@ export function AuthenticatedAppLayout({
   // builds links that self-correct via the route guard once data arrives.
   const sidebarProjectId =
     projectId ?? fallbackProjectId ?? rememberedProjectId;
-  const shouldCheckSeoApiKeyStatus = location.pathname !== BILLING_ROUTE;
+  const shouldCheckSeoApiKeyStatus =
+    canConfigure && location.pathname !== BILLING_ROUTE;
   const seoApiKeyStatusQuery = useQuery({
     queryKey: ["seoApiKeyStatus"],
     queryFn: () => getSeoApiKeyStatus(),
@@ -90,7 +101,9 @@ export function AuthenticatedAppLayout({
   ]);
 
   const shouldShowMissingSeoApiKeyModal =
-    showMissingSeoApiKeyModal && location.pathname !== DATAFORSEO_HELP_PATH;
+    canConfigure &&
+    showMissingSeoApiKeyModal &&
+    location.pathname !== DATAFORSEO_HELP_PATH;
 
   const shouldShowSeoApiWarning =
     !seoApiKeyStatusError &&
@@ -156,7 +169,7 @@ export function AuthenticatedAppLayout({
 
       <GscReEngagementModal
         projectId={sidebarProjectId}
-        suppressed={shouldShowMissingSeoApiKeyModal}
+        suppressed={!canConfigure || shouldShowMissingSeoApiKeyModal}
       />
     </div>
   );
@@ -181,7 +194,7 @@ function MobileTopBar({
         <Menu className="h-5 w-5" />
       </button>
       <Link to="/" className="ml-1 font-semibold text-base-content">
-        OpenSEO
+        Bodkin Search
       </Link>
     </div>
   );

@@ -3,7 +3,7 @@ name: competitive-landscape
 description: Map SEO market leaders, winning content themes, keyword coverage, backlinks, and strategic gaps.
 ---
 
-# OpenSEO Competitive Landscape
+# Bodkin Search Competitive Landscape
 
 ## Goal
 
@@ -27,7 +27,7 @@ The project-context tools are free and shared with the app and other agents.
 3. Before spending credits, check the research log. If the same research ran within the last 30 days, reuse that result and say so instead of re-buying it.
 4. On finish, write back what is durable with `update_project_context` — every confirmed competitor via `addCompetitors` with a short note on why they matter, plus `removeCompetitors` for entries you added that turned out irrelevant (leave rows the user added alone) — and append a research log entry: `{ appendResearchLog: { summary: "Competitive landscape: <market/query set>. Verdict: <conclusion>" } }`.
 
-## OpenSEO MCP tools
+## Bodkin Search MCP tools
 
 - `research_keywords`: discover representative market queries.
 - `get_keyword_metrics`: validate known query sets with volume, difficulty, intent, and trends.
@@ -83,7 +83,7 @@ Add:
 ## Guardrails
 
 - Distinguish SEO competitors from business competitors.
-- Do not overstate exact traffic when OpenSEO returns estimates.
+- Do not overstate exact traffic when Bodkin Search returns estimates.
 - If using a small query set, call the result directional.
 - Do not assume a publisher is a product competitor; label domain types clearly.
 - For local markets, distinguish organic-page winners from Maps/local-pack winners.

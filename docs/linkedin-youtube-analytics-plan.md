@@ -8,19 +8,19 @@ The delivered YouTube foundation uses a separate read-only OAuth grant, channel 
 
 ## Decisions
 
-LinkedIn Page Content analytics can now be imported manually without API approval. Page admins export the separate Content report from LinkedIn analytics, then upload `.xls`, `.xlsx`, or `.csv` after confirming the Page name and inclusive reporting dates. The raw workbook stays in the browser; OpenSEO stores only normalized post metrics and import provenance. Re-uploading the same project and exact period atomically replaces that snapshot; other periods remain. Followers, visitors, member/comment data, publishing, scraping, and LinkedIn API/OAuth remain deferred.
+LinkedIn Page Content analytics can now be imported manually without API approval. Page admins export the separate Content report from LinkedIn analytics, then upload `.xls`, `.xlsx`, or `.csv` after confirming the Page name and inclusive reporting dates. The raw workbook stays in the browser; Bodkin Search stores only normalized post metrics and import provenance. Re-uploading the same project and exact period atomically replaces that snapshot; other periods remain. Followers, visitors, member/comment data, publishing, scraping, and LinkedIn API/OAuth remain deferred.
 
 ## Manual LinkedIn Page Content workflow
 
 1. In LinkedIn Page admin analytics, open **Content** and export the required reporting period.
-2. In the OpenSEO project dashboard, choose the `.xls`, `.xlsx`, or `.csv` export, enter the Page name, and confirm the export's inclusive start and end dates.
+2. In the Bodkin Search project dashboard, choose the `.xls`, `.xlsx`, or `.csv` export, enter the Page name, and confirm the export's inclusive start and end dates.
 3. Review the ready message, then import. A second upload for the same project and exact period replaces that period atomically; a different period is retained for history and exact adjacent-period comparisons.
 
-OpenSEO parses the workbook in the browser and never uploads or stores the raw file. It retains Page name, reporting dates, import time, post URL/text/date, and the supported nullable Content metrics: impressions, members reached, video views, clicks, click-through rate, reactions, comments, reposts, follows, and LinkedIn's engagement rate. A blank provider value stays unknown rather than becoming zero. These normalized rows remain until that exact period is replaced or the project is deleted; project deletion cascades to all of its LinkedIn imports. The current slice does not accept Followers or Visitors reports and does not store member profiles, comments, or other member-level data.
+Bodkin Search parses the workbook in the browser and never uploads or stores the raw file. It retains Page name, reporting dates, import time, post URL/text/date, and the supported nullable Content metrics: impressions, members reached, video views, clicks, click-through rate, reactions, comments, reposts, follows, and LinkedIn's engagement rate. A blank provider value stays unknown rather than becoming zero. These normalized rows remain until that exact period is replaced or the project is deleted; project deletion cascades to all of its LinkedIn imports. The current slice does not accept Followers or Visitors reports and does not store member profiles, comments, or other member-level data.
 
 ## Product goal
 
-Let a project connect the channels where its content is published, inspect performance in OpenSEO, and give agents the same read-only evidence through MCP.
+Let a project connect the channels where its content is published, inspect performance in Bodkin Search, and give agents the same read-only evidence through MCP.
 
 The first release should answer a small set of questions:
 
@@ -29,7 +29,7 @@ The first release should answer a small set of questions:
 - Which topics and formats deserve another piece of content?
 - Where tagged links are available, did that attention lead to useful website traffic in GA4?
 
-This work should extend OpenSEO's first-party analytics model. It should not become a social publishing or community-management product.
+This work should extend Bodkin Search's first-party analytics model. It should not become a social publishing or community-management product.
 
 ## Recommended public roadmap placement
 
@@ -37,7 +37,7 @@ Add these items under **Soon**:
 
 ```md
 - YouTube Analytics integration
-  - Channel and video performance in OpenSEO and MCP.
+  - Channel and video performance in Bodkin Search and MCP.
 - LinkedIn Page analytics
   - Follower, visitor, and post performance.
   - Timing depends on LinkedIn API approval.
@@ -108,7 +108,7 @@ Gate: the development-tier integration works end to end and the standard-tier ap
 - Link tagged content to GA4 landing-page outcomes when a reliable URL or UTM value is present.
 - Include source, timezone, freshness, completeness, and comparison-period metadata in every report.
 
-Gate: users can move from a top post or video to its available website outcome without OpenSEO claiming causation from a correlation.
+Gate: users can move from a top post or video to its available website outcome without Bodkin Search claiming causation from a correlation.
 
 ### Weeks 10 to 12: launch and growth workflows
 

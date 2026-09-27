@@ -1,4 +1,4 @@
-# OpenSEO upstream map for Bodkin Growth
+# Bodkin Search upstream map for Bodkin Growth
 
 **Discovery date:** 29 August 2026
 **Local branch:** `main`
@@ -9,11 +9,11 @@ This map replaces planning assumptions with facts from the current fork. It does
 
 ## Executive decisions
 
-1. The thin-fork strategy still holds. OpenSEO already supplies the tenancy, provider, history, workflow and MCP substrate Growth needs.
+1. The thin-fork strategy still holds. Bodkin Search already supplies the tenancy, provider, history, workflow and MCP substrate Growth needs.
 2. Phase 1 must reuse project memory, competitors and key pages. It should not create parallel Growth project, competitor or priority-page models.
 3. GA4 is no longer future work. The fork has project connections, reporting services, diagnostics, a GSC/GA4 opportunity scorer and ten registered GA4-related MCP tools.
-4. Cloudflare self-hosting with D1 and Access Managed OAuth is the smallest supported prototype deployment. It covers the browser, Google connections and MCP. OpenSEO API keys are hosted-only, so the prototype should use OAuth rather than add another key system.
-5. OpenSEO has useful scheduling primitives, not a generic scheduler. Growth still needs its own due-selection, run lock, idempotency and workflow orchestration.
+4. Cloudflare self-hosting with D1 and Access Managed OAuth is the smallest supported prototype deployment. It covers the browser, Google connections and MCP. Bodkin Search API keys are hosted-only, so the prototype should use OAuth rather than add another key system.
+5. Bodkin Search has useful scheduling primitives, not a generic scheduler. Growth still needs its own due-selection, run lock, idempotency and workflow orchestration.
 6. The missing product is the operating layer: durable Signals, Recommendations, Actions, Change Events, Measurements and frozen Reports.
 
 ## Fork and upstream status
@@ -38,7 +38,7 @@ Use the supported Cloudflare self-host path for the P0/P1 prototype:
 | API keys     | Do not add a fork-specific key system. `oseo_` keys are available only with hosted Better Auth. Use Managed OAuth for P0. | `src/lib/auth.ts`; `src/server/mcp/api-key-auth.ts`                                                                                    |
 | Postgres     | Defer. The runtime abstraction exists, but standard non-production/self-host Alchemy does not bind Hyperdrive.            | `src/db/pg/client.ts`; `alchemy.run.ts`                                                                                                |
 
-This choice is suitable for an internal, read-first prototype. Before enabling Growth MCP writes or broader agency access, review the unresolved identity model: Cloudflare Access gives multiple staff one shared organization but no OpenSEO membership roles or API keys; hosted mode gives OAuth/API keys but is designed around a private one-user workspace. Do not solve that by adding another auth system.
+This choice is suitable for an internal, read-first prototype. Before enabling Growth MCP writes or broader agency access, review the unresolved identity model: Cloudflare Access gives multiple staff one shared organization but no Bodkin Search membership roles or API keys; hosted mode gives OAuth/API keys but is designed around a private one-user workspace. Do not solve that by adding another auth system.
 
 Docker with `local_noauth` is useful only for private local testing. It has no application authentication and does not emit Worker scheduled events.
 
@@ -59,11 +59,11 @@ Hosted mode uses Better Auth organizations and memberships, but “one user, one
 
 Exactly three modes are defined in `src/lib/auth-mode.ts`. Unset or invalid configuration fails closed to `cloudflare_access`.
 
-| Mode                | Application identity                          | Organization                                                   | MCP path                            |
-| ------------------- | --------------------------------------------- | -------------------------------------------------------------- | ----------------------------------- |
-| `hosted`            | Better Auth session; email/password or Google | Active organization, then earliest/default membership fallback | Workers OAuth or OpenSEO API key    |
-| `cloudflare_access` | Verified `cf-access-jwt-assertion`            | Constant shared workspace                                      | Cloudflare Access JWT/Managed OAuth |
-| `local_noauth`      | Fixed `local-admin` / `admin@localhost`       | Fixed delegated organization                                   | No authentication                   |
+| Mode                | Application identity                          | Organization                                                   | MCP path                               |
+| ------------------- | --------------------------------------------- | -------------------------------------------------------------- | -------------------------------------- |
+| `hosted`            | Better Auth session; email/password or Google | Active organization, then earliest/default membership fallback | Workers OAuth or Bodkin Search API key |
+| `cloudflare_access` | Verified `cf-access-jwt-assertion`            | Constant shared workspace                                      | Cloudflare Access JWT/Managed OAuth    |
+| `local_noauth`      | Fixed `local-admin` / `admin@localhost`       | Fixed delegated organization                                   | No authentication                      |
 
 Relevant implementation:
 
@@ -77,7 +77,7 @@ GSC and GA4 OAuth are provider connections, not additional application-auth mode
 
 ### API keys
 
-- OpenSEO API keys use the `oseo_` prefix and the Better Auth API-key plugin: `src/lib/auth-api-key.ts`, `src/lib/auth.ts`.
+- Bodkin Search API keys use the `oseo_` prefix and the Better Auth API-key plugin: `src/lib/auth-api-key.ts`, `src/lib/auth.ts`.
 - They can be created, listed and revoked only in hosted mode: `src/client/features/settings/ApiKeySettings.tsx`, `src/routes/_app/settings.tsx`.
 - Key tables exist in both database dialects: `src/db/better-auth-schema.ts`, `src/db/pg/better-auth-schema.ts`.
 - MCP accepts `x-api-key` or `Authorization: Bearer` only when the value begins `oseo_`: `src/server/mcp/api-key-auth.ts`.
@@ -160,7 +160,7 @@ server function / MCP / workflow
 - Lazy section barrel and exported client surface: `src/server/lib/dataforseo/sections.ts`, `src/server/lib/dataforseo/index.ts`.
 - Existing feature boundaries include backlinks (`src/server/features/backlinks/services/`), AI search (`src/server/features/ai-search/services/`), rank workflows (`src/server/workflows/RankCheckWorkflow.ts`) and audit Lighthouse (`src/server/lib/audit/lighthouse.ts`).
 
-Self-hosted calls bypass OpenSEO credit accounting; hosted calls check and record credits. Growth must call existing feature services where possible so it preserves cache, cost and provider-error behavior.
+Self-hosted calls bypass Bodkin Search credit accounting; hosted calls check and record credits. Growth must call existing feature services where possible so it preserves cache, cost and provider-error behavior.
 
 ### Google Search Console
 
@@ -368,7 +368,7 @@ Current upstream documentation has some drift: `web/content/docs/mcp.md` and the
 | Phase 1 needs a new project context, competitor model and priority-page table. | Project memory, normalized competitors and curated key pages now exist. Extend/reuse them.                                                              | `src/db/project-context.schema.ts`; `src/server/features/project-context/`                                  |
 | Existing key-page validation is sufficient for protected Growth writes.        | URLs are normalized but are not checked against the owning project's domain.                                                                            | `src/server/features/project-context/services/contextUpdateOps.ts`                                          |
 | Existing backlink snapshots are dependable historical snapshots.               | Capture is dashboard-visit-triggered; repository reads only latest.                                                                                     | `src/server/features/dashboard/services/DashboardService.ts`; `BacklinkSnapshotRepository.ts`               |
-| OpenSEO already has a reusable scheduler/queue.                                | It has a fixed cron dispatcher and two feature-specific Workflows, not a generic scheduler.                                                             | `src/server.ts`; `wrangler.jsonc`; `src/server/workflows/`                                                  |
+| Bodkin Search already has a reusable scheduler/queue.                          | It has a fixed cron dispatcher and two feature-specific Workflows, not a generic scheduler.                                                             | `src/server.ts`; `wrangler.jsonc`; `src/server/workflows/`                                                  |
 | Site audits are scheduled.                                                     | Audits are manually started; cron only reconciles dead/stale runs.                                                                                      | `src/serverFunctions/audit.ts`; `src/server/features/audit/services/auditReconciler.ts`                     |
 | AI visibility is historical product state.                                     | Current results are R2-cached live responses and browser-local history, with no project snapshots or MCP tools.                                         | `src/server/features/ai-search/`; `src/client/hooks/use*SearchHistory.ts`                                   |
 | Postgres is an immediately available self-host toggle.                         | Runtime support exists, but the standard self-host/non-production Alchemy path does not provision Hyperdrive.                                           | `src/db/provider.ts`; `src/db/pg/client.ts`; `alchemy.run.ts`                                               |
@@ -432,4 +432,4 @@ Only after this gate should Phase 2 add the narrow GSC adapter and the first det
 
 The rule for every session remains:
 
-> Reuse OpenSEO. Build only the missing Growth operating layer.
+> Reuse Bodkin Search. Build only the missing Growth operating layer.

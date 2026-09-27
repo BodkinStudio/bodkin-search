@@ -27,7 +27,7 @@ The first answer is a list of ideas. The second is a decision you can act on.
 
 ## How to set up Claude Code for SEO
 
-Two commands in Claude Code install the OpenSEO MCP server and all nine SEO agent skills:
+Two commands in Claude Code install the Bodkin Search MCP server and all nine SEO agent skills:
 
 ```
 /plugin marketplace add every-app/open-seo
@@ -42,7 +42,7 @@ Without a data source, an agent will invent search volumes that sound plausible 
 
 To acquire this data, someone has to crawl the whole internet and store everything people are searching for on Google. That's expensive, and it's why the big SEO suites run $100 a month and up.
 
-OpenSEO is $10 a month with $10 of usage credits included, and signing up is free with $0.50 of trial credits. Asking Claude questions costs nothing beyond your normal Claude usage. You only spend credits when the agent pulls real data, and a keyword lookup runs about five cents. Search Console data never costs credits, because it's your own data.
+Bodkin Search is $10 a month with $10 of usage credits included, and signing up is free with $0.50 of trial credits. Asking Claude questions costs nothing beyond your normal Claude usage. You only spend credits when the agent pulls real data, and a keyword lookup runs about five cents. Search Console data never costs credits, because it's your own data.
 
 ## Your first SEO prompt
 
@@ -92,7 +92,7 @@ Dictate a paragraph about your business: what you sell, who buys it, and what yo
 
 Ten minutes later you'll have a short, prioritized list and the reasoning behind it. Push back on it, then refine from there.
 
-That works with or without OpenSEO connected. With it, the answers come with real numbers attached.
+That works with or without Bodkin Search connected. With it, the answers come with real numbers attached.
 
 ## What each SEO skill does
 
@@ -128,7 +128,7 @@ Yes, and that's the point of working this way. The parts that used to require an
 
 ### How much does SEO cost?
 
-Your time, plus data. The data runs $10 a month with [OpenSEO](/pricing), $100 and up with the big suites, or a $50 minimum deposit with a raw data provider if you [self-host](/open-source-seo). Content costs whatever your time is worth. You don't need an agency to start.
+Your time, plus data. The data runs $10 a month with [Bodkin Search](/pricing), $100 and up with the big suites, or a $50 minimum deposit with a raw data provider if you [self-host](/open-source-seo). Content costs whatever your time is worth. You don't need an agency to start.
 
 ### How long does SEO take?
 

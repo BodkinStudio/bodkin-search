@@ -9,8 +9,8 @@ export const Route = createFileRoute("/_marketing/backlink-checker")({
       description:
         "Check backlinks for any domain: referring domains, top backlinks, anchor text, and follow status. Instant results, no signup required.",
       path: "/backlink-checker",
-      titleSuffix: "OpenSEO",
-      imageAlt: "OpenSEO free backlink checker",
+      titleSuffix: "Bodkin Search",
+      imageAlt: "Bodkin Search free backlink checker",
     }),
   component: BacklinkCheckerPage,
 });
@@ -19,12 +19,12 @@ const FAQS = [
   {
     question: "Where does the backlink data come from?",
     answer:
-      "Results come from DataForSEO's link index, the same data source that powers backlink research inside OpenSEO. The index is refreshed continuously, so counts can differ slightly from other tools that crawl the web on their own schedule.",
+      "Results come from DataForSEO's link index, the same data source that powers backlink research inside Bodkin Search. The index is refreshed continuously, so counts can differ slightly from other tools that crawl the web on their own schedule.",
   },
   {
     question: "How many backlinks can I see for free?",
     answer:
-      "The free checker shows a domain's summary metrics and its top 15 backlinks, one per referring domain, ranked by domain strength. Sign up for OpenSEO to page through the full list, see referring domains and anchors, filter out spam, and export the data.",
+      "The free checker shows a domain's summary metrics and its top 15 backlinks, one per referring domain, ranked by domain strength. Sign up for Bodkin Search to page through the full list, see referring domains and anchors, filter out spam, and export the data.",
   },
   {
     question: "Can I check a competitor's backlinks?",
@@ -122,7 +122,7 @@ function BacklinkCheckerPage() {
           Go deeper than a spot check
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--color-brand-muted)]">
-          OpenSEO puts full backlink analysis next to keyword research, rank
+          Bodkin Search puts full backlink analysis next to keyword research, rank
           tracking, and site audits — open source, starting free.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-4">
@@ -130,7 +130,7 @@ function BacklinkCheckerPage() {
             href="https://app.openseo.so/sign-up"
             className="inline-flex h-10 items-center justify-center rounded-lg bg-neutral-950 px-4 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
           >
-            Try OpenSEO
+            Try Bodkin Search
             <span aria-hidden="true" className="ml-2">
               &rarr;
             </span>

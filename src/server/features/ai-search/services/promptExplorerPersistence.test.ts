@@ -27,7 +27,7 @@ const { explorePrompt } = await import("./promptExplorer");
 
 const input: PromptExplorerInput = {
   projectId: "project-1",
-  prompt: "What is OpenSEO?",
+  prompt: "What is Bodkin Search?",
   models: ["chat_gpt"],
   webSearch: true,
   webSearchCountryCode: "GB" as const,

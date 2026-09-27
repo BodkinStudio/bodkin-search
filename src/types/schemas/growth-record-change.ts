@@ -5,7 +5,7 @@ import { growthManualChangeDtoSchema } from "./growth-recent-changes";
 const id = z.string().trim().min(1).max(100);
 const timestamp = z.string().datetime({ offset: true });
 const growthRecordChangeInputShape = {
-  projectId: id.describe("Authorized OpenSEO project ID"),
+  projectId: id.describe("Authorized Bodkin Search project ID"),
   requestKey: z
     .string()
     .uuid()

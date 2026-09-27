@@ -37,7 +37,7 @@ pnpm run deploy
 
 1. Open Cloudflare Zero Trust.
 2. Go to Access -> Applications.
-3. Open your OpenSEO application.
+3. Open your Bodkin Search application.
 4. Edit the `Allow` policy.
 5. Add teammate emails (or your company email domain / group).
 6. Save.
@@ -56,7 +56,7 @@ Replace `open-seo` with your bucket name if you changed it.
 
 ## Troubleshooting
 
-**Login fails or OpenSEO doesn't load.** Re-check, on your Worker under `Settings`:
+**Login fails or Bodkin Search doesn't load.** Re-check, on your Worker under `Settings`:
 
 - `Domains & Routes`: `Cloudflare Access` is enabled for the `workers.dev` route.
 - `Variables & Secrets`: `TEAM_DOMAIN` (for example `https://your-team.cloudflareaccess.com`), `POLICY_AUD` (the Access application audience tag), and `DATAFORSEO_API_KEY` are set.

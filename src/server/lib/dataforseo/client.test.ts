@@ -23,6 +23,7 @@ const { checkMock, trackMock, getOrCreateMock, isHostedServerAuthModeMock } =
   }));
 
 vi.mock("cloudflare:workers", () => ({
+  env: {},
   waitUntil: vi.fn(),
 }));
 

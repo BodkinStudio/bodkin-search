@@ -1,4 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { workspaceSessionOptions } from "@/client/features/workspaces/WorkspaceSwitcher";
+import { canWorkspace } from "@/shared/workspaces/permissions";
 import { z } from "zod";
 import { GrowthPlanPage } from "@/client/features/growth/plan/GrowthPlanPage";
 
@@ -17,13 +20,21 @@ export const Route = createFileRoute("/_project/p/$projectId/growth/")({
   component: GrowthPlanRoute,
 });
 
-function GrowthPlanRoute() {
+export function GrowthPlanRoute() {
   const { projectId } = Route.useParams();
   const { edit } = Route.useSearch();
+  const session = useQuery(workspaceSessionOptions());
+  const activeRole = session.data?.memberships.find(
+    (membership) => membership.id === session.data?.organizationId,
+  )?.role;
+  const canEdit =
+    session.isSuccess &&
+    (!session.data.enabled || canWorkspace(activeRole ?? "", "edit"));
   return (
     <GrowthPlanPage
       key={projectId}
       projectId={projectId}
+      canEdit={canEdit}
       defaultEdit={edit !== undefined && EDIT_VALUES.has(edit.toLowerCase())}
     />
   );

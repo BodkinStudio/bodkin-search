@@ -1,3 +1,4 @@
+import { clientWorkspacesEnabled } from "@/server/features/workspaces/workspace-mode";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import {
@@ -16,7 +17,7 @@ const LOCAL_ADMIN_EMAIL = "admin@localhost";
 // single user table means the OAuth `account` grant and every app table that
 // references `user.id` resolve the same way in all auth modes.
 function deriveUserName(email: string) {
-  return email.split("@")[0] || "OpenSEO";
+  return email.split("@")[0] || "Bodkin Search";
 }
 
 async function ensureUserRecord(userId: string, userEmail: string) {
@@ -60,10 +61,9 @@ async function resolveDelegatedContext(
   userEmail: string,
 ): Promise<EnsuredUserContext> {
   const ensuredEmail = await ensureUserRecord(userId, userEmail);
-  const organizationId = await ensureDelegatedOrganizationForUser(
-    userId,
-    ensuredEmail,
-  );
+  const organizationId = clientWorkspacesEnabled()
+    ? ""
+    : await ensureDelegatedOrganizationForUser(userId, ensuredEmail);
 
   return {
     userId,
@@ -82,7 +82,9 @@ export async function resolveSharedWorkspaceContext(
   userEmail: string,
 ): Promise<EnsuredUserContext> {
   const ensuredEmail = await ensureUserRecord(userId, userEmail);
-  const organizationId = await ensureSharedWorkspaceOrganization();
+  const organizationId = clientWorkspacesEnabled()
+    ? ""
+    : await ensureSharedWorkspaceOrganization();
 
   return {
     userId,

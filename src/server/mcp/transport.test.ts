@@ -41,8 +41,8 @@ vi.mock("@/server/mcp/server", () => ({
   createOpenSeoMcpServer: (props?: unknown) => {
     selfHostedAuthMocks.createOpenSeoMcpServer(props);
     return new McpServer({
-      name: "OpenSEO MCP",
-      title: "OpenSEO",
+      name: "Bodkin Search MCP",
+      title: "Bodkin Search",
       version: "0.0.11",
       description: "SEO research tools for AI agents",
       websiteUrl: "https://openseo.so",

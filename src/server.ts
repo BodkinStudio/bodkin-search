@@ -13,10 +13,7 @@ import { reconcileStaleAudits } from "@/server/features/audit/services/auditReco
 import { getOrCreateOrganizationCustomer } from "@/server/billing/subscription";
 import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 import { getAuthMode, isHostedAuthMode } from "@/lib/auth-mode";
-import {
-  createOpenSeoOAuthProvider,
-  type OpenSeoOAuthEnv,
-} from "@/server/mcp/oauth-provider";
+import { createOpenSeoOAuthProvider } from "@/server/mcp/oauth-provider";
 import { requestWithPublicOrigin } from "@/server/mcp/public-origin";
 import { MCP_ROUTE } from "@/server/mcp/context";
 import { handleSelfHostedOpenSeoMcpRequest } from "@/server/mcp/transport";
@@ -28,6 +25,7 @@ import {
 import { maybeSendSelfHostHeartbeat } from "@/server/lib/self-host-telemetry";
 import { handleGdprStorageErasure } from "@/server/gdpr/storage-erasure";
 import { GDPR_STORAGE_ERASURE_PATH } from "@/shared/gdpr-erasure";
+import { AnalyticsService } from "@/server/features/analytics/AnalyticsService";
 
 const appFetch = createStartHandler(defaultStreamHandler);
 const openSeoOAuthProvider = createOpenSeoOAuthProvider(appFetch);
@@ -153,7 +151,18 @@ function handleFetch(
     return handleGdprStorageErasure(publicRequest, env);
   }
 
+  if (
+    env.CLIENT_WORKSPACES_ENABLED === "true" &&
+    (pathname === MCP_ROUTE ||
+      /^\/api\/(gsc|ga4|youtube|linkedin)\/oauth\//.test(pathname))
+  )
+    return new Response(
+      "This integration is not enabled in client workspaces",
+      { status: 403 },
+    );
   if (pathname.startsWith("/agents/")) {
+    if (env.CLIENT_WORKSPACES_ENABLED === "true")
+      return new Response("Client chat is not enabled", { status: 403 });
     return routeChatAgents(publicRequest, env);
   }
 
@@ -162,11 +171,7 @@ function handleFetch(
       return handleAutumnWebhookRequest(publicRequest);
     }
 
-    return openSeoOAuthProvider.fetch(
-      publicRequest,
-      env as OpenSeoOAuthEnv,
-      ctx,
-    );
+    return openSeoOAuthProvider.fetch(publicRequest, env, ctx);
   }
 
   if (
@@ -195,6 +200,7 @@ export { AuditScratchpad } from "./server/features/audit/AuditScratchpad";
 const MCP_OAUTH_PURGE_CRON = "17 3 * * *";
 const GROWTH_MONTHLY_REVIEW_CRON = "23 * * * *";
 const GROWTH_WEEKLY_REVIEW_CRON = "37 * * * *";
+const ANALYTICS_RETENTION_CRON = "17 3 * * *";
 
 export default {
   fetch,
@@ -203,12 +209,15 @@ export default {
     env: Env,
     _ctx: ExecutionContext,
   ) {
+    if (controller.cron === ANALYTICS_RETENTION_CRON) {
+      await withPgClient(async () => {
+        await AnalyticsService.purgeExpired();
+      });
+    }
     if (controller.cron === MCP_OAUTH_PURGE_CRON) {
       // Only hosted mode runs the OAuth provider (and has OAUTH_KV bound).
       if (isHostedAuthMode(getAuthMode(env.AUTH_MODE))) {
-        const result = await openSeoOAuthProvider.purgeExpiredData(
-          env as OpenSeoOAuthEnv,
-        );
+        const result = await openSeoOAuthProvider.purgeExpiredData(env);
         console.log("[mcp-oauth] purged expired OAuth data", result);
         if (!result.done) {
           // The sweep only advances past live records via deletions; a
@@ -219,6 +228,8 @@ export default {
       return;
     }
 
+    if (env.CLIENT_WORKSPACES_ENABLED === "true") return;
+
     if (controller.cron === GROWTH_MONTHLY_REVIEW_CRON) {
       await withPgClient(() => runScheduledGrowthMonthlyReviews(env));
       return;
@@ -228,6 +239,16 @@ export default {
       await withPgClient(() => runScheduledGrowthWeeklyReviews(env));
       return;
     }
+
+    await withPgClient(() =>
+      AnalyticsService.deliverOutbox(
+        env.ANALYTICS_SERVER_EVENT_SECRET,
+        (env.ANALYTICS_WEBHOOK_HOSTS ?? "")
+          .split(",")
+          .map((host) => host.trim())
+          .filter(Boolean),
+      ),
+    );
 
     // Watchdog first: reconcile audits stuck in "running" whose workflow died
     // without reaching mark-failed (OOM/CPU kills, expired instances). Runs

@@ -1,3 +1,4 @@
+import { clientWorkspacesEnabled } from "@/server/features/workspaces/workspace-mode";
 import { createFileRoute } from "@tanstack/react-router";
 import { env } from "cloudflare:workers";
 import { getAuth, hasHostedAuthConfig } from "@/lib/auth";
@@ -16,6 +17,15 @@ async function handleAuthRequest(request: Request) {
     });
   }
 
+  if (
+    clientWorkspacesEnabled() &&
+    /^\/api\/auth\/(organization\/|oauth2\/|link-social|sign-in\/social)/.test(
+      new URL(request.url).pathname,
+    )
+  )
+    return new Response("Use workspace settings to manage membership.", {
+      status: 403,
+    });
   const auth = getAuth();
   return auth.handler(request);
 }

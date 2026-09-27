@@ -2,11 +2,11 @@
 
 ## Purpose
 
-This document re-evaluates the original Bodkin Growth concept after a closer review of the current OpenSEO product, codebase and MCP architecture.
+This document re-evaluates the original Bodkin Growth concept after a closer review of the current Bodkin Search product, codebase and MCP architecture.
 
 The conclusion is positive: **the core idea is still strong and worth building**.
 
-However, several technical assumptions from the first version should change. Most importantly, the earlier plan duplicated capabilities OpenSEO now already provides.
+However, several technical assumptions from the first version should change. Most importantly, the earlier plan duplicated capabilities Bodkin Search now already provides.
 
 ---
 
@@ -52,11 +52,11 @@ An Action can retain:
 
 That makes SEO delivery visible and auditable over time.
 
-## 1.3 OpenSEO is a strong foundation
+## 1.3 Bodkin Search is a strong foundation
 
 This view is stronger after inspecting the current repository.
 
-OpenSEO already contains:
+Bodkin Search already contains:
 
 - organisation-scoped projects;
 - project market/language context;
@@ -133,16 +133,16 @@ Bodkin Growth DB
     ↓
 Bodkin Growth MCP
     ↓
-OpenSEO
+Bodkin Search
 ```
 
-This made sense before inspecting OpenSEO's current internals.
+This made sense before inspecting Bodkin Search's current internals.
 
 ### Revised recommendation
 
 ```text
-Bodkin's OpenSEO fork
-├── existing OpenSEO capabilities
+Bodkin's Bodkin Search fork
+├── existing Bodkin Search capabilities
 └── Growth modules
       ├── signals
       ├── insights
@@ -152,7 +152,7 @@ Bodkin's OpenSEO fork
       ├── measurements
       └── reports
 
-Existing OpenSEO MCP
+Existing Bodkin Search MCP
 └── new Growth tools
 ```
 
@@ -162,10 +162,10 @@ This avoids duplicating auth, tenancy, provider calls, GSC state, schedules and 
 
 Only extract Growth into a separate service when one of these becomes true:
 
-1. Growth must aggregate several non-OpenSEO systems and OpenSEO becomes an awkward dependency.
-2. Upstream merges become consistently difficult because Growth changes core OpenSEO behaviour.
+1. Growth must aggregate several non-Bodkin Search systems and Bodkin Search becomes an awkward dependency.
+2. Upstream merges become consistently difficult because Growth changes core Bodkin Search behaviour.
 3. Scale/availability requirements differ substantially.
-4. Another Bodkin product needs Growth without OpenSEO.
+4. Another Bodkin product needs Growth without Bodkin Search.
 5. We need an independent public API boundary for commercial reasons.
 
 Do not extract merely because a service-oriented diagram looks cleaner.
@@ -174,7 +174,7 @@ Do not extract merely because a service-oriented diagram looks cleaner.
 
 # 3. Use a thin fork, not a rewrite
 
-The fork should preserve OpenSEO conventions.
+The fork should preserve Bodkin Search conventions.
 
 Prefer additive directories such as:
 
@@ -191,7 +191,7 @@ Do not:
 - duplicate GSC;
 - rebuild provider clients;
 - replace existing project tenancy;
-- rename every OpenSEO component immediately;
+- rename every Bodkin Search component immediately;
 - perform a broad visual rebrand before the workflow is proven.
 
 The first objective is product proof, not cosmetic ownership.
@@ -200,11 +200,11 @@ The first objective is product proof, not cosmetic ownership.
 
 # 4. Add Growth tools to the existing MCP before building a wrapper MCP
 
-The original plan proposed a separate "Bodkin Growth MCP" in front of OpenSEO.
+The original plan proposed a separate "Bodkin Growth MCP" in front of Bodkin Search.
 
 That can still be a later architecture, but it is premature initially.
 
-OpenSEO's MCP already:
+Bodkin Search's MCP already:
 
 - authenticates users/API keys;
 - resolves organisation membership;
@@ -234,7 +234,7 @@ Only introduce a gateway when it has a concrete aggregation or governance job th
 
 # 5. Do not duplicate raw historical data unnecessarily
 
-OpenSEO already stores some history, including rank snapshots and backlink snapshots.
+Bodkin Search already stores some history, including rank snapshots and backlink snapshots.
 
 Growth should primarily persist **derived operating state**:
 
@@ -249,7 +249,7 @@ Growth should primarily persist **derived operating state**:
 - reports;
 - run metadata.
 
-Where OpenSEO has a trustworthy canonical record, reference or query it.
+Where Bodkin Search has a trustworthy canonical record, reference or query it.
 
 Where a Growth decision needs reproducibility, store the minimum snapshot/evidence payload required to explain the decision later.
 
@@ -422,7 +422,7 @@ Sherpa/company context can become an important source of commercial relevance.
 
 # 11. GA4 should be an adapter, not an MVP blocker
 
-OpenSEO's GSC support is already mature enough to prove the SEO operating loop.
+Bodkin Search's GSC support is already mature enough to prove the SEO operating loop.
 
 GA4 is valuable for:
 
@@ -432,13 +432,13 @@ GA4 is valuable for:
 
 However:
 
-- its exact OpenSEO integration is evolving;
+- its exact Bodkin Search integration is evolving;
 - its MCP surface is still changing upstream;
 - analytics setups vary significantly by client.
 
 Therefore:
 
-1. ship the first closed loop with GSC + existing OpenSEO data;
+1. ship the first closed loop with GSC + existing Bodkin Search data;
 2. define a `GrowthAnalyticsProvider` interface;
 3. add GA4 once the product needs conversion evidence;
 4. inspect upstream before writing custom GA4 integration.
@@ -447,7 +447,7 @@ Therefore:
 
 # 12. AI visibility is useful but should not dominate the MVP
 
-AI visibility is strategically relevant and OpenSEO already has UI-level support.
+AI visibility is strategically relevant and Bodkin Search already has UI-level support.
 
 But the MVP should not over-weight AEO/LLM visibility simply because it is new.
 
@@ -502,7 +502,7 @@ This fits the product better and avoids unnecessary document-generation infrastr
 
 ## Proof of concept
 
-Use OpenSEO's supported development/self-hosting path with the smallest amount of custom infrastructure.
+Use Bodkin Search's supported development/self-hosting path with the smallest amount of custom infrastructure.
 
 ## Internal production
 
@@ -540,7 +540,7 @@ upstream -> every-app/open-seo
 
 Keep custom work modular and periodically rebase/merge upstream.
 
-Where a feature is generally useful to OpenSEO and not Bodkin-specific, consider upstreaming it.
+Where a feature is generally useful to Bodkin Search and not Bodkin-specific, consider upstreaming it.
 
 Good upstream candidates may include:
 
@@ -577,7 +577,7 @@ Proceed.
 But proceed with a smaller architectural bet than the original plan:
 
 ```text
-Fork OpenSEO
+Fork Bodkin Search
     ↓
 Add Growth operating primitives
     ↓
@@ -598,12 +598,12 @@ That path preserves the strongest part of the idea while avoiding a large amount
 
 # Research basis checked on 29 August 2026
 
-- OpenSEO repository: https://github.com/every-app/open-seo
-- OpenSEO MCP documentation: https://openseo.so/docs/mcp
-- OpenSEO Codex plugin documentation: https://openseo.so/docs/codex-plugin
-- OpenSEO features: https://openseo.so/features
-- OpenSEO current repository schema and development docs
-- OpenSEO open issues concerning GA4 MCP, AI visibility MCP and client reports
+- Bodkin Search repository: https://github.com/every-app/open-seo
+- Bodkin Search MCP documentation: https://openseo.so/docs/mcp
+- Bodkin Search Codex plugin documentation: https://openseo.so/docs/codex-plugin
+- Bodkin Search features: https://openseo.so/features
+- Bodkin Search current repository schema and development docs
+- Bodkin Search open issues concerning GA4 MCP, AI visibility MCP and client reports
 - Semantic.io public material describing automated SEO orchestration, cadence and auditability
 
-Codex must inspect the current upstream repository before implementing any assumption in this planning pack. OpenSEO is moving quickly.
+Codex must inspect the current upstream repository before implementing any assumption in this planning pack. Bodkin Search is moving quickly.

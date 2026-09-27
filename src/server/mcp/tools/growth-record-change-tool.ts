@@ -17,7 +17,7 @@ export const growthRecordChangeTool = {
   config: {
     title: "Record or Replay Manual Growth Change",
     description:
-      "Records one immutable manual Change Event for authorized project URLs. Reusing requestKey with the exact same fact safely replays the existing event; changing that fact conflicts. This writes saved OpenSEO state but uses zero credits and no providers. happenedAt is caller supplied, not independently verified. It does not link an Action, change Action status, or start Measurement.",
+      "Records one immutable manual Change Event for authorized project URLs. Reusing requestKey with the exact same fact safely replays the existing event; changing that fact conflicts. This writes saved Bodkin Search state but uses zero credits and no providers. happenedAt is caller supplied, not independently verified. It does not link an Action, change Action status, or start Measurement.",
     inputSchema: growthRecordChangeRequestSchema,
     outputSchema: z.strictObject({
       change: growthRecordedChangeDtoSchema,

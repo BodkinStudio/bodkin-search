@@ -205,7 +205,7 @@ export const getYouTubeChannelOverviewTool = {
   config: {
     title: "Get YouTube channel overview",
     description:
-      "Read a connected YouTube channel's views, watch time, engagement, subscriber change, equal-length previous-period comparison, and daily views trend. Read-only and uses no OpenSEO credits.",
+      "Read a connected YouTube channel's views, watch time, engagement, subscriber change, equal-length previous-period comparison, and daily views trend. Read-only and uses no Bodkin Search credits.",
     inputSchema,
     outputSchema,
     annotations: {
@@ -234,7 +234,7 @@ export const getYouTubeVideoPerformanceTool = {
   config: {
     title: "Get YouTube video performance",
     description:
-      "Read up to 10 top videos for a connected YouTube channel, ordered by watch time with engagement, metadata, and equal-length previous-period context. Read-only and uses no OpenSEO credits.",
+      "Read up to 10 top videos for a connected YouTube channel, ordered by watch time with engagement, metadata, and equal-length previous-period context. Read-only and uses no Bodkin Search credits.",
     inputSchema,
     outputSchema: videoOutputSchema,
     annotations: {
@@ -264,7 +264,7 @@ export const getYouTubeTrafficSourcesTool = {
   config: {
     title: "Get YouTube traffic sources",
     description:
-      "Read up to 25 traffic-source types for a connected YouTube channel with reported views, watch time, source-row share, and equal-length previous-period context. Read-only and uses no OpenSEO credits.",
+      "Read up to 25 traffic-source types for a connected YouTube channel with reported views, watch time, source-row share, and equal-length previous-period context. Read-only and uses no Bodkin Search credits.",
     inputSchema,
     outputSchema: trafficOutputSchema,
     annotations: {

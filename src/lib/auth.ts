@@ -1,3 +1,7 @@
+import { db } from "@/db";
+import { invitation } from "@/db/schema";
+import { and, eq, gt, sql } from "drizzle-orm";
+import { clientWorkspacesEnabled } from "@/server/features/workspaces/workspace-mode";
 import { env } from "cloudflare:workers";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
@@ -43,7 +47,9 @@ function createAuth() {
   const baseUrl = isHostedAuthMode(env.AUTH_MODE)
     ? getHostedBaseUrl()
     : "http://localhost";
-  const bypassEmail = Reflect.get(env, "BYPASS_EMAIL_VERIFICATION") === "true";
+  const bypassEmail =
+    !clientWorkspacesEnabled() &&
+    Reflect.get(env, "BYPASS_EMAIL_VERIFICATION") === "true";
   const baseAuthConfig = createBaseAuthConfig();
 
   // Turnstile captcha on signup — hosted only. Enforcement is driven by the
@@ -116,6 +122,24 @@ function createAuth() {
           // throwaway-inbox domains before the user row is created. Self-hosted
           // has no shared credit pool to protect, so it's left untouched.
           before: async (user) => {
+            if (clientWorkspacesEnabled()) {
+              const [pending] = await db
+                .select({ id: invitation.id })
+                .from(invitation)
+                .where(
+                  and(
+                    sql`lower(${invitation.email}) = ${user.email.toLowerCase()}`,
+                    eq(invitation.status, "pending"),
+                    gt(invitation.expiresAt, new Date()),
+                  ),
+                )
+                .limit(1);
+              if (!pending)
+                throw new APIError("FORBIDDEN", {
+                  message:
+                    "Ask your workspace owner for an invitation before signing up.",
+                });
+            }
             if (
               isHostedAuthMode(env.AUTH_MODE) &&
               isDisposableEmailDomain(user.email)
@@ -134,6 +158,7 @@ function createAuth() {
       session: {
         create: {
           before: async (session) => {
+            if (clientWorkspacesEnabled()) return { data: session };
             // Inject Better Auth's createOrganization here so the helper can
             // stay reusable without importing auth.ts and creating a cycle.
             const organizationId = await getOrCreateDefaultHostedOrganization(
@@ -226,7 +251,7 @@ function getSocialProviders() {
   // (createBaseAuthConfig) with its own creds — so it must NOT require the
   // social-login config here, otherwise getAuth() construction would be coupled
   // to GSC creds rather than just BETTER_AUTH_SECRET.
-  if (!isHostedAuthMode(env.AUTH_MODE)) {
+  if (clientWorkspacesEnabled() || !isHostedAuthMode(env.AUTH_MODE)) {
     return {};
   }
 
@@ -273,10 +298,11 @@ export function hasHostedAuthConfig() {
   try {
     getHostedBaseUrl();
     getHostedSecret();
-    getGoogleSocialProviderConfig();
+    if (!clientWorkspacesEnabled()) getGoogleSocialProviderConfig();
     return (
       hasHostedTurnstileConfig(env) &&
-      (Reflect.get(env, "BYPASS_EMAIL_VERIFICATION") === "true" ||
+      ((!clientWorkspacesEnabled() &&
+        Reflect.get(env, "BYPASS_EMAIL_VERIFICATION") === "true") ||
         hasHostedAuthEmailConfig())
     );
   } catch {

@@ -382,7 +382,7 @@ export type RemoveGrowthActionEvidenceInput = z.infer<
 // an MCP client retries on its own and must be able to replay a write safely.
 
 export const growthGetPlanRequestShape = {
-  projectId: id.describe("Authorized OpenSEO project ID"),
+  projectId: id.describe("Authorized Bodkin Search project ID"),
 } as const;
 
 export const growthCreateWorkstreamRequestSchema =

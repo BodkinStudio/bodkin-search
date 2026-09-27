@@ -12,7 +12,7 @@ const faqs = [
   {
     question: "How do I do keyword research for free?",
     answer:
-      "Conversations for seeds (this page), Google autocomplete + People Also Ask for expansion, Search Console for validation. OpenSEO validates and expands what those surface; you can start for free, and paid plans start at $10/month.",
+      "Conversations for seeds (this page), Google autocomplete + People Also Ask for expansion, Search Console for validation. Bodkin Search validates and expands what those surface; you can start for free, and paid plans start at $10/month.",
   },
   {
     question: "How do I find LSI keywords?",
@@ -45,7 +45,7 @@ export const Route = createFileRoute(
         "Seed Keywords from Customer Conversations (Keyword Research Without a Paid Tool)",
       description: frontmatter.description,
       path: PATH,
-      titleSuffix: "OpenSEO Library",
+      titleSuffix: "Bodkin Search Library",
       ogType: "article",
     }),
   component: () => (

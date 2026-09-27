@@ -20,7 +20,7 @@ export const growthGetActionTool = {
   config: {
     title: "Get Growth Action",
     description:
-      "Gets one current saved Growth Action and its bounded lifecycle, source Recommendation evidence, linked Change Events, and optional validated Measurement. Reads saved OpenSEO data only, uses zero credits, makes no provider calls, and never changes data. The result is current-not-snapshot and Change/Measurement context is not causal proof.",
+      "Gets one current saved Growth Action and its bounded lifecycle, source Recommendation evidence, linked Change Events, and optional validated Measurement. Reads saved Bodkin Search data only, uses zero credits, makes no provider calls, and never changes data. The result is current-not-snapshot and Change/Measurement context is not causal proof.",
     inputSchema,
     outputSchema: z.strictObject({
       action: growthActionDetailDtoSchema,
