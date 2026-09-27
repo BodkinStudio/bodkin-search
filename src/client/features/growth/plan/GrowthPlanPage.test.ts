@@ -21,7 +21,11 @@ vi.mock("@/serverFunctions/growthPlan", () => ({
   addGrowthActionEvidence: vi.fn(),
   removeGrowthActionEvidence: vi.fn(),
   transitionGrowthPlanAction: vi.fn(),
+  getGrowthAnalystDigest: vi.fn(),
+  addGrowthFindingToPlan: vi.fn(),
+  dismissGrowthFinding: vi.fn(),
 }));
+vi.mock("@/serverFunctions/growthInvestigations", () => ({}));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: React.ReactNode }) =>
     createElement("a", {}, children),

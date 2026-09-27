@@ -383,6 +383,18 @@
     "capability": "read",
     "projectRequired": true
   },
+  "src/serverFunctions/growthPlan.ts:getGrowthAnalystDigest": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:addGrowthFindingToPlan": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:dismissGrowthFinding": {
+    "capability": "edit",
+    "projectRequired": true
+  },
   "src/serverFunctions/growthPlan.ts:removeGrowthActionEvidence": {
     "capability": "edit",
     "projectRequired": true

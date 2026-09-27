@@ -17,6 +17,7 @@ import type {
 import { formatGrowthPreviewDate } from "../GrowthPreviewPresentation";
 import { Link } from "@tanstack/react-router";
 import { Modal } from "@/client/components/Modal";
+import { GrowthAnalystPanel } from "./GrowthAnalystPanel";
 import { GrowthPlanBelief } from "./GrowthPlanBelief";
 import { GrowthPlanHero } from "./GrowthPlanHero";
 import { GrowthPlanLedger } from "./GrowthPlanLedger";
@@ -187,6 +188,13 @@ export function GrowthPlanPage({
             target={heroTarget}
             targetSeries={heroTarget ? charts.get(heroTarget.id) : undefined}
             editing={editing}
+          />
+          <GrowthAnalystPanel
+            projectId={projectId}
+            workstreams={workstreams.filter(
+              (workstream) => workstream.status === "active",
+            )}
+            canEdit={canEdit}
           />
           <GrowthPlanStatus projectId={projectId} workstreams={workstreams} />
           <div

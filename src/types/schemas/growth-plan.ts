@@ -1,3 +1,4 @@
+import { GROWTH_DISMISSAL_REASONS } from "./growth";
 import { z } from "zod";
 import { GROWTH_ACTION_STATUSES } from "./growth-actions";
 
@@ -427,3 +428,16 @@ export const updateGrowthPlanNarrativeInputSchema = z.strictObject({
 export type UpdateGrowthPlanNarrativeInput = z.infer<
   typeof updateGrowthPlanNarrativeInputSchema
 >;
+
+export const addGrowthFindingToPlanSchema = z.strictObject({
+  projectId: id,
+  signalId: id,
+  workstreamId: id,
+  dueOn: dateOnly,
+});
+
+export const dismissGrowthFindingSchema = z.strictObject({
+  projectId: id,
+  signalId: id,
+  dismissalReason: z.enum(GROWTH_DISMISSAL_REASONS),
+});

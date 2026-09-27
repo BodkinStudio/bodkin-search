@@ -1,10 +1,13 @@
+import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { GrowthPlanEvidenceService } from "@/server/features/growth/services/GrowthPlanEvidenceService";
 import { GrowthPlanService } from "@/server/features/growth/services/GrowthPlanService";
 import { transitionGrowthActionSchema } from "@/types/schemas/growth-actions";
 import {
   addGrowthActionEvidenceInputSchema,
+  addGrowthFindingToPlanSchema,
   createGrowthPlanActionInputSchema,
+  dismissGrowthFindingSchema,
   createGrowthWorkstreamInputSchema,
   deleteGrowthWorkstreamInputSchema,
   getGrowthPlanEvidenceInputSchema,
@@ -17,6 +20,7 @@ import {
   updateGrowthWorkstreamInputSchema,
 } from "@/types/schemas/growth-plan";
 import { requireProjectContext } from "./middleware";
+import { GrowthAnalystService } from "@/server/features/growth/services/GrowthAnalystService";
 
 // The plan is always read and written for the project the request context is
 // already scoped to; the validated projectId is replaced by it rather than
@@ -148,5 +152,33 @@ export const transitionGrowthPlanAction = createServerFn({ method: "POST" })
         projectId: context.projectId,
         ...userActor(context.userId),
       }),
+    ),
+  );
+
+// The "This week" analyst read shown at the top of the plan.
+export const getGrowthAnalystDigest = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(z.object({ projectId: z.string().min(1).max(128) }))
+  .handler(({ context }) => GrowthAnalystService.getDigest(context.projectId));
+
+export const addGrowthFindingToPlan = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(addGrowthFindingToPlanSchema)
+  .handler(({ data, context }) =>
+    GrowthAnalystService.addFindingToPlan({
+      ...data,
+      projectId: context.projectId,
+      actorId: context.userId,
+    }),
+  );
+
+export const dismissGrowthFinding = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(dismissGrowthFindingSchema)
+  .handler(({ data, context }) =>
+    GrowthAnalystService.closeFinding(
+      context.projectId,
+      data.signalId,
+      data.dismissalReason,
     ),
   );
