@@ -64,8 +64,9 @@ export function GscCard({
       stamp="Google Search Console · last 28 days"
       action={
         <Link
-          to="/p/$projectId/search-performance"
+          to="/p/$projectId/analytics"
           params={{ projectId }}
+          search={{ view: "search" }}
           className={moreDetailsClass}
         >
           More details

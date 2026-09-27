@@ -36,6 +36,12 @@ import {
   type ResolvedAnalyticsSearch,
 } from "./analytics-search";
 import { PageShell } from "@/client/components/PageShell";
+import {
+  SectionNav,
+  sectionNavItemClass,
+} from "@/client/components/SectionNav";
+import { SearchPerformanceReport } from "@/client/features/search-performance/SearchPerformancePage";
+import { AnalyticsChannels } from "./AnalyticsChannels";
 
 // Journeys and customers show individual people, so they only appear for
 // those who may inspect them (or can switch inspection on).
@@ -46,7 +52,9 @@ const views = [
   { value: "journeys", label: "Journeys", personal: true },
   { value: "customers", label: "Customers", personal: true },
 ] as const;
-export function AnalyticsWorkspace({
+// The site's own journey tracking: overview, sources, funnels, journeys and
+// customers, with their period controls.
+function AnalyticsWebsite({
   projectId,
   search: requested,
   onSearch,
@@ -119,18 +127,9 @@ export function AnalyticsWorkspace({
   const openJourney = (context: string) =>
     onSearch({ view: "journeys", context, customer: undefined });
   const filteredJourneys = filterJourneys(journeys.data, search);
-  const noSources = sources.data?.length === 0;
-  const title = "Analytics";
-  const description =
-    "Where visitors come from, what they do, and who becomes a customer.";
-  if (noSources)
+  if (sources.data?.length === 0)
     return (
-      <PageShell title={title} description={description}>
-        <AnalyticsNoSources
-          projectId={projectId}
-          canAdminister={canAdminister}
-        />
-      </PageShell>
+      <AnalyticsNoSources projectId={projectId} canAdminister={canAdminister} />
     );
   const environments = [
     ...new Set(sources.data?.map((source) => source.environment) ?? []),
@@ -139,26 +138,8 @@ export function AnalyticsWorkspace({
     (view) => !view.personal || canInspect || canAdminister,
   );
   return (
-    <PageShell
-      title={title}
-      description={description}
-      actions={
-        <AnalyticsHeaderActions
-          projectId={projectId}
-          canAdminister={canAdminister}
-          onExport={
-            overview.data
-              ? () =>
-                  downloadAnalyticsJson({
-                    filters,
-                    overview: overview.data,
-                    journeys: filteredJourneys,
-                  })
-              : undefined
-          }
-        />
-      }
-      nav={
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <AnalyticsViewNav
           views={visibleViews}
           current={search.view}
@@ -166,8 +147,23 @@ export function AnalyticsWorkspace({
             onSearch({ view, context: undefined, customer: undefined })
           }
         />
-      }
-    >
+        <div className="flex flex-wrap gap-2">
+          <AnalyticsHeaderActions
+            projectId={projectId}
+            canAdminister={canAdminister}
+            onExport={
+              overview.data
+                ? () =>
+                    downloadAnalyticsJson({
+                      filters,
+                      overview: overview.data,
+                      journeys: filteredJourneys,
+                    })
+                : undefined
+            }
+          />
+        </div>
+      </div>
       <AnalyticsPeriodControls
         search={search}
         timezone={timezone}
@@ -282,6 +278,68 @@ export function AnalyticsWorkspace({
             </>
           )}
         </>
+      )}
+    </>
+  );
+}
+
+const areas = [
+  { value: "website", label: "Website", view: "overview" },
+  { value: "search", label: "Google Search", view: "search" },
+  { value: "channels", label: "Channels", view: "channels" },
+] as const;
+
+// One place for every analytics source: the site's own tracking, Google
+// Search Console, and the connected channels (GA4, YouTube, LinkedIn).
+export function AnalyticsWorkspace({
+  projectId,
+  search,
+  onSearch,
+}: {
+  projectId: string;
+  search: AnalyticsSearch;
+  onSearch: (patch: Partial<AnalyticsSearch>) => void;
+}) {
+  const area =
+    search.view === "search" || search.view === "channels"
+      ? search.view
+      : "website";
+  return (
+    <PageShell
+      title="Analytics"
+      description="Where visitors come from, what they do, and who becomes a customer."
+      nav={
+        <SectionNav label="Analytics">
+          {areas.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              aria-current={area === item.value ? "page" : undefined}
+              className={sectionNavItemClass(area === item.value)}
+              onClick={() =>
+                onSearch({
+                  view: item.view,
+                  context: undefined,
+                  customer: undefined,
+                })
+              }
+            >
+              {item.label}
+            </button>
+          ))}
+        </SectionNav>
+      }
+    >
+      {area === "search" ? (
+        <SearchPerformanceReport projectId={projectId} />
+      ) : area === "channels" ? (
+        <AnalyticsChannels projectId={projectId} />
+      ) : (
+        <AnalyticsWebsite
+          projectId={projectId}
+          search={search}
+          onSearch={onSearch}
+        />
       )}
     </PageShell>
   );

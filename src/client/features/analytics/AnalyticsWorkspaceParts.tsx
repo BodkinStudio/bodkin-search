@@ -1,9 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { Download, Settings2 } from "lucide-react";
-import {
-  SectionNav,
-  sectionNavItemClass,
-} from "@/client/components/SectionNav";
 import { AnalyticsNoActivity } from "./AnalyticsInspectionState";
 import { AnalyticsOverview } from "./AnalyticsOverview";
 import { AnalyticsRetainedHistory } from "./AnalyticsSearchEvidence";
@@ -83,6 +79,8 @@ export function CustomerEvidenceSection({
   );
 }
 
+// The website area's own views, drawn as a quieter segmented row under the
+// main Analytics tabs.
 export function AnalyticsViewNav({
   views: items,
   current,
@@ -93,19 +91,24 @@ export function AnalyticsViewNav({
   onSelect: (view: AnalyticsSearch["view"]) => void;
 }) {
   return (
-    <SectionNav label="Analytics views">
-      {items.map((view) => (
-        <button
-          key={view.value}
-          type="button"
-          onClick={() => onSelect(view.value)}
-          aria-current={current === view.value ? "page" : undefined}
-          className={sectionNavItemClass(current === view.value)}
-        >
-          {view.label}
-        </button>
-      ))}
-    </SectionNav>
+    <nav
+      aria-label="Website analytics views"
+      className="max-w-full overflow-x-auto"
+    >
+      <div className="join">
+        {items.map((view) => (
+          <button
+            key={view.value}
+            type="button"
+            onClick={() => onSelect(view.value)}
+            aria-current={current === view.value ? "page" : undefined}
+            className={`btn btn-sm join-item ${current === view.value ? "btn-neutral" : "btn-ghost border-base-300"}`}
+          >
+            {view.label}
+          </button>
+        ))}
+      </div>
+    </nav>
   );
 }
 

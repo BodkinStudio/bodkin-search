@@ -126,8 +126,9 @@ export function AnalyticsAcquisitionPanel({
       )}
       <AnalyticsSearchEvidence filters={filters} />
       <Link
-        to="/p/$projectId/search-performance"
+        to="/p/$projectId/analytics"
         params={{ projectId: filters.projectId }}
+        search={{ view: "search" }}
         className="text-sm text-primary"
       >
         Inspect aggregate Search Console context

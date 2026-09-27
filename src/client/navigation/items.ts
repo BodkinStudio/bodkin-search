@@ -13,7 +13,6 @@ import {
   ScanSearch,
 } from "lucide-react";
 import { linkOptions } from "@tanstack/react-router";
-import { GoogleGlyphMuted } from "@/client/features/gsc/GoogleGlyph";
 
 // Each item names the capability that makes the page useful. Pages that show
 // data already collected (reports, tracked ranks, saved keywords, audits) need
@@ -63,12 +62,6 @@ const projectNavItems = [
     to: "/p/$projectId/rank-tracking" as const,
     label: "Rank Tracking",
     icon: TrendingUp,
-    capability: "read",
-  },
-  {
-    to: "/p/$projectId/search-performance" as const,
-    label: "GSC Insights",
-    icon: GoogleGlyphMuted,
     capability: "read",
   },
   {
@@ -156,7 +149,6 @@ export function getProjectNavGroups(projectId: string) {
     {
       label: "My Site",
       items: [
-        byPath("/p/$projectId/search-performance"),
         byPath("/p/$projectId/rank-tracking"),
         byPath("/p/$projectId/saved"),
         byPath("/p/$projectId/audit"),
