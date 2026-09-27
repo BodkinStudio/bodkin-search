@@ -823,6 +823,14 @@
     "capability": "self",
     "projectRequired": false
   },
+  "src/serverFunctions/clientWorkspaces.ts:listMyWorkspaceInvitations": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:acceptMyWorkspaceInvitation": {
+    "capability": "self",
+    "projectRequired": false
+  },
   "src/serverFunctions/clientWorkspaces.ts:resendWorkspaceInvitation": {
     "capability": "self",
     "projectRequired": false

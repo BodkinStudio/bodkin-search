@@ -12,6 +12,7 @@ import {
 import { listMemberships } from "@/server/features/workspaces/WorkspaceRepository";
 import { WORKSPACE_COOKIE } from "@/server/features/workspaces/WorkspaceContext";
 import * as service from "@/server/features/workspaces/WorkspaceService";
+import * as invitations from "@/server/features/workspaces/WorkspaceInvitationAcceptance";
 import { moveProjectToWorkspace as moveProjectBetweenWorkspaces } from "@/server/features/workspaces/ProjectMoveService";
 import { workspaceRoleSchema } from "@/shared/workspaces/permissions";
 
@@ -120,13 +121,23 @@ export const getWorkspaceInvitation = createServerFn({ method: "POST" })
   .middleware(requireAuthenticatedContext)
   .validator(invitationInput)
   .handler(({ data, context }) =>
-    service.inspectInvitation(context, data.token),
+    invitations.inspectInvitation(context, data.token),
   );
 export const acceptWorkspaceInvitation = createServerFn({ method: "POST" })
   .middleware(requireAuthenticatedContext)
   .validator(invitationInput)
   .handler(({ data, context }) =>
-    service.acceptInvitation(context, data.token),
+    invitations.acceptInvitation(context, data.token),
+  );
+
+export const listMyWorkspaceInvitations = createServerFn({ method: "POST" })
+  .middleware(requireAuthenticatedContext)
+  .handler(({ context }) => invitations.listMyInvitations(context));
+export const acceptMyWorkspaceInvitation = createServerFn({ method: "POST" })
+  .middleware(requireAuthenticatedContext)
+  .validator(z.object({ invitationId: z.string().min(1).max(128) }))
+  .handler(({ data, context }) =>
+    invitations.acceptInvitationById(context, data.invitationId),
   );
 
 export const resendWorkspaceInvitation = createServerFn({ method: "POST" })

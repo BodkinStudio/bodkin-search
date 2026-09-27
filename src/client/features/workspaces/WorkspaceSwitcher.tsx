@@ -1,6 +1,15 @@
-import { useQueryClient, type QueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { selectWorkspace } from "@/serverFunctions/clientWorkspaces";
+import {
+  acceptMyWorkspaceInvitation,
+  listMyWorkspaceInvitations,
+  selectWorkspace,
+} from "@/serverFunctions/clientWorkspaces";
 import { clearLastProjectId } from "@/client/lib/active-project";
 import { useWorkspaceAccess } from "@/client/features/workspaces/useWorkspaceAccess";
 
@@ -70,11 +79,14 @@ export function WorkspaceSwitcher() {
         ))}
       </select>
       {accessRemoved ? (
-        <p role="status" className="text-xs text-warning">
-          {session.data.memberships.length === 0
-            ? "You don't have access to any workspace. Ask the workspace owner to invite you."
-            : "Your access to this workspace has been removed. Ask the workspace owner to restore it, or choose another workspace."}
-        </p>
+        session.data.memberships.length === 0 ? (
+          <PendingInvitations />
+        ) : (
+          <p role="status" className="text-xs text-warning">
+            Your access to this workspace has been removed. Ask the workspace
+            owner to restore it, or choose another workspace.
+          </p>
+        )
       ) : (
         access.role && (
           <p className="text-xs text-base-content/60">
@@ -95,5 +107,59 @@ export function WorkspaceSwitcher() {
         </p>
       )}
     </div>
+  );
+}
+
+// Someone who signed up without opening the emailed link still sees the
+// invitations sent to their address and can join from here.
+function PendingInvitations() {
+  const cache = useQueryClient();
+  const invitations = useQuery({
+    queryKey: ["myWorkspaceInvitations"],
+    queryFn: () => listMyWorkspaceInvitations(),
+  });
+  const join = useMutation({
+    mutationFn: (invitationId: string) =>
+      acceptMyWorkspaceInvitation({ data: { invitationId } }),
+    onSuccess: async (result) => {
+      if (result.state === "accepted" && "workspaceId" in result)
+        await switchWorkspace(cache, result.workspaceId);
+      else await invitations.refetch();
+    },
+  });
+  const pending = invitations.data ?? [];
+  if (pending.length === 0)
+    return (
+      <p role="status" className="text-xs text-warning">
+        {invitations.isPending
+          ? "Checking for invitations…"
+          : "You don't have access to any workspace. Ask the workspace owner to invite you."}
+      </p>
+    );
+  return (
+    <ul className="space-y-2">
+      {pending.map((invite) => (
+        <li key={invite.invitationId} className="text-xs">
+          <p>
+            You&rsquo;re invited to <strong>{invite.workspace.name}</strong> as{" "}
+            {invite.role === "admin" || invite.role === "editor" ? "an" : "a"}{" "}
+            {invite.role}.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary btn-xs mt-1"
+            disabled={join.isPending}
+            onClick={() => join.mutate(invite.invitationId)}
+          >
+            {join.isPending ? "Joining…" : "Join workspace"}
+          </button>
+        </li>
+      ))}
+      {join.isError ? (
+        <li role="alert" className="text-xs text-error">
+          Could not join. Try again, or ask the owner for a new invitation.
+        </li>
+      ) : null}
+    </ul>
   );
 }

@@ -98,6 +98,19 @@ export async function listPeople(organizationId: string) {
   ]);
   return { members, invitations, audit };
 }
+export async function listPendingInvitationIds(email: string) {
+  const rows = await db
+    .select({ id: invitation.id })
+    .from(invitation)
+    .where(
+      and(
+        eq(invitation.email, email.toLowerCase()),
+        eq(invitation.status, "pending"),
+      ),
+    );
+  return rows.map((row) => row.id);
+}
+
 export async function findInvitation(id: string) {
   const [row] = await db
     .select()

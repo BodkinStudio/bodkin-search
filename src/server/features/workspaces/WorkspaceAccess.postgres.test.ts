@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { readFileSync, readdirSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type * as Service from "./WorkspaceService";
+import type * as Invitations from "./WorkspaceInvitationAcceptance";
 import type * as Repository from "./WorkspaceRepository";
 import type * as Access from "./WorkspaceAccess";
 
@@ -21,6 +22,7 @@ vi.mock("cloudflare:workers", () => ({
 let connection: ReturnType<typeof postgres>;
 let administrator: ReturnType<typeof postgres>;
 let service: typeof Service;
+let invitations: typeof Invitations;
 let repository: typeof Repository;
 let access: typeof Access;
 const schemaName = `workspace_test_${crypto.randomUUID().replaceAll("-", "")}`;
@@ -73,6 +75,7 @@ suite("workspace authorization with real PostgreSQL transactions", () => {
       ...(await import("@/db/pg/workspaces.schema")),
     }));
     service = await import("./WorkspaceService");
+    invitations = await import("./WorkspaceInvitationAcceptance");
     repository = await import("./WorkspaceRepository");
     access = await import("./WorkspaceAccess");
   });
@@ -146,12 +149,12 @@ suite("workspace authorization with real PostgreSQL transactions", () => {
   it("accepts a recipient-bound invite once under concurrent requests", async () => {
     const f = await fixture(),
       token = await invite(f);
-    expect((await service.inspectInvitation(f.viewer, token)).state).toBe(
+    expect((await invitations.inspectInvitation(f.viewer, token)).state).toBe(
       "wrong_account",
     );
     const results = await Promise.all([
-      service.acceptInvitation(f.guest, token),
-      service.acceptInvitation(f.guest, token),
+      invitations.acceptInvitation(f.guest, token),
+      invitations.acceptInvitation(f.guest, token),
     ]);
     expect(results.every((r) => r.state === "accepted")).toBe(true);
     const rows =
@@ -162,17 +165,17 @@ suite("workspace authorization with real PostgreSQL transactions", () => {
   it("revoked invitations and revoked inviter authority cannot grant membership", async () => {
     const f = await fixture(),
       token = await invite(f);
-    const details = await service.inspectInvitation(f.guest, token);
+    const details = await invitations.inspectInvitation(f.guest, token);
     if (details.state !== "pending") throw new Error("Expected pending invite");
     await service.revokeInvitation(f.owner, f.id, details.invitationId);
-    expect((await service.acceptInvitation(f.guest, token)).state).toBe(
+    expect((await invitations.acceptInvitation(f.guest, token)).state).toBe(
       "unavailable",
     );
     const replacement = await invite(f);
     await connection`UPDATE member SET role='viewer' WHERE id=${f.owner.userId}`;
-    expect((await service.acceptInvitation(f.guest, replacement)).state).toBe(
-      "unavailable",
-    );
+    expect(
+      (await invitations.acceptInvitation(f.guest, replacement)).state,
+    ).toBe("unavailable");
     expect(
       await connection`SELECT id FROM member WHERE user_id=${f.guest.userId}`,
     ).toHaveLength(0);
@@ -280,13 +283,13 @@ suite("workspace authorization with real PostgreSQL transactions", () => {
     const f = await fixture();
     const token = await invite(f);
     await connection`UPDATE invitation SET expires_at=now()-interval '1 minute' WHERE organization_id=${f.id}`;
-    expect((await service.acceptInvitation(f.guest, token)).state).toBe(
+    expect((await invitations.acceptInvitation(f.guest, token)).state).toBe(
       "expired",
     );
     const replacement = await invite(f);
     await connection`UPDATE "user" SET email_verified=false WHERE id=${f.guest.userId}`;
     await expect(
-      service.acceptInvitation(f.guest, replacement),
+      invitations.acceptInvitation(f.guest, replacement),
     ).rejects.toThrow();
     expect(
       await connection`SELECT id FROM member WHERE user_id=${f.guest.userId}`,

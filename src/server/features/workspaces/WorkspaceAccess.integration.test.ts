@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { readFileSync, readdirSync } from "node:fs";
 import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 import type * as Service from "./WorkspaceService";
+import type * as Invitations from "./WorkspaceInvitationAcceptance";
 import type * as Repository from "./WorkspaceRepository";
 import type * as Access from "./WorkspaceAccess";
 import type * as ProjectMove from "./ProjectMoveService";
@@ -19,6 +20,7 @@ const runtime = vi.hoisted(() => ({
 vi.mock("cloudflare:workers", () => ({ env: runtime }));
 let client: Client;
 let service: typeof Service;
+let invitations: typeof Invitations;
 let repository: typeof Repository;
 let access: typeof Access;
 let projectMove: typeof ProjectMove;
@@ -96,6 +98,7 @@ beforeAll(async () => {
     INSERT INTO gsc_connections VALUES ('gsc-site','site','a');
   `);
   service = await import("./WorkspaceService");
+  invitations = await import("./WorkspaceInvitationAcceptance");
   repository = await import("./WorkspaceRepository");
   access = await import("./WorkspaceAccess");
   projectMove = await import("./ProjectMoveService");
@@ -172,20 +175,20 @@ describe("client workspace isolation", () => {
     ).toEqual({ ok: true });
     expect(token).toHaveLength(64);
     expect(await repository.findInvitation(token)).toBeUndefined();
-    expect(await service.inspectInvitation(viewer, token)).toEqual({
+    expect(await invitations.inspectInvitation(viewer, token)).toEqual({
       state: "wrong_account",
     });
     expect(
-      await service.inspectInvitation(
+      await invitations.inspectInvitation(
         { ...guest, emailVerified: false },
         token,
       ),
     ).toEqual({ state: "verify_email" });
-    expect(await service.acceptInvitation(guest, token)).toMatchObject({
+    expect(await invitations.acceptInvitation(guest, token)).toMatchObject({
       state: "accepted",
       workspaceId: "a",
     });
-    expect(await service.acceptInvitation(guest, token)).toEqual({
+    expect(await invitations.acceptInvitation(guest, token)).toEqual({
       state: "accepted",
     });
     expect(await access.requireWorkspaceMembership("guest", "a")).toMatchObject(
@@ -194,6 +197,23 @@ describe("client workspace isolation", () => {
     await expect(
       access.requireWorkspaceMembership("guest", "b"),
     ).rejects.toThrow();
+  });
+  it("lets an invited person who never opened the link join by their verified email", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("{}", { status: 200 })),
+    );
+    await service.sendInvitation(owner, "b", guest.userEmail, "editor");
+    expect(await invitations.listMyInvitations(viewer)).toEqual([]);
+    const [invite] = await invitations.listMyInvitations(guest);
+    expect(invite?.workspace.id).toBe("b");
+    expect(
+      await invitations.acceptInvitationById(viewer, invite!.invitationId),
+    ).toEqual({ state: "wrong_account" });
+    expect(
+      await invitations.acceptInvitationById(guest, invite!.invitationId),
+    ).toMatchObject({ state: "accepted", workspaceId: "b" });
+    expect(await invitations.listMyInvitations(guest)).toEqual([]);
   });
   it("removal invalidates membership immediately", async () => {
     const membership = await access.requireWorkspaceMembership("guest", "a");
@@ -261,14 +281,14 @@ describe("client workspace isolation", () => {
       userEmail: "resend@example.test",
       emailVerified: true,
     };
-    expect(await service.inspectInvitation(recipient, tokens[0])).toEqual({
+    expect(await invitations.inspectInvitation(recipient, tokens[0])).toEqual({
       state: "unavailable",
     });
-    expect(await service.inspectInvitation(recipient, tokens[1])).toMatchObject(
-      { state: "pending" },
-    );
+    expect(
+      await invitations.inspectInvitation(recipient, tokens[1]),
+    ).toMatchObject({ state: "pending" });
     await service.changeMember(owner, "a", "admin-a", "viewer");
-    expect(await service.inspectInvitation(recipient, tokens[1])).toEqual({
+    expect(await invitations.inspectInvitation(recipient, tokens[1])).toEqual({
       state: "unavailable",
     });
   });
