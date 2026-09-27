@@ -123,7 +123,7 @@ function PostHogBootstrap() {
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   const showDevtools =
-    import.meta.env.DEV && import.meta.env.VITE_SHOW_DEVTOOLS !== "false";
+    import.meta.env.DEV && import.meta.env.VITE_SHOW_DEVTOOLS === "true";
 
   return (
     <html suppressHydrationWarning translate="no">

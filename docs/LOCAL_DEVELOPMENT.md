@@ -49,6 +49,8 @@ pnpm dev:agents
 
 When using a git worktree, [portless](https://github.com/vercel-labs/portless) prefixes the branch name, for example `http://feature-name.open-seo.localhost:1355`.
 
+The TanStack devtools panel is off by default. Set `VITE_SHOW_DEVTOOLS=true` in `.env.local` and restart the dev server to turn it on.
+
 ## Database Commands
 
 Generate migration:
