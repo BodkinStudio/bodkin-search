@@ -9,7 +9,7 @@ import {
   createAnalyticsSource,
   listAnalyticsSources,
 } from "@/serverFunctions/analytics";
-export function AnalyticsSetup({ projectId }: { projectId: string }) {
+function AnalyticsInstall({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   const [hostname, setHostname] = useState("");
   const [kind, setKind] = useState<"website" | "product" | "integration">(
@@ -38,19 +38,20 @@ export function AnalyticsSetup({ projectId }: { projectId: string }) {
       : "https://your-bodkin-host";
   return (
     <div className="space-y-8">
-      <section>
-        <h2 className="text-lg font-semibold">Journey tracking</h2>
-        <p className="mt-2 text-sm text-base-content/70">
-          Register the website and product surfaces you control. Tracking waits
-          for your existing consent mechanism; no extra customer login is
-          needed.
-        </p>
-      </section>
-      <AnalyticsConfiguration projectId={projectId} />
-      <AnalyticsReportingSetup projectId={projectId} />
-      <AnalyticsTrackingRules projectId={projectId} />
-      <AnalyticsNetworkTest projectId={projectId} />
-      <AnalyticsPrivacyControls projectId={projectId} />
+      {sources.data?.length === 0 ? (
+        <ol className="list-decimal space-y-1 rounded-lg border border-base-300 bg-base-200/50 py-4 pr-4 pl-9 text-sm">
+          <li>Add your site below. Start with a test source.</li>
+          <li>
+            Paste the snippet into your site and add the collector to your
+            content security policy.
+          </li>
+          <li>
+            Visit your site, allow analytics, and check Measurement &rarr;
+            Tracking health for the event.
+          </li>
+          <li>When test events arrive, add a production source.</li>
+        </ol>
+      ) : null}
       <form
         className="space-y-4"
         onSubmit={(event) => {
@@ -177,6 +178,76 @@ export function AnalyticsSetup({ projectId }: { projectId: string }) {
           actual product context against the same collector.
         </p>
       </section>
+    </div>
+  );
+}
+
+const SETUP_SECTIONS = [
+  { value: "install", label: "Install" },
+  { value: "measurement", label: "Measurement" },
+  { value: "reporting", label: "Reporting" },
+  { value: "privacy", label: "Privacy" },
+] as const;
+export type AnalyticsSetupSection = (typeof SETUP_SECTIONS)[number]["value"];
+
+// Tracking setup in four parts instead of one long page: getting the tracker
+// onto the site first, then what is measured, how it is reported, and
+// privacy controls.
+export function AnalyticsSetup({
+  projectId,
+  section,
+  onSection,
+}: {
+  projectId: string;
+  section: AnalyticsSetupSection;
+  onSection: (section: AnalyticsSetupSection) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold">Journey tracking</h2>
+        <p className="mt-1 text-sm text-base-content/70">
+          Register the website and product surfaces you control. Tracking waits
+          for your existing consent mechanism; no extra customer login is
+          needed.
+        </p>
+      </div>
+      <nav
+        aria-label="Tracking setup sections"
+        className="max-w-full overflow-x-auto"
+      >
+        <div className="join">
+          {SETUP_SECTIONS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              aria-current={section === item.value ? "page" : undefined}
+              className={`btn btn-sm join-item ${section === item.value ? "btn-neutral" : "btn-ghost border-base-300"}`}
+              onClick={() => onSection(item.value)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </nav>
+      {section === "install" ? (
+        <AnalyticsInstall projectId={projectId} />
+      ) : null}
+      {section === "measurement" ? (
+        <>
+          <AnalyticsConfiguration projectId={projectId} />
+          <AnalyticsNetworkTest projectId={projectId} />
+        </>
+      ) : null}
+      {section === "reporting" ? (
+        <>
+          <AnalyticsReportingSetup projectId={projectId} />
+          <AnalyticsTrackingRules projectId={projectId} />
+        </>
+      ) : null}
+      {section === "privacy" ? (
+        <AnalyticsPrivacyControls projectId={projectId} />
+      ) : null}
     </div>
   );
 }

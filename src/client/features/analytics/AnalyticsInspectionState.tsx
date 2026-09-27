@@ -27,6 +27,7 @@ export function AnalyticsInspectionState({
         <Link
           to="/p/$projectId/settings/analytics"
           params={{ projectId }}
+          search={{ section: "measurement" }}
           className="btn btn-outline btn-sm mt-4"
         >
           Review tracking permissions
@@ -60,6 +61,7 @@ export function AnalyticsNoActivity({
         <Link
           to="/p/$projectId/settings/analytics"
           params={{ projectId }}
+          search={{ section: "measurement" }}
           className="btn btn-outline btn-sm mt-4"
         >
           Check tracking setup
