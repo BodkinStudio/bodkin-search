@@ -58,9 +58,7 @@ async function readBoundedText(response: Response): Promise<string | null> {
  * their status so callers can tell "gone" from "unreachable". Null means the
  * page could not be fetched at all (blocked, timed out, redirect loop).
  */
-export async function fetchPage(
-  url: string,
-): Promise<{
+export async function fetchPage(url: string): Promise<{
   status: number;
   resolvedUrl: string;
   text: string | null;

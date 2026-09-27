@@ -10,8 +10,8 @@ tracker sees next to nobody. The product decision: journey analytics must work
 visitors who do accept.
 
 The route is to stop storing anything on the device before consent, not to
-ignore consent. PECR/ePrivacy governs *storing or reading information on the
-device*; a storage-free beacon keyed on the server from what the browser already
+ignore consent. PECR/ePrivacy governs _storing or reading information on the
+device_; a storage-free beacon keyed on the server from what the browser already
 sends (IP + User-Agent) falls outside it. The IP is still personal data under
 GDPR, so this relies on **legitimate interest**. That needs a short LIA, a
 privacy-notice line, no raw IPs stored, daily-rotating keys, short retention,
@@ -36,8 +36,8 @@ switch, default off**.
   `consent_withdrawn` for anonymous events, and a `contextId` for consented
   ones.
 - `src/server/features/analytics/crypto.ts`: `anonymousContextKey(secret,
-  projectId, sourceId, ip, userAgent, now)` and `ANONYMOUS_CONTEXT_CLAIM =
-  "anonymous"`.
+projectId, sourceId, ip, userAgent, now)` and `ANONYMOUS_CONTEXT_CLAIM =
+"anonymous"`.
 
 Check both. The schema change makes `contextId` optional, so fix any type fallout
 (`event.contextId` is now `string | undefined`).
@@ -45,17 +45,19 @@ Check both. The schema change makes `contextId` optional, so fix any type fallou
 ## To build
 
 ### 1. Per-project switch (default off)
+
 - Add `anonymousCollection` (boolean, default `false`) to the project's analytics
   settings, i.e. whatever `repo.settings(projectId)` / `AnalyticsRepository`
   reads. If that needs a column, add the migration in **both** `drizzle/`
   (SQLite) and `drizzle-pg/` and keep `schema-parity.test.ts` green.
 - Expose it in Settings → Analytics beside "Customer unit". Use a plain
-  description: *"Count visitors who haven't accepted cookies, without storing
+  description: _"Count visitors who haven't accepted cookies, without storing
   anything on their device (keyed daily from IP + browser; relies on legitimate
-  interest — update your privacy notice first)."*
+  interest — update your privacy notice first)."_
 - When it's off, the collector drops anonymous events (skip, no error).
 
 ### 2. Collector (`AnalyticsCollection.ts`)
+
 - `collect()` input gains `userAgent?: string | null`. `handleCollect` in
   `AnalyticsHttp.ts` passes `request.headers.get("user-agent")`.
 - Per event: if `mode === "anonymous"`:
@@ -63,8 +65,8 @@ Check both. The schema change makes `contextId` optional, so fix any type fallou
     never forwarded headers) and `networkSecret` is set;
   - `contextKey = anonymousContextKey(...)`;
   - build an effective event with `contextId: contextKey` and consent `{
-    analytics: true, attribution: true, identity: true, policyVersion:
-    "li:" + raw.policyVersion }`, truncated to 100 characters.
+analytics: true, attribution: true, identity: true, policyVersion:
+"li:" + raw.policyVersion }`, truncated to 100 characters.
   - Otherwise `contextKey = event.contextId`.
 - Use `contextKey` for the tombstone check, `repo.context(...)` and the context
   insert. Everything below that can keep using the effective event.
@@ -77,6 +79,7 @@ Check both. The schema change makes `contextId` optional, so fix any type fallou
   anonymous events, else the context key (next section).
 
 ### 3. Identity (`AnalyticsAttribution.ts` → `bindIdentity`)
+
 - Take an `expectedContextClaim` parameter and pass it to
   `verifyIdentityAssertion` in place of `event.contextId`.
 - An anonymous visitor's page can't know its server-derived key, so the
@@ -88,6 +91,7 @@ Check both. The schema change makes `contextId` optional, so fix any type fallou
   misattributed journey, not access.
 
 ### 4. Outcomes without a context (`AnalyticsOutcomes.ts`)
+
 - Today an outcome with no `contextId` gets `"client_observation_missing"`.
   Add a fallback: once the customer is known, if `event.contextId` is absent,
   use that customer's most recent context with `attributionAllowed` (for
@@ -97,6 +101,7 @@ Check both. The schema change makes `contextId` optional, so fix any type fallou
   and belong to the customer.
 
 ### 5. Tracker (`src/client/analytics/tracker.ts`)
+
 - New option `anonymous?: boolean` (default `false`).
 - Mode decision:
   - opted out (DNT/GPC) or stopped → nothing;
@@ -114,9 +119,11 @@ Check both. The schema change makes `contextId` optional, so fix any type fallou
 - Rebuild `public/bodkin-journeys.js` (`pnpm build:tracker`).
 
 ### 6. Tests
+
 Use the in-memory libsql harness in
 `AnalyticsCollection.integration.test.ts` and fixture helpers in
 `collection-test-fixture.ts`.
+
 - anonymous page_view + click → one `anon:` context. The same IP+UA the same
   day gives the same context; a different UA or the next day gives a
   different one;
@@ -143,11 +150,12 @@ Use the in-memory libsql harness in
   `startJourneyTracker`): pass `anonymous: true`.
 - **`apps/website/src/lib/trial/bodkin.ts` / `service.ts`:** when there is no
   `contextId`, still sign the identity assertion, with `contextId:
-  "anonymous"`. The client already calls `identify()` whenever an assertion
+"anonymous"`. The client already calls `identify()` whenever an assertion
   comes back. `trial_started` already falls back to sending without a context.
 - **Privacy notice:** add the legitimate-interest analytics line on yakchat.com.
 
 ## Rollout
+
 1. Build and test here → commit (stage only these files; the branch has
    unrelated uncommitted work).
 2. James deploys search.bodkin.studio (`pnpm deploy:selfhost`). Apply any
@@ -158,6 +166,7 @@ Use the in-memory libsql harness in
    links to its same-day journey.
 
 ## Not in scope
+
 Fingerprinting beyond IP + UA (screen, fonts, canvas). That would bring PECR
 back in. Cross-day stitching of anonymous visitors: that's by design; consented
 tracking covers it.

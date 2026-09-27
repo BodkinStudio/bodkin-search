@@ -55,7 +55,7 @@ const MCP_REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30;
 // rolling 30-day refresh tokens already reap inactive clients' sessions.
 const MCP_CLIENT_REGISTRATION_TTL_SECONDS = 60 * 60 * 24 * 365;
 
-export type OpenSeoOAuthEnv = Env & {
+type OpenSeoOAuthEnv = Env & {
   OAUTH_KV: KVNamespace;
   OAUTH_PROVIDER?: OAuthHelpers;
 };

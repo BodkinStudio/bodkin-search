@@ -55,10 +55,6 @@
     "capability": "read",
     "projectRequired": true
   },
-  "src/serverFunctions/analytics.ts:getAnalyticsHealth": {
-    "capability": "configure",
-    "projectRequired": true
-  },
   "src/serverFunctions/analytics.ts:getAnalyticsJourney": {
     "capability": "configure",
     "projectRequired": true

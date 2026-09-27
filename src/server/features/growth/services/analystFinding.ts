@@ -7,7 +7,7 @@ export type SignalMetrics = Record<
   { before: number | null; after: number | null }
 >;
 
-export type Finding = {
+type Finding = {
   // Short enough to be a plan action's title.
   title: string;
   headline: string;

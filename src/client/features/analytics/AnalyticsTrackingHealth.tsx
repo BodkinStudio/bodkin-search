@@ -17,7 +17,7 @@ function useTrackingHealth(
 }
 
 const relative = new Intl.RelativeTimeFormat("en-GB", { numeric: "auto" });
-export function formatAgo(iso: string, now = Date.now()) {
+function formatAgo(iso: string, now = Date.now()) {
   const minutes = Math.round((Date.parse(iso) - now) / 60_000);
   if (Math.abs(minutes) < 60) return relative.format(minutes, "minute");
   const hours = Math.round(minutes / 60);

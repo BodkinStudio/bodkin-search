@@ -71,10 +71,6 @@ export const getAnalyticsSettings = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
   .validator(project)
   .handler(({ context }) => service.settings(context.projectId));
-export const getAnalyticsHealth = createServerFn({ method: "POST" })
-  .middleware(requireProjectContext)
-  .validator(project)
-  .handler(({ context }) => service.health(context.projectId));
 export const createAnalyticsSource = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
   .validator(
