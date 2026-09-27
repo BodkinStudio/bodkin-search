@@ -5,7 +5,7 @@ import {
   type WorkspaceCapability,
 } from "@/shared/workspaces/permissions";
 
-export const workspaceSessionOptions = () =>
+const workspaceSessionOptions = () =>
   queryOptions({
     queryKey: ["workspace-session"],
     queryFn: () => getWorkspaceSession(),
@@ -28,7 +28,7 @@ export function clientWorkspacesBuild() {
  * session loads, or when the role is not a recognised one (the legacy
  * "member"), nothing is allowed.
  */
-export function workspaceAccess(session: WorkspaceSession | undefined) {
+function workspaceAccess(session: WorkspaceSession | undefined) {
   const clientWorkspaces = session?.enabled ?? clientWorkspacesBuild();
   const workspace = session?.memberships.find(
     (item) => item.id === session.organizationId,

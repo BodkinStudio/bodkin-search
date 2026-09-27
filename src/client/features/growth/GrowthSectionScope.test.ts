@@ -9,21 +9,24 @@ const route = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
+  redirect: vi.fn(),
   createFileRoute:
     () =>
     (options: { component: () => ReactElement<{ projectId: string }> }) => {
       route.component = options.component;
-      return { useParams: () => ({ projectId: route.projectId }) };
+      return {
+        useParams: () => ({ projectId: route.projectId, section: "work" }),
+        useSearch: () => ({}),
+        useNavigate: () => () => undefined,
+      };
     },
 }));
-vi.mock("./GrowthOperationsPage", () => ({
-  GrowthOperationsPage: () => null,
-}));
+vi.mock("./GrowthSections", () => ({ GrowthSection: () => null }));
 
-import { Route } from "@/routes/_project/p/$projectId/growth/operations";
+import { Route } from "@/routes/_project/p/$projectId/growth/$section";
 
-describe("Growth operations project scope", () => {
-  it("keys the entire operations page to the project, remounting all nested query/filter/selection state", () => {
+describe("Growth section project scope", () => {
+  it("keys each Growth section to the project, remounting all nested query/filter/selection state", () => {
     expect(Route).toBeDefined();
     route.projectId = "project_one";
     const first = route.component!();

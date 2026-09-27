@@ -1,5 +1,6 @@
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { PageShell } from "@/client/components/PageShell";
+import { GROWTH_SECTIONS } from "@/client/features/growth/growthSectionList";
 import {
   SectionNav,
   sectionNavItemClass,
@@ -9,11 +10,6 @@ export const Route = createFileRoute("/_project/p/$projectId/growth")({
   component: GrowthLayout,
 });
 
-const tabs = [
-  { to: "/p/$projectId/growth" as const, label: "Plan", exact: true },
-  { to: "/p/$projectId/growth/operations" as const, label: "Operations" },
-];
-
 function GrowthLayout() {
   const { projectId } = Route.useParams();
   return (
@@ -22,16 +18,24 @@ function GrowthLayout() {
       description="What we are working on, why, and how we will know it worked."
       nav={
         <SectionNav label="Growth">
-          {tabs.map((tab) => (
+          <Link
+            to="/p/$projectId/growth"
+            params={{ projectId }}
+            activeOptions={{ exact: true }}
+            activeProps={{ className: sectionNavItemClass(true) }}
+            inactiveProps={{ className: sectionNavItemClass(false) }}
+          >
+            Plan
+          </Link>
+          {GROWTH_SECTIONS.map((section) => (
             <Link
-              key={tab.to}
-              to={tab.to}
-              params={{ projectId }}
-              activeOptions={{ exact: tab.exact ?? false }}
+              key={section.value}
+              to="/p/$projectId/growth/$section"
+              params={{ projectId, section: section.value }}
               activeProps={{ className: sectionNavItemClass(true) }}
               inactiveProps={{ className: sectionNavItemClass(false) }}
             >
-              {tab.label}
+              {section.label}
             </Link>
           ))}
         </SectionNav>

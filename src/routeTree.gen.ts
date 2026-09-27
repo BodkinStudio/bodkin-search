@@ -68,6 +68,7 @@ import { Route as ProjectPProjectIdSettingsContextRouteImport } from './routes/_
 import { Route as ProjectPProjectIdSettingsAnalyticsRouteImport } from './routes/_project/p/$projectId/settings/analytics'
 import { Route as ProjectPProjectIdRankTrackingConfigIdRouteImport } from './routes/_project/p/$projectId/rank-tracking/$configId'
 import { Route as ProjectPProjectIdGrowthOperationsRouteImport } from './routes/_project/p/$projectId/growth/operations'
+import { Route as ProjectPProjectIdGrowthSectionRouteImport } from './routes/_project/p/$projectId/growth/$section'
 import { Route as ProjectPProjectIdAuditIssuesResultIdRouteImport } from './routes/_project/p/$projectId/audit/issues/$resultId'
 
 const WorkspaceInvitationRoute = WorkspaceInvitationRouteImport.update({
@@ -386,6 +387,12 @@ const ProjectPProjectIdGrowthOperationsRoute =
     path: '/operations',
     getParentRoute: () => ProjectPProjectIdGrowthRoute,
   } as any)
+const ProjectPProjectIdGrowthSectionRoute =
+  ProjectPProjectIdGrowthSectionRouteImport.update({
+    id: '/$section',
+    path: '/$section',
+    getParentRoute: () => ProjectPProjectIdGrowthRoute,
+  } as any)
 const ProjectPProjectIdAuditIssuesResultIdRoute =
   ProjectPProjectIdAuditIssuesResultIdRouteImport.update({
     id: '/issues/$resultId',
@@ -440,6 +447,7 @@ export interface FileRoutesByFullPath {
   '/api/linkedin/oauth/callback': typeof ApiLinkedinOauthCallbackRoute
   '/api/youtube/oauth/callback': typeof ApiYoutubeOauthCallbackRoute
   '/p/$projectId/': typeof ProjectPProjectIdIndexRoute
+  '/p/$projectId/growth/$section': typeof ProjectPProjectIdGrowthSectionRoute
   '/p/$projectId/growth/operations': typeof ProjectPProjectIdGrowthOperationsRoute
   '/p/$projectId/rank-tracking/$configId': typeof ProjectPProjectIdRankTrackingConfigIdRoute
   '/p/$projectId/settings/analytics': typeof ProjectPProjectIdSettingsAnalyticsRoute
@@ -493,6 +501,7 @@ export interface FileRoutesByTo {
   '/api/linkedin/oauth/callback': typeof ApiLinkedinOauthCallbackRoute
   '/api/youtube/oauth/callback': typeof ApiYoutubeOauthCallbackRoute
   '/p/$projectId': typeof ProjectPProjectIdIndexRoute
+  '/p/$projectId/growth/$section': typeof ProjectPProjectIdGrowthSectionRoute
   '/p/$projectId/growth/operations': typeof ProjectPProjectIdGrowthOperationsRoute
   '/p/$projectId/rank-tracking/$configId': typeof ProjectPProjectIdRankTrackingConfigIdRoute
   '/p/$projectId/settings/analytics': typeof ProjectPProjectIdSettingsAnalyticsRoute
@@ -556,6 +565,7 @@ export interface FileRoutesById {
   '/api/linkedin/oauth/callback': typeof ApiLinkedinOauthCallbackRoute
   '/api/youtube/oauth/callback': typeof ApiYoutubeOauthCallbackRoute
   '/_project/p/$projectId/': typeof ProjectPProjectIdIndexRoute
+  '/_project/p/$projectId/growth/$section': typeof ProjectPProjectIdGrowthSectionRoute
   '/_project/p/$projectId/growth/operations': typeof ProjectPProjectIdGrowthOperationsRoute
   '/_project/p/$projectId/rank-tracking/$configId': typeof ProjectPProjectIdRankTrackingConfigIdRoute
   '/_project/p/$projectId/settings/analytics': typeof ProjectPProjectIdSettingsAnalyticsRoute
@@ -616,6 +626,7 @@ export interface FileRouteTypes {
     | '/api/linkedin/oauth/callback'
     | '/api/youtube/oauth/callback'
     | '/p/$projectId/'
+    | '/p/$projectId/growth/$section'
     | '/p/$projectId/growth/operations'
     | '/p/$projectId/rank-tracking/$configId'
     | '/p/$projectId/settings/analytics'
@@ -669,6 +680,7 @@ export interface FileRouteTypes {
     | '/api/linkedin/oauth/callback'
     | '/api/youtube/oauth/callback'
     | '/p/$projectId'
+    | '/p/$projectId/growth/$section'
     | '/p/$projectId/growth/operations'
     | '/p/$projectId/rank-tracking/$configId'
     | '/p/$projectId/settings/analytics'
@@ -731,6 +743,7 @@ export interface FileRouteTypes {
     | '/api/linkedin/oauth/callback'
     | '/api/youtube/oauth/callback'
     | '/_project/p/$projectId/'
+    | '/_project/p/$projectId/growth/$section'
     | '/_project/p/$projectId/growth/operations'
     | '/_project/p/$projectId/rank-tracking/$configId'
     | '/_project/p/$projectId/settings/analytics'
@@ -1180,6 +1193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectPProjectIdGrowthOperationsRouteImport
       parentRoute: typeof ProjectPProjectIdGrowthRoute
     }
+    '/_project/p/$projectId/growth/$section': {
+      id: '/_project/p/$projectId/growth/$section'
+      path: '/$section'
+      fullPath: '/p/$projectId/growth/$section'
+      preLoaderRoute: typeof ProjectPProjectIdGrowthSectionRouteImport
+      parentRoute: typeof ProjectPProjectIdGrowthRoute
+    }
     '/_project/p/$projectId/audit/issues/$resultId': {
       id: '/_project/p/$projectId/audit/issues/$resultId'
       path: '/issues/$resultId'
@@ -1236,12 +1256,14 @@ const ProjectPProjectIdAuditRouteWithChildren =
   )
 
 interface ProjectPProjectIdGrowthRouteChildren {
+  ProjectPProjectIdGrowthSectionRoute: typeof ProjectPProjectIdGrowthSectionRoute
   ProjectPProjectIdGrowthOperationsRoute: typeof ProjectPProjectIdGrowthOperationsRoute
   ProjectPProjectIdGrowthIndexRoute: typeof ProjectPProjectIdGrowthIndexRoute
 }
 
 const ProjectPProjectIdGrowthRouteChildren: ProjectPProjectIdGrowthRouteChildren =
   {
+    ProjectPProjectIdGrowthSectionRoute: ProjectPProjectIdGrowthSectionRoute,
     ProjectPProjectIdGrowthOperationsRoute:
       ProjectPProjectIdGrowthOperationsRoute,
     ProjectPProjectIdGrowthIndexRoute: ProjectPProjectIdGrowthIndexRoute,

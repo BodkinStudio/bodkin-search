@@ -403,10 +403,6 @@
     "capability": "edit",
     "projectRequired": true
   },
-  "src/serverFunctions/growthPreview.ts:getGrowthPreview": {
-    "capability": "read",
-    "projectRequired": true
-  },
   "src/serverFunctions/growthReports.ts:buildGrowthMonthlyReport": {
     "capability": "run",
     "projectRequired": true

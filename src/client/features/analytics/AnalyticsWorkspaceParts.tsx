@@ -6,7 +6,7 @@ import { AnalyticsRetainedHistory } from "./AnalyticsSearchEvidence";
 import { CustomerEvidence } from "./CustomerEvidence";
 import type { AnalyticsEnvironment, AnalyticsSearch } from "./analytics-search";
 
-export type AnalyticsViewItem = {
+type AnalyticsViewItem = {
   value: AnalyticsSearch["view"];
   label: string;
 };
