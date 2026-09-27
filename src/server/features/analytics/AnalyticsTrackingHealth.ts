@@ -12,8 +12,8 @@ import {
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
-export type TrackingCheckState = "pass" | "warn" | "fail" | "not_applicable";
-export type TrackingStatus = "not_installed" | "live" | "quiet" | "silent";
+type TrackingCheckState = "pass" | "warn" | "fail" | "not_applicable";
+type TrackingStatus = "not_installed" | "live" | "quiet" | "silent";
 
 // Plain-language reasons a new customer could not be tied to a visit.
 const UNMATCHED_REASONS: Record<string, string> = {
