@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Modal } from "@/client/components/Modal";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import {
   createGrowthPlanAction,
@@ -69,6 +70,7 @@ export function GrowthPlanWorkstream({
   const client = useQueryClient();
   const [open, setOpen] = useState(false);
   const [addingAction, setAddingAction] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const planKey = ["growthPlan", projectId];
   const refresh = () => client.invalidateQueries({ queryKey: planKey });
 
@@ -149,14 +151,14 @@ export function GrowthPlanWorkstream({
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
-                className="btn btn-ghost btn-xs"
-                onClick={() => setOpen((current) => !current)}
+                className="btn btn-ghost btn-sm"
+                onClick={() => setOpen(true)}
               >
                 Edit
               </button>
               <button
                 type="button"
-                className="btn btn-ghost btn-xs"
+                className="btn btn-ghost btn-sm"
                 disabled={!canMoveUp || reordering}
                 onClick={() => onMove(-1)}
               >
@@ -164,21 +166,41 @@ export function GrowthPlanWorkstream({
               </button>
               <button
                 type="button"
-                className="btn btn-ghost btn-xs"
+                className="btn btn-ghost btn-sm"
                 disabled={!canMoveDown || reordering}
                 onClick={() => onMove(1)}
               >
                 Move down
               </button>
               {workstream.actions.length === 0 ? (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-xs"
-                  disabled={deleting}
-                  onClick={onDelete}
-                >
-                  Delete
-                </button>
+                confirmingDelete ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-error btn-sm"
+                      disabled={deleting}
+                      onClick={onDelete}
+                    >
+                      Yes, delete workstream
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setConfirmingDelete(false)}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm text-error"
+                    disabled={deleting}
+                    onClick={() => setConfirmingDelete(true)}
+                  >
+                    Delete
+                  </button>
+                )
               ) : null}
             </div>
           ) : null}
@@ -191,13 +213,25 @@ export function GrowthPlanWorkstream({
             </p>
           ) : null}
           {editing && open ? (
-            <GrowthWorkstreamForm
-              workstream={workstream}
-              pending={save.isPending}
-              error={null}
-              onSubmit={(draft) => save.mutate(draft)}
-              onCancel={() => setOpen(false)}
-            />
+            <Modal
+              maxWidth="max-w-2xl"
+              labelledBy={`edit-workstream-${workstream.id}`}
+              onClose={() => setOpen(false)}
+            >
+              <h3
+                id={`edit-workstream-${workstream.id}`}
+                className="text-lg font-semibold"
+              >
+                Edit workstream
+              </h3>
+              <GrowthWorkstreamForm
+                workstream={workstream}
+                pending={save.isPending}
+                error={null}
+                onSubmit={(draft) => save.mutate(draft)}
+                onCancel={() => setOpen(false)}
+              />
+            </Modal>
           ) : null}
         </div>
       </div>
@@ -256,7 +290,7 @@ export function GrowthPlanWorkstream({
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
-                onClick={() => setAddingAction((current) => !current)}
+                onClick={() => setAddingAction(true)}
               >
                 Add action
               </button>
@@ -270,14 +304,26 @@ export function GrowthPlanWorkstream({
               </p>
             ) : null}
             {addingAction ? (
-              <GrowthPlanActionForm
-                workstreamId={workstream.id}
-                workstreams={workstreams}
-                pending={addAction.isPending}
-                error={null}
-                onSubmit={(draft) => addAction.mutate(draft)}
-                onCancel={() => setAddingAction(false)}
-              />
+              <Modal
+                maxWidth="max-w-2xl"
+                labelledBy={`add-action-${workstream.id}`}
+                onClose={() => setAddingAction(false)}
+              >
+                <h3
+                  id={`add-action-${workstream.id}`}
+                  className="text-lg font-semibold"
+                >
+                  Add an action to &ldquo;{workstream.title}&rdquo;
+                </h3>
+                <GrowthPlanActionForm
+                  workstreamId={workstream.id}
+                  workstreams={workstreams}
+                  pending={addAction.isPending}
+                  error={null}
+                  onSubmit={(draft) => addAction.mutate(draft)}
+                  onCancel={() => setAddingAction(false)}
+                />
+              </Modal>
             ) : null}
           </>
         ) : (

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Modal } from "@/client/components/Modal";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { updateGrowthPlanNarrative } from "@/serverFunctions/growthPlan";
 import type { GrowthWorkstreamDto } from "@/types/schemas/growth-plan";
@@ -62,26 +63,35 @@ export function GrowthPlanHero({
             <button
               type="button"
               className="btn btn-ghost btn-sm"
-              onClick={() => setOpen((current) => !current)}
+              onClick={() => setOpen(true)}
             >
               Edit thesis and lede
             </button>
             {open ? (
-              <GrowthPlanNarrativeForm
-                thesis={thesis ?? null}
-                lede={lede ?? null}
-                pending={save.isPending}
-                error={
-                  save.error
-                    ? getStandardErrorMessage(
-                        save.error,
-                        "The narrative was not saved.",
-                      )
-                    : null
-                }
-                onSubmit={(draft) => save.mutate(draft)}
-                onCancel={() => setOpen(false)}
-              />
+              <Modal
+                maxWidth="max-w-2xl"
+                labelledBy="edit-narrative-title"
+                onClose={() => setOpen(false)}
+              >
+                <h3 id="edit-narrative-title" className="text-lg font-semibold">
+                  Edit thesis and lede
+                </h3>
+                <GrowthPlanNarrativeForm
+                  thesis={thesis ?? null}
+                  lede={lede ?? null}
+                  pending={save.isPending}
+                  error={
+                    save.error
+                      ? getStandardErrorMessage(
+                          save.error,
+                          "The narrative was not saved.",
+                        )
+                      : null
+                  }
+                  onSubmit={(draft) => save.mutate(draft)}
+                  onCancel={() => setOpen(false)}
+                />
+              </Modal>
             ) : null}
           </div>
         ) : null}

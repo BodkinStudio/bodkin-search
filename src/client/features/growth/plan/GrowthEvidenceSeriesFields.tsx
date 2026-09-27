@@ -201,20 +201,35 @@ export function GrowthEvidenceSeriesFields({
           onChange={(event) => update({ text: event.target.value })}
         />
       </div>
-      {parseErrors.map((message) => (
-        <p key={message} role="alert" className="mt-1 text-sm">
-          {message}
-        </p>
-      ))}
-      {issues.map((issue) => (
-        <p
-          key={issue.path.join(".") + issue.message}
-          role="alert"
-          className="mt-1 text-sm"
-        >
-          {issue.path.join(" ")} {issue.message}
-        </p>
-      ))}
+      {parseErrors.length > 0 || issues.length > 0 ? (
+        <ul aria-live="polite" className="mt-2 space-y-1 text-sm text-error">
+          {[
+            ...parseErrors,
+            ...seriesProblems(issues, parseErrors.length > 0),
+          ].map((message) => (
+            <li key={message}>{message}</li>
+          ))}
+        </ul>
+      ) : null}
     </fieldset>
   );
+}
+
+// Plain-language versions of the schema's complaints, one per field. Line
+// problems are already listed from the parser, so an empty points list
+// caused by them is not repeated.
+function seriesProblems(
+  issues: { path: PropertyKey[] }[],
+  hasLineErrors: boolean,
+) {
+  const fields = new Set(issues.map((issue) => String(issue.path[0] ?? "")));
+  const messages: string[] = [];
+  if (fields.has("title")) messages.push("Give the chart a title.");
+  if (fields.has("unit"))
+    messages.push("Say what the numbers measure, for example “clicks”.");
+  if (fields.has("points") && !hasLineErrors)
+    messages.push("Add at least one line of data.");
+  if (messages.length === 0 && issues.length > 0)
+    messages.push("Check the data: some values are not in the expected form.");
+  return messages;
 }

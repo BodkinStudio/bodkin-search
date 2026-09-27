@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   GROWTH_EVIDENCE_KIND_DESCRIPTIONS,
   GROWTH_EVIDENCE_KIND_LABELS,
@@ -15,6 +16,8 @@ export function GrowthPlanEvidence({
   pending: boolean;
   onRemove: (evidenceId: string) => void;
 }) {
+  // Removal asks first: evidence is what the plan's claims rest on.
+  const [confirming, setConfirming] = useState<string | null>(null);
   if (evidence.length === 0)
     return (
       <p className="mt-2 text-sm text-base-content/70">
@@ -55,15 +58,38 @@ export function GrowthPlanEvidence({
                 : ""}
             </span>
           </p>
-          <button
-            type="button"
-            className="btn btn-ghost btn-xs shrink-0"
-            disabled={pending}
-            aria-label={`Remove evidence: ${item.statement.slice(0, 60)}`}
-            onClick={() => onRemove(item.id)}
-          >
-            ×
-          </button>
+          {confirming === item.id ? (
+            <span className="flex shrink-0 gap-1">
+              <button
+                type="button"
+                className="btn btn-error btn-sm"
+                disabled={pending}
+                onClick={() => {
+                  onRemove(item.id);
+                  setConfirming(null);
+                }}
+              >
+                Yes, remove
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setConfirming(null)}
+              >
+                Cancel
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm shrink-0"
+              disabled={pending}
+              aria-label={`Remove evidence: ${item.statement.slice(0, 60)}`}
+              onClick={() => setConfirming(item.id)}
+            >
+              Remove
+            </button>
+          )}
         </li>
       ))}
     </ul>

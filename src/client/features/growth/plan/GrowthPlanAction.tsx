@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Modal } from "@/client/components/Modal";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import {
   addGrowthActionEvidence,
@@ -42,7 +43,6 @@ export function GrowthPlanAction({
   const client = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [addingEvidence, setAddingEvidence] = useState(false);
-  const [nextStatus, setNextStatus] = useState<GrowthActionStatus | "">("");
   const planKey = ["growthPlan", projectId];
   const refresh = () => client.invalidateQueries({ queryKey: planKey });
   const badge = GROWTH_PLAN_STATUS_BADGES[action.status];
@@ -110,18 +110,37 @@ export function GrowthPlanAction({
         },
       }),
     retry: false,
-    onSuccess: async () => {
-      setNextStatus("");
-      await refresh();
-    },
+    onSuccess: refresh,
   });
   const failure =
     save.error ?? addEvidence.error ?? dropEvidence.error ?? changeStatus.error;
 
   return (
     <li className="border-t border-base-300 pt-4 [overflow-wrap:anywhere]">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className={`badge ${badge.className}`}>{badge.label}</span>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        {nextStatuses.length > 0 ? (
+          <select
+            className="select select-sm w-auto"
+            aria-label={`Status of ${action.title}`}
+            value={action.status}
+            disabled={changeStatus.isPending}
+            onChange={(event) => {
+              const next = nextStatuses.find(
+                (status) => status === event.target.value,
+              );
+              if (next) changeStatus.mutate(next);
+            }}
+          >
+            <option value={action.status}>{badge.label}</option>
+            {nextStatuses.map((status) => (
+              <option key={status} value={status}>
+                Move to {GROWTH_WORK_STATUS_LABELS[status]}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className={`badge ${badge.className}`}>{badge.label}</span>
+        )}
         <h4 className="font-semibold">{action.title}</h4>
         <p className="text-sm tabular-nums text-base-content/70">
           Due {formatGrowthPreviewDate(action.dueOn)}
@@ -162,51 +181,18 @@ export function GrowthPlanAction({
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
-          className="btn btn-ghost btn-xs"
-          onClick={() => setEditing((open) => !open)}
+          className="btn btn-ghost btn-sm"
+          onClick={() => setEditing(true)}
         >
           Edit
         </button>
         <button
           type="button"
-          className="btn btn-ghost btn-xs"
-          onClick={() => setAddingEvidence((open) => !open)}
+          className="btn btn-ghost btn-sm"
+          onClick={() => setAddingEvidence(true)}
         >
           Add evidence
         </button>
-        {nextStatuses.length > 0 ? (
-          <>
-            <select
-              className="select select-bordered select-xs"
-              aria-label={`Change status of ${action.title}`}
-              value={nextStatus}
-              onChange={(event) =>
-                setNextStatus(
-                  nextStatuses.find(
-                    (status) => status === event.target.value,
-                  ) ?? "",
-                )
-              }
-            >
-              <option value="">Move to…</option>
-              {nextStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {GROWTH_WORK_STATUS_LABELS[status]}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="btn btn-xs"
-              disabled={!nextStatus || changeStatus.isPending}
-              onClick={() => {
-                if (nextStatus) changeStatus.mutate(nextStatus);
-              }}
-            >
-              {changeStatus.isPending ? "Saving…" : "Update status"}
-            </button>
-          </>
-        ) : null}
       </div>
       {failure ? (
         <p role="alert" className="mt-2 text-sm">
@@ -214,23 +200,44 @@ export function GrowthPlanAction({
         </p>
       ) : null}
       {editing ? (
-        <GrowthPlanActionForm
-          workstreamId={workstreamId}
-          workstreams={workstreams}
-          action={action}
-          pending={save.isPending}
-          error={null}
-          onSubmit={(draft) => save.mutate(draft)}
-          onCancel={() => setEditing(false)}
-        />
+        <Modal
+          maxWidth="max-w-2xl"
+          labelledBy={`edit-action-${action.id}`}
+          onClose={() => setEditing(false)}
+        >
+          <h3 id={`edit-action-${action.id}`} className="text-lg font-semibold">
+            Edit action
+          </h3>
+          <GrowthPlanActionForm
+            workstreamId={workstreamId}
+            workstreams={workstreams}
+            action={action}
+            pending={save.isPending}
+            error={null}
+            onSubmit={(draft) => save.mutate(draft)}
+            onCancel={() => setEditing(false)}
+          />
+        </Modal>
       ) : null}
       {addingEvidence ? (
-        <GrowthEvidenceForm
-          pending={addEvidence.isPending}
-          error={null}
-          onSubmit={(draft) => addEvidence.mutate(draft)}
-          onCancel={() => setAddingEvidence(false)}
-        />
+        <Modal
+          maxWidth="max-w-2xl"
+          labelledBy={`add-evidence-${action.id}`}
+          onClose={() => setAddingEvidence(false)}
+        >
+          <h3
+            id={`add-evidence-${action.id}`}
+            className="text-lg font-semibold"
+          >
+            Add evidence to &ldquo;{action.title}&rdquo;
+          </h3>
+          <GrowthEvidenceForm
+            pending={addEvidence.isPending}
+            error={null}
+            onSubmit={(draft) => addEvidence.mutate(draft)}
+            onCancel={() => setAddingEvidence(false)}
+          />
+        </Modal>
       ) : null}
     </li>
   );

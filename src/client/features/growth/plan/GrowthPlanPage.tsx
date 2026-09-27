@@ -16,6 +16,7 @@ import type {
 } from "@/types/schemas/growth-plan";
 import { formatGrowthPreviewDate } from "../GrowthPreviewPresentation";
 import { Link } from "@tanstack/react-router";
+import { Modal } from "@/client/components/Modal";
 import { GrowthPlanBelief } from "./GrowthPlanBelief";
 import { GrowthPlanHero } from "./GrowthPlanHero";
 import { GrowthPlanLedger } from "./GrowthPlanLedger";
@@ -207,18 +208,27 @@ export function GrowthPlanPage({
         <button
           type="button"
           className="btn btn-primary btn-sm"
-          onClick={() => setAdding((current) => !current)}
+          onClick={() => setAdding(true)}
         >
           Add workstream
         </button>
       ) : null}
       {editing && adding ? (
-        <GrowthWorkstreamForm
-          pending={add.isPending}
-          error={null}
-          onSubmit={(draft) => add.mutate(draft)}
-          onCancel={() => setAdding(false)}
-        />
+        <Modal
+          maxWidth="max-w-2xl"
+          labelledBy="add-workstream-title"
+          onClose={() => setAdding(false)}
+        >
+          <h3 id="add-workstream-title" className="text-lg font-semibold">
+            Add a workstream
+          </h3>
+          <GrowthWorkstreamForm
+            pending={add.isPending}
+            error={null}
+            onSubmit={(draft) => add.mutate(draft)}
+            onCancel={() => setAdding(false)}
+          />
+        </Modal>
       ) : null}
 
       {workstreams.map((workstream, index) => (
