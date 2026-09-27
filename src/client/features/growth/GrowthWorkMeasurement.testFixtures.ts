@@ -19,6 +19,7 @@ export const measurementAction: GrowthWorkItem = {
 export const measurementCandidate: GrowthWorkMeasurementCandidate = {
   change: {
     id: "change_1",
+    source: "manual",
     changeType: "content_updated",
     description: "Updated pricing copy.",
     happenedAt: "2026-08-01T00:00:00.000Z",

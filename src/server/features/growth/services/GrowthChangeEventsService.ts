@@ -10,17 +10,18 @@ import {
   normalizeGrowthExactUrls,
 } from "./GrowthTargetNormalizer";
 
-const MANUAL_SOURCE = "manual" as const;
+type RecordedSource = "manual" | "monitor";
 
 function changeEventFact(
   input: RecordManualGrowthChangeEventInput,
+  source: RecordedSource,
   happenedAt: string,
   urls: string[],
 ) {
   return {
     projectId: input.projectId,
     creationKey: input.creationKey,
-    source: MANUAL_SOURCE,
+    source,
     changeType: input.changeType,
     actorType: input.actorType,
     actorId: input.actorId,
@@ -62,12 +63,30 @@ async function readCompleteGraph(
 }
 
 async function recordManualEvent(input: RecordManualGrowthChangeEventInput) {
+  return recordEvent(input, "manual");
+}
+
+// A change the Growth watch noticed on a watched page. Same immutable,
+// idempotent write as a manual entry, marked as detected rather than typed.
+async function recordMonitorEvent(
+  input: Omit<RecordManualGrowthChangeEventInput, "actorType" | "actorId">,
+) {
+  return recordEvent(
+    { ...input, actorType: "system", actorId: "growth-watch" },
+    "monitor",
+  );
+}
+
+async function recordEvent(
+  input: RecordManualGrowthChangeEventInput,
+  source: RecordedSource,
+) {
   const domain = await repo.projectDomain(input.projectId);
   if (!domain) throw new AppError("NOT_FOUND", "Growth project not found");
 
   const happenedAt = new Date(input.happenedAt).toISOString();
   const urls = canonicalizeGrowthExactUrls(input.urls);
-  const fact = changeEventFact(input, happenedAt, urls);
+  const fact = changeEventFact(input, source, happenedAt, urls);
   const factHash = await sha256Hex(JSON.stringify(fact));
   const existing = await repo.getChangeEventByKey(
     input.projectId,
@@ -138,6 +157,7 @@ async function linkAction(input: LinkGrowthActionChangeInput) {
 
 export const GrowthChangeEventsService = {
   recordManualEvent,
+  recordMonitorEvent,
   getChangeEvent,
   linkAction,
 } as const;

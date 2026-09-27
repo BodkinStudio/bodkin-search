@@ -6,7 +6,12 @@ export const GROWTH_CHANGE_EVENT_SOURCES = [
   "sherpa",
   "cms_webhook",
   "deployment",
+  "monitor",
 ] as const;
+
+// Changes the change log shows: typed in by a person (or an agent through
+// MCP), or noticed by the Growth watch's page check.
+export const GROWTH_RECORDED_CHANGE_SOURCES = ["manual", "monitor"] as const;
 
 export const GROWTH_CHANGE_EVENT_TYPES = [
   "content_updated",

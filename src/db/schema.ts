@@ -233,6 +233,7 @@ export const {
   growthChangeEvents,
   growthChangeEventUrls,
   growthActionChanges,
+  growthPageSnapshots,
   growthMeasurementPlans,
   growthMeasurementPlanAnchors,
   growthMeasurementMetrics,

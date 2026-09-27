@@ -4,6 +4,7 @@ import {
   foreignKey,
   index,
   sqliteTable,
+  integer,
   text,
   unique,
 } from "drizzle-orm/sqlite-core";
@@ -20,7 +21,7 @@ export const growthChangeEvents = sqliteTable(
     creationKey: text("creation_key").notNull(),
     factHash: text("fact_hash").notNull(),
     source: text("source", {
-      enum: ["manual", "sherpa", "cms_webhook", "deployment"],
+      enum: ["manual", "sherpa", "cms_webhook", "deployment", "monitor"],
     }).notNull(),
     changeType: text("change_type", {
       enum: [
@@ -66,7 +67,7 @@ export const growthChangeEvents = sqliteTable(
     ),
     check(
       "growth_change_events_vocabulary_check",
-      sql`${table.source} IN ('manual','sherpa','cms_webhook','deployment') AND ${table.changeType} IN ('content_updated','title_meta_updated','page_created','page_removed','redirect_changed','internal_links_changed','template_changed','structured_data_changed','technical_fix','design_restructure','migration','unknown','mixed') AND ${table.actorType} IN ('user','agent','system')`,
+      sql`${table.source} IN ('manual','sherpa','cms_webhook','deployment','monitor') AND ${table.changeType} IN ('content_updated','title_meta_updated','page_created','page_removed','redirect_changed','internal_links_changed','template_changed','structured_data_changed','technical_fix','design_restructure','migration','unknown','mixed') AND ${table.actorType} IN ('user','agent','system')`,
     ),
   ],
 );
@@ -127,5 +128,35 @@ export const growthActionChanges = sqliteTable(
       foreignColumns: [growthChangeEvents.projectId, growthChangeEvents.id],
       name: "growth_action_changes_project_event_fk",
     }).onDelete("cascade"),
+  ],
+);
+
+// What the Growth watch last saw on each watched page, so the next visit can
+// tell what changed. One row per page per visit.
+export const growthPageSnapshots = sqliteTable(
+  "growth_page_snapshots",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    capturedAt: text("captured_at").notNull(),
+    statusCode: integer("status_code").notNull(),
+    resolvedUrl: text("resolved_url").notNull(),
+    title: text("title"),
+    metaDescription: text("meta_description"),
+    h1: text("h1"),
+    canonical: text("canonical"),
+    indexable: integer("indexable").notNull(),
+    wordCount: integer("word_count").notNull(),
+    contentHash: text("content_hash"),
+  },
+  (table) => [
+    index("growth_page_snapshots_page_idx").on(
+      table.projectId,
+      table.url,
+      table.capturedAt,
+    ),
   ],
 );

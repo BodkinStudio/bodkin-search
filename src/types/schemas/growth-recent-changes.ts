@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { GROWTH_CHANGE_EVENT_TYPES } from "./growth-change-events";
+import {
+  GROWTH_CHANGE_EVENT_TYPES,
+  GROWTH_RECORDED_CHANGE_SOURCES,
+} from "./growth-change-events";
 
 const id = z.string().trim().min(1).max(100);
 const timestamp = z.string().datetime({ offset: true });
@@ -35,7 +38,7 @@ const displayUrl = z.strictObject({
 });
 export const growthManualChangeDtoSchema = z.strictObject({
   id,
-  source: z.literal("manual"),
+  source: z.enum(GROWTH_RECORDED_CHANGE_SOURCES),
   changeType: z.enum(GROWTH_CHANGE_EVENT_TYPES),
   description: z.string().min(1).max(2000),
   descriptionRedacted: z.boolean(),

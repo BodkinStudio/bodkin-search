@@ -48,6 +48,11 @@ export function GrowthPlanLedger({ projectId }: { projectId: string }) {
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <p className="font-medium">
                   {GROWTH_CHANGE_LABELS[change.changeType]}
+                  {change.source === "monitor" ? (
+                    <span className="badge badge-ghost badge-sm ml-2 align-middle">
+                      Detected
+                    </span>
+                  ) : null}
                 </p>
                 <p className="tabular-nums text-base-content/70">
                   {formatGrowthPreviewDate(change.happenedAt)}

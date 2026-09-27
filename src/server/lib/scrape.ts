@@ -52,9 +52,19 @@ async function readBoundedText(response: Response): Promise<string | null> {
   return result;
 }
 
-async function fetchText(
+/**
+ * Fetches one page the way a crawler would: every redirect hop re-passes the
+ * SSRF checks, the body is size-bounded, and non-2xx answers still report
+ * their status so callers can tell "gone" from "unreachable". Null means the
+ * page could not be fetched at all (blocked, timed out, redirect loop).
+ */
+export async function fetchPage(
   url: string,
-): Promise<{ text: string; resolvedUrl: string } | null> {
+): Promise<{
+  status: number;
+  resolvedUrl: string;
+  text: string | null;
+} | null> {
   try {
     const signal = AbortSignal.timeout(FETCH_TIMEOUT_MS);
     const visited = new Set<string>();
@@ -80,15 +90,25 @@ async function fetchText(
       }
       if (!response.ok) {
         await response.body?.cancel();
-        return null;
+        return { status: response.status, resolvedUrl: current, text: null };
       }
-      const text = await readBoundedText(response);
-      return text === null ? null : { text, resolvedUrl: current };
+      return {
+        status: response.status,
+        resolvedUrl: current,
+        text: await readBoundedText(response),
+      };
     }
     return null;
   } catch {
     return null;
   }
+}
+
+async function fetchText(
+  url: string,
+): Promise<{ text: string; resolvedUrl: string } | null> {
+  const page = await fetchPage(url);
+  return page?.text ? { text: page.text, resolvedUrl: page.resolvedUrl } : null;
 }
 
 /**

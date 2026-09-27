@@ -15,6 +15,7 @@ export function toChangeDto(
 ): GrowthChangeDto {
   return {
     id: graph.event.id,
+    source: graph.event.source === "monitor" ? "monitor" : "manual",
     changeType: graph.event.changeType,
     description: graph.event.description,
     happenedAt: graph.event.happenedAt,

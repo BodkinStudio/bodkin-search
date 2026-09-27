@@ -60,8 +60,9 @@ export function GrowthChangeHistory({
                 </p>
               )}
               <p className="mt-2 text-xs text-base-content/70">
-                Manually recorded {formatGrowthPreviewDate(change.recordedAt)}{" "}
-                (UTC). This note was not collected by a check.
+                {change.source === "monitor"
+                  ? `Detected by Bodkin's weekly page check on ${formatGrowthPreviewDate(change.recordedAt)} (UTC).`
+                  : `Manually recorded ${formatGrowthPreviewDate(change.recordedAt)} (UTC). This note was not collected by a check.`}
               </p>
             </li>
           ))}

@@ -20,6 +20,7 @@ const overview: Awaited<ReturnType<typeof getGrowthChangeLog>> = {
 };
 const change = {
   id: "change_1",
+  source: "manual" as const,
   changeType: "content_updated" as const,
   description: "Rewrote the pricing comparison.",
   happenedAt: "2026-08-01T00:00:00.000Z",

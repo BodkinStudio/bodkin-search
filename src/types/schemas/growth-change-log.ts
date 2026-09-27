@@ -1,3 +1,4 @@
+import type { GROWTH_RECORDED_CHANGE_SOURCES } from "./growth-change-events";
 import { z } from "zod";
 import {
   GROWTH_CHANGE_EVENT_TYPES,
@@ -44,6 +45,8 @@ export type GrowthPageChangeType = GrowthChangeEventType;
 
 export type GrowthChangeDto = {
   id: string;
+  // "monitor" when the Growth watch noticed it rather than a person logging it.
+  source: (typeof GROWTH_RECORDED_CHANGE_SOURCES)[number];
   changeType: GrowthPageChangeType;
   description: string;
   happenedAt: string;

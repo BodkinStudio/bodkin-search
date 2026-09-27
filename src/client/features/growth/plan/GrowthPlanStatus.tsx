@@ -167,7 +167,8 @@ function GrowthPlanRecentChanges({ projectId }: { projectId: string }) {
             {changes.map((change) => (
               <li key={change.id} className="py-2.5 text-sm">
                 <p className="text-xs text-base-content/60">
-                  {GROWTH_CHANGE_LABELS[change.changeType]} ·{" "}
+                  {GROWTH_CHANGE_LABELS[change.changeType]}
+                  {change.source === "monitor" ? " (detected)" : ""} ·{" "}
                   {formatGrowthPreviewDate(change.happenedAt)}
                 </p>
                 <p className="mt-0.5 line-clamp-2 [overflow-wrap:anywhere]">

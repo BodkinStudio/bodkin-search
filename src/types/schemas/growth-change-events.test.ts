@@ -26,6 +26,7 @@ describe("Growth Change Event schemas", () => {
       "sherpa",
       "cms_webhook",
       "deployment",
+      "monitor",
     ]);
   });
 

@@ -1,3 +1,4 @@
+import { GROWTH_RECORDED_CHANGE_SOURCES } from "@/types/schemas/growth-change-events";
 import {
   and,
   asc,
@@ -109,7 +110,7 @@ async function listManualChangeEventGraphs(projectId: string, limit: number) {
     .where(
       and(
         eq(growthChangeEvents.projectId, projectId),
-        eq(growthChangeEvents.source, "manual"),
+        inArray(growthChangeEvents.source, GROWTH_RECORDED_CHANGE_SOURCES),
       ),
     )
     .orderBy(desc(growthChangeEvents.happenedAt), desc(growthChangeEvents.id))
@@ -168,7 +169,7 @@ async function listRecentManualChangeEventsPage(
     .where(
       and(
         eq(growthChangeEvents.projectId, input.projectId),
-        eq(growthChangeEvents.source, "manual"),
+        inArray(growthChangeEvents.source, GROWTH_RECORDED_CHANGE_SOURCES),
         afterCursor,
       ),
     )
@@ -224,7 +225,7 @@ async function listManualChangeEventGraphsForAction(
       and(
         eq(growthActionChanges.projectId, projectId),
         eq(growthActionChanges.actionId, actionId),
-        eq(growthChangeEvents.source, "manual"),
+        inArray(growthChangeEvents.source, GROWTH_RECORDED_CHANGE_SOURCES),
       ),
     )
     .orderBy(desc(growthChangeEvents.happenedAt), desc(growthChangeEvents.id))

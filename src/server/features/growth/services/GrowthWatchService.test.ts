@@ -7,6 +7,7 @@ const checks = vi.hoisted(() => ({
   rankDrop: vi.fn(),
   auditIssue: vi.fn(),
   measurementDue: vi.fn(),
+  pageChanges: vi.fn(),
 }));
 vi.mock("../repositories/GrowthWatchRepository", () => ({
   GrowthWatchRepository: { listWatchedProjectIds: vi.fn() },
@@ -22,6 +23,9 @@ vi.mock("./GrowthPersistentRankDropCheckService", () => ({
 }));
 vi.mock("./GrowthCriticalAuditIssueCheckService", () => ({
   GrowthCriticalAuditIssueCheckService: { runCheck: checks.auditIssue },
+}));
+vi.mock("./GrowthPageMonitorService", () => ({
+  GrowthPageMonitorService: { checkPages: checks.pageChanges },
 }));
 vi.mock("./GrowthMeasurementDueCheckService", () => ({
   GrowthMeasurementDueCheckService: { runCheck: checks.measurementDue },

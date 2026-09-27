@@ -32,8 +32,11 @@ export function projectManualChangeEvent(
   event: ManualChangeEvent,
   urls: string[],
 ): GrowthRecentChangesPageDto["changes"][number] {
-  if (event.source !== "manual")
-    throw new AppError("INTERNAL_ERROR", "Stored Change Event is not manual");
+  if (event.source !== "manual" && event.source !== "monitor")
+    throw new AppError(
+      "INTERNAL_ERROR",
+      "Stored Change Event is not a recorded change",
+    );
   if (urls.length < 1 || urls.length > MAX_STORED_URLS)
     throw new AppError(
       "INTERNAL_ERROR",
@@ -45,7 +48,7 @@ export function projectManualChangeEvent(
 
   return growthManualChangeDtoSchema.parse({
     id: event.id,
-    source: "manual",
+    source: event.source,
     changeType: event.changeType,
     description: description.content.slice(0, 2000),
     descriptionRedacted: description.redacted,
