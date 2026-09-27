@@ -206,12 +206,12 @@ describe("client workspace isolation", () => {
     await service.sendInvitation(owner, "b", guest.userEmail, "editor");
     expect(await invitations.listMyInvitations(viewer)).toEqual([]);
     const [invite] = await invitations.listMyInvitations(guest);
-    expect(invite?.workspace.id).toBe("b");
+    expect(invite.workspace.id).toBe("b");
     expect(
-      await invitations.acceptInvitationById(viewer, invite!.invitationId),
+      await invitations.acceptInvitationById(viewer, invite.invitationId),
     ).toEqual({ state: "wrong_account" });
     expect(
-      await invitations.acceptInvitationById(guest, invite!.invitationId),
+      await invitations.acceptInvitationById(guest, invite.invitationId),
     ).toMatchObject({ state: "accepted", workspaceId: "b" });
     expect(await invitations.listMyInvitations(guest)).toEqual([]);
   });
