@@ -1,3 +1,4 @@
+import { GROWTH_RECORDED_CHANGE_SOURCES } from "@/types/schemas/growth-change-events";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -125,7 +126,7 @@ async function getLinkedManualChangeEvent(
         eq(growthActionChanges.projectId, projectId),
         eq(growthActionChanges.actionId, actionId),
         eq(growthActionChanges.changeEventId, changeEventId),
-        eq(growthChangeEvents.source, "manual"),
+        inArray(growthChangeEvents.source, [...GROWTH_RECORDED_CHANGE_SOURCES]),
       ),
     )
     .limit(1);

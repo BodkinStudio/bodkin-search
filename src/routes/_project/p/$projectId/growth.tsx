@@ -25,7 +25,15 @@ function GrowthLayout() {
   // Growth components link to each other's sections by anchor. When the
   // anchor is on another tab, go to that tab instead of doing nothing.
   const followAnchorAcrossTabs = (event: MouseEvent) => {
-    if (!(event.target instanceof Element)) return;
+    if (
+      !(event.target instanceof Element) ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return;
     const hash = event.target
       .closest('a[href^="#growth-"]')
       ?.getAttribute("href");

@@ -8,8 +8,10 @@ import { GrowthPlanMeasurementService } from "./GrowthPlanMeasurementService";
 import { GrowthPersistentRankDropCheckService } from "./GrowthPersistentRankDropCheckService";
 import { GrowthStrikingDistanceCheckService } from "./GrowthStrikingDistanceCheckService";
 
-// Projects per hourly tick; anything left over is picked up next hour.
-const BATCH = 10;
+// Projects per hourly tick (72 a day), kept small so one scheduled run
+// stays well inside the worker's limits with up to 25 page reads and two AI
+// briefs per project; anything left over is picked up next hour.
+const BATCH = 3;
 
 /** ISO week key, e.g. "2026-W39": one watch per project per week. */
 export function isoWeekKey(now: Date) {

@@ -37,8 +37,14 @@ export function GrowthPlanStatusSelect({
         },
       }),
     retry: false,
+    // Shipping starts a measurement, which the This week panel lists.
     onSuccess: () =>
-      client.invalidateQueries({ queryKey: ["growthPlan", projectId] }),
+      Promise.all([
+        client.invalidateQueries({ queryKey: ["growthPlan", projectId] }),
+        client.invalidateQueries({
+          queryKey: ["growthAnalystDigest", projectId],
+        }),
+      ]),
   });
 
   if (nextStatuses.length === 0)

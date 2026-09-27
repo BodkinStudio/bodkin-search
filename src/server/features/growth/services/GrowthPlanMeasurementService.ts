@@ -1,3 +1,4 @@
+import { AppError } from "@/server/lib/errors";
 import { GscConnectionRepository } from "@/server/features/gsc/repositories/GscConnectionRepository";
 import { GrowthActionsRepository } from "../repositories/GrowthActionsRepository";
 import { GrowthMeasurementsRepository } from "../repositories/GrowthMeasurementsRepository";
@@ -116,8 +117,14 @@ async function collectDue(input: { projectId: string }, now = new Date()) {
         { now },
       );
       collected++;
-    } catch {
-      // not ready, or already complete
+    } catch (error) {
+      // Not ready yet or already complete is expected (AppError); anything
+      // else, such as a Search Console failure, is worth seeing in the logs.
+      if (!(error instanceof AppError))
+        console.warn(
+          `[growth-watch] measurement ${plan.actionId} failed`,
+          error,
+        );
     }
   }
   return { plans: plans.length, collected };

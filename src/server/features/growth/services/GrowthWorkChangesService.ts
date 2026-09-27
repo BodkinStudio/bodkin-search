@@ -1,3 +1,4 @@
+import { GROWTH_RECORDED_CHANGE_SOURCES } from "@/types/schemas/growth-change-events";
 import { AppError } from "@/server/lib/errors";
 import type {
   GrowthWorkChangeLink,
@@ -36,7 +37,11 @@ async function linkGrowthWorkChange(
     input.projectId,
     input.changeEventId,
   );
-  if (event.event.source !== "manual")
+  if (
+    !GROWTH_RECORDED_CHANGE_SOURCES.some(
+      (source) => source === event.event.source,
+    )
+  )
     throw new AppError("NOT_FOUND", "Growth Change Event not found");
   await GrowthChangeEventsService.linkAction(input);
   return { actionId: input.actionId, changeEventId: input.changeEventId };

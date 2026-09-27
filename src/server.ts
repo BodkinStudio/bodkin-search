@@ -250,16 +250,30 @@ export default {
       return;
     }
 
+    // Client workspaces run only the Growth watch on a schedule; the other
+    // jobs (reviews, rank checks that spend DataForSEO credit, outbox
+    // delivery) stay off there.
+    const clientWorkspaces = env.CLIENT_WORKSPACES_ENABLED === "true";
+    if (controller.cron === GROWTH_WEEKLY_REVIEW_CRON && clientWorkspaces) {
+      await withPgClient(() => GrowthWatchService.runWatchTick());
+      return;
+    }
+    if (clientWorkspaces) return;
+
     if (controller.cron === GROWTH_MONTHLY_REVIEW_CRON) {
       await withPgClient(() => runScheduledGrowthMonthlyReviews(env));
       return;
     }
 
     if (controller.cron === GROWTH_WEEKLY_REVIEW_CRON) {
-      await withPgClient(() => runScheduledGrowthWeeklyReviews(env));
       // The Growth watch rides the same hourly tick (Cloudflare caps a
-      // worker's cron triggers); each project is checked once a week.
-      await withPgClient(() => GrowthWatchService.runWatchTick());
+      // worker's cron triggers); each project is checked once a week. It
+      // runs even when the reviews fail.
+      try {
+        await withPgClient(() => runScheduledGrowthWeeklyReviews(env));
+      } finally {
+        await withPgClient(() => GrowthWatchService.runWatchTick());
+      }
       return;
     }
 

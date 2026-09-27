@@ -1,4 +1,5 @@
-import { and, eq, exists, ne, sql } from "drizzle-orm";
+import { GROWTH_RECORDED_CHANGE_SOURCES } from "@/types/schemas/growth-change-events";
+import { and, eq, exists, inArray, ne, sql } from "drizzle-orm";
 import { getDatabaseProvider } from "@/db/provider";
 import { runBatch } from "@/db/runBatch";
 import {
@@ -102,7 +103,9 @@ export async function startMeasurementGraph(input: StartMeasurementGraphInput) {
           eq(growthActions.id, input.actionId),
           eq(growthActions.status, "implemented"),
           eq(growthActions.stateVersion, input.expectedActionVersion),
-          eq(growthChangeEvents.source, "manual"),
+          inArray(growthChangeEvents.source, [
+            ...GROWTH_RECORDED_CHANGE_SOURCES,
+          ]),
           eq(growthChangeEvents.happenedAt, input.anchorAt),
           sql`${validMetricGraph}`,
         ),
@@ -158,7 +161,9 @@ export async function startMeasurementGraph(input: StartMeasurementGraphInput) {
           .where(
             and(
               winnerWhere,
-              eq(growthChangeEvents.source, "manual"),
+              inArray(growthChangeEvents.source, [
+                ...GROWTH_RECORDED_CHANGE_SOURCES,
+              ]),
               eq(growthChangeEvents.happenedAt, input.anchorAt),
             ),
           ),
