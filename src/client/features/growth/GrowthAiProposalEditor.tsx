@@ -133,7 +133,7 @@ export function GrowthAiProposalEditor({
             ))}
           </ol>
           <p>
-            <span className="font-medium">Proposed measurement approach: </span>
+            <span className="font-medium">How we will know it worked: </span>
             {brief.proposal.measurementApproach}
           </p>
           {brief.approval ? (
@@ -216,7 +216,7 @@ export function GrowthAiProposalEditor({
                 {(field) => (
                   <GrowthAiProposalField
                     id={`${id}-measurement`}
-                    label="Proposed measurement approach"
+                    label="How we will know it worked"
                     field={field}
                     maxLength={1800}
                     rows={4}
@@ -265,7 +265,7 @@ export function GrowthAiProposalEditor({
                     {(field) => (
                       <GrowthAiProposalField
                         id={`${id}-due`}
-                        label="Due date (UTC)"
+                        label="Due date"
                         field={field}
                         type="date"
                       />

@@ -1,6 +1,7 @@
 /* eslint-disable max-lines -- the existing investigation lifecycle and its typed evidence projection stay colocated */
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { getErrorCode } from "@/client/lib/error-messages";
 import {
   approveGrowthInvestigation,
@@ -92,7 +93,7 @@ function GrowthInvestigationEvidencePeriod({
       >
         {"ctr" in facts ? (
           <div>
-            <dt className="text-xs text-base-content/70">CTR</dt>
+            <dt className="text-xs text-base-content/70">Click rate</dt>
             <dd className="font-medium">
               {formatEvidenceValue(facts.ctr * 100, 1)}%
             </dd>
@@ -128,32 +129,28 @@ function GrowthStrikingDistanceEvidence({
 }) {
   return (
     <section
-      aria-label="Saved ranking-opportunity evidence"
+      aria-label="Search Console numbers"
       className="rounded-md bg-base-200/60 p-3"
     >
-      <h5 className="font-semibold">Saved query evidence</h5>
+      <h5 className="font-semibold">The numbers</h5>
       <dl className="mt-2 grid gap-2 sm:grid-cols-2">
         <div>
-          <dt className="text-xs text-base-content/70">Query</dt>
+          <dt className="text-xs text-base-content/70">Search</dt>
           <dd className="font-medium">{evidence.query}</dd>
         </div>
         <div>
-          <dt className="text-xs text-base-content/70">Priority page</dt>
+          <dt className="text-xs text-base-content/70">Page</dt>
           <dd>{evidence.page}</dd>
-        </div>
-        <div className="sm:col-span-2">
-          <dt className="text-xs text-base-content/70">Site</dt>
-          <dd>{evidence.site}</dd>
         </div>
       </dl>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <GrowthInvestigationEvidencePeriod
-          label="Preceding 28 days"
+          label="28 days before"
           period={evidence.baselinePeriod}
           facts={evidence.baseline}
         />
         <GrowthInvestigationEvidencePeriod
-          label="Current 28 days"
+          label="Last 28 days"
           period={evidence.currentPeriod}
           facts={evidence.current}
         />
@@ -169,10 +166,10 @@ function GrowthPersistentRankDropEvidence({
 }) {
   return (
     <section
-      aria-label="Saved persistent rank-drop evidence"
+      aria-label="Ranking history"
       className="rounded-md bg-base-200/60 p-3"
     >
-      <h5 className="font-semibold">Saved rank history</h5>
+      <h5 className="font-semibold">Ranking history</h5>
       <dl className="mt-2 grid gap-2 sm:grid-cols-2">
         <div>
           <dt className="text-xs text-base-content/70">Keyword</dt>
@@ -183,7 +180,7 @@ function GrowthPersistentRankDropEvidence({
           <dd className="capitalize">{evidence.device}</dd>
         </div>
         <div className="sm:col-span-2">
-          <dt className="text-xs text-base-content/70">Priority page</dt>
+          <dt className="text-xs text-base-content/70">Page</dt>
           <dd>{evidence.page}</dd>
         </div>
       </dl>
@@ -194,7 +191,7 @@ function GrowthPersistentRankDropEvidence({
             className="rounded-md border border-base-300 p-3"
           >
             <p className="text-xs text-base-content/70">
-              {index === 0 ? "Baseline" : `Later check ${index}`}
+              {index === 0 ? "First check" : `Check ${index + 1}`}
             </p>
             <p className="font-medium">
               {check.position === null
@@ -218,10 +215,10 @@ function GrowthCriticalAuditIssueEvidence({
 }) {
   return (
     <section
-      aria-label="Saved critical audit issue evidence"
+      aria-label="What the site audit found"
       className="rounded-md bg-base-200/60 p-3"
     >
-      <h5 className="font-semibold">Saved audit comparison</h5>
+      <h5 className="font-semibold">What the site audit found</h5>
       <dl className="mt-2 grid gap-2 sm:grid-cols-2">
         <div>
           <dt className="text-xs text-base-content/70">Issue</dt>
@@ -233,7 +230,7 @@ function GrowthCriticalAuditIssueEvidence({
         </div>
         {evidence.targetUrl ? (
           <div className="sm:col-span-2">
-            <dt className="text-xs text-base-content/70">Broken target</dt>
+            <dt className="text-xs text-base-content/70">Broken link to</dt>
             <dd>{evidence.targetUrl}</dd>
           </div>
         ) : null}
@@ -270,7 +267,7 @@ export function GrowthInvestigation({
       }}
     >
       <summary className="cursor-pointer text-sm font-medium">
-        Review investigation
+        See details
       </summary>
       {hasOpened ? (
         <GrowthInvestigationReview projectId={projectId} signalId={signalId} />
@@ -385,27 +382,26 @@ export function GrowthInvestigationReview({
   if (query.isPending)
     return (
       <p role="status" aria-busy="true" className="mt-3 text-sm">
-        Loading saved investigation…
+        Loading…
       </p>
     );
   if (query.isError && !query.data)
     return (
       <div role="alert" className="mt-3 space-y-2 text-sm">
-        <p>Saved investigation could not be loaded.</p>
+        <p>This could not be loaded.</p>
         <button
           type="button"
           className="btn btn-sm"
           onClick={() => void query.refetch()}
         >
-          Retry investigation
+          Try again
         </button>
       </div>
     );
   if (!query.data)
     return (
       <p className="mt-3 text-sm text-base-content/70">
-        This check has no saved investigation. New checks can save suggestions;
-        older results are not rewritten.
+        No details were saved for this older finding.
       </p>
     );
 
@@ -444,22 +440,18 @@ export function GrowthInvestigationReview({
       {query.isError ? (
         <div role="alert" className="space-y-2">
           <p>
-            This investigation could not be refreshed. The last saved version is
-            shown below.
+            This could not be refreshed, so you are seeing the last saved
+            version.
           </p>
           <button
             type="button"
             className="btn btn-sm"
             onClick={() => void query.refetch()}
           >
-            Retry investigation
+            Try again
           </button>
         </div>
       ) : null}
-      <h4 className="font-semibold">{saved.title}</h4>
-      <p className="text-base-content/70">
-        Original rule-based investigation. AI analysis appears separately below.
-      </p>
       <p className="whitespace-pre-wrap">{saved.rationale}</p>
       {saved.evidenceSummary?.kind === "persistent_tracked_rank_drop" ? (
         <GrowthPersistentRankDropEvidence evidence={saved.evidenceSummary} />
@@ -468,20 +460,21 @@ export function GrowthInvestigationReview({
       ) : saved.evidenceSummary ? (
         <GrowthStrikingDistanceEvidence evidence={saved.evidenceSummary} />
       ) : null}
-      <ul className="space-y-1 text-base-content/70">
-        {saved.displayUrls.map((url, index) => (
-          <li key={`${index}:${url}`}>{url ?? "Saved page URL withheld"}</li>
-        ))}
-      </ul>
-      <ol className="list-decimal space-y-1 pl-5">
-        {saved.steps.map((step, index) => (
-          <li key={index}>{step}</li>
-        ))}
-      </ol>
-      <p className="text-xs text-base-content/70">
-        Saved template: {saved.templateVersion}
-      </p>
-      {!saved.actionId ? <AssessmentPrerequisite /> : null}
+      {saved.evidenceSummary ? null : (
+        <ul className="space-y-1 text-base-content/70">
+          {saved.displayUrls.map((url, index) => (
+            <li key={`${index}:${url}`}>{url ?? "Page address not shown"}</li>
+          ))}
+        </ul>
+      )}
+      <section aria-label="Suggested next steps">
+        <h5 className="font-semibold">Suggested next steps</h5>
+        <ol className="mt-1 list-decimal space-y-1 pl-5">
+          {saved.steps.map((step, index) => (
+            <li key={index}>{step}</li>
+          ))}
+        </ol>
+      </section>
       <GrowthAiBriefPanel
         key={`${projectId}:${signalId}`}
         projectId={projectId}
@@ -494,33 +487,33 @@ export function GrowthInvestigationReview({
       />
       {saved.actionId ? (
         <p role="status">
-          This investigation is in your work list.
+          This is in your work list.
           {saved.dueOn
-            ? ` Due ${formatGrowthPreviewDate(saved.dueOn)} (UTC).`
+            ? ` Due ${formatGrowthPreviewDate(saved.dueOn)}.`
             : ""}{" "}
-          <a className="link font-medium" href="#growth-work">
-            View work
-          </a>
+          <WorkLink projectId={projectId}>View work</WorkLink>
         </p>
       ) : saved.status === "accepted" ? (
         <p role="status">
-          This older approval has no saved action. Its original due date and
-          approving user were not recorded. Ask a project administrator to
-          review it before creating work.
+          This was approved before work items were recorded, so there is nothing
+          in the work list for it. Ask an admin to check it before adding new
+          work.
         </p>
       ) : saved.status === "proposed" ? (
         <>
           <p className="text-base-content/70">
-            This suggestion covers later checks for the same saved{" "}
-            {coveredEvidenceLabel(saved.evidenceSummary)}.{" "}
-            <a className="link" href="#growth-work">
-              Check existing work
-            </a>{" "}
-            before approving.
+            Later checks of the same{" "}
+            {coveredEvidenceLabel(saved.evidenceSummary)} are folded into this
+            suggestion, so it will not repeat.{" "}
+            <WorkLink projectId={projectId}>Check the work list</WorkLink> in
+            case it is already covered.
           </p>
+          {saved.actionId ? null : (
+            <AssessmentPrerequisite projectId={projectId} />
+          )}
           <details className="rounded-md border border-base-300 p-3">
             <summary className="cursor-pointer font-medium">
-              Approve the original rule-based work
+              Add the suggested steps to the work list
             </summary>
             <GrowthInvestigationForm
               disabled={reviewLocked}
@@ -565,18 +558,18 @@ export function GrowthInvestigationReview({
         <p className="text-base-content/70">
           This suggestion was dismissed
           {saved.dismissalReason
-            ? ` as ${growthDismissalReasonLabel(saved.dismissalReason).toLowerCase()}`
+            ? ` (${growthDismissalReasonLabel(saved.dismissalReason).toLowerCase()})`
             : ""}
-          . It is read-only.
+          .
         </p>
       ) : saved.status === "snoozed" ? (
         <div className="space-y-3">
           <p className="text-base-content/70">
             This suggestion is snoozed
             {saved.snoozedUntil
-              ? ` until ${formatGrowthPreviewDate(saved.snoozedUntil)} (UTC)`
+              ? ` until ${formatGrowthPreviewDate(saved.snoozedUntil)}`
               : ""}
-            . It will stay snoozed until you explicitly return it to review.
+            . It stays hidden until you bring it back.
           </p>
           <button
             type="button"
@@ -589,28 +582,51 @@ export function GrowthInvestigationReview({
               })
             }
           >
-            {review.isPending ? "Saving review…" : "Review now"}
+            {review.isPending ? "Saving…" : "Bring it back now"}
           </button>
           {reviewFailure}
         </div>
       ) : saved.status === "merged" || saved.status === "superseded" ? (
         <p className="text-base-content/70">
-          This saved suggestion is {saved.status} and is read-only here.
+          A newer suggestion replaced this one.
         </p>
       ) : null}
     </div>
   );
 }
 
-function AssessmentPrerequisite() {
+function WorkLink({
+  projectId,
+  children,
+}: {
+  projectId: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      to="/p/$projectId/growth/$section"
+      params={{ projectId, section: "work" }}
+      className="link font-medium"
+    >
+      {children}
+    </Link>
+  );
+}
+
+function AssessmentPrerequisite({ projectId }: { projectId: string }) {
   return (
     <p className="rounded border border-base-300 p-3 text-sm">
-      New page work requires a ready priority assessment selecting this page.
-      Record the business outcome, supporting evidence and why this takes
-      priority before generating or approving a proposal.{" "}
-      <a className="link" href="#growth-assessment">
-        Review priority assessment
-      </a>
+      Before this becomes work, agree why this page matters in a priority
+      assessment: the business outcome, the evidence and why it comes first. You
+      can read or draft an AI brief before that.{" "}
+      <Link
+        to="/p/$projectId/growth/$section"
+        params={{ projectId, section: "priorities" }}
+        hash="growth-assessment"
+        className="link"
+      >
+        Open the priority assessment
+      </Link>
     </p>
   );
 }

@@ -78,8 +78,8 @@ function render(brief: SavedGrowthAiBrief | null, props = {}) {
 describe("Saved AI brief rendered contract", () => {
   it("opens without generation and explains provider use before explicit generation", () => {
     const html = render(null);
-    expect(html).toContain("Generate AI draft");
-    expect(html).toContain("generation uses its credits");
+    expect(html).toContain("Write an AI brief");
+    expect(html).toContain("uses a little AI credit");
     expect(server.generateGrowthAiInvestigationBrief).not.toHaveBeenCalled();
   });
   it("keeps known URL separate from unreadable content and original evidence separate from edits", () => {
@@ -115,7 +115,7 @@ describe("Saved AI brief rendered contract", () => {
     expect(html).not.toContain("Approve saved proposal");
   });
   it("does not offer generation or approval in read-only Work views", () => {
-    expect(render(null, { readOnly: true })).not.toContain("Generate AI draft");
+    expect(render(null, { readOnly: true })).not.toContain("Write an AI brief");
     expect(render(saved, { readOnly: true })).not.toContain("<form");
   });
 });

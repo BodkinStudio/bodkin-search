@@ -5,6 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { GrowthInvestigationView } from "@/types/schemas/growth-investigations";
 import { GrowthInvestigationReview } from "./GrowthInvestigation";
 
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children }: { children: unknown }) => children,
+}));
+
 vi.mock("@/serverFunctions/growthInvestigations", () => ({
   getGrowthInvestigation: vi.fn(),
   approveGrowthInvestigation: vi.fn(),
@@ -57,12 +61,12 @@ describe("persistent rank-drop investigation evidence", () => {
         }),
       ),
     );
-    expect(html).toContain('aria-label="Saved persistent rank-drop evidence"');
-    expect(html).toContain("Saved rank history");
+    expect(html).toContain('aria-label="Ranking history"');
+    expect(html).toContain("Ranking history");
     expect(html).toContain("pricing software");
     expect(html).toContain("mobile");
-    expect(html).toContain("Baseline");
-    expect(html).toContain("Later check 3");
+    expect(html).toContain("First check");
+    expect(html).toContain("Check 4");
     expect(html).toContain("Position 4");
     expect(html).toContain("Outside top 20");
     expect(html).not.toContain("Position 21");

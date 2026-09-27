@@ -14,6 +14,10 @@ import {
   nextUtcCalendarDate,
 } from "./GrowthInvestigationReviewControls";
 
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children }: { children: unknown }) => children,
+}));
+
 vi.mock("@/serverFunctions/growthInvestigations", () => ({
   getGrowthInvestigation: vi.fn(),
   approveGrowthInvestigation: vi.fn(),
@@ -69,12 +73,12 @@ describe("Growth investigation rendered contract", () => {
       }),
     );
     expect(html).toContain("<details");
-    expect(html).toContain("Review investigation");
-    expect(html).not.toContain("Approve investigation");
+    expect(html).toContain("See details");
+    expect(html).not.toContain("Add to work list");
   });
 
   it("uses a named pending state", () => {
-    expect(render(queryClient())).toContain("Loading saved investigation");
+    expect(render(queryClient())).toContain("Loading…");
     expect(render(queryClient())).toContain('aria-busy="true"');
   });
 
@@ -82,9 +86,8 @@ describe("Growth investigation rendered contract", () => {
     const client = queryClient();
     client.setQueryData(["growthInvestigation", "project_1", "signal_1"], null);
     const html = render(client);
-    expect(html).toContain("This check has no saved investigation");
-    expect(html).toContain("older results are not rewritten");
-    expect(html).not.toContain("Approve investigation");
+    expect(html).toContain("No details were saved for this older finding");
+    expect(html).not.toContain("Add to work list");
   });
 
   it("shows the stored proposal, scope warning and an explicit due-date approval", () => {
@@ -94,22 +97,18 @@ describe("Growth investigation rendered contract", () => {
       proposal,
     );
     const html = render(client);
-    expect(html).toContain(proposal.title);
     expect(html).toContain(proposal.rationale);
-    expect(html).toContain("Original rule-based investigation");
-    expect(html).toContain("Approve the original rule-based work");
-    expect(html).toContain(
-      "This suggestion covers later checks for the same saved page",
-    );
+    expect(html).toContain("Add the suggested steps to the work list");
+    expect(html).toContain("Later checks of the same page");
     expect(html).toContain("Due date (UTC)");
-    expect(html).toContain("Approve investigation");
+    expect(html).toContain("Add to work list");
     expect(html).toContain("Dismissal reason");
     expect(html).toContain("Snooze until (UTC)");
     expect(html).toContain('aria-label="Dismiss this suggestion"');
     expect(html).toContain('aria-label="Snooze this suggestion"');
     expect(html).toContain('required=""');
     expect(html).toContain(`min="${nextUtcCalendarDate()}"`);
-    expect(html.indexOf("Approve investigation")).toBeLessThan(
+    expect(html.indexOf("Add to work list")).toBeLessThan(
       html.indexOf("Dismissal reason"),
     );
     expect(html.indexOf("Dismissal reason")).toBeLessThan(
@@ -135,23 +134,20 @@ describe("Growth investigation rendered contract", () => {
       },
     } satisfies GrowthInvestigationView);
     const html = render(client);
-    expect(html).toContain('aria-label="Saved ranking-opportunity evidence"');
-    expect(html).toContain("Saved query evidence");
+    expect(html).toContain('aria-label="Search Console numbers"');
+    expect(html).toContain("The numbers");
     expect(html).toContain("pricing software");
     expect(html).toContain("https://example.com/pricing");
-    expect(html).toContain("sc-domain:example.com");
-    expect(html).toContain("Preceding 28 days");
-    expect(html).toContain("Current 28 days");
+    expect(html).toContain("28 days before");
+    expect(html).toContain("Last 28 days");
     expect(html).toContain("1 Jul 2026");
     expect(html).toContain("25 Aug 2026");
     expect(html).toContain("Position");
     expect(html).toContain("Impressions");
     expect(html).toContain("1,250");
     expect(html).toContain("Clicks");
-    expect(html).toContain(
-      "This suggestion covers later checks for the same saved query and page",
-    );
-    expect(html).not.toContain("CTR");
+    expect(html).toContain("Later checks of the same query and page");
+    expect(html).not.toContain("Click rate");
   });
 
   it("visibly formats the saved baseline and current CTR evidence", () => {
@@ -181,9 +177,9 @@ describe("Growth investigation rendered contract", () => {
       },
     } satisfies GrowthInvestigationView);
     const html = render(client);
-    expect(html).toContain('aria-label="Preceding 28 days evidence"');
-    expect(html).toContain('aria-label="Current 28 days evidence"');
-    expect(html.match(/<dt[^>]*>CTR<\/dt>/g)).toHaveLength(2);
+    expect(html).toContain('aria-label="28 days before evidence"');
+    expect(html).toContain('aria-label="Last 28 days evidence"');
+    expect(html.match(/<dt[^>]*>Click rate<\/dt>/g)).toHaveLength(2);
     expect(html).toContain("12.5%");
     expect(html).toContain("7.5%");
   });
@@ -195,8 +191,7 @@ describe("Growth investigation rendered contract", () => {
       proposal,
     );
     const html = render(client);
-    expect(html).not.toContain("Saved query evidence");
-    expect(html).not.toContain("Saved ranking-opportunity evidence");
+    expect(html).not.toContain("Search Console numbers");
   });
 
   it("shows repeated evidence as covered without exposing old evidence or review controls", () => {
@@ -217,12 +212,11 @@ describe("Growth investigation rendered contract", () => {
       "This check was saved as new evidence without creating another",
     );
     expect(html).toContain("existing work already covered this issue");
-    expect(html).toContain("Due 4 Sept 2026 (UTC)");
-    expect(html).toContain('href="#growth-work"');
+    expect(html).toContain("Due 4 Sept 2026");
     expect(html).not.toContain(proposal.rationale);
-    expect(html).not.toContain("Approve investigation");
+    expect(html).not.toContain("Add to work list");
     expect(html).not.toContain("Dismissal reason");
-    expect(html).not.toContain("Review now");
+    expect(html).not.toContain("Bring it back now");
   });
 
   it("does not display cached suggestions from another project or signal", () => {
@@ -246,10 +240,9 @@ describe("Growth investigation rendered contract", () => {
       dueOn: "2026-09-04",
     });
     const html = render(client);
-    expect(html).toContain("This investigation is in your work list");
-    expect(html).toContain("Due 4 Sept 2026 (UTC)");
-    expect(html).toContain('href="#growth-work"');
-    expect(html).not.toContain("Approve investigation");
+    expect(html).toContain("This is in your work list");
+    expect(html).toContain("Due 4 Sept 2026");
+    expect(html).not.toContain("Add to work list");
   });
 
   it("flags an older incomplete approval without inventing a date or offering a retry", () => {
@@ -259,10 +252,9 @@ describe("Growth investigation rendered contract", () => {
       status: "accepted",
     });
     const html = render(client);
-    expect(html).toContain("This older approval has no saved action");
-    expect(html).toContain("approving user were not recorded");
-    expect(html).toContain("project administrator");
-    expect(html).not.toContain("Approve investigation");
+    expect(html).toContain("approved before work items were recorded");
+    expect(html).toContain("Ask an admin to check it");
+    expect(html).not.toContain("Add to work list");
     expect(html).not.toContain("Retry approval");
     expect(html).not.toContain('type="date"');
   });
@@ -274,17 +266,16 @@ describe("Growth investigation rendered contract", () => {
       status: "dismissed",
       reviewVersion: 1,
       dismissalReason: "wrong_diagnosis",
-      title: "<script>unsafe</script>",
+      rationale: "<script>unsafe</script>",
       displayUrls: [null],
     });
     const html = render(client);
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
-    expect(html).toContain("Saved page URL withheld");
-    expect(html).toContain("dismissed as wrong diagnosis");
-    expect(html).toContain("read-only");
-    expect(html).not.toContain("Approve investigation");
-    expect(html).not.toContain("Review now");
+    expect(html).toContain("Page address not shown");
+    expect(html).toContain("dismissed (the numbers are misleading)");
+    expect(html).not.toContain("Add to work list");
+    expect(html).not.toContain("Bring it back now");
   });
 
   it("shows the saved snooze and offers only an explicit review-now transition", () => {
@@ -296,9 +287,9 @@ describe("Growth investigation rendered contract", () => {
       snoozedUntil: "2026-09-04T00:00:00.000Z",
     });
     const html = render(client);
-    expect(html).toContain("snoozed until 4 Sept 2026 (UTC)");
-    expect(html).toContain("Review now");
-    expect(html).not.toContain("Approve investigation");
+    expect(html).toContain("snoozed until 4 Sept 2026");
+    expect(html).toContain("Bring it back now");
+    expect(html).not.toContain("Add to work list");
     expect(html).not.toContain("Dismissal reason");
   });
 
@@ -312,9 +303,9 @@ describe("Growth investigation rendered contract", () => {
         reviewVersion: 1,
       });
       const html = render(client);
-      expect(html).toContain(`${status} and is read-only`);
-      expect(html).not.toContain("Approve investigation");
-      expect(html).not.toContain("Review now");
+      expect(html).toContain("A newer suggestion replaced this one");
+      expect(html).not.toContain("Add to work list");
+      expect(html).not.toContain("Bring it back now");
     },
   );
 
@@ -327,7 +318,7 @@ describe("Growth investigation rendered contract", () => {
       })
       .catch(() => undefined);
     const html = render(client);
-    expect(html).toContain("Retry investigation");
+    expect(html).toContain("Try again");
     expect(html).not.toContain("private database details");
   });
 
@@ -344,7 +335,7 @@ describe("Growth investigation rendered contract", () => {
     expect(html).toContain('required=""');
     expect(html).toContain("<label ");
     expect(html).toContain("aria-describedby");
-    expect(html).toContain("Saving approved work");
+    expect(html).toContain("Adding…");
   });
 
   it("locks every native review fieldset while a review is pending", () => {

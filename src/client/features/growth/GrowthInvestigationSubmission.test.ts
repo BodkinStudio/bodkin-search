@@ -13,6 +13,10 @@ import {
   type GrowthDismissalReason,
 } from "./GrowthInvestigationReviewControls";
 
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children }: { children: unknown }) => children,
+}));
+
 type MutationOptions = {
   onSuccess?: (value: GrowthInvestigationView) => void;
   onError?: (error: Error) => void;
@@ -133,7 +137,8 @@ function matches(
       node.props.kind === (kind === "retryApproval" ? "approval" : "review")
     );
   return (
-    node.props.children === (kind === "reviewNow" ? "Review now" : undefined)
+    node.props.children ===
+    (kind === "reviewNow" ? "Bring it back now" : undefined)
   );
 }
 

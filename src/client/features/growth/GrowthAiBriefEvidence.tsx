@@ -1,3 +1,4 @@
+import { formatGrowthPreviewDate } from "./GrowthPreviewPresentation";
 import type { SavedGrowthAiBrief } from "@/types/schemas/growth-investigations";
 
 export function GrowthAiBriefEvidence({
@@ -16,9 +17,11 @@ export function GrowthAiBriefEvidence({
       .join("; ");
   return (
     <div className="mt-3 space-y-3">
-      <p className="text-xs text-base-content/70">
-        Saved AI brief · {new Date(generated.generatedAt).toLocaleString()} ·{" "}
-        {brief.model} · {brief.promptVersion}
+      <p
+        className="text-xs text-base-content/70"
+        title={`${brief.model} · ${brief.promptVersion}`}
+      >
+        Written by AI on {formatGrowthPreviewDate(generated.generatedAt)}
       </p>
       <p>{generated.businessRelevance}</p>
       {generated.affectedPageUrl ? (
@@ -38,7 +41,7 @@ export function GrowthAiBriefEvidence({
         </p>
       ) : null}
       <div>
-        <h6 className="font-medium">Cited observations</h6>
+        <h6 className="font-medium">What the numbers show</h6>
         <ul className="list-disc space-y-1 pl-5">
           {generated.observations.map((claim, index) => (
             <li key={index}>
@@ -51,7 +54,7 @@ export function GrowthAiBriefEvidence({
         </ul>
       </div>
       <div>
-        <h6 className="font-medium">Hypotheses</h6>
+        <h6 className="font-medium">Possible reasons</h6>
         <ul className="list-disc space-y-1 pl-5">
           {generated.hypotheses.map((claim, index) => (
             <li key={index}>
@@ -94,7 +97,7 @@ export function GrowthAiBriefEvidence({
           ))}
         </ol>
         <p className="mt-2">
-          <span className="font-medium">Measurement approach: </span>
+          <span className="font-medium">How we will know it worked: </span>
           {generated.measurementApproach}
         </p>
       </details>

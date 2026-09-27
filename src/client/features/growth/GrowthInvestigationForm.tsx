@@ -26,7 +26,7 @@ export function GrowthInvestigationForm({
   return (
     <form
       noValidate
-      aria-label="Approve an investigation"
+      aria-label="Add to the work list"
       className="mt-4 max-w-md"
       onSubmit={(event) => {
         event.preventDefault();
@@ -73,7 +73,7 @@ export function GrowthInvestigationForm({
           }}
         </form.Field>
         <button type="submit" className="btn btn-primary mt-3">
-          {pending ? "Saving approved work…" : "Approve investigation"}
+          {pending ? "Adding…" : "Add to work list"}
         </button>
       </fieldset>
     </form>

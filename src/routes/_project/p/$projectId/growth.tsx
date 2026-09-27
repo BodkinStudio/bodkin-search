@@ -1,6 +1,15 @@
-import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  useNavigate,
+} from "@tanstack/react-router";
+import type { MouseEvent } from "react";
 import { PageShell } from "@/client/components/PageShell";
-import { GROWTH_SECTIONS } from "@/client/features/growth/growthSectionList";
+import {
+  GROWTH_SECTIONS,
+  growthSectionForHash,
+} from "@/client/features/growth/growthSectionList";
 import {
   SectionNav,
   sectionNavItemClass,
@@ -12,6 +21,22 @@ export const Route = createFileRoute("/_project/p/$projectId/growth")({
 
 function GrowthLayout() {
   const { projectId } = Route.useParams();
+  const navigate = useNavigate();
+  // Growth components link to each other's sections by anchor. When the
+  // anchor is on another tab, go to that tab instead of doing nothing.
+  const followAnchorAcrossTabs = (event: MouseEvent) => {
+    if (!(event.target instanceof Element)) return;
+    const hash = event.target
+      .closest('a[href^="#growth-"]')
+      ?.getAttribute("href");
+    if (!hash || document.getElementById(hash.slice(1))) return;
+    event.preventDefault();
+    void navigate({
+      to: "/p/$projectId/growth/$section",
+      params: { projectId, section: growthSectionForHash(hash) },
+      hash: hash.slice(1),
+    });
+  };
   return (
     <PageShell
       title="Growth"
@@ -41,7 +66,11 @@ function GrowthLayout() {
         </SectionNav>
       }
     >
-      <Outlet />
+      {/* Delegates clicks from the links inside; a keyboard-activated link fires click too. */}
+      {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events */}
+      <div onClickCapture={followAnchorAcrossTabs}>
+        <Outlet />
+      </div>
     </PageShell>
   );
 }

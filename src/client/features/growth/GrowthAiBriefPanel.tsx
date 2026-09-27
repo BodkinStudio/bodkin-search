@@ -53,12 +53,12 @@ export function GrowthAiBriefPanel({
   return (
     <section
       className="rounded-md border border-base-300 p-3"
-      aria-label="AI investigation brief"
+      aria-label="AI brief"
     >
-      <h5 className="font-semibold">AI investigation brief</h5>
+      <h5 className="font-semibold">AI brief</h5>
       {query.isPending ? (
         <p role="status" className="mt-2">
-          Loading saved brief…
+          Loading the brief…
         </p>
       ) : null}
       {query.isError ? (
@@ -69,17 +69,16 @@ export function GrowthAiBriefPanel({
             type="button"
             onClick={() => void query.refetch()}
           >
-            Reload saved brief
+            Try again
           </button>
         </div>
       ) : null}
       {query.isSuccess && !query.data && !readOnly ? (
         <>
           <p className="mt-1 text-base-content/70">
-            Generate and save a brief from this finding, current business
-            context and the affected page when readable. These sources are sent
-            to your configured AI provider and generation uses its credits. Work
-            is created only when you approve the saved proposal.
+            AI reads the page and these numbers, then suggests what to change
+            and why. It uses a little AI credit. Nothing is added to your work
+            until you approve it.
           </p>
           <button
             className="btn btn-sm mt-3"
@@ -87,9 +86,7 @@ export function GrowthAiBriefPanel({
             disabled={generate.isPending}
             onClick={startGeneration}
           >
-            {generate.isPending
-              ? "Generating and saving brief…"
-              : "Generate AI draft"}
+            {generate.isPending ? "Writing the brief…" : "Write an AI brief"}
           </button>
           {generate.isError ? (
             <div role="alert" className="mt-3 space-y-2">
@@ -101,7 +98,7 @@ export function GrowthAiBriefPanel({
                   disabled={generate.isPending}
                   onClick={startGeneration}
                 >
-                  Retry AI draft
+                  Try again
                 </button>
               ) : null}
             </div>

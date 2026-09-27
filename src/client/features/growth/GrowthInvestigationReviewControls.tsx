@@ -5,12 +5,12 @@ import { GROWTH_DISMISSAL_REASONS } from "@/types/schemas/growth";
 export type GrowthDismissalReason = (typeof GROWTH_DISMISSAL_REASONS)[number];
 
 const DISMISSAL_LABELS: Record<GrowthDismissalReason, string> = {
-  irrelevant: "Irrelevant",
+  irrelevant: "Not relevant to us",
   already_planned: "Already planned",
   not_commercially_important: "Not commercially important",
-  insufficient_evidence: "Insufficient evidence",
-  wrong_diagnosis: "Wrong diagnosis",
-  too_much_effort: "Too much effort",
+  insufficient_evidence: "Not enough evidence",
+  wrong_diagnosis: "The numbers are misleading",
+  too_much_effort: "Not worth the effort",
   duplicate: "Duplicate",
   defer: "Defer for now",
 };

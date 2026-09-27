@@ -5,6 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { GrowthInvestigationView } from "@/types/schemas/growth-investigations";
 import { GrowthInvestigationReview } from "./GrowthInvestigation";
 
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children }: { children: unknown }) => children,
+}));
+
 vi.mock("@/serverFunctions/growthInvestigations", () => ({
   getGrowthInvestigation: vi.fn(),
   approveGrowthInvestigation: vi.fn(),
@@ -52,15 +56,13 @@ describe("critical audit issue investigation evidence", () => {
         }),
       ),
     );
-    expect(html).toContain('aria-label="Saved critical audit issue evidence"');
-    expect(html).toContain("Saved audit comparison");
+    expect(html).toContain('aria-label="What the site audit found"');
+    expect(html).toContain("What the site audit found");
     expect(html).toContain("Broken internal link");
     expect(html).toContain("https://example.com/missing");
     expect(html).toContain("1 Aug 2026");
     expect(html).toContain("1 Sept 2026");
-    expect(html).toContain(
-      "same saved audit issue, affected page and broken target",
-    );
+    expect(html).toContain("same audit issue, affected page and broken target");
     expect(html).not.toContain("same saved query and page");
   });
 });
