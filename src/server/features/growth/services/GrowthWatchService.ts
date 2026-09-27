@@ -3,6 +3,7 @@ import { GrowthCriticalAuditIssueCheckService } from "./GrowthCriticalAuditIssue
 import { GrowthLowCtrCheckService } from "./GrowthLowCtrCheckService";
 import { GrowthMeasurementDueCheckService } from "./GrowthMeasurementDueCheckService";
 import { GrowthPageMonitorService } from "./GrowthPageMonitorService";
+import { GrowthPlanMeasurementService } from "./GrowthPlanMeasurementService";
 import { GrowthPersistentRankDropCheckService } from "./GrowthPersistentRankDropCheckService";
 import { GrowthStrikingDistanceCheckService } from "./GrowthStrikingDistanceCheckService";
 
@@ -36,6 +37,7 @@ const CHECKS = [
   ["critical_audit_issue", GrowthCriticalAuditIssueCheckService.runCheck],
   ["measurement_due", GrowthMeasurementDueCheckService.runCheck],
   ["page_changes", GrowthPageMonitorService.checkPages],
+  ["collect_measurements", GrowthPlanMeasurementService.collectDue],
 ] as const;
 
 async function watchProject(projectId: string, now: Date) {

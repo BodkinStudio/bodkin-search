@@ -1,4 +1,5 @@
 import { AppError } from "@/server/lib/errors";
+import { proposalMetrics } from "./growthMeasurementMetrics";
 import type { StartGrowthMeasurementInput } from "@/types/schemas/growth-measurements";
 import type {
   CollectGrowthWorkMeasurementInput,
@@ -58,23 +59,6 @@ async function loadSources(projectId: string, actionId: string) {
     gscConnection,
     urlTargets,
   };
-}
-
-function proposalMetrics(urlTargets: string[]) {
-  return urlTargets.flatMap((entityKey) => [
-    {
-      metricType: "search_clicks" as const,
-      entityType: "url" as const,
-      entityKey,
-      isPrimary: true,
-    },
-    {
-      metricType: "search_impressions" as const,
-      entityType: "url" as const,
-      entityKey,
-      isPrimary: false,
-    },
-  ]);
 }
 
 async function getGrowthWorkMeasurement(

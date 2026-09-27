@@ -1,3 +1,4 @@
+import { GrowthActionsRepository } from "../repositories/GrowthActionsRepository";
 import { AppError } from "@/server/lib/errors";
 import type {
   GrowthMeasurementPeriodType,
@@ -16,7 +17,6 @@ import {
   collectFrozenGrowthSearchPerformance,
   GROWTH_SEARCH_PERFORMANCE_MAX_PAGE_REQUESTS,
 } from "./GrowthSearchPerformanceAdapter";
-import { getQualifiedWork } from "./GrowthInvestigationsService";
 
 const GSC_SOURCE_TIMEZONE = "America/Los_Angeles";
 const GSC_EVIDENCE_PATTERN = /^gsc:measurement:v1:([a-f0-9]{64}):[a-f0-9]{64}$/;
@@ -127,7 +127,13 @@ export async function collectGrowthWorkMeasurementEvidence(
   input: CollectGrowthWorkMeasurementInput,
   options: { now?: Date } = {},
 ) {
-  const work = await getQualifiedWork(input.projectId, input.actionId);
+  // Any action in the project: plan actions are measured the same way as
+  // work approved from saved checks.
+  const work = await GrowthActionsRepository.getAction(
+    input.projectId,
+    input.actionId,
+  );
+  if (!work) throw new AppError("NOT_FOUND", "Growth Action not found");
   if (
     work.status !== "measuring" ||
     work.stateVersion !== input.expectedActionVersion

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const work = vi.hoisted(() => ({ getQualifiedWork: vi.fn() }));
+const work = vi.hoisted(() => ({ getAction: vi.fn() }));
 const repository = vi.hoisted(() => ({
   getMeasurementPlanByAction: vi.fn(),
 }));
@@ -10,7 +10,9 @@ const measurements = vi.hoisted(() => ({
 }));
 const source = vi.hoisted(() => ({ collect: vi.fn() }));
 
-vi.mock("./GrowthInvestigationsService", () => work);
+vi.mock("../repositories/GrowthActionsRepository", () => ({
+  GrowthActionsRepository: work,
+}));
 vi.mock("../repositories/GrowthMeasurementsRepository", () => ({
   GrowthMeasurementsRepository: repository,
 }));
@@ -90,7 +92,7 @@ const input = {
 describe("collectGrowthWorkMeasurementEvidence", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    work.getQualifiedWork.mockResolvedValue({
+    work.getAction.mockResolvedValue({
       id: actionId,
       status: "measuring",
       stateVersion: 3,
@@ -288,7 +290,7 @@ describe("collectGrowthWorkMeasurementEvidence", () => {
   });
 
   it("rejects stale Work and unsupported metrics before provider access", async () => {
-    work.getQualifiedWork.mockResolvedValueOnce({
+    work.getAction.mockResolvedValueOnce({
       id: actionId,
       status: "evaluated",
       stateVersion: 4,
@@ -297,7 +299,7 @@ describe("collectGrowthWorkMeasurementEvidence", () => {
       collectGrowthWorkMeasurementEvidence(input),
     ).rejects.toMatchObject({ code: "CONFLICT" });
 
-    work.getQualifiedWork.mockResolvedValue({
+    work.getAction.mockResolvedValue({
       id: actionId,
       status: "measuring",
       stateVersion: 3,

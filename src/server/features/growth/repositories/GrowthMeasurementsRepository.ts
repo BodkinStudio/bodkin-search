@@ -59,6 +59,21 @@ async function getMeasurementPlanByAction(projectId: string, actionId: string) {
   return row ?? null;
 }
 
+async function listActivePlans(projectId: string) {
+  return db
+    .select({
+      actionId: growthMeasurementPlans.actionId,
+      actionVersion: growthMeasurementPlans.actionVersion,
+    })
+    .from(growthMeasurementPlans)
+    .where(
+      and(
+        eq(growthMeasurementPlans.projectId, projectId),
+        eq(growthMeasurementPlans.status, "active"),
+      ),
+    );
+}
+
 async function getMeasurementPlanAnchor(
   projectId: string,
   measurementPlanId: string,
@@ -321,6 +336,7 @@ async function listChangeEventsByIds(projectId: string, ids: string[]) {
 
 export const GrowthMeasurementsRepository = {
   getAction,
+  listActivePlans,
   getMeasurementPlan,
   getMeasurementPlanByAction,
   getMeasurementPlanAnchor,

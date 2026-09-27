@@ -1,4 +1,5 @@
 /* eslint-disable max-lines -- Workstreams, their plan Actions and that evidence are one plan aggregate with one service boundary */
+import { GrowthPlanMeasurementService } from "./GrowthPlanMeasurementService";
 import { ProjectContextService } from "@/server/features/project-context/services/ProjectContextService";
 import { sha256Hex } from "@/server/lib/audit/ids";
 import { AppError } from "@/server/lib/errors";
@@ -721,6 +722,16 @@ async function transitionPlanAction(
 ): Promise<GrowthPlanActionDto> {
   await requirePlanAction(input.projectId, input.actionId);
   await GrowthActionsService.transitionAction(input);
+  // Shipping starts the before/after comparison on the action's pages. A
+  // failure here must not undo the status change the person just made.
+  if (input.status === "implemented")
+    await GrowthPlanMeasurementService.startOnShipped({
+      projectId: input.projectId,
+      actionId: input.actionId,
+      actorId: input.actorId,
+    }).catch((error: unknown) =>
+      console.warn("[growth-plan] could not start measurement", error),
+    );
   return readAction(input.projectId, input.actionId);
 }
 
