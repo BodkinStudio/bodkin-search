@@ -39,6 +39,14 @@ export async function funnels(q: AnalyticsQuery) {
         ? "Observed"
         : "Not observed",
   }));
+  // Steps nobody tracks are skipped rather than treated as a wall: "not
+  // observed" means coverage is unknown, so it must not zero every later
+  // step (a click then a trial still counts when the app's own steps are not
+  // instrumented).
+  const tracked = stages.flatMap((s, i) =>
+    s.coverage === "Observed" ? [i] : [],
+  );
+  const incomplete = tracked.length < stages.length;
   const cohorts: {
     contextId: string;
     enteredAt: string;
@@ -50,32 +58,43 @@ export async function funnels(q: AnalyticsQuery) {
       (e) => e.name === names[0] && e.receivedAt <= window.to,
     );
     if (!first) continue;
-    let stage = 0;
+    let step = 0;
     for (const event of history) {
       if (
         Date.parse(event.receivedAt) - Date.parse(first.receivedAt) >
         completionMs
       )
         break;
+      const stage = tracked[step];
       if (
+        stage !== undefined &&
         event.name === names[stage] &&
         (!definitions[stage]?.action ||
           event.action === definitions[stage].action) &&
         (!q.action ||
           event.name !== "acquisition_clicked" ||
           event.action === q.action)
-      )
-        counts[stage++]++;
+      ) {
+        counts[stage]++;
+        step++;
+      }
     }
     const status =
-      stage === names.length
-        ? "Completed"
+      step === tracked.length
+        ? incomplete
+          ? "Coverage incomplete"
+          : "Completed"
         : Date.now() - Date.parse(first.receivedAt) < completionMs
           ? "Pending"
-          : stages.slice(stage).some((s) => s.coverage === "Not observed")
+          : incomplete
             ? "Coverage incomplete"
             : "Not completed";
-    cohorts.push({ contextId, enteredAt: first.receivedAt, stage, status });
+    cohorts.push({
+      contextId,
+      enteredAt: first.receivedAt,
+      stage: tracked[step - 1] ?? 0,
+      status,
+    });
   }
   return {
     template: q.template ?? "external",

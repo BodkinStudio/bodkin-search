@@ -89,7 +89,14 @@ export function AnalyticsFunnelPanel({
           <ol className="space-y-3">
             {data.stages.map((stage, index) => {
               const first = data.stages[0]?.count ?? 0;
-              const previous = index > 0 ? data.stages[index - 1] : null;
+              // Compare with the last step we can see; untracked steps in
+              // between say nothing about drop-off.
+              const previousIndex = data.stages.findLastIndex(
+                (candidate, i) =>
+                  i < index && candidate.coverage !== "Not observed",
+              );
+              const previous =
+                previousIndex >= 0 ? data.stages[previousIndex] : null;
               const tracked = stage.coverage !== "Not observed";
               return (
                 <li key={stage.name}>
@@ -108,7 +115,7 @@ export function AnalyticsFunnelPanel({
                       previous.count > 0 ? (
                         <span className="ml-2 text-xs text-base-content/60">
                           {Math.round((stage.count / previous.count) * 100)}% of
-                          step {index}
+                          step {previousIndex + 1}
                         </span>
                       ) : null}
                     </span>

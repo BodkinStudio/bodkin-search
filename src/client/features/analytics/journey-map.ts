@@ -7,6 +7,8 @@ export interface JourneyPage {
   organizationId: string | null;
   customerBinding: "exact" | "anonymous";
 }
+const MAX_COLUMN = 4;
+
 export function buildJourneyGraph(pages: JourneyPage[]) {
   const journeys = new Map<string, JourneyPage[]>();
   for (const page of pages) {
@@ -23,7 +25,8 @@ export function buildJourneyGraph(pages: JourneyPage[]) {
       path: string;
       visits: number;
       contexts: Set<string>;
-      firstStep: number;
+      stepTotal: number;
+      column: number;
     }
   >();
   const edges = new Map<
@@ -51,11 +54,12 @@ export function buildJourneyGraph(pages: JourneyPage[]) {
         path: page.path!,
         visits: 0,
         contexts: new Set<string>(),
-        firstStep: step,
+        stepTotal: 0,
+        column: 0,
       };
       node.visits++;
       node.contexts.add(contextId);
-      node.firstStep = Math.min(node.firstStep, step);
+      node.stepTotal += step;
       nodes.set(id, node);
       if (previous) {
         const edgeId = JSON.stringify([previous, id]);
@@ -73,12 +77,18 @@ export function buildJourneyGraph(pages: JourneyPage[]) {
       previous = id;
     });
   }
+  // A page sits in the column of the step it is usually reached at. The
+  // earliest step would put every page first, since with real traffic every
+  // page is somebody's landing page.
+  for (const node of nodes.values())
+    node.column = Math.min(
+      Math.round(node.stepTotal / node.visits),
+      MAX_COLUMN,
+    );
   return {
     nodes: [...nodes.values()].toSorted(
       (a, b) =>
-        a.firstStep - b.firstStep ||
-        b.visits - a.visits ||
-        a.id.localeCompare(b.id),
+        a.column - b.column || b.visits - a.visits || a.id.localeCompare(b.id),
     ),
     edges: [...edges.values()],
     journeys,

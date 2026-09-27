@@ -23,6 +23,7 @@ export function AnalyticsJourneysPanel({
 }) {
   const openJourney = (context: string) =>
     onSearch({ view: "journeys", context });
+  const filtering = !!search.page || !!search.source || search.method !== "all";
   const filteredJourneys = journeys.data?.filter(
     (j) =>
       (!search.page || j.landingPage === search.page) &&
@@ -78,11 +79,15 @@ export function AnalyticsJourneysPanel({
           <p role="status">Loading observed paths…</p>
         ) : (
           <JourneyMap
-            pages={map.data.paths.filter(
-              (p) =>
-                !filteredJourneys ||
-                filteredJourneys.some((j) => j.contextId === p.contextId),
-            )}
+            pages={
+              // The journey list is paged, so it only narrows the map when
+              // the reader has filtered by source, page or match type.
+              filtering && filteredJourneys
+                ? map.data.paths.filter((p) =>
+                    filteredJourneys.some((j) => j.contextId === p.contextId),
+                  )
+                : map.data.paths
+            }
             onOpenJourney={openJourney}
           />
         )

@@ -32,7 +32,7 @@ export function JourneyMap({
   const columns = new Map<number, number>();
   const positions = new Map(
     visibleNodes.map((node) => {
-      const col = Math.min(node.firstStep, 4);
+      const col = node.column;
       const row = columns.get(col) ?? 0;
       columns.set(col, row + 1);
       return [node.id, { x: 30 + col * 230, y: 55 + row * 100 }];

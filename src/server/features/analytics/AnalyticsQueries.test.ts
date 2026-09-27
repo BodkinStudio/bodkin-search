@@ -149,6 +149,30 @@ describe("AnalyticsQueries", () => {
       funnel.stages.find((s) => s.name === "product_opened"),
     ).toMatchObject({ count: 1, coverage: "Observed" });
   });
+  it("skips steps nobody tracks instead of zeroing every later step", async () => {
+    // External-product funnel, but the app never sends product_opened or
+    // registration_completed: a click followed by a trial still counts.
+    events.mockResolvedValue([
+      event(),
+      event({
+        id: "e2",
+        name: "acquisition_clicked",
+        receivedAt: "2026-09-01T01:00:00.000Z",
+      }),
+      event({
+        id: "e3",
+        name: "trial_started",
+        receivedAt: "2026-09-01T02:00:00.000Z",
+      }),
+    ]);
+    const funnel = await AnalyticsQueries.funnels(q);
+    const stage = (name: string) => funnel.stages.find((s) => s.name === name);
+    expect(stage("product_opened")).toMatchObject({ coverage: "Not observed" });
+    expect(stage("trial_started")).toMatchObject({
+      count: 1,
+      coverage: "Observed",
+    });
+  });
   it("rejects personal reads when the project disables them", async () => {
     settings.mockResolvedValue({
       primaryOutcome: "registration_completed",
