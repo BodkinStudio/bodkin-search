@@ -57,7 +57,7 @@ export function GrowthWorkstreamForm({
     <form
       noValidate
       aria-label={workstream ? "Edit workstream" : "Add workstream"}
-      className="mt-4 space-y-3 rounded-lg border border-base-300 bg-base-200/40 p-4"
+      className="space-y-3"
       onSubmit={(event) => {
         event.preventDefault();
         void form.handleSubmit();
