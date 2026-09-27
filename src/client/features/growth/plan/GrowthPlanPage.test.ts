@@ -24,6 +24,7 @@ vi.mock("@/serverFunctions/growthPlan", () => ({
   getGrowthAnalystDigest: vi.fn(),
   addGrowthFindingToPlan: vi.fn(),
   dismissGrowthFinding: vi.fn(),
+  setGrowthAutoBriefs: vi.fn(),
 }));
 vi.mock("@/serverFunctions/growthInvestigations", () => ({}));
 vi.mock("@tanstack/react-router", () => ({

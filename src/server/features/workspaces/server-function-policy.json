@@ -395,6 +395,10 @@
     "capability": "edit",
     "projectRequired": true
   },
+  "src/serverFunctions/growthPlan.ts:setGrowthAutoBriefs": {
+    "capability": "configure",
+    "projectRequired": true
+  },
   "src/serverFunctions/growthPlan.ts:removeGrowthActionEvidence": {
     "capability": "edit",
     "projectRequired": true

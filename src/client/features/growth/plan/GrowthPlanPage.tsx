@@ -40,10 +40,12 @@ export function GrowthPlanPage({
   projectId,
   defaultEdit = false,
   canEdit,
+  canConfigure = false,
 }: {
   projectId: string;
   defaultEdit?: boolean;
   canEdit: boolean;
+  canConfigure?: boolean;
 }) {
   const client = useQueryClient();
   // The plan is a document first: everything that lets someone change it is
@@ -195,6 +197,7 @@ export function GrowthPlanPage({
               (workstream) => workstream.status === "active",
             )}
             canEdit={canEdit}
+            canConfigure={canConfigure}
           />
           <GrowthPlanStatus projectId={projectId} workstreams={workstreams} />
           <div

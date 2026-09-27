@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("./GrowthAssessmentsService", () => ({
   GrowthAssessmentsService: {
-    requireReadyForPage: vi.fn(async () => ({
+    readyForPage: vi.fn(async () => ({
       assessment: {
         id: "assessment_1",
         version: 1,
@@ -389,17 +389,17 @@ describe("generateGrowthAiBrief", () => {
       }),
     );
   });
-  it("requires the selected business case before any provider or page call", async () => {
+  it("drafts without a ready assessment and says approval still needs one", async () => {
     const deps = dependencies();
-    vi.mocked(
-      GrowthAssessmentsService.requireReadyForPage,
-    ).mockRejectedValueOnce(new Error("Select an evidenced priority first"));
-    await expect(generateGrowthAiBrief(request, deps)).rejects.toThrow(
-      "Select an evidenced priority first",
+    vi.mocked(GrowthAssessmentsService.readyForPage).mockResolvedValueOnce(
+      null,
     );
-    expect(deps.assertProviderConfigured).not.toHaveBeenCalled();
-    expect(deps.readPage).not.toHaveBeenCalled();
-    expect(deps.generate).not.toHaveBeenCalled();
-    expect(deps.persist).not.toHaveBeenCalled();
+    const result = await generateGrowthAiBrief(request, deps);
+    expect(result.generated.caveats).toContain(
+      "No priority assessment has selected this page yet; complete one before approving work from this draft.",
+    );
+    expect(firstGeneratedPrompt(deps.generate.mock.calls)).not.toContain(
+      "Human-confirmed assessment context",
+    );
   });
 });

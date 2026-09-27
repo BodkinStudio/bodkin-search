@@ -350,7 +350,7 @@ async function generateGrowthAiBriefOnce(
       "VALIDATION_ERROR",
       "AI briefs currently support saved priority-page click declines and striking-distance query opportunities",
     );
-  const assessment = await GrowthAssessmentsService.requireReadyForPage(
+  const assessment = await GrowthAssessmentsService.readyForPage(
     input.projectId,
     source.affectedPageUrl,
   );
@@ -369,15 +369,19 @@ async function generateGrowthAiBriefOnce(
       "Create a concise Growth AI draft for human review. Do not claim causality. ",
       "Every observation and hypothesis must cite only availableCitationIds. ",
       "State that unreadable pages were not inspected through caveats. Proposed steps may conclude do not pursue or investigate search intent first when business fit is weak. Return only the requested structure.",
-      "Human-confirmed assessment context. Use this only to frame proposed work; it is not a factual citation and must not be cited as evidence.",
-      JSON.stringify({
-        objective: assessment.assessment.objective,
-        comparisonRationale: assessment.assessment.comparisonRationale,
-        successMeasure: assessment.assessment.successMeasure,
-        selectedBusinessRelevance: assessment.selected.businessRelevance,
-        selectedUncertainty: assessment.selected.uncertainty,
-        nextValidation: assessment.selected.nextValidation,
-      }),
+      ...(assessment
+        ? [
+            "Human-confirmed assessment context. Use this only to frame proposed work; it is not a factual citation and must not be cited as evidence.",
+            JSON.stringify({
+              objective: assessment.assessment.objective,
+              comparisonRationale: assessment.assessment.comparisonRationale,
+              successMeasure: assessment.assessment.successMeasure,
+              selectedBusinessRelevance: assessment.selected.businessRelevance,
+              selectedUncertainty: assessment.selected.uncertainty,
+              nextValidation: assessment.selected.nextValidation,
+            }),
+          ]
+        : []),
       JSON.stringify(prompt.input),
     ].join("\n\n"),
   });
@@ -419,13 +423,19 @@ async function generateGrowthAiBriefOnce(
         ? { status: "unavailable" }
         : { status: "not_available" },
     ...generated.object,
-    caveats:
-      currentBusinessContext === "missing"
+    caveats: [
+      ...generated.object.caveats.slice(0, 4),
+      ...(currentBusinessContext === "missing"
         ? [
-            ...generated.object.caveats.slice(0, 5),
             "Current business context is missing or blank, so business fit could not be assessed.",
           ]
-        : generated.object.caveats,
+        : []),
+      ...(assessment
+        ? []
+        : [
+            "No priority assessment has selected this page yet; complete one before approving work from this draft.",
+          ]),
+    ],
     citations: prompt.citations,
   });
   return deps.persist({

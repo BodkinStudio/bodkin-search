@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "growth_auto_briefs" boolean DEFAULT true NOT NULL;

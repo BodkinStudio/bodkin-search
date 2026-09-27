@@ -7,6 +7,7 @@ import {
   addGrowthFindingToPlan,
   dismissGrowthFinding,
   getGrowthAnalystDigest,
+  setGrowthAutoBriefs,
 } from "@/serverFunctions/growthPlan";
 import type { GrowthWorkstreamDto } from "@/types/schemas/growth-plan";
 import { GrowthInvestigationReview } from "../GrowthInvestigation";
@@ -31,10 +32,12 @@ export function GrowthAnalystPanel({
   projectId,
   workstreams,
   canEdit,
+  canConfigure,
 }: {
   projectId: string;
   workstreams: GrowthWorkstreamDto[];
   canEdit: boolean;
+  canConfigure: boolean;
 }) {
   const client = useQueryClient();
   const digestKey = ["growthAnalystDigest", projectId];
@@ -98,7 +101,14 @@ export function GrowthAnalystPanel({
           <ol className="mt-3 divide-y divide-base-300">
             {digest.findings.map((finding) => (
               <li key={finding.signalId} className="py-3 first:pt-0 last:pb-0">
-                <p className="text-sm font-medium">{finding.headline}</p>
+                <p className="text-sm font-medium">
+                  {finding.headline}
+                  {finding.hasBrief ? (
+                    <span className="badge badge-ghost badge-sm ml-2 align-middle">
+                      AI brief ready
+                    </span>
+                  ) : null}
+                </p>
                 <p className="mt-1 text-sm text-base-content/70">
                   {finding.suggestion}
                 </p>
@@ -121,7 +131,7 @@ export function GrowthAnalystPanel({
                     className="btn btn-ghost btn-xs"
                     onClick={() => setReviewing(finding)}
                   >
-                    Look into it
+                    {finding.hasBrief ? "Read the brief" : "Look into it"}
                   </button>
                   {canEdit ? (
                     <select
@@ -163,6 +173,13 @@ export function GrowthAnalystPanel({
           >
             See all {digest.findingsTotal} findings
           </Link>
+        ) : null}
+        {canConfigure ? (
+          <AutoBriefsToggle
+            projectId={projectId}
+            enabled={digest.autoBriefs}
+            onChanged={refresh}
+          />
         ) : null}
       </div>
       <GrowthMeasuring measuring={digest.measuring} />
@@ -209,6 +226,44 @@ export function GrowthAnalystPanel({
         </Modal>
       ) : null}
     </section>
+  );
+}
+
+function AutoBriefsToggle({
+  projectId,
+  enabled,
+  onChanged,
+}: {
+  projectId: string;
+  enabled: boolean;
+  onChanged: () => Promise<unknown>;
+}) {
+  const toggle = useMutation({
+    mutationFn: (next: boolean) =>
+      setGrowthAutoBriefs({ data: { projectId, enabled: next } }),
+    retry: false,
+    onSuccess: onChanged,
+  });
+  return (
+    <label className="mt-4 flex items-start gap-2 border-t border-base-300 pt-3 text-xs text-base-content/70">
+      <input
+        type="checkbox"
+        className="toggle toggle-xs mt-0.5"
+        checked={enabled}
+        disabled={toggle.isPending}
+        onChange={(event) => toggle.mutate(event.target.checked)}
+      />
+      <span>
+        Draft AI briefs for the top two findings each week, so the reasoning is
+        ready when you look. Uses a little AI credit, typically under $0.50 a
+        month.
+        {toggle.error ? (
+          <span role="alert" className="block text-error">
+            {getStandardErrorMessage(toggle.error, "That was not saved.")}
+          </span>
+        ) : null}
+      </span>
+    </label>
   );
 }
 

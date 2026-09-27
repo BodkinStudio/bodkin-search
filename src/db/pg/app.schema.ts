@@ -68,6 +68,9 @@ export const projects = pgTable(
     // onboarding and reused by every project-scoped data call.
     locationCode: integer("location_code").notNull().default(2840),
     languageCode: text("language_code").notNull().default("en"),
+    // The weekly Growth watch drafts AI briefs for the top findings; owners
+    // can turn it off to stop the spend.
+    growthAutoBriefs: boolean("growth_auto_briefs").notNull().default(true),
     createdAt: timestampColumn("created_at").notNull().default(isoNow),
     // Soft delete: archived projects are hidden everywhere but their data
     // (keywords, rank tracking, audits) is preserved.

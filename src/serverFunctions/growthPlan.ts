@@ -172,6 +172,15 @@ export const addGrowthFindingToPlan = createServerFn({ method: "POST" })
     }),
   );
 
+export const setGrowthAutoBriefs = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(
+    z.object({ projectId: z.string().min(1).max(128), enabled: z.boolean() }),
+  )
+  .handler(({ data, context }) =>
+    GrowthAnalystService.setAutoBriefs(context.projectId, data.enabled),
+  );
+
 export const dismissGrowthFinding = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
   .validator(dismissGrowthFindingSchema)

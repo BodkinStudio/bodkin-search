@@ -21,12 +21,13 @@ export const Route = createFileRoute("/_project/p/$projectId/growth/")({
 export function GrowthPlanRoute() {
   const { projectId } = Route.useParams();
   const { edit } = Route.useSearch();
-  const canEdit = useWorkspaceAccess().can("edit");
+  const access = useWorkspaceAccess();
   return (
     <GrowthPlanPage
       key={projectId}
       projectId={projectId}
-      canEdit={canEdit}
+      canEdit={access.can("edit")}
+      canConfigure={access.can("configure")}
       defaultEdit={edit !== undefined && EDIT_VALUES.has(edit.toLowerCase())}
     />
   );

@@ -54,6 +54,11 @@ export const projects = sqliteTable(
     // onboarding and reused by every project-scoped data call.
     locationCode: integer("location_code").notNull().default(2840),
     languageCode: text("language_code").notNull().default("en"),
+    // The weekly Growth watch drafts AI briefs for the top findings; owners
+    // can turn it off to stop the spend.
+    growthAutoBriefs: integer("growth_auto_briefs", { mode: "boolean" })
+      .notNull()
+      .default(true),
     createdAt: text("created_at")
       .notNull()
       .default(sql`(current_timestamp)`),

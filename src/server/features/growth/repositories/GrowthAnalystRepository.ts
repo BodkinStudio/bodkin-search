@@ -2,9 +2,11 @@ import { and, desc, eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db";
 import {
   growthActions,
+  growthAiBriefs,
   growthMeasurementPlans,
   growthRuns,
   growthSignals,
+  projects,
 } from "@/db/schema";
 
 // The metric rows that belong with each source signal: a check writes one
@@ -88,8 +90,44 @@ async function activeMeasurements(projectId: string) {
     );
 }
 
+async function briefedSignalIds(projectId: string, signalIds: string[]) {
+  if (signalIds.length === 0) return new Set<string>();
+  const rows = await db
+    .select({ signalId: growthAiBriefs.signalId })
+    .from(growthAiBriefs)
+    .where(
+      and(
+        eq(growthAiBriefs.projectId, projectId),
+        inArray(growthAiBriefs.signalId, signalIds),
+      ),
+    );
+  return new Set(rows.map((row) => row.signalId));
+}
+
+async function autoBriefSettings(projectId: string) {
+  const [row] = await db
+    .select({
+      organizationId: projects.organizationId,
+      enabled: projects.growthAutoBriefs,
+    })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+  return row ?? null;
+}
+
+async function setAutoBriefs(projectId: string, enabled: boolean) {
+  await db
+    .update(projects)
+    .set({ growthAutoBriefs: enabled })
+    .where(eq(projects.id, projectId));
+}
+
 export const GrowthAnalystRepository = {
   signalFamilies,
   lastWatchAt,
   activeMeasurements,
+  briefedSignalIds,
+  autoBriefSettings,
+  setAutoBriefs,
 } as const;

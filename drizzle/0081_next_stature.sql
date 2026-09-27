@@ -1,0 +1,1 @@
+ALTER TABLE `projects` ADD `growth_auto_briefs` integer DEFAULT true NOT NULL;

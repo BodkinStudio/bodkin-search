@@ -1,4 +1,5 @@
 import { GrowthWatchRepository } from "../repositories/GrowthWatchRepository";
+import { GrowthAnalystService } from "./GrowthAnalystService";
 import { GrowthCriticalAuditIssueCheckService } from "./GrowthCriticalAuditIssueCheckService";
 import { GrowthLowCtrCheckService } from "./GrowthLowCtrCheckService";
 import { GrowthMeasurementDueCheckService } from "./GrowthMeasurementDueCheckService";
@@ -38,6 +39,8 @@ const CHECKS = [
   ["measurement_due", GrowthMeasurementDueCheckService.runCheck],
   ["page_changes", GrowthPageMonitorService.checkPages],
   ["collect_measurements", GrowthPlanMeasurementService.collectDue],
+  // Last, so it briefs this week's findings.
+  ["ai_briefs", GrowthAnalystService.briefTopFindings],
 ] as const;
 
 async function watchProject(projectId: string, now: Date) {

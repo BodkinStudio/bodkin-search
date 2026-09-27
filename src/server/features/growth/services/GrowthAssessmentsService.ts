@@ -140,6 +140,18 @@ async function requireReadyForPage(projectId: string, pageUrl: string | null) {
   return { assessment, selected, page };
 }
 
+// The same read for drafting: a brief can be drafted without a ready
+// assessment (it then says so), but approving the work still needs one.
+async function readyForPage(projectId: string, pageUrl: string | null) {
+  try {
+    return await requireReadyForPage(projectId, pageUrl);
+  } catch (error) {
+    if (error instanceof AppError && error.code === "VALIDATION_ERROR")
+      return null;
+    throw error;
+  }
+}
+
 async function requireReadyForInvestigation(
   projectId: string,
   assessmentId: string,
@@ -196,5 +208,6 @@ export const GrowthAssessmentsService = {
   saveAssessment,
   generateAssessment,
   requireReadyForPage,
+  readyForPage,
   requireReadyForInvestigation,
 } as const;
