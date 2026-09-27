@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { StartGrowthMeasurementInput } from "@/types/schemas/growth-measurements";
 import { GrowthPlanMeasurementService } from "./GrowthPlanMeasurementService";
 
 const deps = vi.hoisted(() => ({
@@ -7,7 +8,8 @@ const deps = vi.hoisted(() => ({
   gsc: vi.fn(),
   recordManualEvent: vi.fn(),
   linkAction: vi.fn(),
-  startMeasurement: vi.fn(),
+  startMeasurement:
+    vi.fn<(input: StartGrowthMeasurementInput) => Promise<void>>(),
 }));
 vi.mock("../repositories/GrowthActionsRepository", () => ({
   GrowthActionsRepository: { getActionGraph: deps.getActionGraph },
@@ -104,18 +106,14 @@ describe("measuring plan actions when they ship", () => {
       actionId: "a",
       changeEventId: "change",
     });
-    expect(deps.startMeasurement).toHaveBeenCalledWith(
-      expect.objectContaining({
-        expectedActionVersion: 3,
-        implementationChangeEventId: "change",
-        metrics: expect.arrayContaining([
-          expect.objectContaining({
-            metricType: "search_clicks",
-            entityKey: "https://site.test/teams",
-            isPrimary: true,
-          }),
-        ]),
-      }),
-    );
+    const [started] = deps.startMeasurement.mock.calls[0];
+    expect(started.expectedActionVersion).toBe(3);
+    expect(started.implementationChangeEventId).toBe("change");
+    expect(started.metrics).toContainEqual({
+      metricType: "search_clicks",
+      entityType: "url",
+      entityKey: "https://site.test/teams",
+      isPrimary: true,
+    });
   });
 });

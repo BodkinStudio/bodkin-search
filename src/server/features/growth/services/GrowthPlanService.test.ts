@@ -41,9 +41,7 @@ vi.mock("../repositories/GrowthPlanRepository", () => ({
   GrowthPlanRepository: repository,
 }));
 vi.mock("./GrowthPlanMeasurementService", () => ({
-  GrowthPlanMeasurementService: {
-    startOnShipped: vi.fn(async () => ({ started: false })),
-  },
+  GrowthPlanMeasurementService: { startOnShipped: vi.fn() },
 }));
 vi.mock("./GrowthActionsService", () => ({
   GrowthActionsService: { transitionAction: actions.transitionAction },
