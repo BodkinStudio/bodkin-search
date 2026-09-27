@@ -188,7 +188,7 @@ const SETUP_SECTIONS = [
   { value: "reporting", label: "Reporting" },
   { value: "privacy", label: "Privacy" },
 ] as const;
-export type AnalyticsSetupSection = (typeof SETUP_SECTIONS)[number]["value"];
+type AnalyticsSetupSection = (typeof SETUP_SECTIONS)[number]["value"];
 
 // Tracking setup in four parts instead of one long page: getting the tracker
 // onto the site first, then what is measured, how it is reported, and

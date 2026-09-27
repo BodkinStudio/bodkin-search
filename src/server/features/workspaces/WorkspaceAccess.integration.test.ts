@@ -6,6 +6,7 @@ import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 import type * as Service from "./WorkspaceService";
 import type * as Repository from "./WorkspaceRepository";
 import type * as Access from "./WorkspaceAccess";
+import type * as ProjectMove from "./ProjectMoveService";
 
 const runtime = vi.hoisted(() => ({
   CLIENT_WORKSPACES_ENABLED: "true",
@@ -20,6 +21,7 @@ let client: Client;
 let service: typeof Service;
 let repository: typeof Repository;
 let access: typeof Access;
+let projectMove: typeof ProjectMove;
 const owner = {
   userId: "owner",
   userEmail: "owner@example.test",
@@ -42,6 +44,11 @@ beforeAll(async () => {
   vi.doMock("@/db/schema", async () => ({
     ...(await import("@/db/better-auth-schema")),
     ...(await import("@/db/workspaces.schema")),
+    ...(await import("@/db/app.schema")),
+    ...(await import("@/db/gsc.schema")),
+    ...(await import("@/db/ga4.schema")),
+    ...(await import("@/db/youtube.schema")),
+    ...(await import("@/db/linkedin.schema")),
   }));
   vi.doMock("@/db/runBatch", () => ({
     runBatch: async (build: (tx: typeof testDb) => Promise<unknown>[]) => {
@@ -80,10 +87,18 @@ beforeAll(async () => {
     INSERT INTO workspace_configuration VALUES ('a','a','active'),('b','a','active');
     INSERT INTO user(id,name,email,email_verified,updated_at) VALUES ('owner','Owner','owner@example.test',1,0),('viewer','Viewer','viewer@example.test',1,0),('guest','Guest','guest@example.test',1,0),('admin','Admin','admin@example.test',1,0);
     INSERT INTO member VALUES ('owner-a','a','owner','owner',0),('viewer-a','a','viewer','viewer',0),('admin-a','a','admin','admin',0),('owner-b','b','owner','owner',0);
+    CREATE TABLE projects (id text PRIMARY KEY, organization_id text NOT NULL, name text NOT NULL);
+    CREATE TABLE gsc_connections (id text PRIMARY KEY, project_id text NOT NULL, organization_id text NOT NULL);
+    CREATE TABLE ga4_connections (id text PRIMARY KEY, project_id text NOT NULL, organization_id text NOT NULL);
+    CREATE TABLE youtube_connections (id text PRIMARY KEY, project_id text NOT NULL, organization_id text NOT NULL);
+    CREATE TABLE linkedin_page_connections (id text PRIMARY KEY, project_id text NOT NULL, organization_id text NOT NULL);
+    INSERT INTO projects VALUES ('site','a','Client site');
+    INSERT INTO gsc_connections VALUES ('gsc-site','site','a');
   `);
   service = await import("./WorkspaceService");
   repository = await import("./WorkspaceRepository");
   access = await import("./WorkspaceAccess");
+  projectMove = await import("./ProjectMoveService");
 });
 afterAll(() => {
   client.close();
@@ -294,5 +309,38 @@ describe("client workspace isolation", () => {
     await expect(
       access.requireWorkspaceMembership("owner", "b"),
     ).rejects.toThrow();
+  });
+  it("moves a project and its connections only for an owner of both workspaces", async () => {
+    const organizationOf = async (table: string, id: string) =>
+      (
+        await client.execute({
+          sql: `select organization_id from ${table} where id = ?`,
+          args: [id],
+        })
+      ).rows[0]?.organization_id;
+    // A fresh target: an earlier test suspends "b".
+    const { id: target } = await service.createWorkspace(owner, "a", "Target");
+
+    expect(
+      await projectMove
+        .moveProjectToWorkspace(
+          {
+            userId: "admin",
+            userEmail: "admin@example.test",
+            emailVerified: true,
+          },
+          "site",
+          "a",
+          target,
+        )
+        .catch(() => "denied"),
+    ).toBe("denied");
+    expect(await organizationOf("projects", "site")).toBe("a");
+
+    expect(
+      await projectMove.moveProjectToWorkspace(owner, "site", "a", target),
+    ).toEqual({ ok: true });
+    expect(await organizationOf("projects", "site")).toBe(target);
+    expect(await organizationOf("gsc_connections", "gsc-site")).toBe(target);
   });
 });

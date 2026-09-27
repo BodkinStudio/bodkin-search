@@ -16,7 +16,11 @@ import {
 } from "./WorkspaceAccess";
 import * as repo from "./WorkspaceRepository";
 
-type Actor = { userId: string; userEmail: string; emailVerified: boolean };
+export type Actor = {
+  userId: string;
+  userEmail: string;
+  emailVerified: boolean;
+};
 export function requireClientWorkspaces() {
   if (!clientWorkspacesEnabled()) throw new AppError("FORBIDDEN");
 }

@@ -28,6 +28,12 @@ beforeAll(async () => {
   const schema = {
     ...(await import("@/db/better-auth-schema")),
     ...(await import("@/db/workspaces.schema")),
+    // Loaded through ProjectMoveRepository; unused here.
+    ...(await import("@/db/app.schema")),
+    ...(await import("@/db/gsc.schema")),
+    ...(await import("@/db/ga4.schema")),
+    ...(await import("@/db/youtube.schema")),
+    ...(await import("@/db/linkedin.schema")),
   };
   const testDb = drizzle(client, { schema });
   vi.doMock("@/db", () => ({ db: testDb }));

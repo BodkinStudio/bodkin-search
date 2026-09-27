@@ -19,7 +19,12 @@ export const databaseNow = () =>
 
 export async function listMemberships(userId: string) {
   return db
-    .select({ id: organization.id, name: organization.name, role: member.role })
+    .select({
+      id: organization.id,
+      name: organization.name,
+      role: member.role,
+      payerOrganizationId: workspaceConfiguration.payerOrganizationId,
+    })
     .from(member)
     .innerJoin(organization, eq(organization.id, member.organizationId))
     .innerJoin(

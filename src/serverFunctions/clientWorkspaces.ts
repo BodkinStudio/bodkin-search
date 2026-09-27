@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setCookie, getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
-import { requireAuthenticatedContext } from "./middleware";
+import {
+  requireAuthenticatedContext,
+  requireProjectContext,
+} from "./middleware";
 import {
   clientWorkspacesEnabled,
   requireWorkspaceMembership,
@@ -9,6 +12,7 @@ import {
 import { listMemberships } from "@/server/features/workspaces/WorkspaceRepository";
 import { WORKSPACE_COOKIE } from "@/server/features/workspaces/WorkspaceContext";
 import * as service from "@/server/features/workspaces/WorkspaceService";
+import { moveProjectToWorkspace as moveProjectBetweenWorkspaces } from "@/server/features/workspaces/ProjectMoveService";
 import { workspaceRoleSchema } from "@/shared/workspaces/permissions";
 
 const workspaceInput = z.object({ organizationId: z.string().min(1).max(128) });
@@ -29,6 +33,22 @@ export const getProjectWorkspace = createServerFn({ method: "GET" })
   .validator(z.object({ id: z.string().min(1).max(128) }))
   .handler(({ data, context }) =>
     service.projectWorkspace(context.userId, data.id),
+  );
+export const moveProjectToWorkspace = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(
+    z.object({
+      projectId: z.string().min(1).max(128),
+      organizationId: z.string().min(1).max(128),
+    }),
+  )
+  .handler(({ data, context }) =>
+    moveProjectBetweenWorkspaces(
+      context,
+      context.projectId,
+      context.organizationId,
+      data.organizationId,
+    ),
   );
 export const selectWorkspace = createServerFn({ method: "POST" })
   .middleware(requireAuthenticatedContext)

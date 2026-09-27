@@ -767,6 +767,10 @@
     "capability": "self",
     "projectRequired": false
   },
+  "src/serverFunctions/clientWorkspaces.ts:moveProjectToWorkspace": {
+    "capability": "own",
+    "projectRequired": true
+  },
   "src/serverFunctions/clientWorkspaces.ts:selectWorkspace": {
     "capability": "self",
     "projectRequired": false
