@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import {
   CardShell,
+  moreDetailsClass,
   PercentDelta,
   Stat,
 } from "@/client/features/dashboard/cardParts";
@@ -169,7 +171,15 @@ function ManualPosts({ report }: { report: LinkedInPostPerformance | null }) {
     </section>
   );
 }
-export function LinkedInPageContentCard({ projectId }: { projectId: string }) {
+// "summary" is the dashboard's view: shown only once there is data, with no
+// import form and a link to the full card in Analytics > Channels.
+export function LinkedInPageContentCard({
+  projectId,
+  variant = "full",
+}: {
+  projectId: string;
+  variant?: "full" | "summary";
+}) {
   const overview = useQuery({
     queryKey: ["linkedinPageOverview", projectId],
     queryFn: () => getLinkedInPageOverview({ data: { projectId } }),
@@ -179,6 +189,8 @@ export function LinkedInPageContentCard({ projectId }: { projectId: string }) {
     queryFn: () => getLinkedInPostPerformance({ data: { projectId } }),
   });
   const result = overview.data;
+  const hasData = result?.status === "ok";
+  if (variant === "summary" && !hasData) return null;
   const stamp =
     result?.status === "ok" && result.source.provider === "linkedin_api"
       ? result.source.freshness === "stale"
@@ -200,23 +212,31 @@ export function LinkedInPageContentCard({ projectId }: { projectId: string }) {
               No LinkedIn analytics imported yet
             </p>
             <p className="mt-1 text-sm text-base-content/65">
-              Connect a Page or upload a manual Page Content export below.
+              Connect a Page in project settings, or upload a Page Content
+              export below.
             </p>
           </div>
         )}
         <ManualPosts report={posts.data?.status === "ok" ? posts.data : null} />
-        <section
-          aria-labelledby="linkedin-import-heading"
-          className="border-t border-base-300 pt-5"
-        >
-          <h3
-            id="linkedin-import-heading"
-            className="mb-3 text-sm font-semibold"
+        {variant === "summary" ? (
+          <Link
+            to="/p/$projectId/analytics"
+            params={{ projectId }}
+            search={{ view: "channels" }}
+            className={moreDetailsClass}
           >
-            Manual fallback: upload Page Content analytics
-          </h3>
-          <LinkedInPageContentImportForm projectId={projectId} />
-        </section>
+            More in Analytics
+          </Link>
+        ) : (
+          <details open={!hasData} className="border-t border-base-300 pt-5">
+            <summary className="cursor-pointer text-sm font-semibold">
+              Upload a Page Content export
+            </summary>
+            <div className="mt-3">
+              <LinkedInPageContentImportForm projectId={projectId} />
+            </div>
+          </details>
+        )}
       </div>
     </CardShell>
   );

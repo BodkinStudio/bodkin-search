@@ -367,7 +367,12 @@ export function DashboardPage({ projectId }: { projectId: string }) {
             {
               key: "linkedin-page-content",
               hasData: false,
-              node: <LinkedInPageContentCard projectId={projectId} />,
+              node: (
+                <LinkedInPageContentCard
+                  projectId={projectId}
+                  variant="summary"
+                />
+              ),
             },
             {
               key: "audit",
@@ -398,7 +403,9 @@ export function DashboardPage({ projectId }: { projectId: string }) {
           ]
             .toSorted((a, b) => Number(b.hasData) - Number(a.hasData))
             .map((card) => (
-              <div key={card.key}>{card.node}</div>
+              <div key={card.key} className="empty:hidden">
+                {card.node}
+              </div>
             ))}
         </div>
       </div>
