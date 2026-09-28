@@ -1,0 +1,15 @@
+{
+  "verdict": "PASS",
+  "generatedAt": "2026-09-02T02:24:56Z",
+  "unmet": [],
+  "notes": [
+    "BG-0207A now records every repeated priority-page decline as a Signal while one project/key-page/metric issue retains one active controlling Recommendation across Runs.",
+    "The new normalized decision relation is project-qualified and dual-dialect. Exact Signal replay, closed immutable reasons, active-controller uniqueness, restricted controller deletion, suppressed-Signal cleanup and whole-project cascade are enforced by storage and tests.",
+    "Candidate graph creation, strict legacy adoption, controller claim and fallback suppression are one provider-aware atomic write. Deterministic parent IDs serialize competing candidates, and the PostgreSQL source-Run lock prevents terminalization from leaving an orphan graph.",
+    "A repeated Signal receives only controller title/status, its saved decision-time reason, policy version and optional exact Work link. It cannot expose old evidence or review/approve the controller through the repeated Signal identity.",
+    "Real SQLite integration proves two distinct checks reuse one controller and that a later forced generation failure preserves an earlier committed decision on a readable completed_with_errors Run.",
+    "A freshly migrated disposable PostgreSQL 16 database passed 7/7 acceptance tests covering null-reason rejection, candidate contention, terminal-first locking, legacy adoption and deletion lifecycle; the task-scoped container was removed.",
+    "Verification records 391 affected SQLite tests, 30 focused DTO/UI/submission tests, a clean repository CI gate, 2,213 passing full-suite tests with one worker, a passing production build and clean staged plus unstaged whitespace checks.",
+    "Fresh adversarial rereview passed with no critical, major, minor, verification or plan findings. No browser, screenshot, responsive or visual-quality claim is made."
+  ]
+}

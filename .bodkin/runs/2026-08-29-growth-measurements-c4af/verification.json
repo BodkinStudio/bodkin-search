@@ -1,0 +1,89 @@
+{
+  "runId": "2026-08-29-growth-measurements-c4af",
+  "verifiedAt": "2026-08-29T22:56:27Z",
+  "baseCommit": "817c0c315f293d2e8020d2283944543194255dcb",
+  "result": "pass",
+  "finalAcceptanceAudit": "PASS",
+  "checks": [
+    {
+      "command": "pnpm db:generate",
+      "result": "pass",
+      "evidence": "D1 migration 0048_dry_kate_bishop and Postgres migration 0026_narrow_cassandra_nova are checked in with snapshots and journal entries. A final generation run inspected all 54 tables for each provider and reported no schema changes for either provider."
+    },
+    {
+      "command": "focused Growth contracts, lifecycle, service, migration, repository and schema-parity tests",
+      "result": "pass",
+      "evidence": "Eight focused files passed with 360 assertions. Coverage includes closed vocabularies and bounds, Action transition reservation, timezone and implementation-anchor freezing, canonical Plan/Metric facts, exact retry and semantic drift, Observation period/scalar validation, required primary coverage, derived deltas, not_measurable completion, same-project confounders, project isolation, and atomic lifecycle behavior. The real-libSQL migration test starts after migration 0047, applies 0048 over populated Growth data, exercises constraints and deletion directions, and finishes with a clean foreign-key check."
+    },
+    {
+      "command": "POSTGRES_DATABASE_URL=... pnpm db:migrate:pg",
+      "result": "pass",
+      "evidence": "The complete checked-in Postgres migration tree, including 0026_narrow_cassandra_nova, applied successfully from scratch to the isolated task-created Postgres 16 container bodkin-growth-pg-c4af on localhost port 55432. The initial sandboxed connection was denied; the identical approved localhost rerun passed. No existing project database or remote environment was touched."
+    },
+    {
+      "command": "TEST_POSTGRES_DATABASE_URL=... npx vitest run GrowthMeasurementsRepository.postgres.test.ts --reporter=verbose",
+      "result": "pass",
+      "evidence": "Two live-provider tests passed through the production Postgres provider path. They prove concurrent Plan/Result drift cannot graft losing children and that Plan locking serializes finalization against a racing Observation so the committed Observation is frozen or the late write is rejected."
+    },
+    {
+      "command": "npx vitest run --maxWorkers=1 --reporter=dot",
+      "result": "pass",
+      "evidence": "Final standard root run: 158 test files and 1,450 tests passed, with five files and ten explicitly provider-gated tests skipped, in 100.68 seconds. The two new Postgres cases passed separately against live Postgres."
+    },
+    {
+      "command": "pnpm ci:check",
+      "result": "pass",
+      "evidence": "Prettier, Knip, root TypeScript, badseo TypeScript, type-aware Oxlint (878 files, 184 rules, zero warnings/errors), skill synchronization and generated-skill cleanliness passed."
+    },
+    {
+      "command": "pnpm build",
+      "result": "pass",
+      "evidence": "The production client and SSR/Worker builds completed and the trailing root TypeScript check passed. Wrangler could not write its optional user-level debug log inside the filesystem sandbox, but both bundles were produced and the command exited 0."
+    },
+    {
+      "command": "git diff --check and final scope audit",
+      "result": "pass",
+      "evidence": "No whitespace errors. No dependency manifest, lockfile, public server function, UI, MCP tool, scheduler, provider collector, deployment configuration or remote application state changed. Build artifacts remained ignored."
+    },
+    {
+      "command": "fresh independent bodkin-reviewer acceptance",
+      "result": "pass",
+      "evidence": "The final fresh read-only review returned pass with zero critical, major or minor findings, zero verification gaps and zero plan gaps after inspecting the complete diff, run artifacts and live Postgres evidence."
+    }
+  ],
+  "migrationReview": {
+    "d1": "Migration 0048 adds the normalized Measurement Plan, Metric, Observation, Result and Result-confounder graph with project-leading composite keys, explicit checks, bounded scalar storage and downward cascades. It preserves independent Change Events while pruning only confounder links when an Event is deleted. It was executed against the checked-in prior D1 state with representative implemented Actions and Change Events.",
+    "postgres": "Migration 0026 mirrors the normalized graph and deletion direction. The complete migration tree was applied from scratch to disposable Postgres 16, then production provider-aware concurrency and locking behavior was executed against it.",
+    "schemaParity": "Both providers expose matching Measurement structures, lifecycle/vocabulary/date/scalar checks, project-leading relationship pairings, uniqueness, indexes, defaults and cascades."
+  },
+  "acceptanceAudit": {
+    "adr026Recorded": true,
+    "onePlanPerImplementedAction": true,
+    "oneTerminalResultPerPlan": true,
+    "atomicActionLifecycleCoupling": true,
+    "implementationAnchorAndTimezoneFrozen": true,
+    "explicitInclusiveWindowsValidated": true,
+    "canonicalBoundedMetricGraph": true,
+    "immutablePeriodObservations": true,
+    "scalarAndCompletenessRules": true,
+    "exactRetryAndSemanticDriftConflict": true,
+    "primaryEvidenceCoverage": true,
+    "notMeasurableCanCloseIncompleteEvidence": true,
+    "immutableObservationDigestAndDerivedDeltas": true,
+    "sameProjectFrozenConfounders": true,
+    "concurrentDriftCannotExtendWinningGraph": true,
+    "lateObservationFinalizationSerialization": true,
+    "projectScopedCompositeIntegrity": true,
+    "downwardCascadesPreserveIndependentEvents": true,
+    "dualProviderSchemaMigrationAndRuntimeEvidence": true,
+    "dependenciesChanged": false,
+    "productionMigrationPaidCallOrRemoteStateExecuted": false
+  },
+  "scopeNotes": [
+    "This is an internal contract/service/repository slice. It intentionally exposes no server function, UI, MCP tool, scheduler or provider collection path.",
+    "Generic Action transitions reserve measuring and evaluated for the Measurement service while historical Action event replay remains valid.",
+    "Plan identity freezes the implemented Action version, server-stamped implementation timestamp, explicit local anchor date and current Growth report timezone.",
+    "Result comparisons are derived from immutable Observations; the Result stores no duplicate numeric fact.",
+    "The first adversarial review found no implementation or plan defects. Its two evidence gaps were this verification record and an executed live Postgres run; both are now supplied for a fresh final review."
+  ]
+}

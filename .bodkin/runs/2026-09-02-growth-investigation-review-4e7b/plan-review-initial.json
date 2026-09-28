@@ -1,0 +1,33 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "The original plan assumed the approval/review race was safe without an explicit cross-service acceptance test.",
+      "resolution": "The revised plan requires live PostgreSQL approval-versus-dismiss and approval-versus-snooze races with exactly one winner, consistent Recommendation/Action state, complete approved graphs and no orphan review-winner rows. It separately covers the mutually exclusive snoozed Review-now starting state."
+    },
+    {
+      "summary": "The original non-material UI classification did not state what semantic evidence substitutes for prohibited rendered capture.",
+      "resolution": "The revised plan confines the patch to the existing card/native-form/flex pattern, adds semantic source-order, disabled-state, label, error and date-minimum assertions, makes no visual/responsive-quality claim and requires reclassification if the implementation expands beyond that local shape."
+    }
+  ],
+  "minor": [
+    {
+      "summary": "UTC and minimum-date behavior was underspecified.",
+      "resolution": "The UI must name UTC, derive the next UTC calendar date as the native minimum and surface safe validation errors."
+    },
+    {
+      "summary": "Merged and superseded card behavior was unspecified.",
+      "resolution": "Both remain explicit read-only terminal states with no mutation controls and focused render coverage."
+    },
+    {
+      "summary": "The DTO privacy assertion lacked a strict runtime projection test.",
+      "resolution": "A runtime strict view schema and negative internal-field tests are now required."
+    }
+  ],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve project-context injection, qualification through the saved signal/run/template graph before mutation, server-derived transitions, the existing versioned Recommendation CAS, no new model/provider work and the separately audited atomic Action approval path."
+  ]
+}

@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_marketing/features/backlink-checker")({
       title: "Backlink Checker",
       description: page.description,
       path: "/features/backlink-checker",
-      titleSuffix: "OpenSEO",
+      titleSuffix: "Bodkin Search",
       imageAlt: page.imageAlt,
     }),
   component: () => <FeaturePageTemplate page={page} />,

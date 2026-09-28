@@ -1,0 +1,33 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [
+    {
+      "summary": "The file inventory retained the word conditional for Postgres coverage.",
+      "location": ".bodkin/runs/2026-09-01-growth-actions-mcp-5a7c/plan.md — Files",
+      "evidence": "Verification and acceptance already made the disposable Postgres 16 fixture mandatory.",
+      "impact": "Editorial ambiguity only; the acceptance contract was unambiguous.",
+      "recommendation": "Use required disposable Postgres 16 consistently."
+    }
+  ],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "resolution": "Accepted. The remaining editorial wording was corrected before implementation.",
+  "do_not_change": [
+    {
+      "summary": "Keep the existing qualified priority-page Work query separate from the all-Action read.",
+      "location": "src/server/features/growth/repositories/GrowthActionsRepository.ts — listInvestigationWork",
+      "evidence": "It is intentionally constrained by investigation/run/signal joins, whereas this plan requires every project Action.",
+      "impact": "Changing or reusing it would omit valid Actions or regress the Work UI.",
+      "recommendation": "Add the project-leading general read alongside it."
+    },
+    {
+      "summary": "Keep the existing MCP server and SAM server-bound project injection pattern.",
+      "location": "docs/growth/05_ARCHITECTURE_DECISIONS.md — ADR-036",
+      "evidence": "The plan requires a shared tool definition, canonical MCP authorization and removal of model-visible projectId only in SAM.",
+      "impact": "A separate transport or model-controlled project identity would weaken tenancy controls.",
+      "recommendation": "Preserve this boundary while implementing the read-only tool."
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "verdict": "PASS",
+  "generatedAt": "2026-09-02T00:54:11Z",
+  "unmet": [],
+  "notes": [
+    "The existing deterministic priority-page investigation now has complete human review: an authorized project user can dismiss with a saved reason, snooze to a future UTC date and explicitly return a snoozed suggestion to review.",
+    "The public boundary is a strict decision union with context-derived tenancy. The service qualifies the existing saved investigation and reuses the Recommendation review state machine rather than introducing a new writer or arbitrary state editor.",
+    "Expected-version CAS and exact replay remain centralized in GrowthInsightsService. Approval stays the atomic actor-bearing Action path; live PostgreSQL races prove that approval and dismiss or snooze cannot both win and that Review now creates no Action.",
+    "The returned card DTO is runtime-strict and explicitly projected. Internal run, relation, actor, resolution and hash fields do not escape.",
+    "The client prevents duplicate approval/review dispatch, freezes exact uncertain retries and now unlocks a definitively rejected UTC snooze so the user can choose a new future date.",
+    "Verification records 66 focused tests, 7 live PostgreSQL tests, clean TypeScript and lint, a clean complete CI gate, 2,186 passing full-suite tests, a passing production build and clean staged/unstaged whitespace checks.",
+    "Fresh adversarial rereview passed with no critical, major, minor, plan or verification findings. No browser or visual-quality claim is made."
+  ]
+}

@@ -1,6 +1,6 @@
 # Alchemy preview deployments
 
-OpenSEO preview stages use isolated Cloudflare resources and a shared,
+Bodkin Search preview stages use isolated Cloudflare resources and a shared,
 Alchemy-managed Cloudflare Access boundary.
 
 ## Security model
@@ -205,5 +205,5 @@ gating the worker (`AUTH_MODE=cloudflare_access` +
 `ACCESS_ALLOWED_EMAILS`; `resolveSelfHostAccess` in alchemy.run.ts derives
 `TEAM_DOMAIN`/`POLICY_AUD`, or accepts them explicitly for a hand-managed
 application). The preview Access wildcard and PR workflow are
-OpenSEO-specific and not required. The walkthrough lives in
+Bodkin Search-specific and not required. The walkthrough lives in
 docs/SELF_HOSTING_CLOUDFLARE.md.

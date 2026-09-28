@@ -52,6 +52,11 @@ export function KeyPagesSection({
           role: draft.role,
           topic: draft.topic.trim(),
           notes: draft.notes.trim(),
+          // Carry Growth metadata through both ordinary edits and the
+          // remove+add sequence used for URL renames.
+          commercialWeight: draft.commercialWeight,
+          protected: draft.protected,
+          activelyOptimized: draft.activelyOptimized,
         },
       ],
     });
@@ -131,6 +136,11 @@ export function KeyPagesSection({
                   {page.notes ? (
                     <p className="text-sm text-base-content/70">{page.notes}</p>
                   ) : null}
+                  <KeyPageGrowthBadges
+                    commercialWeight={page.commercialWeight}
+                    protectedPage={page.protected}
+                    activelyOptimized={page.activelyOptimized}
+                  />
                   <Provenance by={page.updatedBy} at={page.updatedAt} />
                 </div>
                 <RowActions>
@@ -164,6 +174,9 @@ type KeyPageDraft = {
   role: KeyPageRole;
   topic: string;
   notes: string;
+  commercialWeight: number | null;
+  protected: boolean;
+  activelyOptimized: boolean;
 };
 
 function KeyPageForm({
@@ -182,6 +195,9 @@ function KeyPageForm({
     role: initial?.role ?? "other",
     topic: initial?.topic ?? "",
     notes: initial?.notes ?? "",
+    commercialWeight: initial?.commercialWeight ?? null,
+    protected: initial?.protected ?? false,
+    activelyOptimized: initial?.activelyOptimized ?? false,
   });
 
   return (
@@ -244,11 +260,119 @@ function KeyPageForm({
         className="input input-bordered input-sm w-full"
         aria-label="Page notes"
       />
+      <KeyPageGrowthFields draft={draft} onChange={setDraft} />
       <FormActions
         pending={pending}
         disabled={!draft.url.trim()}
         onCancel={onCancel}
       />
     </form>
+  );
+}
+
+export function parseCommercialWeight(value: string): number | null {
+  if (value === "") return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 5 ? parsed : null;
+}
+
+export function KeyPageGrowthFields({
+  draft,
+  onChange,
+}: {
+  draft: KeyPageDraft;
+  onChange: (draft: KeyPageDraft) => void;
+}) {
+  return (
+    <fieldset className="rounded-lg border border-base-300 p-3">
+      <legend className="px-1 text-sm font-medium">Growth signals</legend>
+      <p className="mb-3 text-pretty text-xs text-base-content/60">
+        These fields help Growth order opportunities and explain possible
+        confounders. They do not claim that a page will perform better.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="font-medium">Commercial priority</span>
+          <select
+            value={draft.commercialWeight ?? ""}
+            onChange={(event) =>
+              onChange({
+                ...draft,
+                commercialWeight: parseCommercialWeight(event.target.value),
+              })
+            }
+            className="select select-bordered select-sm w-full tabular-nums"
+          >
+            <option value="">Not set</option>
+            <option value="1">1 — Low</option>
+            <option value="2">2</option>
+            <option value="3">3 — Medium</option>
+            <option value="4">4</option>
+            <option value="5">5 — Highest</option>
+          </select>
+        </label>
+        <label className="flex items-start gap-2 rounded-md border border-base-300 p-2.5 text-sm">
+          <input
+            type="checkbox"
+            className="checkbox checkbox-sm mt-0.5"
+            checked={draft.protected}
+            onChange={(event) =>
+              onChange({ ...draft, protected: event.target.checked })
+            }
+          />
+          <span>
+            <span className="block font-medium">Protected page</span>
+            <span className="text-xs text-base-content/60">
+              Changes need extra care.
+            </span>
+          </span>
+        </label>
+        <label className="flex items-start gap-2 rounded-md border border-base-300 p-2.5 text-sm">
+          <input
+            type="checkbox"
+            className="checkbox checkbox-sm mt-0.5"
+            checked={draft.activelyOptimized}
+            onChange={(event) =>
+              onChange({ ...draft, activelyOptimized: event.target.checked })
+            }
+          />
+          <span>
+            <span className="block font-medium">Active optimisation</span>
+            <span className="text-xs text-base-content/60">
+              Recent work may affect the trend.
+            </span>
+          </span>
+        </label>
+      </div>
+    </fieldset>
+  );
+}
+
+export function KeyPageGrowthBadges({
+  commercialWeight,
+  protectedPage,
+  activelyOptimized,
+}: {
+  commercialWeight: number | null;
+  protectedPage: boolean;
+  activelyOptimized: boolean;
+}) {
+  if (commercialWeight == null && !protectedPage && !activelyOptimized)
+    return null;
+
+  return (
+    <div className="flex flex-wrap gap-1.5 py-1 text-xs">
+      {commercialWeight != null ? (
+        <span className="badge badge-ghost badge-sm tabular-nums">
+          Commercial priority {commercialWeight}/5
+        </span>
+      ) : null}
+      {protectedPage ? (
+        <span className="badge badge-ghost badge-sm">Protected</span>
+      ) : null}
+      {activelyOptimized ? (
+        <span className="badge badge-ghost badge-sm">Active optimisation</span>
+      ) : null}
+    </div>
   );
 }

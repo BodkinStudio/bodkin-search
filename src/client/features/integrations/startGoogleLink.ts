@@ -5,6 +5,8 @@ import { isHostedClientAuthMode } from "@/lib/auth-mode";
 import { startSelfHostedGa4Link } from "@/serverFunctions/ga4";
 import { startSelfHostedGscLink } from "@/serverFunctions/gsc";
 import { GA4_OAUTH_PROVIDER_ID } from "@/shared/ga4";
+import { YOUTUBE_OAUTH_PROVIDER_ID } from "@/shared/youtube";
+import { startSelfHostedYouTubeLink } from "@/serverFunctions/youtube";
 import { GSC_OAUTH_PROVIDER_ID } from "@/shared/gsc";
 
 const googleProviders = {
@@ -16,6 +18,10 @@ const googleProviders = {
     providerId: GA4_OAUTH_PROVIDER_ID,
     startSelfHosted: startSelfHostedGa4Link,
   },
+  youtube: {
+    providerId: YOUTUBE_OAUTH_PROVIDER_ID,
+    startSelfHosted: startSelfHostedYouTubeLink,
+  },
 } as const;
 
 /**
@@ -26,7 +32,7 @@ const googleProviders = {
  * one place — callers keep their own analytics and dismissal behavior.
  */
 export async function startGoogleLink(
-  provider: "gsc" | "ga4",
+  provider: "gsc" | "ga4" | "youtube",
   callbackURL: string,
 ): Promise<void> {
   try {

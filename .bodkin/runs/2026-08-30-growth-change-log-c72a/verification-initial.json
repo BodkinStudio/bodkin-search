@@ -1,0 +1,43 @@
+{
+  "runId": "2026-08-30-growth-change-log-c72a",
+  "status": "fail",
+  "generatedAt": "2026-08-30T10:13:47.192Z",
+  "checks": [
+    {
+      "name": "Growth change lifecycle and UI regressions",
+      "command": "pnpm exec vitest run GrowthChange growth-change growthChangeLog GrowthPreview GrowthPriorityPageChecks --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 11826,
+      "output": "\n RUN  v3.2.6 /Users/jamesward/Documents/Dev/bodkin-search\n\n·····································································································--\n\n Test Files  17 passed | 1 skipped (18)\n      Tests  101 passed | 2 skipped (103)\n   Start at  11:10:59\n   Duration  10.49s (transform 838ms, setup 0ms, collect 3.87s, tests 2.17s, environment 3ms, prepare 1.13s)"
+    },
+    {
+      "name": "Repository checks",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "fail",
+      "exitCode": 2,
+      "durationMs": 52289,
+      "output": "\n> open-seo@0.1.6 ci:check /Users/jamesward/Documents/Dev/bodkin-search\n> prettier --check . && knip && tsc --noEmit && tsc --noEmit -p badseo/tsconfig.json && oxlint . --type-aware && pnpm sync-plugin-skills && test -z \"$(git status --porcelain -- plugins/openseo/skills)\"\n\nChecking formatting...\nAll matched files use Prettier code style!\nsrc/serverFunctions/growthChangeLog.test.ts(58,7): error TS2353: Object literal may only specify known properties, and 'context' does not exist in type 'RequiredFetcherDataOptions<readonly [FunctionMiddlewareAfterServer<{}, unknown, undefined, { project: { id: string; organizationId: string; name: string; domain: string | null; locationCode: number; languageCode: string; createdAt: string; archivedAt: string | null; }; ... 4 more ...; organizationId: string; }, unde...'.\nsrc/serverFunctions/growthChangeLog.test.ts(69,7): error TS2353: Object literal may only specify known properties, and 'context' does not exist in type 'RequiredFetcherDataOptions<readonly [FunctionMiddlewareAfterServer<{}, unknown, undefined, { project: { id: string; organizationId: string; name: string; domain: string | null; locationCode: number; languageCode: string; createdAt: string; archivedAt: string | null; }; ... 4 more ...; organizationId: string; }, unde...'.\n ELIFECYCLE  Command failed with exit code 2."
+    },
+    {
+      "name": "Production build",
+      "command": "WRANGLER_LOG_PATH=/private/tmp/bodkin-growth-build-c72a.log pnpm build",
+      "required": true,
+      "status": "fail",
+      "exitCode": 2,
+      "durationMs": 104564,
+      "output": "[20452 earlier characters omitted]\nssets/_authenticated.onboarding.chat-CLuMF6EW.js       14.67 kB\ndist/server/assets/settings-Dz2_7yw_.js                             16.29 kB\ndist/server/assets/SearchConsoleConnectionCard-BkZ9B7kG.js          16.53 kB\ndist/server/assets/sam-BCUff9I-.js                                  16.89 kB\ndist/server/assets/_tanstack-start-manifest_v-CU26twpw.js           17.31 kB\ndist/server/assets/GoogleAnalyticsConnectionCard-BlLB8VFL.js        17.69 kB\ndist/server/assets/_authenticated.onboarding.index-D3H7FuJR.js      20.56 kB\ndist/server/assets/growth-change-events-BVgI-D19.js                 20.84 kB\ndist/server/assets/useSearchTabNavigation-BHqkd1Vk.js               21.53 kB\ndist/server/assets/ErrorBarContext-BuyBOu6u.js                      21.68 kB\ndist/server/assets/LineChart-C39nyVM9.js                            22.35 kB\ndist/server/assets/search-performance-CWOSlyr8.js                   25.73 kB\ndist/server/assets/ai-search-BrLpW7mH.js                            27.32 kB\ndist/server/assets/ai-CPFQwn7Q.js                                   28.53 kB\ndist/server/assets/growthChecks-DKVCGNqU.js                         32.04 kB\ndist/server/assets/_resultId-DTPp88Ug.js                            32.56 kB\ndist/server/assets/GrowthEvidencePacket-BOcD16hO.js                 33.75 kB\ndist/server/assets/prompt-explorer-CKkvUBL-.js                      33.85 kB\ndist/server/assets/context-D5NyY2Bq.js                              34.43 kB\ndist/server/assets/index-DGP5ErFm.js                                39.62 kB\ndist/server/assets/useOnboardingRedirect-9qmjkqux.js                50.31 kB\ndist/server/assets/billing-4RtQQiy7.js                              63.15 kB\ndist/server/assets/growth-CDfZOYA6.js                               65.79 kB\ndist/server/assets/RankTrackingConfigModal-BL4fWTsN.js              68.41 kB\ndist/server/assets/brand-lookup-BRQDDbTN.js                         69.32 kB\ndist/server/assets/saved-CqGA-3rR.js                                73.32 kB\ndist/server/assets/_configId-C0RIr7i2.js                            78.22 kB\ndist/server/assets/domain-CQFchiB_.js                               84.08 kB\ndist/server/assets/Markdown-BSAycsT8.js                             91.14 kB\ndist/server/assets/page-analyzer-BrQbf7zh.js                        93.56 kB\ndist/server/assets/keywords-BWF9uxza.js                            100.07 kB\ndist/server/assets/sections-DarbKfUF.js                            120.00 kB\ndist/server/assets/backlinks-BBdLtBhb.js                           121.42 kB\ndist/server/assets/mimetext.node.es-DxmiMFsl.js                    223.47 kB\ndist/server/assets/OnboardingChatParts-Db7DtnEB.js                 259.83 kB\ndist/server/assets/module-Bvs3CmIK.js                              290.91 kB\ndist/server/assets/index-DuxgpV1C.js                               747.73 kB\ndist/server/assets/fetch-B5Icigm-.js                               856.50 kB\ndist/server/assets/router-BqJB4z_c.js                            1,552.94 kB\ndist/server/assets/core-CetQY4aG.js                              3,140.44 kB\ndist/server/assets/index-BlEao0CP.js                             8,775.97 kB\n✓ built in 58.33s\nsrc/serverFunctions/growthChangeLog.test.ts(58,7): error TS2353: Object literal may only specify known properties, and 'context' does not exist in type 'RequiredFetcherDataOptions<readonly [FunctionMiddlewareAfterServer<{}, unknown, undefined, { project: { id: string; organizationId: string; name: string; domain: string | null; locationCode: number; languageCode: string; createdAt: string; archivedAt: string | null; }; ... 4 more ...; organizationId: string; }, unde...'.\nsrc/serverFunctions/growthChangeLog.test.ts(69,7): error TS2353: Object literal may only specify known properties, and 'context' does not exist in type 'RequiredFetcherDataOptions<readonly [FunctionMiddlewareAfterServer<{}, unknown, undefined, { project: { id: string; organizationId: string; name: string; domain: string | null; locationCode: number; languageCode: string; createdAt: string; archivedAt: string | null; }; ... 4 more ...; organizationId: string; }, unde...'.\n ELIFECYCLE  Command failed with exit code 2.\n[stderr]\n\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit."
+    },
+    {
+      "name": "Whitespace",
+      "command": "git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 34,
+      "output": ""
+    }
+  ]
+}

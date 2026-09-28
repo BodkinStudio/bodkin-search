@@ -1,6 +1,6 @@
 # Cloudflare Self-Hosting
 
-Host OpenSEO on Cloudflare for internet-facing self-hosting across multiple devices or with your team. One deploy command provisions everything, including the Cloudflare Access login gate. Works on Cloudflare's free plan.
+Host Bodkin Search on Cloudflare for internet-facing self-hosting across multiple devices or with your team. One deploy command provisions everything, including the Cloudflare Access login gate. Deployment is possible on the free Workers plan, but its 10 ms CPU limit can terminate MCP requests even when the browser app loads. Use Workers Paid for production MCP use; see [CPU-limit troubleshooting](./SELF_HOSTING_CLOUDFLARE_OPERATIONS.md#troubleshoot-mcp-502-errors).
 
 Related guides:
 
@@ -13,7 +13,7 @@ Related guides:
 - **A Cloudflare account with R2 enabled.** Activating R2 requires a payment method on file, even within its free tier — if you have never used R2, open `R2` in the Cloudflare dashboard once.
 - **A DataForSEO account** — see [`DATAFORSEO_API_KEY.md`](./DATAFORSEO_API_KEY.md).
 
-## 1) Clone your OpenSEO repo
+## 1) Clone your Bodkin Search repo
 
 Fork `every-app/open-seo` on GitHub if you want a repo you control, then clone it locally:
 
@@ -64,11 +64,11 @@ To manage the Access application yourself instead, set `TEAM_DOMAIN` (`https://y
 
 1. Open the Worker URL printed at the end of the deploy.
 2. Sign in with Cloudflare Access.
-3. OpenSEO should load after login.
+3. Bodkin Search should load after login.
 
 If it doesn't, see Troubleshooting below.
 
-## Updating to the latest OpenSEO version
+## Updating to the latest Bodkin Search version
 
 ```bash
 git pull        # or: git fetch upstream && git merge upstream/main, if you forked

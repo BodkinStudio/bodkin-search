@@ -1,0 +1,24 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Keep the adapter read-only and limited to the current previous-complete-month service read.",
+      "location": "GrowthMonthlyReportsService.getGrowthMonthlyReport and growth_get_monthly_summary handler",
+      "evidence": "ADR-019 requires read tools before write tools, while ADR-035 defers build, publication, history, sharing, and scheduling to separate boundaries.",
+      "impact": "Adding build, publication, arbitrary-period, provider, or share behavior would exceed the approved authority boundary.",
+      "recommendation": "Preserve the single authorized getGrowthMonthlyReport(projectId) delegation and server-side SAM project binding."
+    },
+    {
+      "summary": "Preserve the strict monthly DTO as the structured output boundary.",
+      "location": "src/types/schemas/growth-monthly-reports.ts — growthMonthlyReportDtoSchema",
+      "evidence": "The DTO strictly allowlists lifecycle/report content and excludes stored-report IDs, actors, sources, evidence, hashes, and internal versions.",
+      "impact": "Replacing it with persisted report objects or loose output would expose internal Growth data to MCP and SAM consumers.",
+      "recommendation": "Return it only as structuredContent.summary and validate the wrapper with the declared output schema."
+    }
+  ]
+}

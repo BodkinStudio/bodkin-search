@@ -12,7 +12,7 @@ const PATH = "/google-search-console-mcp";
 const softwareApplicationLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  name: "OpenSEO Google Search Console MCP",
+  name: "Bodkin Search Google Search Console MCP",
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web",
   url: toCanonicalUrl(PATH),
@@ -31,7 +31,7 @@ const softwareApplicationLd = {
   },
   provider: {
     "@type": "Organization",
-    name: "OpenSEO",
+    name: "Bodkin Search",
     url: SITE_URL,
   },
 };
@@ -42,7 +42,7 @@ export const Route = createFileRoute("/_marketing/google-search-console-mcp")({
       title: "Google Search Console MCP Server: No Google Cloud Setup",
       description: frontmatter.description,
       path: PATH,
-      titleSuffix: "OpenSEO",
+      titleSuffix: "Bodkin Search",
       ogType: "article",
     }),
   component: GoogleSearchConsoleMcpPage,

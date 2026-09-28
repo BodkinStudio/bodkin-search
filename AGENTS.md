@@ -12,6 +12,17 @@
 - Prefer established project helpers and libraries over hand-rolled implementations.
 - Prefer idiomatic TanStack Query, Router, and Form patterns for server state, routing, and submitted forms.
 
+## Delivery efficiency
+
+- Optimize for the smallest user-visible or executable vertical slice.
+- Treat a user time expectation as a scope limit. If the full scope will not fit, say so immediately and reduce it to the smallest useful version.
+- Planning should normally take less than 10% of the expected implementation time and fit on one screen.
+- Delegate only when it clearly reduces wall-clock time. Do not delegate planning or discovery for familiar, bounded work.
+- Use focused checks while iterating. Run full CI, the complete test suite, and the production build once at the final checkpoint unless the risk requires otherwise.
+- Use one orchestration run per user-visible milestone, not per commit or internal layer.
+- If 60 minutes passes without executable or visible progress, stop and report before continuing.
+- Do not continue past an unpassed product gate merely because the user says "keep going". Surface the gate and propose the smallest validation step.
+
 ## Log papercuts
 
 When small, non-blocking repository friction occurs—a retried tool call, confusing setup step, flaky command, stale cache, misleading error, or non-obvious gotcha—use the `papercuts` skill and append it to `.agents/PAPERCUTS.md` in the moment. Continue the current task. Real bugs and tracked work are not papercuts, and sensitive data must never be logged.

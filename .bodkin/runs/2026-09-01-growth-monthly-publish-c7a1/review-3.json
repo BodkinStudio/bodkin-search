@@ -1,0 +1,13 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep GrowthReportsService.publishGrowthReport and its writer as the sole atomic first-publisher-wins boundary.",
+    "Keep publication recovery as an exact-coordinate read with no build-recovery fallback.",
+    "Keep publication internal-only: it must not build, regenerate, share, send, or externally expose reports."
+  ]
+}

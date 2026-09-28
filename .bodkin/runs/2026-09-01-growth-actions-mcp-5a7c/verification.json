@@ -1,0 +1,79 @@
+{
+  "runId": "2026-09-01-growth-actions-mcp-5a7c",
+  "status": "pass",
+  "generatedAt": "2026-09-01T17:42:51Z",
+  "checks": [
+    {
+      "name": "Focused Action read, privacy, MCP protocol and SAM acceptance",
+      "command": "pnpm exec vitest run src/server/features/growth/repositories/GrowthActionsRepository.read.query.test.ts src/types/schemas/growth-action-reads.test.ts src/server/features/growth/services/GrowthActionsReadService.test.ts src/server/mcp/tools/growth-action-tools.test.ts src/server/mcp/server.growth.integration.test.ts src/server/features/sam/samChatGrowthTools.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 3700,
+      "output": "6 test files passed; 18 tests passed after repair round 1. This includes the real no-network MCP Client/InMemoryTransport tools/list and tools/call flow through createOpenSeoMcpServer, plus exact Unicode URL-expansion coverage proving title, category and prose-target caps remain truthful after sanitization."
+    },
+    {
+      "name": "Disposable current-schema PostgreSQL 16 fixture",
+      "command": "Apply drizzle-pg migrations 0000-0028 with psql; apply the exact 0029 DDL in dependency-safe order; verify server version and growth_actions/growth_measurement_plan_anchors tables",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 14400,
+      "output": "PostgreSQL 16.14 reported growth_actions and growth_measurement_plan_anchors. Migration 0029's referenced unique constraint was applied before its foreign keys in the disposable fixture because the checked-in SQL emits that constraint last; no repository migration or application source was changed."
+    },
+    {
+      "name": "Live PostgreSQL Action read and lifecycle regressions",
+      "command": "Derive the disposable container password without printing it, set TEST_POSTGRES_DATABASE_URL, then run pnpm exec vitest run src/server/features/growth/repositories/GrowthActionsRepository.read.postgres.test.ts src/server/features/growth/repositories/GrowthActionsRepository.postgres.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 6900,
+      "output": "2 test files passed; 4 tests passed against PostgreSQL 16.14 at the current schema. Coverage includes project isolation, combined filters, limit-plus-one, same-timestamp BINARY/C code-unit ordering across lowercase/uppercase IDs, exact cursor continuation and existing Action lifecycle/concurrency behavior."
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 75500,
+      "output": "Prettier, Knip, root and badseo TypeScript checks, type-aware Oxlint, plugin skill sync and generated-skill cleanliness passed. Oxlint reported 0 warnings and 0 errors across 1,033 files."
+    },
+    {
+      "name": "Full repository tests",
+      "command": "pnpm test",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 25720,
+      "output": "228 test files passed and 8 Postgres-gated files skipped in the final default run; 1,991 tests passed and 22 skipped. The required live Action Postgres suites were run separately and passed."
+    },
+    {
+      "name": "Production build",
+      "command": "pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 97000,
+      "output": "Client and SSR/Worker production bundles plus the trailing TypeScript check passed. The existing large-client-chunk warning remains. Wrangler emitted the known non-fatal sandbox log-file EPERM diagnostic; the command exited 0."
+    },
+    {
+      "name": "Diff whitespace",
+      "command": "git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 200,
+      "output": "No whitespace errors."
+    },
+    {
+      "name": "External HTTP and headless MCP consumer probes",
+      "command": "Not run",
+      "required": false,
+      "status": "waived",
+      "exitCode": null,
+      "durationMs": 0,
+      "output": "Waived under the user's standing prohibition on browser, HTTP, CDP, Playwright and screenshot work. The real in-process MCP protocol test covers discovery and invocation without crossing that boundary."
+    }
+  ]
+}

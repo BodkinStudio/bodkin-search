@@ -1,0 +1,20 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Keep publication delegated to the existing atomic core boundary.",
+      "location": "src/server/features/growth/services/GrowthReportsService.ts; src/server/features/growth/repositories/GrowthReportsWriter.ts",
+      "evidence": "The plan resolves the public coordinate in a monthly coordinator and delegates publication to the existing first-publisher-wins implementation."
+    },
+    {
+      "summary": "Keep build recovery separate from exact publication recovery.",
+      "location": ".bodkin/runs/2026-09-01-growth-monthly-publish-c7a1/plan.md Scope 6; acceptance.md requirements 10 and 13",
+      "evidence": "The plan requires a publication-specific exact read with no current-period fallback and preserves existing build-recovery semantics."
+    }
+  ]
+}

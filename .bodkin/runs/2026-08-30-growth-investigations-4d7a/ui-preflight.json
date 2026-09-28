@@ -1,0 +1,54 @@
+{
+  "status": "pass",
+  "checks": [],
+  "artifacts": [
+    {
+      "name": "run",
+      "path": ".bodkin-ui/current/run.json",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "shape",
+      "path": ".bodkin-ui/current/shape.md",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "screenshots manifest",
+      "path": ".bodkin-ui/current/screenshots/manifest.json",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "Saved rule-based investigation: observed decline, unknown cause, persisted target and ordered steps; desktop upper portion",
+      "path": ".bodkin-ui/current/investigation-proposal-desktop.png",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "Desktop approval form lower portion: explicit due date, planned-work explanation and existing-work link before approval",
+      "path": ".bodkin-ui/current/investigation-desktop.png",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "Native due-date validation at 390px: inline required-date error, focused approval control and stacked content",
+      "path": ".bodkin-ui/current/investigation-validation-narrow.png",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "Real saved work after UI approval: Approved status, 4 September UTC due date and source-check link; existing Change log preserved below",
+      "path": ".bodkin-ui/current/investigation-work-desktop.png",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "The same saved work after a fresh document load at 390px, without response overrides or automatic resubmission",
+      "path": ".bodkin-ui/current/investigation-work-narrow.png",
+      "required": true,
+      "status": "pass"
+    }
+  ]
+}

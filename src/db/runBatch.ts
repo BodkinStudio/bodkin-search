@@ -5,7 +5,7 @@ import { pgDb } from "./pg/client";
 // The executor handed to the `build` callback. Typed as the D1 client so call
 // sites get full Drizzle inference; at runtime it is either `d1Db` or a Postgres
 // transaction handle.
-type BatchExecutor = typeof d1Db;
+export type BatchExecutor = typeof d1Db;
 type BatchStatement = Parameters<typeof d1Db.batch>[0][number];
 
 // D1 caps bound parameters at ~100 per statement; keep batches bounded so each

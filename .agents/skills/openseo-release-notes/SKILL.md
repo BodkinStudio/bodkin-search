@@ -1,11 +1,11 @@
 ---
 name: openseo-release-notes
-description: 'Cut an OpenSEO release — bump the version, draft user-facing release notes from commits since the last tag, run a review + subagent-verification pass, and open a "release: vX.X.X" PR. Use when the user asks to prepare a release, bump the version, or write release notes.'
+description: 'Cut a Bodkin Search release — bump the version, draft user-facing release notes from commits since the last tag, run a review + subagent-verification pass, and open a "release: vX.X.X" PR. Use when the user asks to prepare a release, bump the version, or write release notes.'
 metadata:
   internal: true
 ---
 
-# OpenSEO release notes
+# Bodkin Search release notes
 
 Cut a release for this repo end to end. The deliverables are a version bump in `package.json`, a new `release-notes/v<version>.md`, and a PR against `origin/main` titled `release: v<version>`.
 
@@ -38,7 +38,7 @@ Format:
 
 Curation — this is where the work is. Cut aggressively; the Full Changelog link covers the long tail:
 
-- Only changes to the **product itself** — the app, the MCP tools, the SEO data/features someone running OpenSEO actually uses. Litmus test per bullet: **would a self-hoster notice this while using the product?** Caring in the abstract (a new backend option, a raised cap) is not enough.
+- Only changes to the **product itself** — the app, the MCP tools, the SEO data/features someone running Bodkin Search actually uses. Litmus test per bullet: **would a self-hoster notice this while using the product?** Caring in the abstract (a new backend option, a raised cap) is not enough.
 - Do NOT mention:
   - **Marketing-website (`web/`) changes** — landing pages, copy, positioning, blog.
   - **Pricing / plans / subscription / billing** — paywalls, free-trial/plan changes, Autumn config. Hosted-commercial concerns, irrelevant to self-hosters.

@@ -1,0 +1,36 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "Pending or ambiguous finalization is not locked across remounts.",
+      "location": "src/client/features/growth/GrowthWorkMeasurement.tsx; src/client/features/growth/GrowthWorkMeasurementFinalization.tsx",
+      "evidence": "The parent observes globally pending finalization only for refresh and collection, while the child freezes its request and candidates solely in component-local state. A remount can therefore expose a fresh editable form while the original mutation is pending or uncertain.",
+      "impact": "A different second finalization can race the first, and an ambiguous response can lose its exact-retry/recovery-only presentation.",
+      "recommendation": "Persist the frozen transaction in the shared query client, hydrate it on remount, and pass the global pending state into the child lock."
+    },
+    {
+      "summary": "Collection and finalization do not share a synchronous dispatch guard.",
+      "location": "src/client/features/growth/GrowthWorkMeasurementCollection.tsx; src/client/features/growth/GrowthWorkMeasurementFinalization.tsx",
+      "evidence": "Each operation owns a local ref, and finalization observes collection only through the asynchronously rendered mutation-cache count.",
+      "impact": "Two clicks before the mutation-cache rerender can dispatch both operations; the server remains safe but finalization unnecessarily enters conflict recovery.",
+      "recommendation": "Share one parent-owned synchronous operation ref across both controls while retaining their mutation-cache UI state."
+    }
+  ],
+  "minor": [
+    {
+      "summary": "Equal-version Observation snapshots are not cache-monotonic.",
+      "location": "src/client/features/growth/GrowthWorkMeasurement.tsx; src/client/features/growth/GrowthWorkMeasurementCollection.tsx; src/client/features/growth/GrowthWorkMeasurementFinalization.tsx",
+      "evidence": "Observation collection does not advance Action stateVersion, but mutation cache writers replace the current measurement when versions are equal.",
+      "impact": "A delayed older response can overwrite a newer same-version Observation set and review revision until a later refetch.",
+      "recommendation": "Preserve the current measurement on equal versions and rely on the authoritative invalidation/refetch for same-version evidence refresh."
+    }
+  ],
+  "verification_gaps": [
+    "Add remount persistence, same-tick sibling dispatch exclusion and equal-version cache regression tests."
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep the server writer and reviewed-Observation boundary unchanged; they already fail safely under these races."
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Keep the adapter constrained to one authorized current-month service read.",
+      "location": "src/server/mcp/tools/growth-tools.ts",
+      "evidence": "The shared handler authorizes with withMcpProjectAuth before its sole getGrowthMonthlyReport(projectId) call.",
+      "impact": "Preserves the approved read-only, no-credit, project-isolated boundary.",
+      "recommendation": "Do not add arbitrary-period, build, publication, provider, or share behavior."
+    },
+    {
+      "summary": "Keep the shared MCP registration and SAM project-binding paths.",
+      "location": "src/server/mcp/server.ts and src/server/features/sam/samChatTools.ts",
+      "evidence": "The MCP server retains registration-helper instrumentation/output validation, while SAM strips model-supplied projectId and injects its session-bound project ID.",
+      "impact": "Preserves protocol behavior, telemetry, output validation, and cross-project protection.",
+      "recommendation": "Retain these paths for the shared definition."
+    }
+  ]
+}

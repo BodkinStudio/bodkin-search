@@ -1,0 +1,18 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    "Both supplied captures are 1280×720 desktop views. Mobile usability is unverified: provide final-source narrow-mobile captures showing list reflow, page selection with the detail and focus made findable, and return to the page list. Include a long URL or identifier to demonstrate wrapping without horizontal overflow.",
+    "The packet shows the flagged Pricing page and one matching missing-data filter, but not the unfiltered six-page list, empty-filter/reset flow, loading state, or error/retry state required by the shape. Add rendered evidence of those states and the restored list after reset; the two current captures cannot establish these interactions.",
+    "The normal capture ends before the lower evidence content, so current business context, explicitly partial change history, expanded source details and limitations cannot be reviewed. Provide a scrolled or full-page capture of those sections, plus one known-data unflagged detail, to verify readable provenance and that an unflagged page is not presented as universally healthy."
+  ],
+  "minor": [],
+  "system_drift": [],
+  "do_not_change": [
+    "Preserve the explicit example.com sample disclosure and its statements that connected data is not read, recommendations are not generated, and work is not saved.",
+    "Preserve the two Unavailable values and the explicit explanation that missing observations are not zero clicks.",
+    "Preserve the baseline/current counts with their separate date ranges and the non-causal explanation of the observed decline.",
+    "Preserve the visible detail-heading focus and Back to page list affordance shown in the missing-data capture.",
+    "Preserve the compact neutral surfaces, typography and control treatment that remain coherent with the visible OpenSEO shell."
+  ]
+}

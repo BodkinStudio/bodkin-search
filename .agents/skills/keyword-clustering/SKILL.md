@@ -3,7 +3,7 @@ name: keyword-clustering
 description: Cluster keywords by intent and map them to existing or proposed pages.
 ---
 
-# OpenSEO Keyword Clustering
+# Bodkin Search Keyword Clustering
 
 ## Goal
 
@@ -26,7 +26,7 @@ The project-context tools are free and shared with the app and other agents.
 3. Before spending credits, check the research log. If the same research ran within the last 30 days, reuse that result and say so instead of re-buying it.
 4. On finish, write back what is durable with `update_project_context` — new or corrected `addKeyPages` entries with the topic each page now targets — and append a research log entry: `{ appendResearchLog: { summary: "Keyword clustering: <keyword set>. Verdict: <conclusion>" } }`.
 
-## OpenSEO MCP tools
+## Bodkin Search MCP tools
 
 - `list_saved_keywords`: fetch an existing keyword set, optionally filtered by tags.
 - `research_keywords`: expand a seed when the user starts from a topic.

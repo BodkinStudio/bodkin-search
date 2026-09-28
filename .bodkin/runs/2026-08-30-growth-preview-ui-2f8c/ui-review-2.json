@@ -1,0 +1,16 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "system_drift": [],
+  "do_not_change": [
+    "Preserve the explicit example.com sample disclosure, fixed comparison dates, and no-connected-data, no-AI-generation and no-saved-work boundaries.",
+    "Preserve the labelled baseline/current counts and dates, with Unavailable values clearly distinguished from zero.",
+    "Preserve mobile selection focus, the visible Back to page list control, and restored list focus.",
+    "Preserve the separation of numeric evidence, current fictional context and explicitly partial, non-causal change history.",
+    "Preserve the native source disclosure and wrapping identifiers and limitations.",
+    "Preserve the unflagged-page qualification, empty-filter reset and clear loading/error/retry states.",
+    "Preserve the compact neutral styling and responsive list/detail layout coherent with the OpenSEO shell."
+  ]
+}

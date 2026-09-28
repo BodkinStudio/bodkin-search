@@ -1,0 +1,13 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep Growth settings project-keyed with the existing project-context, competitors, and project_key_pages models; do not introduce parallel Growth project or priority-page tables.",
+    "Preserve the shared Project Context write path, authorized project-derived domain policy, omitted-field upsert masks, and permissive key-page removals.",
+    "Preserve dual D1/Postgres schema parity and the migration-backed legacy-row safety coverage."
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "verdict": "pass",
+  "environment": {
+    "nodeHeapLimit": "4096 MB",
+    "testWorkers": 1,
+    "browserOrDevServerUsed": false,
+    "newDependencies": false,
+    "schemaOrMigrationChanges": false
+  },
+  "checks": [
+    {
+      "name": "affected formatting",
+      "command": "pnpm exec prettier --check <affected files and run artifacts>",
+      "result": "pass",
+      "evidence": "All matched files use Prettier code style."
+    },
+    {
+      "name": "TypeScript",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec tsc --noEmit",
+      "result": "pass"
+    },
+    {
+      "name": "affected type-aware lint",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec oxlint --type-aware <seven affected TypeScript files>",
+      "result": "pass",
+      "evidence": "0 warnings and 0 errors across seven files after repair round 2."
+    },
+    {
+      "name": "focused policy, integration, and repository tests",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run src/server/features/growth/services/PriorityPageOpportunityPolicy.test.ts src/server/features/growth/services/GrowthPriorityPageCheckService.integration.test.ts src/server/features/growth/repositories/GrowthInsightsRepository.query.test.ts src/server/features/growth/repositories/GrowthInsightsRepository.postgres.test.ts --reporter=dot --maxWorkers=1",
+      "result": "pass",
+      "evidence": "22 tests passed; 11 PostgreSQL-gated tests skipped in the final local-only invocation after repair round 2."
+    },
+    {
+      "name": "live PostgreSQL 16 migrations",
+      "command": "POSTGRES_DATABASE_URL=<disposable-local-postgres-16> NODE_OPTIONS=--max-old-space-size=4096 pnpm db:migrate:pg",
+      "result": "pass",
+      "evidence": "All migrations applied to a fresh PostgreSQL 16.14 database."
+    },
+    {
+      "name": "live PostgreSQL 16 repository and service tests",
+      "command": "TEST_POSTGRES_DATABASE_URL=<disposable-local-postgres-16> NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run src/server/features/growth/repositories/GrowthInsightsRepository.postgres.test.ts --reporter=verbose --maxWorkers=1",
+      "result": "pass",
+      "evidence": "11 tests passed, including the real-service evaluated-controller race, instant-order/fail-closed matrix, exact-Action qualification, and the forced release-versus-terminalization interleaving regression. The temporary 256 MB, one-CPU container was stopped and auto-removed after the final run."
+    },
+    {
+      "name": "repository CI gate",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm ci:check",
+      "result": "pass",
+      "evidence": "Prettier, Knip, both TypeScript projects, type-aware Oxlint, and plugin-skill synchronization passed on the final repaired diff."
+    },
+    {
+      "name": "full one-worker test suite",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run --reporter=dot --maxWorkers=1",
+      "result": "pass_after_repair",
+      "evidence": "The first run exposed one stale v1 policy-label assertion. After that assertion and the acceptance-audit transaction repair, the final run passed 2,230 tests with 40 provider-gated skips across 268 passing and 16 skipped files."
+    },
+    {
+      "name": "production build",
+      "command": "WRANGLER_LOG_PATH=/tmp/bodkin-growth-controller-release-wrangler.log NODE_OPTIONS=--max-old-space-size=4096 pnpm build",
+      "result": "pass",
+      "evidence": "Client and SSR Vite builds completed on the final repaired diff and the trailing TypeScript check passed. The existing large-chunk advisory remained non-fatal."
+    },
+    {
+      "name": "pre-commit staged integrity",
+      "command": "git diff --check; git diff --cached --check; scan added staged lines for common private-key, provider-token, bearer-token, and credential-bearing connection-URL patterns",
+      "result": "pass",
+      "evidence": "Unstaged and staged whitespace checks returned no findings, the 21 pre-audit implementation and review files were staged, and the added-line credential-pattern scan returned no matches. The final passing acceptance-audit record became the twenty-second staged file and the checks passed again."
+    }
+  ],
+  "coverage": [
+    "Only the exact evaluated template Action releases a controller.",
+    "Candidate Signal event time must be strictly later than evaluation time.",
+    "Offset-bearing timestamps compare as instants on D1/SQLite and PostgreSQL.",
+    "Equal or malformed timestamps fail closed to suppression without throwing.",
+    "Concurrent same-cycle writes produce one active successor and no orphan graph rows.",
+    "A same-millisecond losing writer cannot reuse another write's release marker.",
+    "A PostgreSQL terminal Run transition cannot land between controller release and successor creation.",
+    "Exact retries remain deterministic.",
+    "Legacy controller adoption cannot override an active normalized ledger controller."
+  ]
+}

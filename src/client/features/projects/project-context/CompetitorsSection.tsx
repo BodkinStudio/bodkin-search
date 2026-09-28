@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import * as React from "react";
 import { Pencil, Plus } from "lucide-react";
 import type { ProjectContextUpdate } from "@/types/schemas/projectContext";
@@ -118,6 +119,14 @@ export function CompetitorsSection({
                       {competitor.notes}
                     </p>
                   ) : null}
+                  <Link
+                    to="/p/$projectId/competitors"
+                    params={{ projectId }}
+                    search={{ competitor: competitor.domain }}
+                    className="link block text-sm"
+                  >
+                    Research keywords
+                  </Link>
                   <Provenance
                     by={competitor.updatedBy}
                     at={competitor.updatedAt}

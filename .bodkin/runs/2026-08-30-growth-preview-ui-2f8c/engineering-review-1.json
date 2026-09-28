@@ -1,0 +1,37 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "Preview UI state is retained across project changes.",
+      "location": "src/client/features/growth/GrowthPreviewWorkspace.tsx:11-22; src/client/features/growth/GrowthPreviewPage.tsx:6-12",
+      "evidence": "GrowthPreviewWorkspace owns showAll, query, and selectedId with no reset keyed to projectId or a new response. GrowthPreviewPage changes only the React Query key; React can retain the mounted workspace while its data prop changes. No test exercises a project-ID transition.",
+      "impact": "A project switch can carry the previous filter and selected-page state into the next project scope, directly violating acceptance criterion 8 even though this fixture currently has identical page IDs.",
+      "recommendation": "Key/reset the workspace state by projectId (or explicitly reset it when scope changes) and add a component-level regression test proving no query or selected state survives a project transition."
+    },
+    {
+      "summary": "The launcher source allowlist can copy arbitrary untracked secret-bearing files from src or public.",
+      "location": "scripts/growth-preview.mjs:30-42, 104-131",
+      "evidence": "isGrowthPreviewSource returns true for every path whose first segment is src or public except a small extension denylist. copySource enumerates untracked files with git ls-files --others --exclude-standard and copies their working-tree contents. For example, src/private.txt or public/token.json is accepted; tests cover only selected extensions and dotfiles.",
+      "impact": "The supposedly credential-free disposable launcher can inherit local secrets or state placed in otherwise allowed directories; a copied public file can also be served by the preview app.",
+      "recommendation": "Use an explicit source-file allowlist/extension policy sufficient for the app snapshot, or reject untracked files and narrowly enumerate required untracked checkpoint files; add regression cases for arbitrary secret-named files under both src and public."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "Required interactive browser acceptance remains unverified.",
+      "location": ".bodkin/runs/2026-08-30-growth-preview-ui-2f8c/verification.json:runtime.limitations",
+      "evidence": "The authoritative verification record states that final mobile, expanded-provenance, empty-state, reset/retry, and uninterrupted keyboard flows are not accepted as verified; browser screenshots contradicted preceding DOM state. Current render tests are static SSR checks and presentation tests are pure helper tests.",
+      "impact": "The required behaviour for working filtering/reset, pending/error retry, keyboard access, and mobile detail access lacks reliable end-to-end evidence, so this preview checkpoint cannot be accepted on the stated UI criteria.",
+      "recommendation": "Resolve or replace the unstable browser harness with reliable component/browser interaction tests, then capture fresh mobile, empty/reset, retry, keyboard, and expanded-provenance evidence."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep the response fixture-only and independent of real project content, repositories, providers, models, and persistence.",
+    "Keep requireProjectContext on the server function and preserve the existing authorized project shell.",
+    "Keep the route read-only, the sample disclosure prominent, and selected-change history explicitly partial and non-causal.",
+    "Do not change detector thresholds, evidence-packet semantics, URL normalization, auth policy, schema, dependencies, or provider behavior for this preview checkpoint."
+  ]
+}

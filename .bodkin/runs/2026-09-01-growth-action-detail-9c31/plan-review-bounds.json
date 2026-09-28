@@ -1,0 +1,30 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [
+    {
+      "summary": "The Change-URL bound is not specified at the repository level.",
+      "location": "plan.md — Implementation approach step 2; Linked Change bounds; acceptance criterion 8",
+      "evidence": "The prior draft capped public URLs but did not require a limit-six-per-Change query; existing bulk readers load every URL for selected Events.",
+      "impact": "An implementation could slice an unbounded URL collection in memory while appearing publicly bounded.",
+      "recommendation": "Require one project-leading bulk/window query with at most six code-unit-ordered URLs per emitted Change and D1/PostgreSQL overflow fixtures."
+    },
+    {
+      "summary": "The provider-collation requirement conflicts with preserving Measurement plan fact validation.",
+      "location": "plan.md — Measurement metric bounds and acceptance criteria 10–11",
+      "evidence": "storedPlanFact hashes the Metric array in the existing repository order. Changing that shared query to BINARY/C can reorder legacy mixed-case/non-ASCII Metrics and invalidate stored hashes.",
+      "impact": "A parity change could reject already valid Measurement Plans.",
+      "recommendation": "Preserve exact validator order and apply code-unit ordering only to a separate bounded public projection after validation, with ordering-sensitive regression facts."
+    }
+  ],
+  "do_not_change": [
+    "Keep the revised 51/151/51 Measurement collection bounds, overflow rejection and exact lifecycle-version reads.",
+    "Keep the exact public allowlist and named safe narrative/URL projectors.",
+    "Keep canonical project authorization before all reads and project-leading descendant queries.",
+    "Keep all-source Action-linked Change inclusion, current-not-snapshot wording and the non-causal marker.",
+    "Keep the tool read-only, saved-data-only and zero-credit with no provider or mutation path."
+  ]
+}

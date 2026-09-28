@@ -7,7 +7,25 @@ import * as sqliteAuth from "./better-auth-schema";
 import * as sqliteBilling from "./billing.schema";
 import * as sqliteGa4 from "./ga4.schema";
 import * as sqliteGsc from "./gsc.schema";
+import * as sqliteYouTube from "./youtube.schema";
+import * as sqliteLinkedIn from "./linkedin.schema";
 import * as sqliteTelemetry from "./telemetry.schema";
+import * as sqliteAnalytics from "./analytics.schema";
+import * as sqliteWorkspaces from "./workspaces.schema";
+import * as pgWorkspaces from "./pg/workspaces.schema";
+import * as sqliteAnalyticsReporting from "./analytics-reporting.schema";
+import * as sqliteGrowth from "./growth.schema";
+import * as sqliteGrowthInsights from "./growth-insights.schema";
+import * as sqliteGrowthWorkstreams from "./growth-workstreams.schema";
+import * as sqliteGrowthActions from "./growth-actions.schema";
+import * as sqliteGrowthEvidenceSeries from "./growth-evidence-series.schema";
+import * as sqliteGrowthChangeEvents from "./growth-change-events.schema";
+import * as sqliteGrowthMeasurements from "./growth-measurements.schema";
+import * as sqliteGrowthReports from "./growth-reports.schema";
+import * as sqliteGrowthAiBriefs from "./growth-ai-briefs.schema";
+import * as sqliteGrowthAssessments from "./growth-assessments.schema";
+import * as sqliteGrowthAssessmentInvestigations from "./growth-assessment-investigations.schema";
+import * as sqlitePromptExplorerSnapshots from "./prompt-explorer-snapshots.schema";
 import * as pgApp from "./pg/app.schema";
 import * as pgProjectContext from "./pg/project-context.schema";
 import * as pgAudit from "./pg/audit.schema";
@@ -16,7 +34,23 @@ import * as pgAuth from "./pg/better-auth-schema";
 import * as pgBilling from "./pg/billing.schema";
 import * as pgGa4 from "./pg/ga4.schema";
 import * as pgGsc from "./pg/gsc.schema";
+import * as pgYouTube from "./pg/youtube.schema";
+import * as pgLinkedIn from "./pg/linkedin.schema";
 import * as pgTelemetry from "./pg/telemetry.schema";
+import * as pgAnalytics from "./pg/analytics.schema";
+import * as pgAnalyticsReporting from "./pg/analytics-reporting.schema";
+import * as pgGrowth from "./pg/growth.schema";
+import * as pgGrowthInsights from "./pg/growth-insights.schema";
+import * as pgGrowthWorkstreams from "./pg/growth-workstreams.schema";
+import * as pgGrowthActions from "./pg/growth-actions.schema";
+import * as pgGrowthEvidenceSeries from "./pg/growth-evidence-series.schema";
+import * as pgGrowthChangeEvents from "./pg/growth-change-events.schema";
+import * as pgGrowthMeasurements from "./pg/growth-measurements.schema";
+import * as pgGrowthReports from "./pg/growth-reports.schema";
+import * as pgGrowthAiBriefs from "./pg/growth-ai-briefs.schema";
+import * as pgGrowthAssessments from "./pg/growth-assessments.schema";
+import * as pgGrowthAssessmentInvestigations from "./pg/growth-assessment-investigations.schema";
+import * as pgPromptExplorerSnapshots from "./pg/prompt-explorer-snapshots.schema";
 
 // Canonical schema barrel. Repositories import their tables from here and the
 // provider-aware `db` from "@/db", so each repository is written ONCE for both
@@ -36,7 +70,24 @@ type AppSchema = typeof sqliteApp &
   typeof sqliteBilling &
   typeof sqliteGa4 &
   typeof sqliteGsc &
-  typeof sqliteTelemetry;
+  typeof sqliteYouTube &
+  typeof sqliteLinkedIn &
+  typeof sqliteTelemetry &
+  typeof sqliteAnalytics &
+  typeof sqliteWorkspaces &
+  typeof sqliteAnalyticsReporting &
+  typeof sqliteGrowth &
+  typeof sqliteGrowthInsights &
+  typeof sqliteGrowthWorkstreams &
+  typeof sqliteGrowthActions &
+  typeof sqliteGrowthEvidenceSeries &
+  typeof sqliteGrowthChangeEvents &
+  typeof sqliteGrowthMeasurements &
+  typeof sqliteGrowthReports &
+  typeof sqliteGrowthAiBriefs &
+  typeof sqliteGrowthAssessments &
+  typeof sqliteGrowthAssessmentInvestigations &
+  typeof sqlitePromptExplorerSnapshots;
 
 const runtimeSchema =
   getDatabaseProvider() === "postgres"
@@ -49,7 +100,24 @@ const runtimeSchema =
         ...pgBilling,
         ...pgGa4,
         ...pgGsc,
+        ...pgYouTube,
+        ...pgLinkedIn,
         ...pgTelemetry,
+        ...pgAnalytics,
+        ...pgWorkspaces,
+        ...pgAnalyticsReporting,
+        ...pgGrowth,
+        ...pgGrowthInsights,
+        ...pgGrowthWorkstreams,
+        ...pgGrowthActions,
+        ...pgGrowthEvidenceSeries,
+        ...pgGrowthChangeEvents,
+        ...pgGrowthMeasurements,
+        ...pgGrowthReports,
+        ...pgGrowthAiBriefs,
+        ...pgGrowthAssessments,
+        ...pgGrowthAssessmentInvestigations,
+        ...pgPromptExplorerSnapshots,
       }
     : {
         ...sqliteApp,
@@ -60,7 +128,24 @@ const runtimeSchema =
         ...sqliteBilling,
         ...sqliteGa4,
         ...sqliteGsc,
+        ...sqliteYouTube,
+        ...sqliteLinkedIn,
         ...sqliteTelemetry,
+        ...sqliteAnalytics,
+        ...sqliteWorkspaces,
+        ...sqliteAnalyticsReporting,
+        ...sqliteGrowth,
+        ...sqliteGrowthInsights,
+        ...sqliteGrowthWorkstreams,
+        ...sqliteGrowthActions,
+        ...sqliteGrowthEvidenceSeries,
+        ...sqliteGrowthChangeEvents,
+        ...sqliteGrowthMeasurements,
+        ...sqliteGrowthReports,
+        ...sqliteGrowthAiBriefs,
+        ...sqliteGrowthAssessments,
+        ...sqliteGrowthAssessmentInvestigations,
+        ...sqlitePromptExplorerSnapshots,
       };
 
 // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- guarded by schema-parity.test.ts
@@ -100,5 +185,78 @@ export const {
   billingCustomerStatus,
   ga4Connections,
   gscConnections,
+  youtubeConnections,
+  linkedinPageConnections,
+  linkedinPageOverviewCaches,
+  linkedinPageImports,
+  linkedinPagePostMetrics,
   telemetryState,
+  analyticsReportingSettings,
+  analyticsFunnelStages,
+  analyticsAudit,
+  analyticsExcludedPaths,
+  workspaceConfiguration,
+  workspaceAudit,
+  analyticsDailyAggregates,
+  analyticsErasureKeys,
+  analyticsSettings,
+  analyticsSources,
+  analyticsActions,
+  analyticsContexts,
+  analyticsEvents,
+  analyticsNetworkObservations,
+  analyticsEntries,
+  analyticsCustomers,
+  analyticsAttributions,
+  analyticsClaims,
+  analyticsOutcomes,
+  analyticsOutbox,
+  analyticsTombstones,
+  growthProjectSettings,
+  growthRuns,
+  growthMonthlyCycleOperatorObservations,
+  growthSignals,
+  growthInsights,
+  growthInsightSignals,
+  growthRecommendations,
+  growthRecommendationInsights,
+  growthRecommendationTargets,
+  growthRecommendationSteps,
+  growthRecommendationSignalLinks,
+  growthWorkstreams,
+  growthActions,
+  growthActionTargets,
+  growthActionEvents,
+  growthActionEvidence,
+  growthEvidenceSeries,
+  growthEvidencePoints,
+  growthChangeEvents,
+  growthChangeEventUrls,
+  growthActionChanges,
+  growthPageSnapshots,
+  growthMeasurementPlans,
+  growthMeasurementPlanAnchors,
+  growthMeasurementMetrics,
+  growthMeasurementObservations,
+  growthMeasurementResults,
+  growthMeasurementResultChanges,
+  growthReports,
+  growthReportSections,
+  growthReportActions,
+  growthReportMeasurementResults,
+  growthAiBriefs,
+  growthAiBriefClaims,
+  growthAiBriefCitationSources,
+  growthAiBriefCitations,
+  growthAiBriefSteps,
+  growthAiBriefCaveats,
+  growthAssessments,
+  growthAssessmentOptions,
+  growthAssessmentInvestigations,
+  growthAssessmentInvestigationFindings,
+  growthAssessmentInvestigationEvidence,
+  promptExplorerSnapshots,
+  promptExplorerSnapshotModels,
+  promptExplorerSnapshotCitations,
+  promptExplorerSnapshotFanOutQueries,
 } = schema;

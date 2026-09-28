@@ -1,0 +1,16 @@
+{
+  "runId": "2026-08-31-growth-work-changes-9c2e",
+  "dispositions": [
+    {
+      "finding": "Required fresh rendered UI evidence and independent visual review are unavailable.",
+      "status": "valid",
+      "action": "Escalate visual acceptance; preserve tested code/preview checkpoint without claiming completion. No runtime repair is indicated by this review. No browser-policy workaround or old capture reuse.",
+      "requiredEvidence": "Fresh permitted desktop and narrow screenshots plus independent rendered review."
+    }
+  ],
+  "acceptance": "not accepted",
+  "engineering": "Focused independent review found no critical, major, minor or plan findings; deterministic checks pass.",
+  "repairRound": 0,
+  "nextRoadmapDecision": "BG-0304/0305 measurement must not infer implementation from investigation Done. Await user choice about explicitly selecting an actual website-change event/date; this would require an explicit update to ADR-026 and measurement contracts before implementation.",
+  "preview": "http://127.0.0.1:3218/p/growth-check-qa/growth#growth-work"
+}

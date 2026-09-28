@@ -21,6 +21,10 @@ import {
 import { SamSessionRepository } from "@/server/features/sam/SamSessionRepository";
 import { ProjectContextService } from "@/server/features/project-context/services/ProjectContextService";
 import { ProjectRepository } from "@/server/features/projects/repositories/ProjectRepository";
+import {
+  clientWorkspacesEnabled,
+  requireWorkspaceMembership,
+} from "@/server/features/workspaces/WorkspaceAccess";
 import { buildSamMcpTools } from "@/server/features/sam/samChatTools";
 import { buildSamSkillSource } from "@/server/features/sam/samSkills";
 import { buildSamSystemPrompt } from "@/server/features/sam/samSystemPrompt";
@@ -207,7 +211,7 @@ export class SamChatAgent extends Think {
     return withPgClient(async () => {
       const ctx = await this.loadSamContext();
       if (!ctx) {
-        return "You are SAM, the SEO agent inside OpenSEO. This chat session no longer exists; tell the user to start a new chat.";
+        return "You are SAM, the SEO agent inside Bodkin Search. This chat session no longer exists; tell the user to start a new chat.";
       }
       const context = await ProjectContextService.getProjectContext(
         ctx.project.id,
@@ -259,6 +263,14 @@ export class SamChatAgent extends Think {
           "I couldn't find this chat session. Please start a new one.",
         );
       }
+      // Re-checked every turn (not only at connect) so a member demoted to
+      // viewer, or removed, mid-session can no longer run AI work.
+      if (clientWorkspacesEnabled())
+        await requireWorkspaceMembership(
+          ctx.row.userId,
+          ctx.project.organizationId,
+          "run",
+        );
 
       // Gate every turn on credits in hosted mode: SAM is open to every plan
       // (including free), and LLM tokens plus DataForSEO tool calls all draw
@@ -362,7 +374,9 @@ export class SamChatAgent extends Think {
   // The return value becomes the stored chat-terminal body that reconnecting
   // clients replay — returning nothing would make it the string "undefined".
   onChatError(error: unknown, ctx?: ChatErrorContext): unknown {
-    console.error("[sam] chat turn error", ctx?.stage, error);
+    console.error("[sam] chat turn error", ctx?.stage, {
+      message: error instanceof Error ? error.message : "Unknown chat error",
+    });
     return error;
   }
 

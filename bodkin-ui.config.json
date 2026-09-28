@@ -1,0 +1,20 @@
+{
+  "evidenceInputs": [
+    "src/client/features/analytics",
+    "src/client/components",
+    "src/client/styles",
+    "src/client/navigation",
+    "src/routes/_project/p/$projectId/analytics.tsx",
+    "src/routes/_project/p/$projectId/settings",
+    "src/server/features/analytics",
+    "src/serverFunctions/analytics.ts",
+    "components.json",
+    ".oxlintrc.json",
+    "src/serverFunctions/analyticsConfiguration.ts",
+    "src/shared/analytics"
+  ],
+  "commands": {
+    "lint": "pnpm lint:analytics",
+    "typecheck": "pnpm types:check"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve the Phase 0 scope: UPSTREAM_MAP.md and run evidence only; do not modify application code, schemas, dependencies, auth, MCP, workflows, or configuration.",
+    "Preserve the documented distinction between existing OpenSEO primitives and the missing durable Growth operating layer."
+  ]
+}

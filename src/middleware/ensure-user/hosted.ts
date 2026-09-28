@@ -1,3 +1,5 @@
+import { clientWorkspacesEnabled } from "@/server/features/workspaces/workspace-mode";
+import { selectWorkspaceContext } from "@/server/features/workspaces/WorkspaceContext";
 import { getAuth, hasHostedAuthConfig } from "@/lib/auth";
 import { getActiveOrganizationId } from "@/lib/auth-session";
 import { getOrCreateDefaultHostedOrganization } from "@/server/auth/default-hosted-organization";
@@ -26,6 +28,17 @@ export async function resolveHostedContext(
 ): Promise<EnsuredUserContext> {
   const session = await requireHostedSession(headers);
   const activeOrganizationId = getActiveOrganizationId(session);
+
+  if (clientWorkspacesEnabled())
+    return selectWorkspaceContext(
+      {
+        userId: session.user.id,
+        userEmail: session.user.email,
+        emailVerified: session.user.emailVerified ?? false,
+        organizationId: activeOrganizationId ?? "",
+      },
+      headers,
+    );
 
   if (activeOrganizationId) {
     return {

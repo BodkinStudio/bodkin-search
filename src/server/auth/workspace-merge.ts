@@ -6,6 +6,7 @@ import { getAuthMode } from "@/lib/auth-mode";
 import { AppError } from "@/server/lib/errors";
 import {
   ga4Connections,
+  youtubeConnections,
   gscConnections,
   organization,
   organizationActivationState,
@@ -48,7 +49,10 @@ async function mergeLegacyWorkspaces() {
   // mode the "delegated-%" orgs are either live (local_noauth resolves to
   // delegated-local-admin — merging would strand its data in a workspace that
   // mode never shows) or should not exist at all (hosted).
-  if (getAuthMode(env.AUTH_MODE) !== "cloudflare_access") {
+  if (
+    env.CLIENT_WORKSPACES_ENABLED === "true" ||
+    getAuthMode(env.AUTH_MODE) !== "cloudflare_access"
+  ) {
     throw new AppError(
       "FORBIDDEN",
       "Workspace merge is only available in cloudflare_access auth mode.",
@@ -134,6 +138,10 @@ async function mergeLegacyWorkspaces() {
       .update(ga4Connections)
       .set(repointToShared)
       .where(inArray(ga4Connections.organizationId, legacyIds)),
+    tx
+      .update(youtubeConnections)
+      .set(repointToShared)
+      .where(inArray(youtubeConnections.organizationId, legacyIds)),
     ...(activationRows.length > 0
       ? [
           tx

@@ -1,0 +1,6 @@
+{
+  "commands": {
+    "repository checks": "pnpm ci:check",
+    "whitespace": "git diff --check"
+  }
+}

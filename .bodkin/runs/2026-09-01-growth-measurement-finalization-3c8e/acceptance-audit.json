@@ -1,0 +1,55 @@
+{
+  "verdict": "PASS",
+  "unmet": [],
+  "evidence": [
+    {
+      "criterion": "Authority and strict browser contract",
+      "status": "met",
+      "support": "Strict Zod input accepts only routing, Action/version, revision, outcome, confidence, summary and bounded IDs; the server function overwrites project and actor from authenticated project context."
+    },
+    {
+      "criterion": "Core finalizer authority and provider-free orchestration",
+      "status": "met",
+      "support": "The Work service derives the Plan, fixes human provenance, delegates exclusively to GrowthMeasurementsService.finalizeMeasurement and performs no collection/provider call."
+    },
+    {
+      "criterion": "Timezone readiness and evidence rules",
+      "status": "met",
+      "support": "Review preparation uses the stored report timezone and first local calendar day after the final window; shared primary-coverage logic requires all primary coordinates while leaving secondary evidence non-blocking."
+    },
+    {
+      "criterion": "Review revision and evidence binding",
+      "status": "met",
+      "support": "The canonical SHA-256 revision binds project, Plan, Action version, Observation hash, discovery state and sorted complete candidate IDs. Human finalization supplies the reviewed Observation hash and rejects pre-write or post-writer drift."
+    },
+    {
+      "criterion": "Exact retry, competing winners and confounder authority",
+      "status": "met",
+      "support": "Completed retries retain immutable Plan version and actor/payload checks. Discovery is advisory while selected IDs are validated as same-project and exclude the implementation anchor."
+    },
+    {
+      "criterion": "Recovery across remounts without automatic reads",
+      "status": "met",
+      "support": "Frozen request, draft, candidates, review and measurement presentation persist in a project/action recovery entry. During recovery the ordinary query is disabled and mount, reconnect and focus refetches are false; only exact retry or explicit authoritative fetch remains."
+    },
+    {
+      "criterion": "Collection/finalization exclusion and cache monotonicity",
+      "status": "met",
+      "support": "Sibling controls share a synchronous operation ref and measurement cache writers preserve existing equal-or-newer Action versions."
+    },
+    {
+      "criterion": "Accessible human form and completed safe projection",
+      "status": "met",
+      "support": "The form starts blank, uses labelled native controls and inline validation, converts whole-percent confidence, and explains immutable observational semantics. Result narrative and surviving links pass safe projection boundaries."
+    },
+    {
+      "criterion": "Regression boundaries and required checks",
+      "status": "met",
+      "support": "Focused tests, repository CI, the serialized full test suite, production build and whitespace checks pass. Browser evidence is explicitly waived under the user's restriction."
+    }
+  ],
+  "notes": [
+    "The final independent audit inspected the implementation, tests, ADR, repair artifacts and complete working-tree diff rather than accepting verification claims alone.",
+    "Repair round 2 closes the prior automatic-refetch-on-remount finding."
+  ]
+}

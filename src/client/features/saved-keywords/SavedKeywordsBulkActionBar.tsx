@@ -1,4 +1,4 @@
-import { Copy, FileDown, Sheet, Tags, Trash2 } from "lucide-react";
+import { Copy, FileDown, Sheet, Tags, Target, Trash2 } from "lucide-react";
 import {
   TableBulkActionBar,
   TableBulkActionButton,
@@ -9,6 +9,7 @@ export function SavedKeywordsBulkActionBar({
   selectedCount,
   onCopy,
   onOpenTags,
+  onTrack,
   onExportCsv,
   onExportSheets,
   onDelete,
@@ -18,6 +19,7 @@ export function SavedKeywordsBulkActionBar({
   selectedCount: number;
   onCopy: () => void;
   onOpenTags: () => void;
+  onTrack: () => void;
   onExportCsv: () => void;
   onExportSheets: () => void;
   onDelete: () => void;
@@ -39,6 +41,12 @@ export function SavedKeywordsBulkActionBar({
               onClick={onOpenTags}
             >
               Tag
+            </TableBulkActionButton>
+            <TableBulkActionButton
+              icon={<Target className="size-3.5" />}
+              onClick={onTrack}
+            >
+              Track keywords
             </TableBulkActionButton>
 
             <TableBulkExportMenu

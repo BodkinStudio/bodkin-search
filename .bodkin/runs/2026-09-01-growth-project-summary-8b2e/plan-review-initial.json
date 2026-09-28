@@ -1,0 +1,26 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "Future-dated Signals could consume the page cap or freshness aggregate before as-of filtering.",
+      "resolution": "The revised contract requires repository-level capturedAt <= asOf predicates before pagination and before overall/per-kind freshness aggregation, with cross-provider regression fixtures containing more than six future rows."
+    },
+    {
+      "summary": "Measurement Action lifecycle-integrity disclosure lacked a closed vocabulary and precedence.",
+      "resolution": "The revised contract defines action_missing, action_state_mismatch, action_version_mismatch and consistent in explicit precedence; consistent requires a measuring Action at the Plan action version."
+    }
+  ],
+  "minor": [
+    {
+      "summary": "Signal severity ordering was underspecified.",
+      "resolution": "The revised contract requires explicit critical, warning, info precedence before capture recency and cross-provider tests."
+    }
+  ],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep the summary provider-free and saved-records-only; do not add provider refreshes, a schema migration, or a separate MCP server.",
+    "Preserve the explicit non-atomic current-view disclosure and the 51-candidate Measurement overflow withholding rule."
+  ]
+}

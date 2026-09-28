@@ -1,6 +1,6 @@
 # GDPR user erasure
 
-`pnpm gdpr:erase-user` inventories and erases a hosted user's OpenSEO data. It
+`pnpm gdpr:erase-user` inventories and erases a hosted user's Bodkin Search data. It
 is Postgres-only and covers the application database, Cloudflare-bound state,
 Google grants, Loops, PostHog, Autumn, and the Stripe customer linked through
 Autumn.

@@ -1,0 +1,64 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "Returned project organisation is not verified after the organisation-scoped lookup.",
+      "location": "src/server/features/growth/services/GrowthEvidencePacketService.ts:30-35",
+      "evidence": "The service only checks `project.id !== input.projectId`; it discards the returned `organizationId`. Independent acceptance reports a mocked organisation-scoped read returning the requested project under a foreign organisation still produces a packet.",
+      "impact": "The real repository query currently filters correctly, but the required defence-in-depth tenant identity check is absent and a faulty/mocked/replaced data source could assemble cross-organisation evidence.",
+      "recommendation": "Require the returned project's organisation ID to equal `input.organizationId` before continuing, and retain the isolation regression test."
+    },
+    {
+      "summary": "The builder accepts invalid temporal provenance and signals that are not declines.",
+      "location": "src/server/features/growth/services/GrowthEvidencePacket.ts:95-99, 187-189, 198-209",
+      "evidence": "`new Date()` accepts rollover dates and timezone-less strings, then the builder serialises normalized timestamps. It has no three-Pacific-calendar-day capture-lag validation and only checks arithmetic, not that `deltaValue` is negative. The independent boundary acceptance records failures for malformed/timezone-less capture timestamps, exact source-lag boundary, and zero/positive changes.",
+      "impact": "A packet can present invalid or prematurely captured source data, or a non-decline, as a supported priority-page decline observation.",
+      "recommendation": "Strictly validate stored timestamps with the required offset and round-trip canonical form; enforce the existing three-Pacific-day collection lag; and require the v1 decline invariants in addition to arithmetic consistency."
+    },
+    {
+      "summary": "Selected Change Event coverage can silently misrepresent missing or duplicate graphs and packet ordering is not deterministic for Unicode-equivalent IDs.",
+      "location": "src/server/features/growth/services/GrowthEvidencePacket.ts:232-248",
+      "evidence": "The code filters only supplied graphs, so a selected ID with no graph is counted as irrelevant; duplicate graphs are neither rejected nor reconciled. `localeCompare` can return equality for `é` and `e\\u0301`, leaving source order as the tie-breaker. Independent boundary acceptance reproduces all three cases.",
+      "impact": "The packet's selected/included/omitted counts can claim coverage for unread events, and reordered equivalent inputs can change evidence order and the hashed reference.",
+      "recommendation": "Build and validate a one-to-one graph map for every selected ID before relevance filtering, reject missing/duplicate/unselected graphs, and sort IDs with a deterministic code-unit comparator."
+    },
+    {
+      "summary": "Untrusted Change Event metadata and prose bounds are not constrained to their established source contracts.",
+      "location": "src/server/features/growth/services/GrowthEvidencePacket.ts:100-129, 300-315",
+      "evidence": "One 4,000-character raw cap is applied to all fields. This rejects valid 5,000-character Change Event descriptions but accepts overlong 201-character topics and 501-character notes. `changeType` and `source` are emitted as arbitrary strings rather than the closed vocabularies in `growth-change-events.ts:4-25`. Independent acceptance reproduces these failures.",
+      "impact": "The packet can emit arbitrary structured metadata—including credential-like strings—and either rejects valid persisted events or projects context that violates declared bounds.",
+      "recommendation": "Validate each source field against its authoritative vocabulary and raw bound (description 5,000; topic 200; notes 500; section 4,000) before projection."
+    },
+    {
+      "summary": "Credential-like material in a subject URL path is copied into the packet.",
+      "location": "src/server/features/growth/services/GrowthEvidencePacket.ts:131-140",
+      "evidence": "`displayUrl` rejects credential assignments only when followed by `=` and removes only query/fragment. A URL such as `https://example.com/ghp_SECRET_IN_PATH_448` passes `safeHttpUrl` and is retained. The independent boundary acceptance reproduces the leaked path token.",
+      "impact": "The internal evidence packet and its deterministic reference may contain a recognizable credential, violating the explicit credential-family and display-URL privacy boundary.",
+      "recommendation": "Apply the same conservative credential detection to the entire display URL (including path/userinfo) before serialisation; withhold the URL when it matches, and preserve only the stable key-page ID."
+    },
+    {
+      "summary": "Several projected prose fields silently redact or truncate without output metadata.",
+      "location": "src/server/features/growth/services/GrowthEvidencePacket.ts:219-220, 286-292; src/types/schemas/growth-evidence-packet.ts:56-63",
+      "evidence": "`text()` can redact or truncate topic, notes, and project name, but the packet schema exposes flags only for commercial sections and event descriptions. The plan requires deterministic truncation with flags for the capped name, topic, and notes fields.",
+      "impact": "Consumers cannot distinguish complete current context from redacted or truncated values, undermining the packet's declared provenance and disclosure contract.",
+      "recommendation": "Add explicit redaction/truncation metadata for project name, topic, and notes (or represent each with the established projection shape), then cover those cases in acceptance tests."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "Required verification is presently failing and later required gates have not run.",
+      "location": ".bodkin/runs/2026-08-30-growth-evidence-packet-6d42/verification.json:16-67",
+      "evidence": "The authoritative record is `status: fail`: 15 new acceptance regressions fail, `pnpm test:ci` fails on those cases, and `pnpm ci:check` stops at Knip because `GrowthEvidencePacketService` is an unused export. Production build and successful final CI evidence are absent.",
+      "impact": "The slice cannot be accepted with the required checks incomplete, independently of the implementation defects above.",
+      "recommendation": "Repair the material findings and unused export, then refresh focused acceptance tests, repository tests, CI, build, whitespace, and final DEEP acceptance evidence before another full review."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep this slice read-only and internal-review-only: no AI egress, providers, scheduling, public endpoint, schema/query, or URL-normalizer behavior change.",
+    "Preserve the existing coarse Growth URL matching semantics and label included events only as `normalised_url_candidate`, not causal or exact matches.",
+    "Preserve canonical Signal facts separately from untrusted narrative context and hash only the final safe projection."
+  ]
+}

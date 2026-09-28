@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { clientWorkspacesBuild } from "@/client/features/workspaces/useWorkspaceAccess";
 import { toast } from "sonner";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { isHostedClientAuthMode } from "@/lib/auth-mode";
@@ -17,7 +18,9 @@ export function WorkspaceMergeBanner() {
   const statusQuery = useQuery({
     queryKey: ["workspaceMergeStatus"],
     queryFn: () => getWorkspaceMergeStatus(),
-    enabled: !isHostedClientAuthMode(),
+    // Client workspaces have no legacy per-user workspaces to merge; the
+    // server refuses the check there.
+    enabled: !isHostedClientAuthMode() && !clientWorkspacesBuild(),
   });
 
   const mergeMutation = useMutation({

@@ -1,0 +1,72 @@
+{
+  "runId": "2026-09-02-growth-monthly-review-coordinator-a41d",
+  "status": "pass",
+  "generatedAt": "2026-09-02T05:09:19Z",
+  "checks": [
+    {
+      "name": "Focused monthly-review regressions",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm vitest run --maxWorkers=1 <10 monthly-review, monthly-report, project-summary, Run and schema files>",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "10 files and 86 tests passed. Coverage includes exact replay and concurrent claims, phase ordering and classification, raw-error isolation, prior-month timezone boundaries, frozen-Plan due dates, report-coordinate drift, strict DTOs and authenticated server-function authority."
+    },
+    {
+      "name": "Affected static checks",
+      "command": "pnpm exec tsc --noEmit; pnpm exec oxlint --type-aware <18 affected TypeScript files>; pnpm exec prettier --check <affected files>; pnpm knip",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "TypeScript, affected type-aware Oxlint, affected Prettier and Knip passed. Oxlint reported zero warnings and zero errors."
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "Repository-wide Prettier, Knip, root and badseo TypeScript, type-aware Oxlint across 1,131 files, plugin-skill synchronization and generated-skill cleanliness passed with zero warnings and zero errors."
+    },
+    {
+      "name": "Full repository tests",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm vitest run --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 88530,
+      "output": "273 test files and 2,268 tests passed with one worker; 16 environment-gated files and 40 tests skipped."
+    },
+    {
+      "name": "Production build",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "Client and SSR/Worker production bundles plus the trailing TypeScript check passed. Existing large-chunk warnings remained. Wrangler emitted a non-fatal sandbox-only log-file EPERM diagnostic; repository papercut rules explicitly exclude environment permission errors."
+    },
+    {
+      "name": "Fresh adversarial code review",
+      "command": "bodkin-reviewer over complete implementation and focused evidence",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "No critical, major, minor, verification-gap or plan-gap findings. The review preserved exact replay, parent/child error isolation and frozen-Plan timezone semantics."
+    },
+    {
+      "name": "Database-provider scope check",
+      "command": "Review implementation diff for SQL, repository, schema, migration or provider-conditional changes",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "The slice is service-only and reuses existing dual-provider authorities. It adds no SQL, writer, schema, migration or provider conditional, so no new live PostgreSQL test is required by the accepted plan."
+    },
+    {
+      "name": "Whitespace and added-line credential scan",
+      "command": "git diff --check; git diff --cached --check; scan staged added lines for credential patterns",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "No staged or unstaged whitespace errors and no suspicious added credential assignments or private-key material."
+    }
+  ]
+}

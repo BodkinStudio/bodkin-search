@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 type IntegrationConnectionStatus =
   | "connected"
   | "disconnected"
-  | "setup_required";
+  | "setup_required"
+  | "reconnect_required";
 
 /** Shared shell for first-party connection cards such as GSC and GA4. */
 export function IntegrationConnectionCard({
@@ -43,7 +44,8 @@ function ConnectionStatusPill({
   status: IntegrationConnectionStatus;
 }) {
   const connected = status === "connected";
-  const setupRequired = status === "setup_required";
+  const setupRequired =
+    status === "setup_required" || status === "reconnect_required";
   return (
     <span
       className={[
@@ -67,9 +69,28 @@ function ConnectionStatusPill({
       />
       {connected
         ? "Connected"
-        : setupRequired
-          ? "Setup required"
-          : "Not connected"}
+        : status === "reconnect_required"
+          ? "Reconnect needed"
+          : setupRequired
+            ? "Setup required"
+            : "Not connected"}
     </span>
+  );
+}
+
+/** Shown instead of a connect flow to members who can't configure integrations. */
+export function AdminConnectsIntegrationCard({
+  title,
+  icon,
+}: {
+  title: string;
+  icon?: ReactNode;
+}) {
+  return (
+    <IntegrationConnectionCard title={title} icon={icon} status="disconnected">
+      <p className="text-sm text-base-content/70">
+        Not connected yet. Ask a workspace owner or admin to connect {title}.
+      </p>
+    </IntegrationConnectionCard>
   );
 }

@@ -2,6 +2,9 @@ import * as React from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useWorkspaceAccess } from "@/client/features/workspaces/useWorkspaceAccess";
+import { switchWorkspace } from "@/client/features/workspaces/WorkspaceSwitcher";
+import { moveProjectToWorkspace } from "@/serverFunctions/clientWorkspaces";
 import { ProjectMarketFields } from "@/client/features/projects/ProjectMarketFields";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import {
@@ -35,6 +38,7 @@ export function ProjectGeneralSettings({ projectId }: { projectId: string }) {
     <div className="space-y-8">
       {/* key resets the form's local state when switching between projects */}
       <GeneralSection key={project.id} project={project} />
+      <MoveProjectSection project={project} />
       <DangerSection project={project} canArchive={projects.length > 1} />
     </div>
   );
@@ -207,6 +211,110 @@ function DangerSection({
             disabled={!canArchive}
           >
             Archive project
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// Owners can move a project into another workspace they own that is paid for
+// by the same organization (for example, from the agency workspace into a new
+// client workspace). Hidden when there is nowhere to move it.
+function MoveProjectSection({ project }: { project: ProjectSummary }) {
+  const cache = useQueryClient();
+  const access = useWorkspaceAccess();
+  const current = access.workspace;
+  const targets =
+    access.session.data?.memberships.filter(
+      (workspace) =>
+        workspace.role === "owner" &&
+        workspace.id !== current?.id &&
+        workspace.payerOrganizationId === current?.payerOrganizationId,
+    ) ?? [];
+  const [target, setTarget] = React.useState("");
+  const [confirming, setConfirming] = React.useState(false);
+  const move = useMutation({
+    mutationFn: (organizationId: string) =>
+      moveProjectToWorkspace({
+        data: { projectId: project.id, organizationId },
+      }),
+    onSuccess: async (result, organizationId) => {
+      if (!result.ok) {
+        toast.error(result.reason);
+        setConfirming(false);
+        return;
+      }
+      toast.success("Project moved.");
+      await switchWorkspace(cache, organizationId, `/p/${project.id}`);
+    },
+    onError: (error) =>
+      toast.error(getStandardErrorMessage(error, "The project was not moved.")),
+  });
+  if (!access.clientWorkspaces || !access.can("own") || targets.length === 0)
+    return null;
+  const targetName = targets.find((workspace) => workspace.id === target)?.name;
+
+  return (
+    <section className="space-y-3 border-t border-base-300 pt-8">
+      <h2 className="text-sm font-medium text-base-content/50">
+        Move to another workspace
+      </h2>
+      <p className="text-sm text-base-content/60">
+        Moves the project, its data and its connected integrations. People in
+        the other workspace will see it; people who are only in this one will
+        not.
+      </p>
+      {confirming && targetName ? (
+        <div className="space-y-3">
+          <p className="text-sm text-base-content/70">
+            Move <span className="font-medium">{project.name}</span> to{" "}
+            <span className="font-medium">{targetName}</span>?
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={move.isPending}
+              onClick={() => move.mutate(target)}
+            >
+              Yes, move project
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              disabled={move.isPending}
+              onClick={() => setConfirming(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="sr-only" htmlFor="move-project-target">
+            Workspace
+          </label>
+          <select
+            id="move-project-target"
+            className="select select-sm w-auto"
+            value={target}
+            onChange={(event) => setTarget(event.target.value)}
+          >
+            <option value="">Choose a workspace</option>
+            {targets.map((workspace) => (
+              <option key={workspace.id} value={workspace.id}>
+                {workspace.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            disabled={!target}
+            onClick={() => setConfirming(true)}
+          >
+            Move project
           </button>
         </div>
       )}

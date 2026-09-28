@@ -1,0 +1,16 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    "No fresh rendered evidence is present for this Monthly summary publication slice, so the Draft, confirmation, pending, uncertain-recovery and Published states—including hierarchy, focus, wrapping and control suppression—cannot be judged. Keep the visual gate disclosed as unverified and request another ship review only after current rendered evidence is authorized and supplied."
+  ],
+  "minor": [],
+  "system_drift": [],
+  "do_not_change": [
+    "Preserve the single explicit Publish summary action before the frozen report and the inline labelled confirmation bound to the displayed period/timezone/version.",
+    "Preserve the one-way internal-approval framing: irreversible and not shared or sent externally, with no regenerate, edit, unpublish, share, send, PDF or history action.",
+    "Preserve exact-coordinate recovery after an ambiguous failure, with the operation lock retained and only Check saved summary or Retry same publication available.",
+    "Preserve the existing one-column Growth card, DaisyUI control, base-token, native semantic control and focus/status patterns."
+  ],
+  "disposition": "The evidence finding is accepted and disclosed. The user explicitly prohibited browser and screenshot evidence, so it cannot be repaired in this run. Static render, interaction, accessibility-state, full CI and build evidence passed; no visual pass is claimed."
+}

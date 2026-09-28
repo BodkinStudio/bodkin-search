@@ -22,7 +22,7 @@ const faqs = [
   {
     question: "How do I check the search intent of a keyword?",
     answer:
-      "Search it. The current top 10 is Google's answer: if it's all listicles, the intent is commercial comparison; all docs and definitions, informational. OpenSEO also auto-labels intent on researched keywords in most countries.",
+      "Search it. The current top 10 is Google's answer: if it's all listicles, the intent is commercial comparison; all docs and definitions, informational. Bodkin Search also auto-labels intent on researched keywords in most countries.",
   },
 ];
 
@@ -44,7 +44,7 @@ export const Route = createFileRoute(
       title: "What Is Search Intent? Mapping Keywords Hot, Warm, and Cold",
       description: frontmatter.description,
       path: PATH,
-      titleSuffix: "OpenSEO Library",
+      titleSuffix: "Bodkin Search Library",
       ogType: "article",
     }),
   component: () => (

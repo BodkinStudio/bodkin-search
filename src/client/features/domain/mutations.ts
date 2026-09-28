@@ -13,6 +13,9 @@ export function useSaveKeywordsMutation({
       projectId: string;
       keywords: string[];
       locationCode?: number;
+      languageCode?: string;
+      tags?: string[];
+      tagMode?: "append" | "replace";
       metrics?: Array<{
         keyword: string;
         searchVolume?: number | null;

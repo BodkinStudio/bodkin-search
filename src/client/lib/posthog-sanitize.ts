@@ -2,6 +2,8 @@ const OAUTH_CONSENT_PATH = "/oauth-consent";
 
 export const POSTHOG_PERSONAL_DATA_QUERY_PARAMETERS = [
   "email",
+  "token",
+  "redirect",
   "response_type",
   "client_id",
   "redirect_uri",
@@ -14,19 +16,32 @@ export const POSTHOG_PERSONAL_DATA_QUERY_PARAMETERS = [
 
 export function sanitizePostHogUrl(value: string): string {
   try {
-    const url = new URL(value);
+    const relative = value.startsWith("/");
+    const url = new URL(
+      value,
+      relative ? "https://redaction.invalid" : undefined,
+    );
 
     // The consent route carries the complete OAuth authorization request. Keep
     // only the route identity in analytics so current URLs, session-entry URLs,
     // referrers, and replay metadata cannot expose present or future params.
-    if (url.pathname === OAUTH_CONSENT_PATH) {
+    if (
+      url.pathname === OAUTH_CONSENT_PATH ||
+      url.pathname === "/workspace-invitation"
+    ) {
       url.search = "";
-      return url.toString();
+      url.hash = "";
+      return relative ? url.pathname : url.toString();
     }
 
     // Preserve the existing email redaction for URLs outside the consent flow.
     url.searchParams.delete("email");
-    return url.toString();
+    url.searchParams.delete("token");
+    if (url.searchParams.get("redirect")?.includes("workspace-invitation"))
+      url.searchParams.delete("redirect");
+    return relative
+      ? `${url.pathname}${url.search}${url.hash}`
+      : url.toString();
   } catch {
     return value;
   }

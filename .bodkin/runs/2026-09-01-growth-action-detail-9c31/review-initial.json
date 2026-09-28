@@ -1,0 +1,29 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [
+    {
+      "summary": "The strict public DTO does not enforce the required entity-key projection by Measurement entity type.",
+      "location": "src/types/schemas/growth-action-detail.ts — metric.entityKey",
+      "evidence": "entityKey accepted either safe text or URL independently of entityType, so URL and non-URL Metric projection shapes could be swapped while remaining contract-valid.",
+      "impact": "A future refactor could weaken the privacy and representation boundary for Measurement entity keys.",
+      "recommendation": "Discriminate the Metric schema by entityType and test both mismatch directions."
+    }
+  ],
+  "verification_gaps": [
+    {
+      "summary": "The verification record was not yet present when the initial review ran.",
+      "location": ".bodkin/runs/2026-09-01-growth-action-detail-9c31/",
+      "evidence": "Planning artifacts existed but verification.json had not yet been written.",
+      "impact": "Acceptance could not yet be evidence-based.",
+      "recommendation": "Record the completed final-diff checks and request repair review."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep the project-leading Action root and descendant reads, including all-source Change selection and SQL-bounded per-Change URL windows.",
+    "Keep canonical MCP authorization ahead of service reads, server-side SAM project binding, saved-data-only/read-only metadata, and current-not-snapshot/non-causal wording.",
+    "Keep the 51/151/51 Measurement sentinel reads, overflow rejection before immutable-fact validation, exact V/V+1 lifecycle-event selection, and the legacy Metric ordering used for stored Plan fact hashes."
+  ]
+}

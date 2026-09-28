@@ -1,0 +1,13 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep the explicit non-null closed suppression-reason constraint in both schemas and generated migrations.",
+    "Keep controller claim guarded by the provider-aware source-Run lock and atomic writer.",
+    "Keep the suppressed investigation projection strict, read-only and free of historic rationale, steps and targets."
+  ]
+}

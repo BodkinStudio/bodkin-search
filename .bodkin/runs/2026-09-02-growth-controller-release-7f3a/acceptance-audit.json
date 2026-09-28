@@ -1,0 +1,31 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve the lock-first PostgreSQL transaction ordering.",
+      "location": "src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.ts:284-335",
+      "evidence": "The first ordered statement locks the candidate Signal/Run source before the conditional release; the staged live PostgreSQL interleaving test exercises terminalization during the release window and verifies that release either does not happen or commits with its successor.",
+      "impact": "Prevents terminalization from leaving a released controller without a successor decision.",
+      "recommendation": "Keep this read/lock as the first batch statement and retain the targeted live-provider regression."
+    },
+    {
+      "summary": "Preserve the guarded release and successor-claim predicates.",
+      "location": "src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.ts:245-372",
+      "evidence": "The staged code retains exact project/controller/template Action qualification, provider-specific fail-closed instant comparison, and the release-marker-plus-no-active-controller condition. The refreshed verification records passing D1, PostgreSQL, CI, full-suite, and build gates.",
+      "impact": "Maintains deterministic, tenant-scoped release without duplicate active controllers or orphan graph rows.",
+      "recommendation": "Do not simplify these conditions without equivalent provider-backed timestamp and concurrency coverage."
+    },
+    {
+      "summary": "Preserve the bounded preflight-only role of cycle selection.",
+      "location": "src/server/features/growth/services/GrowthOpportunityDecisionsService.ts:72-186",
+      "evidence": "Preflight selects only the possible cycle key; the repository requalifies candidate source, controller, Action, time, and release in its atomic batch. Staged PostgreSQL service-race coverage validates shared successor identity and graph counts.",
+      "impact": "Keeps stale reads from granting mutation authority while retaining deterministic retries and successor identities.",
+      "recommendation": "Keep all release authority in the repository batch."
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "The app-only DTO exposes an internal run coordinate to the browser without a consumer need.",
+      "location": ".bodkin/runs/2026-09-02-growth-opportunities-inbox-c9e4/plan.md — App-only projection",
+      "evidence": "The proposed response contained reviewSource with runId and signalId while ADR-045 keeps Run IDs and raw graph relations internal.",
+      "impact": "This unnecessarily expanded the browser-visible data contract.",
+      "recommendation": "Keep Run identity service-local and serialize only the controller Signal ID needed by the existing investigation boundary."
+    },
+    {
+      "summary": "Review eligibility for accepted-without-Action items needed to be explicit.",
+      "location": ".bodkin/runs/2026-09-02-growth-opportunities-inbox-c9e4/plan.md — UI shape",
+      "evidence": "ADR-041 retains accepted Recommendations until an Action exists, while ADR-045 permits review transitions only from proposed or snoozed.",
+      "impact": "Ambiguous wording could lead to a misleading action surface for a legacy accepted state.",
+      "recommendation": "Render accepted-without-Action as an explicit read-only state and gate the reused lazy review disclosure to proposed or snoozed items."
+    },
+    {
+      "summary": "The reviewer proposed HTTP GET for the pure list read.",
+      "location": ".bodkin/runs/2026-09-02-growth-opportunities-inbox-c9e4/plan.md — Authorization and mutation boundary",
+      "evidence": "The plan specified a POST TanStack server function for a read-only operation.",
+      "impact": "The reviewer considered POST less explicit about read semantics.",
+      "recommendation": "Use GET and test that the path is read-only."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Keep the top-20 first slice with explicit lower-priority-overflow disclosure.",
+      "location": ".bodkin/runs/2026-09-02-growth-opportunities-inbox-c9e4/plan.md — UI shape",
+      "evidence": "The bounded slice retains the cursor and does not imply completeness.",
+      "impact": "Avoids a false total while keeping BG-0208A small.",
+      "recommendation": "Preserve the disclosure and defer interactive pagination."
+    },
+    {
+      "summary": "Preserve the existing priority Recommendation read service and MCP DTO unchanged.",
+      "location": ".bodkin/runs/2026-09-02-growth-opportunities-inbox-c9e4/plan.md — Existing source of truth",
+      "evidence": "ADR-041 already defines the tenant-safe sanitized unresolved list.",
+      "impact": "Prevents an unintended MCP/API expansion.",
+      "recommendation": "Keep composition app-only and retain source requalification in the existing investigation path."
+    }
+  ],
+  "disposition": {
+    "run_id": "accepted; removed from the client DTO and added a negative serialization requirement",
+    "accepted_state": "accepted; made accepted-without-Action explicitly read-only and excluded it from review disclosure",
+    "http_get": "rejected with repository evidence; every sibling parameterized Growth read uses TanStack POST, while read-only semantics are enforced by the handler/service boundary"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "resolved_findings": [
+    {
+      "summary": "Credential-like candidate descriptions are now withheld before entering the Work DTO.",
+      "status": "resolved",
+      "evidence": "GrowthWorkMeasurementProjection applies growthEvidenceDisplayChangeDescription to every discovered Event description; that existing full-input narrative projection detects credential patterns and substitutes the redaction marker. The refreshed read-model test passes an api_key canary, asserts the marker, and asserts the serialized DTO excludes the canary; the render test confirms the redaction text is safely displayed."
+    }
+  ],
+  "do_not_change": [
+    {
+      "summary": "Keep the candidate query as one ordered, event-limited CTE.",
+      "location": "src/server/features/growth/repositories/GrowthChangeEventsRepository.ts:200",
+      "evidence": "The CTE applies project scope, anchor exclusion, UTC interval, exact URL qualification, deterministic Event ordering, and the 51-item limit before URL expansion. The subsequent join projects only exact matched URLs.",
+      "impact": "Preserves tenancy, overflow truthfulness, deterministic output, and avoids exposing a misleading partial candidate list.",
+      "recommendation": "Retain this query shape for future changes."
+    }
+  ]
+}

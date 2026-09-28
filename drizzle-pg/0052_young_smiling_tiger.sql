@@ -1,0 +1,2 @@
+ALTER TABLE "analytics_outcomes" ADD COLUMN "refunded_minor" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "analytics_outcomes" ADD CONSTRAINT "analytics_refund_within_payment" CHECK ("analytics_outcomes"."refunded_minor" >= 0 AND ("analytics_outcomes"."amount_minor" IS NULL OR "analytics_outcomes"."refunded_minor" <= "analytics_outcomes"."amount_minor"));

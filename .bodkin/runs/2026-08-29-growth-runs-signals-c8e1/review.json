@@ -1,0 +1,24 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve the provider-conditional, single-statement Signal insert and Postgres parent-row locking behavior.",
+      "location": "src/server/features/growth/repositories/GrowthRunsRepository.ts; src/server/features/growth/repositories/GrowthRunsRepository.postgres.test.ts",
+      "evidence": "The supplied verification records a migrated Postgres 16 regression using the production repository and withPgClient path: a terminal UPDATE holds the run row lock, the Signal insert blocks, then re-evaluates terminal status and no-ops. FOR SHARE conflicts with the terminal UPDATE lock and is held through the autocommit statement.",
+      "impact": "Replacing this with an unlocked read-then-insert path would reintroduce terminal-run Signal races.",
+      "recommendation": "Retain the provider guard so D1 keeps its supported atomic INSERT…SELECT form while Postgres retains FOR SHARE."
+    },
+    {
+      "summary": "Preserve the composite project/run foreign key, provider-cost integer-storage guard, and immutable Signal retry semantics.",
+      "location": "drizzle/0044_glossy_komodo.sql; drizzle-pg/0022_young_thunderbolts.sql; src/server/features/growth/services/GrowthRunsService.ts",
+      "evidence": "Verification documents migration-backed SQLite coverage for fractional-cost rejection, null/zero/integer preservation, composite tenancy rejection, cascade behavior, and immutable retry/drift handling; the full Postgres migration tree and gated repository test also passed.",
+      "impact": "Removing any of these controls would weaken cross-provider parity, tenancy integrity, or historical Signal immutability.",
+      "recommendation": "Keep these constraints and their focused regression tests intact."
+    }
+  ]
+}

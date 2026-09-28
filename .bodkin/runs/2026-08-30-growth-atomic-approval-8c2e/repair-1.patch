@@ -1,0 +1,25 @@
+--- a/src/server/features/growth/services/GrowthInvestigationsService.ts
++++ b/src/server/features/growth/services/GrowthInvestigationsService.ts
+@@ -156,11 +156,11 @@
+     actorId: input.actorId,
+   };
+
+-  async function replay(existing: {
++  const replay = async (existing: {
+     id: string;
+     recommendationId: string;
+     dueAt: string;
+-  }) {
++  }) => {
+     if (existing.recommendationId !== saved.graph.recommendation.id)
+       throw new AppError(
+         "CONFLICT",
+@@ -192,7 +192,7 @@
+       { ...verified.action, runId: saved.run.id },
+       verified.targets,
+     );
+-  }
++  };
+
+   const existing = await GrowthActionsRepository.getActionByKey(
+     input.projectId,

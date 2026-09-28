@@ -7,6 +7,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { MarkdownAnswer } from "@/client/features/ai-search/components/MarkdownAnswer";
+import { PromptExplorerComparison } from "@/client/features/ai-search/components/PromptExplorerComparison";
 import {
   formatModelLabel,
   getModelAccent,
@@ -25,6 +26,7 @@ type Props = {
 export function PromptExplorerResults({ result }: Props) {
   return (
     <div className="space-y-5">
+      <PromptExplorerComparison result={result} />
       {result.results.map((modelResult) => (
         <ModelResultCard
           key={modelResult.model}

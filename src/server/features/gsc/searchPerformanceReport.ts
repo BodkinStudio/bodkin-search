@@ -37,6 +37,10 @@ const STRIKING_DISTANCE_MIN_POSITION = 5;
 const STRIKING_DISTANCE_MAX_POSITION = 20;
 const STRIKING_DISTANCE_ROW_LIMIT = 100;
 
+function compareCodeUnits(left: string, right: string) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 export function sumSearchTotals(
   rows: GscSearchAnalyticsRow[],
 ): SearchPerformanceTotals {
@@ -99,7 +103,8 @@ export function buildStrikingDistanceRows(
       !current ||
       row.position < current.position ||
       (row.position === current.position &&
-        row.impressions > current.impressions);
+        (row.impressions > current.impressions ||
+          (row.impressions === current.impressions && page < current.page)));
     if (!isBetter) continue;
 
     topPageByQuery.set(query, {
@@ -117,7 +122,13 @@ export function buildStrikingDistanceRows(
         row.position >= STRIKING_DISTANCE_MIN_POSITION &&
         row.position <= STRIKING_DISTANCE_MAX_POSITION,
     )
-    .toSorted((a, b) => b.impressions - a.impressions)
+    .toSorted(
+      (a, b) =>
+        b.impressions - a.impressions ||
+        a.position - b.position ||
+        compareCodeUnits(a.query, b.query) ||
+        compareCodeUnits(a.page, b.page),
+    )
     .slice(0, limit);
 }
 

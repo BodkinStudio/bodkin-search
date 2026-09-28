@@ -1,0 +1,432 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
+import type { ToolAuthContext } from "@/server/mcp/context";
+import { growthGetActionsTool } from "@/server/mcp/tools/growth-action-tools";
+import { growthGetPriorityRecommendationsTool } from "@/server/mcp/tools/growth-priority-recommendations-tool";
+import { makeGrowthActionDetailFixture } from "@/server/mcp/tools/growth-action-detail-test-fixture";
+import { growthGetActionTool } from "@/server/mcp/tools/growth-action-detail-tool";
+import { makeGrowthPageContextFixture } from "@/server/mcp/tools/growth-page-context-test-fixture";
+import { growthGetPageContextTool } from "@/server/mcp/tools/growth-page-context-tool";
+import { makeGrowthProjectSummaryFixture } from "@/server/mcp/tools/growth-project-summary-test-fixture";
+import { growthGetProjectSummaryTool } from "@/server/mcp/tools/growth-project-summary-tool";
+import type { GrowthMonthlyReportDto } from "@/types/schemas/growth-monthly-reports";
+import { growthGetMonthlySummaryTool } from "@/server/mcp/tools/growth-tools";
+import { buildSamMcpTools } from "./samChatTools";
+
+const mocks = vi.hoisted(() => ({
+  getProjectForOrganization: vi.fn(),
+  listActions: vi.fn(),
+  listPriorityRecommendations: vi.fn(),
+  getActionDetail: vi.fn(),
+  getPageContext: vi.fn(),
+  getProjectSummary: vi.fn(),
+  getGrowthMonthlyReport: vi.fn(),
+  withPgClient: vi.fn((callback: () => unknown) => callback()),
+}));
+
+vi.mock("cloudflare:workers", () => ({
+  env: {},
+  DurableObject: class {
+    kind = "mock";
+  },
+}));
+
+vi.mock("@/db", () => ({ withPgClient: mocks.withPgClient }));
+
+vi.mock("@/server/mcp/instrumentation", () => ({
+  instrumentMcpToolHandler:
+    (
+      _name: string,
+      _outputSchema: unknown,
+      handler: (...args: never[]) => unknown,
+    ) =>
+    (...args: never[]) =>
+      handler(...args),
+}));
+
+vi.mock("@/server/features/projects/services/ProjectService", () => ({
+  ProjectService: {
+    getProjectForOrganization: mocks.getProjectForOrganization,
+  },
+}));
+
+vi.mock("@/server/features/growth/services/GrowthActionsReadService", () => ({
+  GrowthActionsReadService: { listActions: mocks.listActions },
+}));
+
+vi.mock(
+  "@/server/features/growth/services/GrowthPriorityRecommendationsReadService",
+  () => ({
+    GrowthPriorityRecommendationsReadService: {
+      listPriorityRecommendations: mocks.listPriorityRecommendations,
+    },
+  }),
+);
+
+vi.mock("@/server/features/growth/services/GrowthActionDetailService", () => ({
+  GrowthActionDetailService: { getAction: mocks.getActionDetail },
+}));
+
+vi.mock("@/server/features/growth/services/GrowthPageContextService", () => ({
+  GrowthPageContextService: { getPageContext: mocks.getPageContext },
+}));
+
+vi.mock(
+  "@/server/features/growth/services/GrowthProjectSummaryService",
+  () => ({
+    GrowthProjectSummaryService: {
+      getProjectSummary: mocks.getProjectSummary,
+    },
+  }),
+);
+
+vi.mock(
+  "@/server/features/growth/services/GrowthMonthlyReportsService",
+  () => ({
+    GrowthMonthlyReportsService: {
+      getGrowthMonthlyReport: mocks.getGrowthMonthlyReport,
+    },
+  }),
+);
+
+const authContext: ToolAuthContext = {
+  userId: "user_1",
+  userEmail: "agent@example.com",
+  organizationId: "org_1",
+  clientId: null,
+  scopes: ["mcp"],
+  baseUrl: "https://open-seo.test",
+};
+const summary: GrowthMonthlyReportDto = {
+  state: "ready",
+  periodStart: "2026-08-01",
+  periodEnd: "2026-08-31",
+  reportTimezone: "Europe/London",
+};
+const callOptions = { toolCallId: "monthly-summary-call", messages: [] };
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  mocks.withPgClient.mockImplementation((callback: () => unknown) =>
+    callback(),
+  );
+  mocks.getProjectForOrganization.mockResolvedValue({
+    id: "bound_project",
+    name: "Bound project",
+    domain: "example.com",
+    locationCode: 2826,
+    languageCode: "en",
+    createdAt: "2026-08-01T09:00:00.000Z",
+  });
+  mocks.listActions.mockResolvedValue({
+    actions: [],
+    limit: 20,
+    hasMore: false,
+    nextCursor: null,
+  });
+  mocks.listPriorityRecommendations.mockResolvedValue({
+    recommendations: [],
+    limit: 20,
+    hasMore: false,
+    nextCursor: null,
+  });
+  mocks.getActionDetail.mockResolvedValue(makeGrowthActionDetailFixture());
+  mocks.getGrowthMonthlyReport.mockResolvedValue(summary);
+  mocks.getPageContext.mockResolvedValue(makeGrowthPageContextFixture());
+  mocks.getProjectSummary.mockResolvedValue({
+    ...makeGrowthProjectSummaryFixture(),
+    project: {
+      ...makeGrowthProjectSummaryFixture().project,
+      id: "bound_project",
+      name: {
+        value: "Bound project",
+        redacted: false,
+        truncated: false,
+      },
+    },
+  });
+});
+
+describe("SAM Growth MCP tools", () => {
+  it("does not expose controlled Growth writes to the in-app agent", () => {
+    expect(
+      buildSamMcpTools(authContext, {
+        id: "bound_project",
+        domain: "example.com",
+      }),
+    ).not.toHaveProperty("growth_record_change");
+  });
+
+  it("binds page context to the session project and preserves the model URL", async () => {
+    const tools = buildSamMcpTools(authContext, {
+      id: "bound_project",
+      domain: "example.com",
+    });
+    const pageContext = tools.growth_get_page_context;
+
+    expect(pageContext).toBeDefined();
+    expect(pageContext.description).toBe(
+      growthGetPageContextTool.config.description,
+    );
+    expect(pageContext.inputSchema).toBeInstanceOf(z.ZodObject);
+    if (!(pageContext.inputSchema instanceof z.ZodObject)) {
+      throw new Error("Expected SAM to expose a Zod object input schema");
+    }
+    expect(Object.keys(pageContext.inputSchema.shape)).toEqual(["url"]);
+    expect(pageContext.inputSchema.shape).not.toHaveProperty("projectId");
+
+    const url = "https://example.com/pricing?plan=agency#private";
+    const modelInput = pageContext.inputSchema.parse({ url });
+    if (!pageContext.execute)
+      throw new Error("Expected an executable SAM tool");
+    const result: unknown = await pageContext.execute(modelInput, callOptions);
+
+    expect(mocks.withPgClient).toHaveBeenCalledTimes(1);
+    expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
+      authContext.organizationId,
+      "bound_project",
+    );
+    expect(mocks.getPageContext).toHaveBeenCalledTimes(1);
+    expect(mocks.getPageContext).toHaveBeenCalledWith(
+      { id: "bound_project", domain: "example.com" },
+      url,
+    );
+    expect(result).toMatchObject({
+      data: {
+        context: {
+          consistency: "current_not_snapshot",
+          curation: { state: "curated", protected: true },
+        },
+        meta: {
+          projectId: "bound_project",
+          url: "https://open-seo.test/p/bound_project/growth/operations",
+        },
+      },
+    });
+  });
+
+  it("binds the shared project summary to the session project", async () => {
+    const tools = buildSamMcpTools(authContext, {
+      id: "bound_project",
+      domain: "example.com",
+    });
+    const projectSummary = tools.growth_get_project_summary;
+
+    expect(projectSummary).toBeDefined();
+    expect(projectSummary.description).toBe(
+      growthGetProjectSummaryTool.config.description,
+    );
+    expect(projectSummary.inputSchema).toBeInstanceOf(z.ZodObject);
+    if (!(projectSummary.inputSchema instanceof z.ZodObject)) {
+      throw new Error("Expected SAM to expose a Zod object input schema");
+    }
+    expect(Object.keys(projectSummary.inputSchema.shape)).toEqual([]);
+    expect(projectSummary.inputSchema.safeParse({}).success).toBe(true);
+
+    if (!projectSummary.execute)
+      throw new Error("Expected an executable SAM tool");
+    const result: unknown = await projectSummary.execute({}, callOptions);
+
+    expect(mocks.withPgClient).toHaveBeenCalledTimes(1);
+    expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
+      authContext.organizationId,
+      "bound_project",
+    );
+    expect(mocks.getProjectSummary).toHaveBeenCalledWith({
+      id: "bound_project",
+      name: "Bound project",
+      domain: "example.com",
+      locationCode: 2826,
+      languageCode: "en",
+      createdAt: "2026-08-01T09:00:00.000Z",
+    });
+    expect(result).toMatchObject({
+      data: {
+        summary: {
+          consistency: "current_not_snapshot",
+          project: { id: "bound_project" },
+        },
+        meta: {
+          projectId: "bound_project",
+          url: "https://open-seo.test/p/bound_project/growth/operations",
+        },
+      },
+    });
+  });
+
+  it("binds the shared Action list to the session project and preserves its query", async () => {
+    const tools = buildSamMcpTools(authContext, {
+      id: "bound_project",
+      domain: "example.com",
+    });
+    const actions = tools.growth_get_actions;
+
+    expect(actions).toBeDefined();
+    expect(actions.description).toBe(growthGetActionsTool.config.description);
+    expect(actions.inputSchema).toBeInstanceOf(z.ZodObject);
+    if (!(actions.inputSchema instanceof z.ZodObject)) {
+      throw new Error("Expected SAM to expose a Zod object input schema");
+    }
+    expect(Object.keys(actions.inputSchema.shape)).toEqual([
+      "statuses",
+      "category",
+      "minPriorityScore",
+      "limit",
+      "cursor",
+    ]);
+    expect(actions.inputSchema.shape).not.toHaveProperty("projectId");
+
+    const cursor = {
+      createdAt: "2026-08-20T09:00:00.000Z",
+      id: "action_cursor",
+    };
+    const modelInput = actions.inputSchema.parse({
+      statuses: ["blocked", "ready", "blocked"],
+      category: "  content  ",
+      minPriorityScore: 12.5,
+      limit: 7,
+      cursor,
+    });
+    if (!actions.execute) throw new Error("Expected an executable SAM tool");
+    const result: unknown = await actions.execute(modelInput, callOptions);
+
+    expect(mocks.withPgClient).toHaveBeenCalledTimes(1);
+    expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
+      authContext.organizationId,
+      "bound_project",
+    );
+    expect(mocks.listActions).toHaveBeenCalledTimes(1);
+    expect(mocks.listActions).toHaveBeenCalledWith({
+      projectId: "bound_project",
+      statuses: ["ready", "blocked"],
+      category: "content",
+      minPriorityScore: 12.5,
+      limit: 7,
+      cursor,
+    });
+    expect(result).toMatchObject({
+      data: {
+        page: {
+          actions: [],
+          limit: 20,
+          hasMore: false,
+          nextCursor: null,
+        },
+        meta: {
+          projectId: "bound_project",
+          url: "https://open-seo.test/p/bound_project/growth/operations#growth-work",
+        },
+      },
+    });
+  });
+
+  it("binds saved priority Recommendations to the session project", async () => {
+    const tools = buildSamMcpTools(authContext, {
+      id: "bound_project",
+      domain: "example.com",
+    });
+    const recommendations = tools.growth_get_priority_recommendations;
+    expect(recommendations.description).toBe(
+      growthGetPriorityRecommendationsTool.config.description,
+    );
+    if (!(recommendations.inputSchema instanceof z.ZodObject))
+      throw new Error("Expected a Zod object");
+    expect(Object.keys(recommendations.inputSchema.shape)).toEqual([
+      "statuses",
+      "category",
+      "minPriorityScore",
+      "limit",
+      "cursor",
+    ]);
+    if (!recommendations.execute) throw new Error("Expected executable tool");
+    await recommendations.execute(
+      recommendations.inputSchema.parse({ statuses: ["accepted", "proposed"] }),
+      callOptions,
+    );
+    expect(mocks.listPriorityRecommendations).toHaveBeenCalledWith({
+      projectId: "bound_project",
+      statuses: ["proposed", "accepted"],
+      limit: 20,
+    });
+  });
+
+  it("binds the shared Action detail to the session project with actionId-only input", async () => {
+    const tools = buildSamMcpTools(authContext, {
+      id: "bound_project",
+      domain: "example.com",
+    });
+    const detail = tools.growth_get_action;
+
+    expect(detail).toBeDefined();
+    expect(detail.description).toBe(growthGetActionTool.config.description);
+    expect(detail.inputSchema).toBeInstanceOf(z.ZodObject);
+    if (!(detail.inputSchema instanceof z.ZodObject)) {
+      throw new Error("Expected SAM to expose a Zod object input schema");
+    }
+    expect(Object.keys(detail.inputSchema.shape)).toEqual(["actionId"]);
+    expect(detail.inputSchema.shape).not.toHaveProperty("projectId");
+
+    if (!detail.execute) throw new Error("Expected an executable SAM tool");
+    const result: unknown = await detail.execute(
+      detail.inputSchema.parse({ actionId: "action_123" }),
+      callOptions,
+    );
+
+    expect(mocks.withPgClient).toHaveBeenCalledTimes(1);
+    expect(mocks.getActionDetail).toHaveBeenCalledWith({
+      projectId: "bound_project",
+      actionId: "action_123",
+    });
+    expect(result).toMatchObject({
+      data: {
+        action: {
+          consistency: "current_not_snapshot",
+          action: { id: "action_123" },
+        },
+        meta: {
+          projectId: "bound_project",
+          url: "https://open-seo.test/p/bound_project/growth/operations#growth-work",
+        },
+      },
+    });
+  });
+
+  it("exposes the shared monthly-summary definition without a model-supplied projectId", async () => {
+    const tools = buildSamMcpTools(authContext, {
+      id: "bound_project",
+      domain: "example.com",
+    });
+    const monthly = tools.growth_get_monthly_summary;
+
+    expect(monthly).toBeDefined();
+    expect(monthly.description).toBe(
+      growthGetMonthlySummaryTool.config.description,
+    );
+    expect(monthly.inputSchema).toBeInstanceOf(z.ZodObject);
+    if (!(monthly.inputSchema instanceof z.ZodObject)) {
+      throw new Error("Expected SAM to expose a Zod object input schema");
+    }
+    expect(Object.keys(monthly.inputSchema.shape)).toEqual([]);
+    expect(monthly.inputSchema.safeParse({}).success).toBe(true);
+
+    if (!monthly.execute) throw new Error("Expected an executable SAM tool");
+    const result: unknown = await monthly.execute({}, callOptions);
+
+    expect(mocks.withPgClient).toHaveBeenCalledTimes(1);
+    expect(mocks.getProjectForOrganization).toHaveBeenCalledWith(
+      authContext.organizationId,
+      "bound_project",
+    );
+    expect(mocks.getGrowthMonthlyReport).toHaveBeenCalledTimes(1);
+    expect(mocks.getGrowthMonthlyReport).toHaveBeenCalledWith("bound_project");
+    expect(result).toMatchObject({
+      data: {
+        summary,
+        meta: {
+          projectId: "bound_project",
+          url: "https://open-seo.test/p/bound_project/growth/operations#growth-monthly-summary",
+        },
+      },
+    });
+  });
+});

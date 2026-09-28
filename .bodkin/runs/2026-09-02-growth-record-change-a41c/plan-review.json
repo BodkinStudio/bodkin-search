@@ -1,0 +1,11 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep offline_access mcp as the default/API-key scope set and protected-resource metadata at its minimal mcp baseline; advertise the operation capability only through authorization-server supported scopes. Preserve callback-level no-escalation checks, capability-before-project authorization, conditional registration plus handler defense, fixed manual/agent provenance, principal-namespaced idempotency, existing Change Event atomic creation, project-domain URL validation, and SAM/self-host default-off behavior."
+  ]
+}

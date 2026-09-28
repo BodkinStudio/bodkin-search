@@ -1,0 +1,39 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "The PostgreSQL malformed-timestamp guard still needs a guaranteed non-throwing expression shape.",
+      "location": ".bodkin/runs/2026-09-02-growth-controller-release-7f3a/plan.md — Policy v2 timestamp rules",
+      "evidence": "SQL predicate evaluation order is not guaranteed, so an AND chain around pg_input_is_valid and timestamptz casts can still throw.",
+      "impact": "A malformed historical timestamp could abort a repeated-signal decision instead of failing closed to suppression.",
+      "recommendation": "Require one CASE WHEN expression with casts only in the THEN branch, and a repository-write test proving malformed PostgreSQL values suppress without throwing."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Keep parsed-instant ordering rather than lexical text ordering.",
+      "location": ".bodkin/runs/2026-09-02-growth-controller-release-7f3a/plan.md — Existing source of truth and Policy v2",
+      "evidence": "The revised plan covers offset-bearing values on both providers and inverse lexical-order cases.",
+      "impact": "Preserves correct event ordering without a migration.",
+      "recommendation": "Retain provider-specific instant semantics."
+    },
+    {
+      "summary": "Keep the change migration-free.",
+      "location": "src/db/growth-insights.schema.ts; drizzle/0052_lethal_brother_voodoo.sql",
+      "evidence": "The release field and active-controller partial unique index already exist.",
+      "impact": "Avoids an unnecessary backfill and schema change.",
+      "recommendation": "Fail closed for malformed values as planned."
+    },
+    {
+      "summary": "Keep release lazy, tenant-scoped and tied to the exact template Action.",
+      "location": ".bodkin/runs/2026-09-02-growth-controller-release-7f3a/plan.md — Policy v2, concurrency and legacy boundary",
+      "evidence": "The plan preserves project/dedupe bounds, exact Action qualification and prior-controller cycle identity.",
+      "impact": "Preserves immutable history, tenant isolation and retry behavior.",
+      "recommendation": "Retain these boundaries."
+    }
+  ]
+}

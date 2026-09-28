@@ -1,0 +1,39 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "An exact transition retry fails once the Action projection has advanced beyond the retried event.",
+      "location": "src/server/features/growth/services/GrowthActionsService.ts:326-354",
+      "evidence": "Replay recognition required the current projection to remain at expectedVersion + 1 and the requested target status. After any later legal transition, the service rejected the original immutable event as stale without reading it.",
+      "impact": "Delayed delivery retries are not idempotent even though the event ledger retains the complete semantic transition fact.",
+      "recommendation": "Resolve the event at expectedVersion + 1 first, compare its complete semantic coordinates and fact hash, and return the current Action with that historical event when it matches. Preserve conflicting-event detection and add delayed service and real-repository coverage."
+    },
+    {
+      "summary": "The transition Zod contract accepts lifecycle coordinates that the service and database reject.",
+      "location": "src/types/schemas/growth-actions.ts:44-75; src/types/schemas/growth-actions.test.ts:75-88",
+      "evidence": "The contract rejected only version-zero mismatches, no-ops and transitions back to approved. It explicitly accepted approved to implemented and other illegal pairs.",
+      "impact": "The declared trust-boundary contract does not describe the accepted Action state machine and permits invalid coordinates to reach deeper layers.",
+      "recommendation": "Use one shared legal-transition predicate in both the Zod contract and service, and cover every legal and incompatible status pair in contract tests."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve project-leading composite foreign keys and cascades.",
+      "location": "src/db/growth-actions.schema.ts; src/db/pg/growth-actions.schema.ts",
+      "evidence": "The normalized graph rejects cross-project attachment and preserves Recommendation/run deletion semantics.",
+      "impact": "Weakening these keys would compromise tenant isolation and evidence-chain cleanup.",
+      "recommendation": "Keep the existing composite boundaries unchanged during repair."
+    },
+    {
+      "summary": "Preserve fact-hash-gated atomic Action and event writes with normalized targets.",
+      "location": "src/server/features/growth/repositories/GrowthActionsWriter.ts; src/server/features/growth/repositories/GrowthActionsRepository.ts",
+      "evidence": "The writer couples the projection and immutable event under compare-and-set semantics while target rows remain canonical normalized relations.",
+      "impact": "Weakening the writer would allow partial graphs or event/projection divergence under concurrency.",
+      "recommendation": "Repair replay interpretation in the service without changing the atomic writer design."
+    }
+  ]
+}

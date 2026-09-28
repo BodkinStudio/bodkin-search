@@ -1,0 +1,48 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "The plan cannot truthfully produce both page-level scalar totals and top-query rows through the existing GSC request boundary.",
+      "location": ".bodkin/runs/2026-09-01-growth-page-context-6d4a/plan.md steps 1–3; src/server/features/gsc/searchAnalytics.ts buildSearchAnalyticsRequest",
+      "evidence": "The existing builder converts omitted or empty dimensions to [query]. A bounded query request cannot also establish page totals when further queries exist.",
+      "impact": "A partial top-query aggregate could be mislabeled as total page performance.",
+      "recommendation": "Add a backward-compatible ungrouped aggregate request, keep top queries separate, and never derive totals from the query list."
+    },
+    {
+      "summary": "The required 28-day Pacific final-data window needs an explicit implementation contract.",
+      "location": ".bodkin/runs/2026-09-01-growth-page-context-6d4a/plan.md constraints and acceptance item 6; src/server/features/gsc/searchAnalytics.ts resolveDateRange",
+      "evidence": "The upstream convenience range uses UTC and subtracts 28 from an inclusive end, yielding 29 dates.",
+      "impact": "The tool could fetch the wrong period across Pacific midnight or DST while claiming 28 days.",
+      "recommendation": "Require a pure injected Pacific window helper and explicit start/end dates."
+    },
+    {
+      "summary": "The GSC DTO needs explicit empty, malformed and partial-failure semantics.",
+      "location": ".bodkin/runs/2026-09-01-growth-page-context-6d4a/plan.md steps 1 and 3; acceptance items 3 and 6",
+      "evidence": "No reported aggregate and an observed zero aggregate are different, and two separate requests can fail independently.",
+      "impact": "An implementation could invent zero facts, leak provider metadata, or present mixed results as coherent.",
+      "recommendation": "Define a strict live-GSC union and make either subrequest failure suppress the whole live section."
+    },
+    {
+      "summary": "Latest-rank winner selection is under-specified.",
+      "location": ".bodkin/runs/2026-09-01-growth-page-context-6d4a/plan.md step 2 and acceptance item 7",
+      "evidence": "The current helper groups only by max checkedAt and cannot uniquely resolve same-time rows or runs completed after asOf.",
+      "impact": "An older matching URL could be shown after the keyword moved away.",
+      "recommendation": "Specify all eligibility predicates and deterministic completedAt/checkedAt/snapshot-ID partition order before URL filtering."
+    },
+    {
+      "summary": "The three URL identities need a normative table and exact construction rules.",
+      "location": ".bodkin/runs/2026-09-01-growth-page-context-6d4a/plan.md constraints; acceptance items 2–4",
+      "evidence": "Key-page, workflow, browser-standard URL and rank-variant normalization intentionally differ.",
+      "impact": "Matching could broaden silently or sensitive query material could enter output.",
+      "recommendation": "Define transport/display separation and enumerate rank variants."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve the existing MCP server, canonical project auth, SAM injection, GSC credential service and D1/Postgres abstraction.",
+    "Preserve the distinction between exact key-page curation, canonical workflow links and rank-result variants."
+  ]
+}

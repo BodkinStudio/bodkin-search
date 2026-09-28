@@ -1,0 +1,64 @@
+{
+  "runId": "2026-09-02-growth-record-change-a41c",
+  "status": "pass",
+  "generatedAt": "2026-09-02T00:02:11Z",
+  "checks": [
+    {
+      "name": "Focused record-change, auth and protocol regressions",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run <10 record-change, OAuth, API-key, MCP and SAM files> --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "10 files and 56 tests passed. Coverage includes strict schemas, operation-scope predicates, capability-before-project authorization, actor and creation-key derivation, exact replay and changed-retry conflicts, privacy projection, real MCP discovery/call behavior, OAuth grant/refresh no-escalation, API-key exclusion and SAM exclusion."
+    },
+    {
+      "name": "SQLite/D1 Change Event regressions",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run <5 Change Event service, repository, migration, Change Log and recent-change files> --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "5 files and 35 tests passed. The existing immutable Change Event write path remains project-scoped, URL-validated, atomic and idempotent on SQLite/D1."
+    },
+    {
+      "name": "Live PostgreSQL Change Event parity",
+      "command": "TEST_POSTGRES_DATABASE_URL=<existing disposable local PostgreSQL URL> pnpm exec vitest run src/server/features/growth/repositories/GrowthChangeEventsRepository.postgres.test.ts src/server/features/growth/repositories/GrowthChangeEventsRepository.recent-changes.postgres.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "An independent implementation worker ran 2 files and 3 tests successfully against the existing disposable PostgreSQL instance, covering the production Change Event writer and recent-change reader. A later Director rerun could not authenticate without inspecting local container credentials; no credential probing was attempted and the independently executed live-database result remains the acceptance evidence."
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "Prettier, Knip, root and badseo TypeScript, type-aware Oxlint across 1,103 files, plugin skill synchronization and generated-skill cleanliness passed with zero warnings and zero errors. The first attempt found one unnecessary exported input-shape constant; repair round 1 made it module-private and the complete gate passed."
+    },
+    {
+      "name": "Full repository tests",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 85740,
+      "output": "260 test files and 2,164 tests passed with one worker; 15 environment-gated files and 29 tests skipped."
+    },
+    {
+      "name": "Production build",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "Client and SSR/Worker production bundles plus the trailing TypeScript check passed. Existing large-chunk warnings remained. Wrangler emitted a non-fatal sandbox-only log-file EPERM diagnostic; repository papercut rules exclude environment permission errors."
+    },
+    {
+      "name": "Whitespace",
+      "command": "git diff --check && git diff --cached --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "No unstaged or staged whitespace errors."
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+import { clientWorkspacesEnabled } from "@/server/features/workspaces/workspace-mode";
+import { ProjectRepository } from "@/server/features/projects/repositories/ProjectRepository";
 import { createServerFn } from "@tanstack/react-start";
 import { ProjectService } from "@/server/features/projects/services/ProjectService";
 import {
@@ -19,7 +21,9 @@ const projectScopedSchema = z.object({ projectId: z.string().min(1) });
 export const getProjects = createServerFn({ method: "POST" })
   .middleware(requireAuthenticatedContext)
   .handler(async ({ context }) =>
-    ProjectService.listProjectsEnsuringOne(context.organizationId),
+    clientWorkspacesEnabled()
+      ? ProjectRepository.listProjects(context.organizationId)
+      : ProjectService.listProjectsEnsuringOne(context.organizationId),
   );
 
 export const createProject = createServerFn({ method: "POST" })

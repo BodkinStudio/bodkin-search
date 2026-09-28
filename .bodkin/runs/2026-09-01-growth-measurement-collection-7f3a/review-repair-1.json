@@ -1,0 +1,31 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "resolved_findings": [
+    {
+      "finding": "A shared 25-call provider allowance was not enforced across all ready periods and internal 90-day chunks, risking partial writes after exhaustion.",
+      "status": "resolved",
+      "evidence": "The adapter receives and accounts for a supplied remaining budget across internal windows; the orchestrator initializes one allowance of 25 per attempt, decrements it across ready periods, rejects before another provider call at zero, and retains facts in memory until one final write. Focused tests cover budgets 25 then 24 and exhaustion with no second call or write."
+    },
+    {
+      "finding": "Ready and collected periods did not show their exact Google availability date.",
+      "status": "resolved",
+      "evidence": "Each period DTO includes sourceAvailableOn independently of status, and the table renders it unconditionally in a dedicated Google available column. SSR coverage verifies waiting, collected, and ready dates."
+    },
+    {
+      "finding": "The PostgreSQL set-based atomic writer lacked live database evidence.",
+      "status": "resolved",
+      "evidence": "A fresh disposable PostgreSQL 16 run passed all three repository tests, including exact retry and conflicting multi-observation rollback. The writer uses transactional active-plan serialization, set-based conflict guarding, and set-based insert."
+    },
+    {
+      "finding": "The governing plan did not explicitly require an attempt-wide provider budget and no-write exhaustion behavior.",
+      "status": "resolved",
+      "evidence": "Plan step 4 now requires one 25-call allowance across every 90-day chunk and mature period in an attempt, with no save unless all selected periods complete within that allowance."
+    }
+  ],
+  "do_not_change": []
+}

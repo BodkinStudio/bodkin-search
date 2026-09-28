@@ -1,0 +1,31 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve the same-project, same-run composite resolution reference.",
+      "location": "src/db/growth-insights.schema.ts; src/db/pg/growth-insights.schema.ts; drizzle/0045_mean_retro_girl.sql; drizzle-pg/0023_cuddly_black_tarantula.sql",
+      "evidence": "Both schemas and both generated migrations reference (project_id, run_id, id) for resolution_recommendation_id; the service resolves destinations through recommendationDestination(projectId, row.runId, id). D1 and live-Postgres tests reject cross-run destinations and prove deleting a run containing a valid same-run resolution graph succeeds.",
+      "impact": "This is the database-level tenant/run boundary that keeps a resolution from preventing deletion of a different run.",
+      "recommendation": "Keep this composite self-reference and service lookup scope if later review states or Actions add related links."
+    },
+    {
+      "summary": "Preserve replay-before-expiry-validation ordering for snoozes.",
+      "location": "src/server/features/growth/services/GrowthInsightsService.ts; src/types/schemas/growth.ts",
+      "evidence": "The contract requires a structurally valid timestamp without comparing it to wall-clock time. The service recognizes exact stored replay first, then requires a future timestamp only for a new transition. Regression coverage exercises both outcomes.",
+      "impact": "This maintains retry idempotency without allowing a newly created expired snooze.",
+      "recommendation": "Keep temporal validation in the transition service after exact-replay detection."
+    },
+    {
+      "summary": "Preserve fact-hash-gated atomic normalized graph writes.",
+      "location": "src/server/features/growth/repositories/GrowthInsightsGraphWriter.ts",
+      "evidence": "Parent insertion is conditional on a running run, and every child selects only the parent matching the complete immutable fact hash within the provider-aware batch. D1 and live-Postgres evidence cover exact retry and drift isolation.",
+      "impact": "This prevents a conflicting retry from appending sources, targets or steps to the winning graph.",
+      "recommendation": "Retain the parent fact-hash predicates and atomic batch semantics when extending the graph."
+    }
+  ]
+}

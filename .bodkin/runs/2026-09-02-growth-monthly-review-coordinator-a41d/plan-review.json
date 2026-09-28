@@ -1,0 +1,24 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve the bounded manual-attempt semantics for a hard-crashed claimed Run.",
+      "location": ".bodkin/runs/2026-09-02-growth-monthly-review-coordinator-a41d/plan.md — Identity and replay policy",
+      "evidence": "Exact replay returns an honestly running stored Run without repeating phases, while a distinct key can create a separate explicit attempt, matching the existing priority-check model.",
+      "impact": "Avoids inventing unsafe abandonment, lease or automatic resume semantics.",
+      "recommendation": "Keep running-replay and distinct-request-key tests and defer recovery-state design."
+    },
+    {
+      "summary": "Preserve the no-new-PostgreSQL-test boundary for this service-only slice.",
+      "location": ".bodkin/runs/2026-09-02-growth-monthly-review-coordinator-a41d/plan.md — Verification",
+      "evidence": "monthly_review already exists in the shared input and both provider schemas; the plan adds no SQL, repository, migration or provider-conditional write behavior.",
+      "impact": "Existing dual-provider Run, due-query and report-winner tests remain the relevant persistence evidence.",
+      "recommendation": "Add provider-specific coverage only if implementation crosses the stated service-only boundary."
+    }
+  ]
+}

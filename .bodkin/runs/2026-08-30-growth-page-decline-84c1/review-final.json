@@ -1,0 +1,16 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep the total code-unit ordering for provenance URL coordinates and key-page ID priority ties, including the Unicode reorder regressions.",
+    "Keep strict observation-schema validation of every provider page/date row before URL normalization and curated-page filtering.",
+    "Keep scalar date/window validation ahead of bounded day-list construction.",
+    "Keep the existing GscService and same-project curated key-page repository boundaries; do not add provider clients, OAuth, persistence, scheduling, or live calls.",
+    "Keep explicit capped/exhausted retrieval status, source-coverage limitations, and the rule that absent observations are never zero-filled.",
+    "Keep page-level facts separate from optional date-grouped site totals and preserve requested-incomplete site-context suppression."
+  ]
+}

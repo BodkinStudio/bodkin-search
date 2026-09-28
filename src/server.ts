@@ -7,14 +7,13 @@ import { resolveUserContextFromHeaders } from "@/middleware/ensure-user/resolve"
 import { ProjectRepository } from "@/server/features/projects/repositories/ProjectRepository";
 import { SamSessionRepository } from "@/server/features/sam/SamSessionRepository";
 import { runScheduledRankChecks } from "@/server/features/rank-tracking/services/scheduledRankChecks";
+import { runScheduledGrowthMonthlyReviews } from "@/server/features/growth/services/scheduledGrowthMonthlyReviews";
+import { runScheduledGrowthWeeklyReviews } from "@/server/features/growth/services/scheduledGrowthWeeklyReviews";
 import { reconcileStaleAudits } from "@/server/features/audit/services/auditReconciler";
 import { getOrCreateOrganizationCustomer } from "@/server/billing/subscription";
 import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 import { getAuthMode, isHostedAuthMode } from "@/lib/auth-mode";
-import {
-  createOpenSeoOAuthProvider,
-  type OpenSeoOAuthEnv,
-} from "@/server/mcp/oauth-provider";
+import { createOpenSeoOAuthProvider } from "@/server/mcp/oauth-provider";
 import { requestWithPublicOrigin } from "@/server/mcp/public-origin";
 import { MCP_ROUTE } from "@/server/mcp/context";
 import { handleSelfHostedOpenSeoMcpRequest } from "@/server/mcp/transport";
@@ -26,6 +25,13 @@ import {
 import { maybeSendSelfHostHeartbeat } from "@/server/lib/self-host-telemetry";
 import { handleGdprStorageErasure } from "@/server/gdpr/storage-erasure";
 import { GDPR_STORAGE_ERASURE_PATH } from "@/shared/gdpr-erasure";
+import { AnalyticsService } from "@/server/features/analytics/AnalyticsService";
+import { GrowthWatchService } from "@/server/features/growth/services/GrowthWatchService";
+import {
+  clientWorkspacesEnabled,
+  requireWorkspaceMembership,
+} from "@/server/features/workspaces/WorkspaceAccess";
+import { asAppError } from "@/server/lib/errors";
 
 const appFetch = createStartHandler(defaultStreamHandler);
 const openSeoOAuthProvider = createOpenSeoOAuthProvider(appFetch);
@@ -38,6 +44,13 @@ async function authorizeOnboardingChat(
   request: Request,
   projectId: string,
 ): Promise<Response | undefined> {
+  // The onboarding chat is the hosted free-signup preview; client workspaces
+  // have no signup funnel (SAM is their agent).
+  if (clientWorkspacesEnabled())
+    return new Response(
+      "Onboarding chat is not available in client workspaces",
+      { status: 403 },
+    );
   let context;
   try {
     context = await resolveUserContextFromHeaders(request.headers);
@@ -65,7 +78,9 @@ async function authorizeOnboardingChat(
 // Object. The DO instance name is the sessionId (set client-side); we resolve
 // the session here and authorize the caller against the session's project via
 // the same canonical project-access check the rest of the app uses, so the DO
-// can trust its `name` and derive org/project/user from the session row.
+// can trust its `name` and derive org/project/user from the session row. In
+// client workspaces the caller must hold "run" in the workspace that owns the
+// session's project (the DO re-checks it every turn).
 async function authorizeSamChat(
   request: Request,
   sessionId: string,
@@ -80,20 +95,38 @@ async function authorizeSamChat(
     sessionId,
     context.userId,
   );
-  const project = session
-    ? await ProjectRepository.getProjectForOrganization(
-        session.projectId,
-        context.organizationId,
-      )
-    : null;
+  const clientMode = clientWorkspacesEnabled();
+  const project = !session
+    ? null
+    : clientMode
+      ? await ProjectRepository.getProjectById(session.projectId)
+      : await ProjectRepository.getProjectForOrganization(
+          session.projectId,
+          context.organizationId,
+        );
   if (!session || !project) {
     return new Response("Forbidden", { status: 403 });
+  }
+  if (clientMode) {
+    try {
+      await requireWorkspaceMembership(
+        context.userId,
+        project.organizationId,
+        "run",
+      );
+    } catch (error) {
+      if (asAppError(error)?.code !== "FORBIDDEN") throw error;
+      return new Response("Forbidden", { status: 403 });
+    }
   }
   // Same as onboarding above: make sure the Autumn customer (and its default
   // free-plan credits) exists before the DO's balance gate runs, or a brand-new
   // org's first message hits a false "out of credits".
   if (await isHostedServerAuthMode()) {
-    await getOrCreateOrganizationCustomer(context);
+    await getOrCreateOrganizationCustomer({
+      ...context,
+      organizationId: project.organizationId,
+    });
   }
   return undefined;
 }
@@ -160,11 +193,7 @@ function handleFetch(
       return handleAutumnWebhookRequest(publicRequest);
     }
 
-    return openSeoOAuthProvider.fetch(
-      publicRequest,
-      env as OpenSeoOAuthEnv,
-      ctx,
-    );
+    return openSeoOAuthProvider.fetch(publicRequest, env, ctx);
   }
 
   if (
@@ -180,6 +209,8 @@ function handleFetch(
 // Export Workflow classes as named exports
 export { SiteAuditWorkflow } from "./server/workflows/SiteAuditWorkflow";
 export { RankCheckWorkflow } from "./server/workflows/RankCheckWorkflow";
+export { GrowthMonthlyReviewWorkflow } from "./server/workflows/GrowthMonthlyReviewWorkflow";
+export { GrowthWeeklyReviewWorkflow } from "./server/workflows/GrowthWeeklyReviewWorkflow";
 // Durable Object class for the onboarding strategy chat (Agents SDK).
 export { OnboardingChatAgent } from "./server/features/onboarding/OnboardingChatAgent";
 // Durable Object class for the SAM in-app agent (Agents SDK).
@@ -189,6 +220,9 @@ export { AuditScratchpad } from "./server/features/audit/AuditScratchpad";
 
 // Daily OAuth KV garbage collection; must match a trigger in wrangler.jsonc.
 const MCP_OAUTH_PURGE_CRON = "17 3 * * *";
+const GROWTH_MONTHLY_REVIEW_CRON = "23 * * * *";
+const GROWTH_WEEKLY_REVIEW_CRON = "37 * * * *";
+const ANALYTICS_RETENTION_CRON = "17 3 * * *";
 
 export default {
   fetch,
@@ -197,12 +231,15 @@ export default {
     env: Env,
     _ctx: ExecutionContext,
   ) {
+    if (controller.cron === ANALYTICS_RETENTION_CRON) {
+      await withPgClient(async () => {
+        await AnalyticsService.purgeExpired();
+      });
+    }
     if (controller.cron === MCP_OAUTH_PURGE_CRON) {
       // Only hosted mode runs the OAuth provider (and has OAUTH_KV bound).
       if (isHostedAuthMode(getAuthMode(env.AUTH_MODE))) {
-        const result = await openSeoOAuthProvider.purgeExpiredData(
-          env as OpenSeoOAuthEnv,
-        );
+        const result = await openSeoOAuthProvider.purgeExpiredData(env);
         console.log("[mcp-oauth] purged expired OAuth data", result);
         if (!result.done) {
           // The sweep only advances past live records via deletions; a
@@ -212,6 +249,43 @@ export default {
       }
       return;
     }
+
+    // Client workspaces run only the Growth watch on a schedule; the other
+    // jobs (reviews, rank checks that spend DataForSEO credit, outbox
+    // delivery) stay off there.
+    const clientWorkspaces = env.CLIENT_WORKSPACES_ENABLED === "true";
+    if (controller.cron === GROWTH_WEEKLY_REVIEW_CRON && clientWorkspaces) {
+      await withPgClient(() => GrowthWatchService.runWatchTick());
+      return;
+    }
+    if (clientWorkspaces) return;
+
+    if (controller.cron === GROWTH_MONTHLY_REVIEW_CRON) {
+      await withPgClient(() => runScheduledGrowthMonthlyReviews(env));
+      return;
+    }
+
+    if (controller.cron === GROWTH_WEEKLY_REVIEW_CRON) {
+      // The Growth watch rides the same hourly tick (Cloudflare caps a
+      // worker's cron triggers); each project is checked once a week. It
+      // runs even when the reviews fail.
+      try {
+        await withPgClient(() => runScheduledGrowthWeeklyReviews(env));
+      } finally {
+        await withPgClient(() => GrowthWatchService.runWatchTick());
+      }
+      return;
+    }
+
+    await withPgClient(() =>
+      AnalyticsService.deliverOutbox(
+        env.ANALYTICS_SERVER_EVENT_SECRET,
+        (env.ANALYTICS_WEBHOOK_HOSTS ?? "")
+          .split(",")
+          .map((host) => host.trim())
+          .filter(Boolean),
+      ),
+    );
 
     // Watchdog first: reconcile audits stuck in "running" whose workflow died
     // without reaching mark-failed (OOM/CPU kills, expired instances). Runs

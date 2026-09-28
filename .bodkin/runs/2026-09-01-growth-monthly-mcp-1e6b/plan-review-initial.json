@@ -1,0 +1,17 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "The no-HTTP replacement did not require an in-process MCP protocol exercise.",
+      "location": ".bodkin/runs/2026-09-01-growth-monthly-mcp-1e6b/plan.md — Verification",
+      "evidence": "The initial plan allowed a source assertion that could pass without proving runtime discovery or invocation.",
+      "impact": "Handler-only and SAM tests would leave the real MCP server boundary unverified.",
+      "recommendation": "Create the real server, list tools, and invoke the new tool through an in-process MCP client/server transport."
+    }
+  ],
+  "plan_gaps": [],
+  "resolution": "Accepted before implementation. The plan and acceptance contract now require no-network in-process tools/list and tools/call coverage."
+}

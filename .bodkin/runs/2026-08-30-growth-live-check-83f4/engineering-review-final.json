@@ -1,0 +1,13 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep the per-project pending nonce persisted before dispatch and reused after reload until a known terminal result.",
+    "Keep existing request-slot resolution ahead of prerequisite validation, while retaining the atomic claim for new concurrent submissions.",
+    "Preserve the provider-free read paths, bounded history, safe URL projection, and immutable saved evidence behavior."
+  ]
+}

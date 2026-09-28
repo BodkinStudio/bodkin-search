@@ -1,0 +1,22 @@
+{
+  "verdict": "revise",
+  "findings": [
+    {
+      "severity": "major",
+      "title": "Ambiguous finalization still permits automatic query refetch after remount",
+      "details": "The recovery lock disables the Refresh button and window-focus refetching, but the measurement query retained React Query's default refetch-on-mount behavior. Because its stale time was zero, remounting the panel with a persisted pending or ambiguous recovery record could issue an automatic measurement read even though recovery is meant to permit only an exact retry or an explicit authoritative saved-result check.",
+      "files": [
+        "src/client/features/growth/GrowthWorkMeasurement.tsx:104",
+        "src/client/features/growth/GrowthWorkMeasurement.tsx:108",
+        "src/client/features/growth/GrowthWorkMeasurement.tsx:219"
+      ]
+    }
+  ],
+  "acceptanceGaps": [
+    "The remount-recovery checks did not explicitly cover a stale cached query remount and assert that no automatic refetch is dispatched while persisted finalization recovery exists."
+  ],
+  "evidence": [
+    "The prior repair findings for shared synchronous collection/finalization dispatch and equal-stateVersion cache writes were addressed.",
+    "The missing refetch-on-mount recovery boundary required a second repair round."
+  ]
+}

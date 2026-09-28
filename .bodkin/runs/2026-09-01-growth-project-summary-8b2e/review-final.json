@@ -1,0 +1,31 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Keep the project authorization boundary in the MCP handler before invoking the summary service.",
+      "location": "src/server/mcp/tools/growth-project-summary-tool.ts",
+      "evidence": "The handler authorizes through the established project lookup and passes only the explicit project-field allowlist into the service; the tool and in-process MCP tests cover denial before summary access.",
+      "impact": "Preserves organization/project isolation and prevents a caller-supplied project ID from becoming an unscoped read.",
+      "recommendation": "Preserve this handler ordering and allowlist if the tool is extended."
+    },
+    {
+      "summary": "Keep saved Signal predicates before ordering, limiting, and freshness aggregation.",
+      "location": "src/server/features/growth/repositories/GrowthProjectSummaryRepository.ts",
+      "evidence": "The shared terminal-run predicate constrains project, matching run, terminal status, completion/capture time at or before asOf; both recent Signals and grouped freshness use it. D1 and PostgreSQL fixtures cover future and foreign rows.",
+      "impact": "Prevents future, nonterminal, or cross-project evidence from distorting the bounded current view.",
+      "recommendation": "Retain the shared predicate at the repository boundary for any future Signal-derived summary field."
+    },
+    {
+      "summary": "Keep the 51-candidate Measurement overflow behavior and lifecycle-integrity precedence.",
+      "location": "src/server/features/growth/services/GrowthProjectSummaryService.ts",
+      "evidence": "The service requests 51 candidates, returns no partial due items when the bound is exceeded, and evaluates action-missing, status mismatch, version mismatch, then consistency in the required order; schema and service tests cover these states.",
+      "impact": "Avoids false completeness claims for Measurement work.",
+      "recommendation": "Do not replace overflow withholding with a partial list unless a complete pagination/totality contract is designed and tested."
+    }
+  ]
+}

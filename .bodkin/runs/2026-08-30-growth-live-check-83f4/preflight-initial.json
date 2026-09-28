@@ -1,0 +1,85 @@
+{
+  "status": "fail",
+  "checks": [
+    {
+      "name": "Growth workflow and existing evidence regressions",
+      "command": "pnpm exec vitest run GrowthPriorityPageCheck growth-checks growthChecks GrowthPreview GrowthRuns PriorityPageClickDecline GrowthSearchPerformance GrowthEvidencePacket --maxWorkers=1 --reporter=dot",
+      "status": "pass",
+      "exit_code": 0
+    },
+    {
+      "name": "repository checks",
+      "command": "pnpm ci:check",
+      "status": "fail",
+      "exit_code": 1
+    },
+    {
+      "name": "production build",
+      "command": "pnpm build",
+      "status": "pass",
+      "exit_code": 0
+    },
+    {
+      "name": "whitespace",
+      "command": "git diff --check",
+      "status": "pass",
+      "exit_code": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "run",
+      "path": ".bodkin-ui/current/run.json",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "shape",
+      "path": ".bodkin-ui/current/shape.md",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "screenshots manifest",
+      "path": ".bodkin-ui/current/screenshots/manifest.json",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "Growth setup: missing GSC, disabled Run check, empty saved history and separate sample disclosure",
+      "path": ".bodkin-ui/current/screenshots/live-check-setup-desktop.png",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "Synthetic persisted completed run: 280 to 112 clicks, current context and source limitations; not a live Google check",
+      "path": ".bodkin-ui/current/screenshots/live-check-evidence-desktop.png",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "Synthetic persisted incomplete run: explicit missing observations, never an all-clear",
+      "path": ".bodkin-ui/current/screenshots/live-check-limited-desktop.png",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "Synthetic interrupted run: honest unknown completion and read-only refresh recovery",
+      "path": ".bodkin-ui/current/screenshots/live-check-running-desktop.png",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "Unmodified app in temporary 390px iframe: stacked setup, actions and saved history",
+      "path": ".bodkin-ui/current/screenshots/live-check-narrow-setup.png",
+      "required": true,
+      "status": "pass"
+    },
+    {
+      "name": "Unmodified app in temporary 390px iframe: saved synthetic signal and native evidence disclosure",
+      "path": ".bodkin-ui/current/screenshots/live-check-narrow-evidence.png",
+      "required": true,
+      "status": "pass"
+    }
+  ]
+}

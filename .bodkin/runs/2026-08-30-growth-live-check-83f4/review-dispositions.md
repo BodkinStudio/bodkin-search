@@ -1,0 +1,26 @@
+# Director verification findings — repair 1
+
+The initial implementation's reported tests are useful but insufficient for these explicit acceptance criteria. These are concrete findings from the current diff, not a request to expand scope. The original plan and acceptance remain unchanged.
+
+1. **Valid: uncertain retries create a new request identity.** `GrowthPriorityPageChecks` generates the key inside each mutation call. Retain a request key across failed/uncertain retries; offer a separately explicit new attempt. Add focused client/presentation evidence for this behavior.
+2. **Valid: incomplete page observations are not persisted as limited.** `runCheck` only considers capped retrieval and site-context completeness. Also account for detector `missing_observation`/other incomplete-source suppression outcomes so saved history stays truthful after reload. Do not call low baseline/not-material a provider failure.
+3. **Valid: unrelated manual runs are included.** History filters after limiting and checks only `manual_analysis`; detail accepts any manual run. Restrict this workflow by its supported detector and cadence identity before the history limit, and reject unsupported run/signal types in detail/evidence. Keep project isolation and existing general callers intact.
+4. **Valid: running/unknown and read-error recovery are incomplete.** Running history renders as an ordinary no-decline result; no read-only refresh/retry control exists. Distinguish unknown completion, provide saved-state refresh and safe retry, and explain no background completion is promised.
+5. **Valid: the primary Growth header still labels real checks as a Sample preview.** Make the project-check workflow primary; move the unchanged synthetic demonstration into an explicitly secondary disclosure/view with its own sample legend. Use actionable links to the existing project integration/context settings. Rename the Growth navigation label if needed, without redesigning the shell.
+6. **Valid: evidence disclosure is incomplete and makes a false current-context claim.** It prints only the first limitation and claims context is shown separately without showing it. Present the saved observation windows/capture/source facts, relevant current context with its timestamp/limitation, and all packet limitations using ordinary text/disclosures. Keep raw IDs secondary to page URL/label and avoid unsafe type assertions.
+7. **Valid maintenance correction:** reuse existing `calendarDateInTimezone`; format changed source/tests before the single full-check checkpoint.
+
+Preserve the existing adapter/detector, fixed windows, safe provider failures, immutable claim-once storage, separate sample source, SQLite integration test, and no-provider-on-read behavior. Do not add automation, AI, actions, settings UI or a new data model. One bounded repair batch, then Director verification and fresh focused review.
+
+## Final repair batch — round 2
+
+- **Valid, engineering:** in-memory retry identity was lost on reload. Persist only the pending nonce in per-project tab session storage before dispatch, restore it on remount, retain running/uncertain identities and clear a known terminal result. Explicit new attempts replace the nonce. Fail closed with actionable guidance if storage cannot be written. Focused hook tests cover remount, running, terminal, project scope, explicit replacement and unavailable storage.
+- **Valid, engineering:** prerequisite validation preceded immutable replay. Resolve the scoped saved slot first, keep the atomic claim for concurrent new requests, and test replay after connection/key-page removal.
+- **Valid verification gap:** add overlapping SQLite service calls with a deferred provider; verify a single run and one collection. Existing sequential replay is retained.
+- **Valid CI gap:** fix type-only imports, unsafe test assertions and the handwritten unknown-result guard; use the server function's inferred query result instead. Split the detail/evidence component at the repository's 400-line lint limit. No lint rules were disabled.
+- **Valid, UI:** add run start timestamps to history/detail and a persistent selected-row border/background independent of focus.
+- **Valid, UI:** label each count with its own persisted comparison window, preserve capture/source/context limitations, and use the existing credential-safe URL projection for a human-readable current page URL. Its implementation is unchanged and shared with the packet builder.
+- **Valid, UI:** use the incumbent warning treatment for incomplete-source text to improve contrast.
+- **Valid rendered-evidence gap:** capture the enabled, submitting, missing-key-page and failed-result states. Ready/submitting/missing-key-page renders use a disposable-preview-only response override; no provider connection or Google call is fabricated as live verification. Remove the override before handoff.
+
+The first build and regression batch passed; the complete CI command exposed formatting, an unused export, then strict lint errors. All failures remain recorded in `verification-initial.json` and `preflight-initial.json`. A final separately recorded regression/CI/build checkpoint is required after the substantive retry and presentation repairs. No unrelated suite, integration, architecture or UI redesign is added.

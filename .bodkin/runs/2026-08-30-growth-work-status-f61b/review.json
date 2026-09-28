@@ -1,0 +1,37 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "Required SQLite/Postgres query coverage is not evidenced for this slice.",
+      "location": ".bodkin/runs/2026-08-30-growth-work-status-f61b/verification.json",
+      "evidence": "The sole recorded focused run passed 146 tests but explicitly reports 7 Postgres tests skipped. The new exact-ID and bounded recent-history reads are provider-sensitive SQL.",
+      "impact": "SQLite results alone do not establish compatibility with the required Postgres provider.",
+      "recommendation": "Record a passing disposable-Postgres execution of the relevant repository tests, or retain this as an explicit acceptance blocker."
+    },
+    {
+      "summary": "The required repository CI, production build, and whitespace gates are not recorded as complete.",
+      "location": ".bodkin/runs/2026-08-30-growth-work-status-f61b/verification.json",
+      "evidence": "The current verification file contains only the focused Vitest command; CI is still type-checking and build/format results are absent.",
+      "impact": "Type-level integration and production compilation for the new Work contract remain unverified.",
+      "recommendation": "Update verification.json with completed passing ci:check, production build, and required formatting/whitespace evidence before acceptance."
+    },
+    {
+      "summary": "Fresh rendered UI evidence and specialist UI review remain unavailable.",
+      "location": ".bodkin/runs/2026-08-30-growth-work-status-f61b/plan.md",
+      "evidence": "The plan requires fresh desktop/narrow render evidence and UI review; the handoff confirms the browser URL-policy denial prevents them and no visual acceptance is claimed.",
+      "impact": "Static markup and handler tests cannot establish rendered layout, narrow-screen wrapping, or visual quality of the new controls.",
+      "recommendation": "Obtain permitted fresh desktop and narrow screenshots, run UI preflight and independent UI review, then refresh acceptance evidence."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep exact-ID source qualification independent of the latest-50 Work list bound.",
+    "Keep status transitions delegated to GrowthActionsService so CAS, immutable event facts, and exact-retry replay remain authoritative.",
+    "Keep history scoped by project/action, newest-first, capped at 50, and limited to safe event fields.",
+    "Keep UI requests frozen after uncertainty; recovery must read saved state before unlocking or changing intent.",
+    "Keep implemented-to-measuring and measuring-to-evaluated transitions unavailable from Work."
+  ]
+}

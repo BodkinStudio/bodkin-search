@@ -1,0 +1,24 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "resolved_findings": [
+    {
+      "summary": "Advisory candidate discovery is no longer claimed to be serialized at commit.",
+      "status": "resolved",
+      "evidence": "The plan now limits complete-candidate drift detection to mutation preflight, explicitly permits post-preflight unselected Event drift, and confines the atomic guarantee to exact Observation facts and selected confounders."
+    },
+    {
+      "summary": "The review revision has a defined untrusted-coordinate and tamper model.",
+      "status": "resolved",
+      "evidence": "The plan specifies a server-recomputed canonical SHA-256 digest over project, Plan, Action version, Observation hash, discovery state and sorted complete candidate IDs. It is neither parsed browser data nor authorization, with malformed, substituted, cross-coordinate and stale tests required."
+    }
+  ],
+  "do_not_change": [
+    "Retain the generic finalizer's one-time Observation-race retry for non-human callers.",
+    "Retain the writer's existing atomic exact-Observation and selected-confounder protections."
+  ]
+}

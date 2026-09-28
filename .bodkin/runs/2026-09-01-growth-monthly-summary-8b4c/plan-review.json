@@ -1,0 +1,34 @@
+{
+  "verdict": "revise",
+  "findings": [
+    {
+      "severity": "major",
+      "title": "Concurrent winner protocol was underspecified",
+      "details": "Two first requests could build different snapshots and the existing exact-retry service would reject the loser instead of returning the stored winner."
+    },
+    {
+      "severity": "major",
+      "title": "Timezone and cutoff were not one pinned contract",
+      "details": "The plan did not prevent settings drift between source classification and persistence or define source timestamp cutoff fields."
+    },
+    {
+      "severity": "major",
+      "title": "Section source predicates were incomplete",
+      "details": "Statuses, due boundaries, earlier-work semantics, multi-linked Changes, caps and tie order were not executable policy."
+    },
+    {
+      "severity": "major",
+      "title": "Safe narrative projection was asserted but not designed",
+      "details": "The plan did not name a field-by-field frozen projection or strict client allowlist for mutable Action, Change and Result text."
+    }
+  ],
+  "acceptanceGaps": [
+    "Test contention with genuinely different first-build snapshots.",
+    "Test settings-timezone drift and one pinned cutoff.",
+    "Specify every section predicate, cap, sort and source rule.",
+    "Test safe frozen and client projections with credential, email, ID, hash and URL canaries."
+  ],
+  "evidence": [
+    "Fresh read-only Bodkin plan review of the run plan, acceptance contract, ADR-027 and current Reports service/repository."
+  ]
+}

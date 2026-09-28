@@ -1,0 +1,20 @@
+{
+  "evidenceInputs": [
+    "src/client/features/workspaces",
+    "src/client/components/Sidebar.tsx",
+    "src/routes/_app/workspace-people.tsx",
+    "src/routes/workspace-invitation.tsx",
+    "src/server/features/workspaces",
+    "src/serverFunctions/clientWorkspaces.ts",
+    "src/shared/workspaces",
+    "src/client/styles",
+    ".oxlintrc.json",
+    "src/client/features/projects/ProjectSwitcher.tsx",
+    "src/routes/_app/index.tsx",
+    "src/client/features/auth/AuthPage.tsx"
+  ],
+  "commands": {
+    "lint": "pnpm lint:workspaces",
+    "typecheck": "pnpm types:check"
+  }
+}

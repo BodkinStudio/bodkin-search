@@ -1,13 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { SearchPerformancePage } from "@/client/features/search-performance/SearchPerformancePage";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
+// Search Console now lives in Analytics; old links and bookmarks land there.
 export const Route = createFileRoute(
   "/_project/p/$projectId/search-performance",
 )({
-  component: SearchPerformanceRoute,
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: "/p/$projectId/analytics",
+      params,
+      search: { view: "search" },
+      replace: true,
+    });
+  },
 });
-
-function SearchPerformanceRoute() {
-  const { projectId } = Route.useParams();
-  return <SearchPerformancePage projectId={projectId} />;
-}

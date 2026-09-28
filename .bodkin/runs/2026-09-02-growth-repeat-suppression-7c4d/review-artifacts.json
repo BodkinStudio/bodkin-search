@@ -1,0 +1,19 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "The required durable verification and acceptance artifacts were not yet present.",
+      "location": ".bodkin/runs/2026-09-02-growth-repeat-suppression-7c4d/",
+      "evidence": "The implementation and repairs aligned with the plan, but acceptance.md and verification.json had not been written before review.",
+      "impact": "Reported check results were not independently auditable from the run directory.",
+      "recommendation": "Record exact commands, provider setup, pass/skip counts and the exercised race, lifecycle, DTO and mutation assertions before final review."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep the explicit non-null closed suppression reason, source-Run lock and read-only historic-evidence-free suppressed projection."
+  ]
+}

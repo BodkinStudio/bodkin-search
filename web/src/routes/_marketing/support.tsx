@@ -11,9 +11,9 @@ export const Route = createFileRoute("/_marketing/support")({
     buildPageSeo({
       title: "Support",
       description:
-        "Get help with OpenSEO, share feedback, or report an issue by email, Discord, or GitHub.",
+        "Get help with Bodkin Search, share feedback, or report an issue by email, Discord, or GitHub.",
       path: "/support",
-      titleSuffix: "OpenSEO",
+      titleSuffix: "Bodkin Search",
     }),
   component: SupportPage,
 });
@@ -38,7 +38,7 @@ function SupportPage() {
         </h1>
         <p className="mt-5 max-w-2xl text-lg leading-8 text-[var(--color-brand-muted)]">
           We want to talk to you! We&apos;re super open to feedback and want to
-          learn how you work so we can make OpenSEO better.
+          learn how you work so we can make Bodkin Search better.
         </p>
       </header>
 

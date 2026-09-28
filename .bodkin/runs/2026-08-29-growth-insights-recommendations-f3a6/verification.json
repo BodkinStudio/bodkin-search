@@ -1,0 +1,81 @@
+{
+  "runId": "2026-08-29-growth-insights-recommendations-f3a6",
+  "verifiedAt": "2026-08-29T17:25:10Z",
+  "baseCommit": "688089623dba82915c9280399c2494253a9b33d3",
+  "result": "pass",
+  "finalAcceptanceAudit": "PASS",
+  "checks": [
+    {
+      "command": "pnpm run db:generate",
+      "result": "pass",
+      "evidence": "Generated D1 migration 0045_mean_retro_girl and Postgres migration 0023_cuddly_black_tarantula with snapshots and journal entries. A second generation run reported no schema changes for either provider."
+    },
+    {
+      "command": "focused Growth schema, migration, repository-query, service and schema-parity tests",
+      "result": "pass",
+      "evidence": "Final repair run: six focused files passed with 266 assertions. The real-libSQL migration tests start from migration 0044 with populated Signals, execute 0045, then exercise preservation, integer/check enforcement, composite project/run source integrity, same-run resolution, cross-run rejection, destination-run cascade safety, uniqueness and PRAGMA foreign_key_check. Contract/service coverage proves an expired exact snooze replay remains idempotent while a new expired snooze is rejected. The production repository query test uses real libSQL and runBatch to prove exact graph retries and drift isolation."
+    },
+    {
+      "command": "complete Postgres migration tree against a disposable Postgres 16 database",
+      "result": "pass",
+      "evidence": "After repair, the complete checked-in Postgres migration tree, including 0023_cuddly_black_tarantula, applied successfully from scratch to the dedicated disposable openseo_growth_same_run Postgres 16 database at 127.0.0.1:5433. No existing project database or remote environment was touched. The migration's dependent composite foreign keys are deliberately ordered after their referenced unique indexes."
+    },
+    {
+      "command": "TEST_POSTGRES_DATABASE_URL=... pnpm vitest run GrowthInsightsRepository.postgres.test.ts",
+      "result": "pass",
+      "evidence": "Three live-provider tests passed through the production provider-aware repositories and withPgClient path. They exercise atomic normalized graph creation, concurrent caller-key drift without child-row contamination, a terminal-first run-row lock in which graph creation inserts nothing after the terminal transition commits, repository destination lookup scoped to project/run, raw cross-run resolution rejection and valid same-run destination-run deletion. The first parent-agent attempt was sandbox-blocked from local port 5433; the identical approved local-container rerun passed."
+    },
+    {
+      "command": "pnpm run test:ci",
+      "result": "pass",
+      "evidence": "Final normal run: 145 test files and 1,238 tests passed, with two files and four explicitly provider-gated tests skipped, in 10.16 seconds. The new Postgres file passed separately against live Postgres."
+    },
+    {
+      "command": "pnpm run ci:check",
+      "result": "pass",
+      "evidence": "Prettier, Knip, root TypeScript, badseo TypeScript, type-aware Oxlint (837 files, zero warnings/errors), skill synchronization and generated-skill cleanliness passed."
+    },
+    {
+      "command": "pnpm vite build",
+      "result": "pass",
+      "evidence": "Final repair build completed successfully: 3,662 client modules in 6.29 seconds and 7,562 SSR/Worker modules in 33.78 seconds. Wrangler could not write its optional user-level debug log inside the filesystem sandbox, but the build completed and exited 0."
+    },
+    {
+      "command": "git diff --check and final scope audit",
+      "result": "pass",
+      "evidence": "No whitespace errors. No dependency manifest, lockfile, auth, scheduler, deployment, provider adapter, UI, MCP, Action or Measurement implementation changed. Build artifacts remained ignored."
+    }
+  ],
+  "migrationReview": {
+    "d1": "Migration 0045 adds the Signal project/run/id parent key without rebuilding the populated table, creates the normalized graph in dependency order, enforces SQLite integer storage for integer-valued fields, and uses project-leading composite foreign keys with cascades. Recommendation resolution now uses a same-project/run composite self-reference, so a valid reference cannot block deletion of a different run. It was executed against the checked-in prior D1 state with representative existing Signal data.",
+    "postgres": "Migration 0023 creates equivalent graph tables and checks, creates referenced unique keys before dependent foreign keys, and uses the same project/run-scoped resolution invariant. The full migration tree and production repository behavior were executed from scratch against disposable Postgres 16 after repair.",
+    "schemaParity": "Both providers expose matching Insight, source-link, Recommendation, source-link, target and ordered-step structures, named checks, keys, defaults, foreign-key pairings and cascades."
+  },
+  "acceptanceAudit": {
+    "adrRecorded": true,
+    "immutableProjectRunScopedInsights": true,
+    "normalizedProposedRecommendations": true,
+    "sameProjectAndRunEvidence": true,
+    "factHashExactRetryAndDriftConflict": true,
+    "concurrentDriftCannotExtendWinningGraph": true,
+    "canonicalProjectDomainTargets": true,
+    "deterministicSourceAndTargetNormalization": true,
+    "boundedScoresAndOrderedSteps": true,
+    "compareAndSetReviewLifecycle": true,
+    "reviewReplayIsIdempotent": true,
+    "sameProjectRunNonselfResolutionDestination": true,
+    "expiredExactSnoozeReplay": true,
+    "crossProjectAndCrossRunConstraints": true,
+    "projectAndRunCascades": true,
+    "dualProviderSchemaMigrationAndRuntimeEvidence": true,
+    "dependenciesChanged": false,
+    "productionMigrationPaidCallOrRemoteStateExecuted": false
+  },
+  "scopeNotes": [
+    "This is an internal service/repository slice. It intentionally exposes no server function, UI, MCP tool, scheduler or other caller-supplied project boundary.",
+    "Insights, source links, proposed Recommendation facts, source links, targets and steps expose no application update/delete methods; review metadata is the only mutable Recommendation surface.",
+    "Canonical fact hashes treat omitted and explicit-null optional provenance identically and include all normalized child coordinates.",
+    "Repair round 1 accepted both adversarial-review majors: resolution is now same-project/run and exact persisted snooze retries are no longer invalidated by wall-clock expiry. Both have focused regression evidence; the resolution repair also has executed provider-specific evidence.",
+    "Actions and Action events remain the next bounded Phase 1 slice."
+  ]
+}

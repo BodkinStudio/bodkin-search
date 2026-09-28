@@ -1,9 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  applyContextUpdates,
+  applyContextUpdates as applyContextUpdatesForProject,
   getProjectContext,
   renderProjectContextMarkdown,
 } from "./ProjectContextService";
+
+function applyContextUpdates(
+  projectId: string,
+  updates: Parameters<typeof applyContextUpdatesForProject>[1],
+  updatedBy: Parameters<typeof applyContextUpdatesForProject>[2],
+) {
+  return applyContextUpdatesForProject(
+    { projectId, projectDomain: "acme.com" },
+    updates,
+    updatedBy,
+  );
+}
 
 const mocks = vi.hoisted(() => ({
   listSections: vi.fn(),

@@ -21,6 +21,15 @@ import {
   getAuditStatusTool,
   runSiteAuditTool,
 } from "@/server/mcp/tools/site-audit-tools";
+import { growthGetActionsTool } from "@/server/mcp/tools/growth-action-tools";
+import { growthGetPriorityRecommendationsTool } from "@/server/mcp/tools/growth-priority-recommendations-tool";
+import { growthGetRecentChangesTool } from "@/server/mcp/tools/growth-recent-changes-tool";
+import { growthGetMeasurementsTool } from "@/server/mcp/tools/growth-measurements-tool";
+import { growthGetActionTool } from "@/server/mcp/tools/growth-action-detail-tool";
+import { growthGetProjectSummaryTool } from "@/server/mcp/tools/growth-project-summary-tool";
+import { growthGetPageContextTool } from "@/server/mcp/tools/growth-page-context-tool";
+import { growthGetMonthlySummaryTool } from "@/server/mcp/tools/growth-tools";
+import { growthGetPlanTool } from "@/server/mcp/tools/growth-plan-tool";
 import { listSavedKeywordsTool } from "@/server/mcp/tools/list-saved-keywords";
 import { buildUpdateProjectContextTool } from "@/server/mcp/tools/project-context";
 import {
@@ -57,6 +66,11 @@ import {
   inspectUrlsTool,
 } from "@/server/mcp/tools/search-console-tools";
 import { whoamiTool } from "@/server/mcp/tools/whoami";
+import {
+  getYouTubeChannelOverviewTool,
+  getYouTubeTrafficSourcesTool,
+  getYouTubeVideoPerformanceTool,
+} from "@/server/mcp/tools/youtube-analytics-tools";
 import { discoverSiteUrls, readPages, readSite } from "@/server/lib/scrape";
 import openSeoFactSheet from "@/server/features/onboarding/openseo-fact-sheet.md?raw";
 
@@ -91,7 +105,7 @@ function toModelOutput(result: CallToolResult): unknown {
     : { summary };
 }
 
-// Adapt one OpenSEO tool into an AI SDK tool. The shared handler receives the
+// Adapt one Bodkin Search tool into an AI SDK tool. The shared handler receives the
 // same explicit auth context as the MCP transport, and runs through the same
 // instrumentation wrapper, so project scoping, credit metering, and the
 // mcp:tool_call telemetry (source "in_app_agent", null clientId) all match the
@@ -280,7 +294,7 @@ function scrapeTools(projectDomain: string | null): ToolSet {
 
 /**
  * Builds SAM's tool surface as an AI SDK ToolSet: the full MCP toolset plus the
- * free site-reading tools. Every tool the OpenSEO MCP server exposes is
+ * free site-reading tools. Every tool the Bodkin Search MCP server exposes is
  * available except the ones a project-bound chat can't use (list_projects,
  * create_project) and get_project_context (already a context block). Auth and
  * billing context are passed directly to the shared tool handlers. DataForSEO
@@ -301,7 +315,7 @@ export function buildSamMcpTools(
     definition: McpToolDefinition<Shape>,
   ) => adaptMcpTool(definition, toolContext, projectId);
 
-  // The GA4 tools define inputSchema as a built ZodObject instead of a raw
+  // The GA4 and YouTube tools define inputSchema as a built ZodObject instead of a raw
   // shape; unwrap it so the same adapter (projectId stripping included) applies.
   type AnyMcpHandler = McpToolDefinition<ZodRawShape>["handler"];
   const adaptObjectTool = (definition: {
@@ -333,7 +347,7 @@ export function buildSamMcpTools(
     // made the agent narrate hosted/self-hosted framing at signed-in users).
     get_product_info: tool({
       description:
-        "The OpenSEO fact sheet: what the product does, plans/pricing, credit costs, integrations, MCP setup. Call before answering questions about OpenSEO itself. Uses no credits.",
+        "The Bodkin Search fact sheet: what the product does, plans/pricing, credit costs, integrations, MCP setup. Call before answering questions about Bodkin Search itself. Uses no credits.",
       inputSchema: z.object({}),
       execute: () => Promise.resolve({ factSheet: openSeoFactSheet }),
     }),
@@ -399,9 +413,27 @@ export function buildSamMcpTools(
     get_google_analytics_audience_breakdown: adaptObjectTool(
       getGoogleAnalyticsAudienceBreakdownTool,
     ),
+    get_youtube_channel_overview: adaptObjectTool(
+      getYouTubeChannelOverviewTool,
+    ),
+    get_youtube_video_performance: adaptObjectTool(
+      getYouTubeVideoPerformanceTool,
+    ),
+    get_youtube_traffic_sources: adaptObjectTool(getYouTubeTrafficSourcesTool),
     run_site_audit: adaptTool(runSiteAuditTool),
     get_audit_status: waitingAuditStatusTool(adaptTool),
     get_audit_issues: adaptTool(getAuditIssuesTool),
     get_audit_pages: adaptTool(getAuditPagesTool),
+    growth_get_plan: adaptTool(growthGetPlanTool),
+    growth_get_project_summary: adaptTool(growthGetProjectSummaryTool),
+    growth_get_page_context: adaptTool(growthGetPageContextTool),
+    growth_get_actions: adaptTool(growthGetActionsTool),
+    growth_get_priority_recommendations: adaptTool(
+      growthGetPriorityRecommendationsTool,
+    ),
+    growth_get_recent_changes: adaptTool(growthGetRecentChangesTool),
+    growth_get_measurements: adaptTool(growthGetMeasurementsTool),
+    growth_get_action: adaptTool(growthGetActionTool),
+    growth_get_monthly_summary: adaptTool(growthGetMonthlySummaryTool),
   };
 }

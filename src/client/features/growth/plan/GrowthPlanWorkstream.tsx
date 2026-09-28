@@ -1,0 +1,337 @@
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Modal } from "@/client/components/Modal";
+import { getStandardErrorMessage } from "@/client/lib/error-messages";
+import {
+  createGrowthPlanAction,
+  updateGrowthWorkstream,
+} from "@/serverFunctions/growthPlan";
+import type {
+  GrowthPlanEvidenceSeriesDto,
+  GrowthWorkstreamDto,
+} from "@/types/schemas/growth-plan";
+import { GrowthEvidenceSeriesChart } from "./GrowthEvidenceSeriesChart";
+import { GrowthPlanAction } from "./GrowthPlanAction";
+import {
+  GrowthPlanActionForm,
+  type GrowthPlanActionDraft,
+} from "./GrowthPlanActionForm";
+import { GrowthPlanCase } from "./GrowthPlanCase";
+import { CARD, EYEBROW, SECTION } from "./GrowthPlanPresentation";
+import { GrowthPlanWorkList } from "./GrowthPlanWorkList";
+import {
+  GrowthWorkstreamForm,
+  type GrowthWorkstreamDraft,
+} from "./GrowthWorkstreamForm";
+import { GrowthWorkstreamChart } from "./GrowthWorkstreamChart";
+import type { GrowthPlanSeriesEntry } from "./growthPlanSeries";
+
+const WORKSTREAM_STATUS_BADGES = {
+  active: "",
+  done: "badge-success",
+  dropped: "badge-ghost line-through",
+} as const;
+
+export function GrowthPlanWorkstream({
+  projectId,
+  projectName,
+  workstream,
+  workstreams,
+  canMoveUp,
+  canMoveDown,
+  reordering,
+  deleting,
+  evidence,
+  evidencePending,
+  evidenceFailed,
+  series,
+  editing,
+  onMove,
+  onDelete,
+}: {
+  projectId: string;
+  projectName?: string;
+  workstream: GrowthWorkstreamDto;
+  workstreams: GrowthWorkstreamDto[];
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  reordering: boolean;
+  deleting: boolean;
+  evidence?: GrowthPlanEvidenceSeriesDto;
+  evidencePending: boolean;
+  evidenceFailed: boolean;
+  // The author's own charts for this workstream, from evidence carrying a
+  // data series.
+  series: GrowthPlanSeriesEntry[];
+  editing: boolean;
+  onMove: (direction: -1 | 1) => void;
+  onDelete: () => void;
+}) {
+  const client = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [addingAction, setAddingAction] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const planKey = ["growthPlan", projectId];
+  const refresh = () => client.invalidateQueries({ queryKey: planKey });
+
+  const save = useMutation({
+    mutationKey: ["growthWorkstream", projectId, workstream.id],
+    mutationFn: (draft: GrowthWorkstreamDraft) =>
+      updateGrowthWorkstream({
+        data: { ...draft, projectId, workstreamId: workstream.id },
+      }),
+    retry: false,
+    onSuccess: async () => {
+      setOpen(false);
+      await refresh();
+    },
+  });
+  const addAction = useMutation({
+    mutationKey: ["growthPlanAction", projectId, workstream.id],
+    mutationFn: (draft: GrowthPlanActionDraft) =>
+      createGrowthPlanAction({
+        data: {
+          ...draft,
+          projectId,
+          requestKey: crypto.randomUUID(),
+          category: "plan",
+          priorityScore: 0,
+          evidence: [],
+        },
+      }),
+    retry: false,
+    onSuccess: async () => {
+      setAddingAction(false);
+      await refresh();
+    },
+  });
+
+  // In read mode the live Search Console card only appears when it has numbers
+  // to show; its setup notices belong to the person editing the plan.
+  const liveRead =
+    evidence?.pages.state === "available" ||
+    evidence?.pages.state === "no_data";
+  // The column split is decided by what the plan holds, not by the mode, so
+  // toggling edit never moves the work list.
+  const twoColumn = series.length > 0 || liveRead;
+
+  return (
+    <section
+      id={`growth-workstream-${workstream.id}`}
+      aria-labelledby={`growth-workstream-${workstream.id}-title`}
+      className={SECTION}
+    >
+      <div className="flex items-baseline gap-3">
+        <p
+          aria-hidden="true"
+          className="text-3xl leading-none font-bold tracking-tight tabular-nums text-primary"
+        >
+          {workstream.position}
+        </p>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2
+              id={`growth-workstream-${workstream.id}-title`}
+              className="text-2xl leading-tight font-semibold [overflow-wrap:anywhere]"
+            >
+              {workstream.title}
+            </h2>
+            {workstream.status === "active" ? null : (
+              <span
+                className={`badge ${WORKSTREAM_STATUS_BADGES[workstream.status]}`}
+              >
+                {workstream.status === "done" ? "Done" : "Dropped"}
+              </span>
+            )}
+          </div>
+          <p className="mt-2 max-w-[68ch] text-base leading-relaxed whitespace-pre-wrap text-base-content/80 [overflow-wrap:anywhere]">
+            {workstream.commercialReason}
+          </p>
+          {editing ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setOpen(true)}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={!canMoveUp || reordering}
+                onClick={() => onMove(-1)}
+              >
+                Move up
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={!canMoveDown || reordering}
+                onClick={() => onMove(1)}
+              >
+                Move down
+              </button>
+              {workstream.actions.length === 0 ? (
+                confirmingDelete ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-error btn-sm"
+                      disabled={deleting}
+                      onClick={onDelete}
+                    >
+                      Yes, delete workstream
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setConfirmingDelete(false)}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm text-error"
+                    disabled={deleting}
+                    onClick={() => setConfirmingDelete(true)}
+                  >
+                    Delete
+                  </button>
+                )
+              ) : null}
+            </div>
+          ) : null}
+          {save.error ? (
+            <p role="alert" className="mt-2 text-sm">
+              {getStandardErrorMessage(
+                save.error,
+                "The workstream was not saved.",
+              )}
+            </p>
+          ) : null}
+          {editing && open ? (
+            <Modal
+              maxWidth="max-w-2xl"
+              labelledBy={`edit-workstream-${workstream.id}`}
+              onClose={() => setOpen(false)}
+            >
+              <h3
+                id={`edit-workstream-${workstream.id}`}
+                className="text-lg font-semibold"
+              >
+                Edit workstream
+              </h3>
+              <GrowthWorkstreamForm
+                workstream={workstream}
+                pending={save.isPending}
+                error={null}
+                onSubmit={(draft) => save.mutate(draft)}
+                onCancel={() => setOpen(false)}
+              />
+            </Modal>
+          ) : null}
+        </div>
+      </div>
+
+      <div
+        className={`mt-6 grid items-start gap-6 ${twoColumn ? "lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]" : ""}`}
+      >
+        {twoColumn ? (
+          <div className="min-w-0 space-y-4">
+            {series.map((entry) => (
+              <div key={entry.series.id} className={`${CARD} px-5 py-4`}>
+                <GrowthEvidenceSeriesChart
+                  evidence={entry.evidence}
+                  projectName={projectName}
+                  showFinding
+                />
+              </div>
+            ))}
+            {editing || liveRead ? (
+              <GrowthWorkstreamChart
+                series={evidence}
+                pending={evidencePending}
+                failed={evidenceFailed}
+              />
+            ) : null}
+          </div>
+        ) : null}
+        <GrowthPlanCase
+          workstream={workstream}
+          chartedEvidenceIds={series.map((entry) => entry.evidence.id)}
+        />
+      </div>
+
+      <div className="mt-6">
+        <h3 className={EYEBROW}>What we will do</h3>
+        {editing ? (
+          <>
+            {workstream.actions.length === 0 ? (
+              <p className="mt-2 text-sm text-base-content/70">
+                No actions in this workstream yet.
+              </p>
+            ) : (
+              <ul className="mt-2 space-y-4">
+                {workstream.actions.map((action) => (
+                  <GrowthPlanAction
+                    key={action.id}
+                    projectId={projectId}
+                    workstreamId={workstream.id}
+                    workstreams={workstreams}
+                    action={action}
+                  />
+                ))}
+              </ul>
+            )}
+            <div className="mt-4">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setAddingAction(true)}
+              >
+                Add action
+              </button>
+            </div>
+            {addAction.error ? (
+              <p role="alert" className="mt-2 text-sm">
+                {getStandardErrorMessage(
+                  addAction.error,
+                  "The action was not saved.",
+                )}
+              </p>
+            ) : null}
+            {addingAction ? (
+              <Modal
+                maxWidth="max-w-2xl"
+                labelledBy={`add-action-${workstream.id}`}
+                onClose={() => setAddingAction(false)}
+              >
+                <h3
+                  id={`add-action-${workstream.id}`}
+                  className="text-lg font-semibold"
+                >
+                  Add an action to &ldquo;{workstream.title}&rdquo;
+                </h3>
+                <GrowthPlanActionForm
+                  workstreamId={workstream.id}
+                  workstreams={workstreams}
+                  pending={addAction.isPending}
+                  error={null}
+                  onSubmit={(draft) => addAction.mutate(draft)}
+                  onCancel={() => setAddingAction(false)}
+                />
+              </Modal>
+            ) : null}
+          </>
+        ) : (
+          <div className="mt-2">
+            <GrowthPlanWorkList actions={workstream.actions} />
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}

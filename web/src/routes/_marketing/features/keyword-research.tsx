@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_marketing/features/keyword-research")({
       title: "Keyword Research Tool",
       description: page.description,
       path: "/features/keyword-research",
-      titleSuffix: "OpenSEO",
+      titleSuffix: "Bodkin Search",
       imageAlt: page.imageAlt,
     }),
   component: () => <FeaturePageTemplate page={page} />,

@@ -1,6 +1,6 @@
-# OpenSEO Site Audit: 80/20 Feature Set & Crawl Architecture Proposal (rev. 3, founder decision applied)
+# Bodkin Search Site Audit: 80/20 Feature Set & Crawl Architecture Proposal (rev. 3, founder decision applied)
 
-**Author:** PM research synthesis | **Date:** 2026-06-09 | **Inputs:** SEOnaut + LibreCrawl code reviews, OpenSEO baseline review, competitor/market research, architecture research, adversarial panel review. Revision notes: panel critiques accepted are folded in silently; where we overrode the panel, an explicit **Panel pushback** note marks the disagreement. **Rev. 3:** founder decision — build on the in-house Workers crawler, do not adopt DataForSEO OnPage; "we were blocked" flagging accepted as the blocking posture. §4 now weighs that decision's tradeoffs instead of recommending an engine.
+**Author:** PM research synthesis | **Date:** 2026-06-09 | **Inputs:** SEOnaut + LibreCrawl code reviews, Bodkin Search baseline review, competitor/market research, architecture research, adversarial panel review. Revision notes: panel critiques accepted are folded in silently; where we overrode the panel, an explicit **Panel pushback** note marks the disagreement. **Rev. 3:** founder decision — build on the in-house Workers crawler, do not adopt DataForSEO OnPage; "we were blocked" flagging accepted as the blocking posture. §4 now weighs that decision's tradeoffs instead of recommending an engine.
 
 ---
 
@@ -18,7 +18,7 @@ Every site audit tool is the same three-stage pipeline:
 
 ---
 
-## 2. Where OpenSEO's audit stands today
+## 2. Where Bodkin Search's audit stands today
 
 Honest summary: **we have a crawler and a Lighthouse integration, but not an audit product.** We extract per-page fields and show filterable tables, but no rule engine names issues; the only "issues" users see are Lighthouse failures. SEOnaut ships ~88 issue types; LibreCrawl ~26; Screaming Frog ~300. We effectively ship ~2 as table styling.
 

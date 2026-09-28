@@ -1,0 +1,24 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve historical replay as an event-ledger lookup independent of the current projection version.",
+      "location": "src/server/features/growth/services/GrowthActionsService.ts:328-340",
+      "evidence": "The service resolves the event at expectedVersion + 1, verifies every immutable semantic coordinate and hash, verifies the projection is not behind that event, then returns the current Action with the matching historical event. The lifecycle tests cover delayed blocked/resume replay and metadata drift.",
+      "impact": "This preserves idempotency for delayed delivery retries after later legal transitions without accepting semantic drift.",
+      "recommendation": "Keep event-first replay recognition ahead of stale/current-status checks."
+    },
+    {
+      "summary": "Preserve the single shared lifecycle predicate across contract and service enforcement.",
+      "location": "src/types/schemas/growth-actions.ts:16-34,60-73; src/server/features/growth/services/GrowthActionsService.ts:343-351",
+      "evidence": "Both the Zod super-refinement and service transition path call isLegalGrowthActionTransition. Contract tests enumerate all legal pairs and reject every incompatible status coordinate; service tests also exercise unchecked incompatible inputs.",
+      "impact": "This prevents the external contract, trusted service, and persisted event transition vocabulary from drifting.",
+      "recommendation": "Keep lifecycle changes centralized in the shared predicate and retain exhaustive incompatible-pair coverage."
+    }
+  ]
+}

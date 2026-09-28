@@ -1,0 +1,12 @@
+{
+  "verdict": "PASS",
+  "generatedAt": "2026-09-01T21:39:36Z",
+  "unmet": [],
+  "notes": [
+    "All 12 acceptance criteria are satisfied by the final worktree: one shared project-authorized MCP/SAM definition reads only saved unresolved Recommendations, uses strict current-state keyset pagination, excludes accepted rows once any Action exists, and exposes only bounded privacy-projected cards.",
+    "Repository and service evidence covers canonical offset cursors, SQLite BINARY/PostgreSQL C ordering, filter-before-limit, tenant isolation, accepted-with/without-Action behavior, per-parent child sentinels, overflow rejection before display caps, safe prose/URL projection, truthful continuation text and server-side SAM project binding.",
+    "verification.json records passing focused tests, a live migrated PostgreSQL 16 parity run, pnpm ci:check, 2,109 passing full-suite tests, the production build and whitespace checks. Browser, HTTP, CDP, Playwright and screenshots were correctly waived under the user's standing prohibition.",
+    "The latest fresh adversarial review passed with no findings or evidence gaps. repairRound remains 0. The missing optional scale indexes are explicitly deferred in ADR-041 and are compatible with this bounded first read.",
+    "The separate growth_find_opportunities run remains escalated and is not claimed complete; this accepted run implements only the independently planned saved priority-Recommendation read."
+  ]
+}

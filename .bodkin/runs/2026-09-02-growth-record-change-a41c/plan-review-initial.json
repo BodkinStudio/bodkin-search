@@ -1,0 +1,19 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "The refresh-scope requirement does not explicitly prohibit a refresh token from adding the new write scope beyond its original grant.",
+      "location": ".bodkin/runs/2026-09-02-growth-record-change-a41c/plan.md; src/server/mcp/oauth-provider.ts:416",
+      "evidence": "The current tokenExchangeCallback accepts requestedScope whenever it contains mcp and stamps that requested scope into new token props; it does not compare it with the original props' granted scopes. The plan says only that refresh remains provider-validated and that existing tokens remain read-only, but it does not require an explicit subset-of-original-grant check or an attempted escalation test.",
+      "impact": "After growth:change:create becomes supported, a pre-existing read-only refresh token could potentially request that scope during refresh and obtain the write tool without a new explicit authorization/consent grant.",
+      "recommendation": "Require token exchange to reject any requested scope not present in the original verified grant props (while retaining the required mcp check), preserve the original scope set when no refresh scope is supplied, and add unit plus real-provider refresh tests showing a read-only grant cannot add growth:change:create but a consented write grant retains it."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep offline_access mcp as the default/API-key scope set and keep protected-resource metadata at its minimal mcp baseline; advertise the operation capability only through authorization-server supported scopes. Preserve capability-before-project authorization, conditional registration plus handler defense, fixed manual/agent provenance, principal-namespaced idempotency, existing Change Event atomic creation, project-domain URL validation, and SAM/self-host default-off behavior."
+  ]
+}

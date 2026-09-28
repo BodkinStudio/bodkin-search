@@ -1,0 +1,38 @@
+diff --git a/src/server/features/growth/repositories/GrowthApprovalRepository.postgres.test.ts b/src/server/features/growth/repositories/GrowthApprovalRepository.postgres.test.ts
+--- a/src/server/features/growth/repositories/GrowthApprovalRepository.postgres.test.ts
++++ b/src/server/features/growth/repositories/GrowthApprovalRepository.postgres.test.ts
+@@ -444,6 +444,12 @@
+             eventFactHash: "d".repeat(64),
+             title: "Newer investigation",
+             dueAt: "2026-09-05T00:00:00.000Z",
++            targets: [
++              {
++                targetType: "url" as const,
++                targetValue: "https://example.com/newer",
++              },
++            ],
+           }),
+         ),
+       );
+@@ -459,10 +465,20 @@
+       expect(workRows).toEqual([
+         expect.objectContaining({ id: newerActionId, runId: work.runId }),
++        expect.objectContaining({
++          id: approvalInput(work).id,
++          runId: work.runId,
++        }),
+       ]);
+       expect(foreignRows).toEqual([
+         expect.objectContaining({ runId: foreign.runId }),
+       ]);
+-      expect(workRows).toHaveLength(1);
++      expect(workRows).toHaveLength(2);
++      const newestOnly = await withPgClient(() =>
++        GrowthActionsRepository.listInvestigationWork(work.projectId, 1),
++      );
++      expect(newestOnly).toEqual([
++        expect.objectContaining({ id: newerActionId, stateVersion: 0 }),
++      ]);
+       await expect(
+         withPgClient(() =>
+           GrowthActionsRepository.listInvestigationWork(

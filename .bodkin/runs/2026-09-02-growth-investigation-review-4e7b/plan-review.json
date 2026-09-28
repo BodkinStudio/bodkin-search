@@ -1,0 +1,17 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve the bounded, app-only review-state implementation.",
+      "location": ".bodkin/runs/2026-09-02-growth-investigation-review-4e7b/plan.md",
+      "evidence": "The revised plan retains context-derived tenancy, saved investigation qualification, server-derived state transitions, existing Recommendation CAS and the separate audited Action approval path.",
+      "impact": "These constraints keep the change within the existing Growth architecture and prevent a parallel authorization, data or MCP surface.",
+      "recommendation": "Do not weaken these boundaries while implementing the approved plan."
+    }
+  ]
+}

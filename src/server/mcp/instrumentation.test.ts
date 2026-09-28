@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
 
 // waitUntil runs the capture promise inline so assertions see the call.
 vi.mock("cloudflare:workers", () => ({
+  env: {},
   waitUntil: (promise: Promise<unknown>) => void promise,
 }));
 

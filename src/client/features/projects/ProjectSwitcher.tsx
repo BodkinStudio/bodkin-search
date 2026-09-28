@@ -1,3 +1,4 @@
+import { useWorkspaceAccess } from "@/client/features/workspaces/useWorkspaceAccess";
 import * as React from "react";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -30,6 +31,7 @@ export function ProjectSwitcher({
   // useMatches() would re-render the whole sidebar on every route change for
   // a value only a click needs.
   const router = useRouter();
+  const canEdit = useWorkspaceAccess().can("configure");
   const [creating, setCreating] = React.useState(false);
   // Controlled open state rather than daisyUI's CSS focus-within dropdown:
   // focus-within can't guarantee the search input ends up focused on open
@@ -241,7 +243,7 @@ export function ProjectSwitcher({
           </span>
           <ChevronsUpDown className="size-3.5 shrink-0 text-base-content/40" />
         </button>
-        {activeProject ? (
+        {activeProject && canEdit ? (
           <Link
             to="/p/$projectId/settings"
             params={{ projectId: activeProject.id }}
@@ -350,12 +352,13 @@ export function ProjectSwitcher({
             <li>
               <button
                 type="button"
+                disabled={!canEdit}
                 onClick={() => {
                   closePanel();
                   // Deliberately leave the mobile drawer open: the modal is
                   // rendered inside it, so closing the drawer would unmount the
                   // modal. The drawer closes when the modal does.
-                  setCreating(true);
+                  if (canEdit) setCreating(true);
                 }}
               >
                 <Plus className="size-4" />

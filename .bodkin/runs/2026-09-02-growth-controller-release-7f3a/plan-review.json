@@ -1,0 +1,31 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve parsed-instant event-time comparison and fail-closed malformed-value behavior.",
+      "location": ".bodkin/runs/2026-09-02-growth-controller-release-7f3a/plan.md — Policy v2",
+      "evidence": "The plan requires pure UTC normalization, SQLite/D1 julianday ordering and a single PostgreSQL CASE WHEN with both validity guards, casts only in THEN and FALSE in ELSE.",
+      "impact": "Prevents lexical ordering and malformed data from releasing controllers or aborting writes without a migration.",
+      "recommendation": "Implement this exact predicate shape and retain inverse-offset and malformed-write tests."
+    },
+    {
+      "summary": "Keep release lazy, project-scoped and qualified by the exact template Action.",
+      "location": ".bodkin/runs/2026-09-02-growth-controller-release-7f3a/plan.md — Policy v2 and concurrency",
+      "evidence": "The rule is bound to the active project/dedupe controller, matching Recommendation and template Action, evaluated state, candidate Signal and running Run.",
+      "impact": "Preserves tenant isolation, immutable history and Action-lifecycle authority.",
+      "recommendation": "Do not introduce an evaluation hook, generalized release policy or alternate mutation path."
+    },
+    {
+      "summary": "Keep deterministic cycle identities and guarded graph creation.",
+      "location": ".bodkin/runs/2026-09-02-growth-controller-release-7f3a/plan.md — Candidate identity and concurrency",
+      "evidence": "The prior controller Recommendation becomes the next cycle key and every graph write remains conditional and fact-hash guarded.",
+      "impact": "Prevents duplicate controllers and orphan graphs under concurrency.",
+      "recommendation": "Preserve these guards in all parent and child statements."
+    }
+  ]
+}

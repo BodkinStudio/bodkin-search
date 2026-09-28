@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WorkspaceInvitationRouteImport } from './routes/workspace-invitation'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
@@ -22,6 +23,7 @@ import { Route as AuthenticatedSubscribeRouteImport } from './routes/_authentica
 import { Route as AuthenticatedOauthConsentRouteImport } from './routes/_authenticated.oauth-consent'
 import { Route as AuthSignUpRouteImport } from './routes/_auth.sign-up'
 import { Route as AuthSignInRouteImport } from './routes/_auth.sign-in'
+import { Route as AppWorkspacePeopleRouteImport } from './routes/_app/workspace-people'
 import { Route as AppSupportRouteImport } from './routes/_app/support'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppProjectsRouteImport } from './routes/_app/projects'
@@ -31,13 +33,18 @@ import { Route as Char91DotwellKnownChar93OpenaiAppsChallengeRouteImport } from 
 import { Route as AuthenticatedOnboardingIndexRouteImport } from './routes/_authenticated.onboarding.index'
 import { Route as ApiAutumnSplatRouteImport } from './routes/api/autumn/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiAnalyticsCollectRouteImport } from './routes/api/analytics/collect'
 import { Route as AuthenticatedOnboardingChatRouteImport } from './routes/_authenticated.onboarding.chat'
 import { Route as AppHelpOpenrouterApiKeyRouteImport } from './routes/_app/help/openrouter-api-key'
 import { Route as AppHelpDataforseoApiKeyRouteImport } from './routes/_app/help/dataforseo-api-key'
 import { Route as ProjectPProjectIdRouteRouteImport } from './routes/_project/p/$projectId/route'
 import { Route as ProjectPProjectIdIndexRouteImport } from './routes/_project/p/$projectId/index'
+import { Route as ApiYoutubeOauthCallbackRouteImport } from './routes/api/youtube/oauth/callback'
+import { Route as ApiLinkedinOauthCallbackRouteImport } from './routes/api/linkedin/oauth/callback'
 import { Route as ApiGscOauthCallbackRouteImport } from './routes/api/gsc/oauth/callback'
 import { Route as ApiGa4OauthCallbackRouteImport } from './routes/api/ga4/oauth/callback'
+import { Route as ApiAnalyticsEventsServerRouteImport } from './routes/api/analytics/events/server'
+import { Route as ApiAnalyticsDiagnosticsIpRouteImport } from './routes/api/analytics/diagnostics/ip'
 import { Route as ProjectPProjectIdSettingsRouteImport } from './routes/_project/p/$projectId/settings'
 import { Route as ProjectPProjectIdSearchPerformanceRouteImport } from './routes/_project/p/$projectId/search-performance'
 import { Route as ProjectPProjectIdSavedRouteImport } from './routes/_project/p/$projectId/saved'
@@ -45,18 +52,30 @@ import { Route as ProjectPProjectIdSamRouteImport } from './routes/_project/p/$p
 import { Route as ProjectPProjectIdRankTrackingRouteImport } from './routes/_project/p/$projectId/rank-tracking'
 import { Route as ProjectPProjectIdPromptExplorerRouteImport } from './routes/_project/p/$projectId/prompt-explorer'
 import { Route as ProjectPProjectIdKeywordsRouteImport } from './routes/_project/p/$projectId/keywords'
+import { Route as ProjectPProjectIdGrowthRouteImport } from './routes/_project/p/$projectId/growth'
 import { Route as ProjectPProjectIdDomainRouteImport } from './routes/_project/p/$projectId/domain'
+import { Route as ProjectPProjectIdCompetitorsRouteImport } from './routes/_project/p/$projectId/competitors'
 import { Route as ProjectPProjectIdBrandLookupRouteImport } from './routes/_project/p/$projectId/brand-lookup'
 import { Route as ProjectPProjectIdBacklinksRouteImport } from './routes/_project/p/$projectId/backlinks'
 import { Route as ProjectPProjectIdAuditRouteImport } from './routes/_project/p/$projectId/audit'
+import { Route as ProjectPProjectIdAnalyticsRouteImport } from './routes/_project/p/$projectId/analytics'
 import { Route as ProjectPProjectIdSettingsIndexRouteImport } from './routes/_project/p/$projectId/settings/index'
 import { Route as ProjectPProjectIdRankTrackingIndexRouteImport } from './routes/_project/p/$projectId/rank-tracking/index'
+import { Route as ProjectPProjectIdGrowthIndexRouteImport } from './routes/_project/p/$projectId/growth/index'
 import { Route as ProjectPProjectIdAuditIndexRouteImport } from './routes/_project/p/$projectId/audit/index'
 import { Route as ProjectPProjectIdSettingsIntegrationsRouteImport } from './routes/_project/p/$projectId/settings/integrations'
 import { Route as ProjectPProjectIdSettingsContextRouteImport } from './routes/_project/p/$projectId/settings/context'
+import { Route as ProjectPProjectIdSettingsAnalyticsRouteImport } from './routes/_project/p/$projectId/settings/analytics'
 import { Route as ProjectPProjectIdRankTrackingConfigIdRouteImport } from './routes/_project/p/$projectId/rank-tracking/$configId'
+import { Route as ProjectPProjectIdGrowthOperationsRouteImport } from './routes/_project/p/$projectId/growth/operations'
+import { Route as ProjectPProjectIdGrowthSectionRouteImport } from './routes/_project/p/$projectId/growth/$section'
 import { Route as ProjectPProjectIdAuditIssuesResultIdRouteImport } from './routes/_project/p/$projectId/audit/issues/$resultId'
 
+const WorkspaceInvitationRoute = WorkspaceInvitationRouteImport.update({
+  id: '/workspace-invitation',
+  path: '/workspace-invitation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
   id: '/verify-email',
   path: '/verify-email',
@@ -119,6 +138,11 @@ const AuthSignInRoute = AuthSignInRouteImport.update({
   path: '/sign-in',
   getParentRoute: () => AuthRoute,
 } as any)
+const AppWorkspacePeopleRoute = AppWorkspacePeopleRouteImport.update({
+  id: '/workspace-people',
+  path: '/workspace-people',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppSupportRoute = AppSupportRouteImport.update({
   id: '/support',
   path: '/support',
@@ -166,6 +190,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAnalyticsCollectRoute = ApiAnalyticsCollectRouteImport.update({
+  id: '/api/analytics/collect',
+  path: '/api/analytics/collect',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedOnboardingChatRoute =
   AuthenticatedOnboardingChatRouteImport.update({
     id: '/onboarding/chat',
@@ -192,6 +221,17 @@ const ProjectPProjectIdIndexRoute = ProjectPProjectIdIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ProjectPProjectIdRouteRoute,
 } as any)
+const ApiYoutubeOauthCallbackRoute = ApiYoutubeOauthCallbackRouteImport.update({
+  id: '/api/youtube/oauth/callback',
+  path: '/api/youtube/oauth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLinkedinOauthCallbackRoute =
+  ApiLinkedinOauthCallbackRouteImport.update({
+    id: '/api/linkedin/oauth/callback',
+    path: '/api/linkedin/oauth/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiGscOauthCallbackRoute = ApiGscOauthCallbackRouteImport.update({
   id: '/api/gsc/oauth/callback',
   path: '/api/gsc/oauth/callback',
@@ -202,6 +242,18 @@ const ApiGa4OauthCallbackRoute = ApiGa4OauthCallbackRouteImport.update({
   path: '/api/ga4/oauth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAnalyticsEventsServerRoute =
+  ApiAnalyticsEventsServerRouteImport.update({
+    id: '/api/analytics/events/server',
+    path: '/api/analytics/events/server',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAnalyticsDiagnosticsIpRoute =
+  ApiAnalyticsDiagnosticsIpRouteImport.update({
+    id: '/api/analytics/diagnostics/ip',
+    path: '/api/analytics/diagnostics/ip',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ProjectPProjectIdSettingsRoute =
   ProjectPProjectIdSettingsRouteImport.update({
     id: '/settings',
@@ -242,11 +294,22 @@ const ProjectPProjectIdKeywordsRoute =
     path: '/keywords',
     getParentRoute: () => ProjectPProjectIdRouteRoute,
   } as any)
+const ProjectPProjectIdGrowthRoute = ProjectPProjectIdGrowthRouteImport.update({
+  id: '/growth',
+  path: '/growth',
+  getParentRoute: () => ProjectPProjectIdRouteRoute,
+} as any)
 const ProjectPProjectIdDomainRoute = ProjectPProjectIdDomainRouteImport.update({
   id: '/domain',
   path: '/domain',
   getParentRoute: () => ProjectPProjectIdRouteRoute,
 } as any)
+const ProjectPProjectIdCompetitorsRoute =
+  ProjectPProjectIdCompetitorsRouteImport.update({
+    id: '/competitors',
+    path: '/competitors',
+    getParentRoute: () => ProjectPProjectIdRouteRoute,
+  } as any)
 const ProjectPProjectIdBrandLookupRoute =
   ProjectPProjectIdBrandLookupRouteImport.update({
     id: '/brand-lookup',
@@ -264,6 +327,12 @@ const ProjectPProjectIdAuditRoute = ProjectPProjectIdAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => ProjectPProjectIdRouteRoute,
 } as any)
+const ProjectPProjectIdAnalyticsRoute =
+  ProjectPProjectIdAnalyticsRouteImport.update({
+    id: '/analytics',
+    path: '/analytics',
+    getParentRoute: () => ProjectPProjectIdRouteRoute,
+  } as any)
 const ProjectPProjectIdSettingsIndexRoute =
   ProjectPProjectIdSettingsIndexRouteImport.update({
     id: '/',
@@ -275,6 +344,12 @@ const ProjectPProjectIdRankTrackingIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => ProjectPProjectIdRankTrackingRoute,
+  } as any)
+const ProjectPProjectIdGrowthIndexRoute =
+  ProjectPProjectIdGrowthIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ProjectPProjectIdGrowthRoute,
   } as any)
 const ProjectPProjectIdAuditIndexRoute =
   ProjectPProjectIdAuditIndexRouteImport.update({
@@ -294,11 +369,29 @@ const ProjectPProjectIdSettingsContextRoute =
     path: '/context',
     getParentRoute: () => ProjectPProjectIdSettingsRoute,
   } as any)
+const ProjectPProjectIdSettingsAnalyticsRoute =
+  ProjectPProjectIdSettingsAnalyticsRouteImport.update({
+    id: '/analytics',
+    path: '/analytics',
+    getParentRoute: () => ProjectPProjectIdSettingsRoute,
+  } as any)
 const ProjectPProjectIdRankTrackingConfigIdRoute =
   ProjectPProjectIdRankTrackingConfigIdRouteImport.update({
     id: '/$configId',
     path: '/$configId',
     getParentRoute: () => ProjectPProjectIdRankTrackingRoute,
+  } as any)
+const ProjectPProjectIdGrowthOperationsRoute =
+  ProjectPProjectIdGrowthOperationsRouteImport.update({
+    id: '/operations',
+    path: '/operations',
+    getParentRoute: () => ProjectPProjectIdGrowthRoute,
+  } as any)
+const ProjectPProjectIdGrowthSectionRoute =
+  ProjectPProjectIdGrowthSectionRouteImport.update({
+    id: '/$section',
+    path: '/$section',
+    getParentRoute: () => ProjectPProjectIdGrowthRoute,
   } as any)
 const ProjectPProjectIdAuditIssuesResultIdRoute =
   ProjectPProjectIdAuditIssuesResultIdRouteImport.update({
@@ -312,12 +405,14 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/workspace-invitation': typeof WorkspaceInvitationRoute
   '/.well-known/openai-apps-challenge': typeof Char91DotwellKnownChar93OpenaiAppsChallengeRoute
   '/ai': typeof AppAiRoute
   '/billing': typeof AppBillingRoute
   '/projects': typeof AppProjectsRoute
   '/settings': typeof AppSettingsRoute
   '/support': typeof AppSupportRoute
+  '/workspace-people': typeof AppWorkspacePeopleRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/oauth-consent': typeof AuthenticatedOauthConsentRoute
@@ -327,13 +422,17 @@ export interface FileRoutesByFullPath {
   '/help/dataforseo-api-key': typeof AppHelpDataforseoApiKeyRoute
   '/help/openrouter-api-key': typeof AppHelpOpenrouterApiKeyRoute
   '/onboarding/chat': typeof AuthenticatedOnboardingChatRoute
+  '/api/analytics/collect': typeof ApiAnalyticsCollectRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/autumn/$': typeof ApiAutumnSplatRoute
   '/onboarding/': typeof AuthenticatedOnboardingIndexRoute
+  '/p/$projectId/analytics': typeof ProjectPProjectIdAnalyticsRoute
   '/p/$projectId/audit': typeof ProjectPProjectIdAuditRouteWithChildren
   '/p/$projectId/backlinks': typeof ProjectPProjectIdBacklinksRoute
   '/p/$projectId/brand-lookup': typeof ProjectPProjectIdBrandLookupRoute
+  '/p/$projectId/competitors': typeof ProjectPProjectIdCompetitorsRoute
   '/p/$projectId/domain': typeof ProjectPProjectIdDomainRoute
+  '/p/$projectId/growth': typeof ProjectPProjectIdGrowthRouteWithChildren
   '/p/$projectId/keywords': typeof ProjectPProjectIdKeywordsRoute
   '/p/$projectId/prompt-explorer': typeof ProjectPProjectIdPromptExplorerRoute
   '/p/$projectId/rank-tracking': typeof ProjectPProjectIdRankTrackingRouteWithChildren
@@ -341,13 +440,21 @@ export interface FileRoutesByFullPath {
   '/p/$projectId/saved': typeof ProjectPProjectIdSavedRoute
   '/p/$projectId/search-performance': typeof ProjectPProjectIdSearchPerformanceRoute
   '/p/$projectId/settings': typeof ProjectPProjectIdSettingsRouteWithChildren
+  '/api/analytics/diagnostics/ip': typeof ApiAnalyticsDiagnosticsIpRoute
+  '/api/analytics/events/server': typeof ApiAnalyticsEventsServerRoute
   '/api/ga4/oauth/callback': typeof ApiGa4OauthCallbackRoute
   '/api/gsc/oauth/callback': typeof ApiGscOauthCallbackRoute
+  '/api/linkedin/oauth/callback': typeof ApiLinkedinOauthCallbackRoute
+  '/api/youtube/oauth/callback': typeof ApiYoutubeOauthCallbackRoute
   '/p/$projectId/': typeof ProjectPProjectIdIndexRoute
+  '/p/$projectId/growth/$section': typeof ProjectPProjectIdGrowthSectionRoute
+  '/p/$projectId/growth/operations': typeof ProjectPProjectIdGrowthOperationsRoute
   '/p/$projectId/rank-tracking/$configId': typeof ProjectPProjectIdRankTrackingConfigIdRoute
+  '/p/$projectId/settings/analytics': typeof ProjectPProjectIdSettingsAnalyticsRoute
   '/p/$projectId/settings/context': typeof ProjectPProjectIdSettingsContextRoute
   '/p/$projectId/settings/integrations': typeof ProjectPProjectIdSettingsIntegrationsRoute
   '/p/$projectId/audit/': typeof ProjectPProjectIdAuditIndexRoute
+  '/p/$projectId/growth/': typeof ProjectPProjectIdGrowthIndexRoute
   '/p/$projectId/rank-tracking/': typeof ProjectPProjectIdRankTrackingIndexRoute
   '/p/$projectId/settings/': typeof ProjectPProjectIdSettingsIndexRoute
   '/p/$projectId/audit/issues/$resultId': typeof ProjectPProjectIdAuditIssuesResultIdRoute
@@ -357,12 +464,14 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/workspace-invitation': typeof WorkspaceInvitationRoute
   '/.well-known/openai-apps-challenge': typeof Char91DotwellKnownChar93OpenaiAppsChallengeRoute
   '/ai': typeof AppAiRoute
   '/billing': typeof AppBillingRoute
   '/projects': typeof AppProjectsRoute
   '/settings': typeof AppSettingsRoute
   '/support': typeof AppSupportRoute
+  '/workspace-people': typeof AppWorkspacePeopleRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/oauth-consent': typeof AuthenticatedOauthConsentRoute
@@ -371,24 +480,35 @@ export interface FileRoutesByTo {
   '/help/dataforseo-api-key': typeof AppHelpDataforseoApiKeyRoute
   '/help/openrouter-api-key': typeof AppHelpOpenrouterApiKeyRoute
   '/onboarding/chat': typeof AuthenticatedOnboardingChatRoute
+  '/api/analytics/collect': typeof ApiAnalyticsCollectRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/autumn/$': typeof ApiAutumnSplatRoute
   '/onboarding': typeof AuthenticatedOnboardingIndexRoute
+  '/p/$projectId/analytics': typeof ProjectPProjectIdAnalyticsRoute
   '/p/$projectId/backlinks': typeof ProjectPProjectIdBacklinksRoute
   '/p/$projectId/brand-lookup': typeof ProjectPProjectIdBrandLookupRoute
+  '/p/$projectId/competitors': typeof ProjectPProjectIdCompetitorsRoute
   '/p/$projectId/domain': typeof ProjectPProjectIdDomainRoute
   '/p/$projectId/keywords': typeof ProjectPProjectIdKeywordsRoute
   '/p/$projectId/prompt-explorer': typeof ProjectPProjectIdPromptExplorerRoute
   '/p/$projectId/sam': typeof ProjectPProjectIdSamRoute
   '/p/$projectId/saved': typeof ProjectPProjectIdSavedRoute
   '/p/$projectId/search-performance': typeof ProjectPProjectIdSearchPerformanceRoute
+  '/api/analytics/diagnostics/ip': typeof ApiAnalyticsDiagnosticsIpRoute
+  '/api/analytics/events/server': typeof ApiAnalyticsEventsServerRoute
   '/api/ga4/oauth/callback': typeof ApiGa4OauthCallbackRoute
   '/api/gsc/oauth/callback': typeof ApiGscOauthCallbackRoute
+  '/api/linkedin/oauth/callback': typeof ApiLinkedinOauthCallbackRoute
+  '/api/youtube/oauth/callback': typeof ApiYoutubeOauthCallbackRoute
   '/p/$projectId': typeof ProjectPProjectIdIndexRoute
+  '/p/$projectId/growth/$section': typeof ProjectPProjectIdGrowthSectionRoute
+  '/p/$projectId/growth/operations': typeof ProjectPProjectIdGrowthOperationsRoute
   '/p/$projectId/rank-tracking/$configId': typeof ProjectPProjectIdRankTrackingConfigIdRoute
+  '/p/$projectId/settings/analytics': typeof ProjectPProjectIdSettingsAnalyticsRoute
   '/p/$projectId/settings/context': typeof ProjectPProjectIdSettingsContextRoute
   '/p/$projectId/settings/integrations': typeof ProjectPProjectIdSettingsIntegrationsRoute
   '/p/$projectId/audit': typeof ProjectPProjectIdAuditIndexRoute
+  '/p/$projectId/growth': typeof ProjectPProjectIdGrowthIndexRoute
   '/p/$projectId/rank-tracking': typeof ProjectPProjectIdRankTrackingIndexRoute
   '/p/$projectId/settings': typeof ProjectPProjectIdSettingsIndexRoute
   '/p/$projectId/audit/issues/$resultId': typeof ProjectPProjectIdAuditIssuesResultIdRoute
@@ -402,12 +522,14 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/workspace-invitation': typeof WorkspaceInvitationRoute
   '/.well-known/openai-apps-challenge': typeof Char91DotwellKnownChar93OpenaiAppsChallengeRoute
   '/_app/ai': typeof AppAiRoute
   '/_app/billing': typeof AppBillingRoute
   '/_app/projects': typeof AppProjectsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/support': typeof AppSupportRoute
+  '/_app/workspace-people': typeof AppWorkspacePeopleRoute
   '/_auth/sign-in': typeof AuthSignInRoute
   '/_auth/sign-up': typeof AuthSignUpRoute
   '/_authenticated/oauth-consent': typeof AuthenticatedOauthConsentRoute
@@ -418,13 +540,17 @@ export interface FileRoutesById {
   '/_app/help/dataforseo-api-key': typeof AppHelpDataforseoApiKeyRoute
   '/_app/help/openrouter-api-key': typeof AppHelpOpenrouterApiKeyRoute
   '/_authenticated/onboarding/chat': typeof AuthenticatedOnboardingChatRoute
+  '/api/analytics/collect': typeof ApiAnalyticsCollectRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/autumn/$': typeof ApiAutumnSplatRoute
   '/_authenticated/onboarding/': typeof AuthenticatedOnboardingIndexRoute
+  '/_project/p/$projectId/analytics': typeof ProjectPProjectIdAnalyticsRoute
   '/_project/p/$projectId/audit': typeof ProjectPProjectIdAuditRouteWithChildren
   '/_project/p/$projectId/backlinks': typeof ProjectPProjectIdBacklinksRoute
   '/_project/p/$projectId/brand-lookup': typeof ProjectPProjectIdBrandLookupRoute
+  '/_project/p/$projectId/competitors': typeof ProjectPProjectIdCompetitorsRoute
   '/_project/p/$projectId/domain': typeof ProjectPProjectIdDomainRoute
+  '/_project/p/$projectId/growth': typeof ProjectPProjectIdGrowthRouteWithChildren
   '/_project/p/$projectId/keywords': typeof ProjectPProjectIdKeywordsRoute
   '/_project/p/$projectId/prompt-explorer': typeof ProjectPProjectIdPromptExplorerRoute
   '/_project/p/$projectId/rank-tracking': typeof ProjectPProjectIdRankTrackingRouteWithChildren
@@ -432,13 +558,21 @@ export interface FileRoutesById {
   '/_project/p/$projectId/saved': typeof ProjectPProjectIdSavedRoute
   '/_project/p/$projectId/search-performance': typeof ProjectPProjectIdSearchPerformanceRoute
   '/_project/p/$projectId/settings': typeof ProjectPProjectIdSettingsRouteWithChildren
+  '/api/analytics/diagnostics/ip': typeof ApiAnalyticsDiagnosticsIpRoute
+  '/api/analytics/events/server': typeof ApiAnalyticsEventsServerRoute
   '/api/ga4/oauth/callback': typeof ApiGa4OauthCallbackRoute
   '/api/gsc/oauth/callback': typeof ApiGscOauthCallbackRoute
+  '/api/linkedin/oauth/callback': typeof ApiLinkedinOauthCallbackRoute
+  '/api/youtube/oauth/callback': typeof ApiYoutubeOauthCallbackRoute
   '/_project/p/$projectId/': typeof ProjectPProjectIdIndexRoute
+  '/_project/p/$projectId/growth/$section': typeof ProjectPProjectIdGrowthSectionRoute
+  '/_project/p/$projectId/growth/operations': typeof ProjectPProjectIdGrowthOperationsRoute
   '/_project/p/$projectId/rank-tracking/$configId': typeof ProjectPProjectIdRankTrackingConfigIdRoute
+  '/_project/p/$projectId/settings/analytics': typeof ProjectPProjectIdSettingsAnalyticsRoute
   '/_project/p/$projectId/settings/context': typeof ProjectPProjectIdSettingsContextRoute
   '/_project/p/$projectId/settings/integrations': typeof ProjectPProjectIdSettingsIntegrationsRoute
   '/_project/p/$projectId/audit/': typeof ProjectPProjectIdAuditIndexRoute
+  '/_project/p/$projectId/growth/': typeof ProjectPProjectIdGrowthIndexRoute
   '/_project/p/$projectId/rank-tracking/': typeof ProjectPProjectIdRankTrackingIndexRoute
   '/_project/p/$projectId/settings/': typeof ProjectPProjectIdSettingsIndexRoute
   '/_project/p/$projectId/audit/issues/$resultId': typeof ProjectPProjectIdAuditIssuesResultIdRoute
@@ -450,12 +584,14 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/reset-password'
     | '/verify-email'
+    | '/workspace-invitation'
     | '/.well-known/openai-apps-challenge'
     | '/ai'
     | '/billing'
     | '/projects'
     | '/settings'
     | '/support'
+    | '/workspace-people'
     | '/sign-in'
     | '/sign-up'
     | '/oauth-consent'
@@ -465,13 +601,17 @@ export interface FileRouteTypes {
     | '/help/dataforseo-api-key'
     | '/help/openrouter-api-key'
     | '/onboarding/chat'
+    | '/api/analytics/collect'
     | '/api/auth/$'
     | '/api/autumn/$'
     | '/onboarding/'
+    | '/p/$projectId/analytics'
     | '/p/$projectId/audit'
     | '/p/$projectId/backlinks'
     | '/p/$projectId/brand-lookup'
+    | '/p/$projectId/competitors'
     | '/p/$projectId/domain'
+    | '/p/$projectId/growth'
     | '/p/$projectId/keywords'
     | '/p/$projectId/prompt-explorer'
     | '/p/$projectId/rank-tracking'
@@ -479,13 +619,21 @@ export interface FileRouteTypes {
     | '/p/$projectId/saved'
     | '/p/$projectId/search-performance'
     | '/p/$projectId/settings'
+    | '/api/analytics/diagnostics/ip'
+    | '/api/analytics/events/server'
     | '/api/ga4/oauth/callback'
     | '/api/gsc/oauth/callback'
+    | '/api/linkedin/oauth/callback'
+    | '/api/youtube/oauth/callback'
     | '/p/$projectId/'
+    | '/p/$projectId/growth/$section'
+    | '/p/$projectId/growth/operations'
     | '/p/$projectId/rank-tracking/$configId'
+    | '/p/$projectId/settings/analytics'
     | '/p/$projectId/settings/context'
     | '/p/$projectId/settings/integrations'
     | '/p/$projectId/audit/'
+    | '/p/$projectId/growth/'
     | '/p/$projectId/rank-tracking/'
     | '/p/$projectId/settings/'
     | '/p/$projectId/audit/issues/$resultId'
@@ -495,12 +643,14 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/reset-password'
     | '/verify-email'
+    | '/workspace-invitation'
     | '/.well-known/openai-apps-challenge'
     | '/ai'
     | '/billing'
     | '/projects'
     | '/settings'
     | '/support'
+    | '/workspace-people'
     | '/sign-in'
     | '/sign-up'
     | '/oauth-consent'
@@ -509,24 +659,35 @@ export interface FileRouteTypes {
     | '/help/dataforseo-api-key'
     | '/help/openrouter-api-key'
     | '/onboarding/chat'
+    | '/api/analytics/collect'
     | '/api/auth/$'
     | '/api/autumn/$'
     | '/onboarding'
+    | '/p/$projectId/analytics'
     | '/p/$projectId/backlinks'
     | '/p/$projectId/brand-lookup'
+    | '/p/$projectId/competitors'
     | '/p/$projectId/domain'
     | '/p/$projectId/keywords'
     | '/p/$projectId/prompt-explorer'
     | '/p/$projectId/sam'
     | '/p/$projectId/saved'
     | '/p/$projectId/search-performance'
+    | '/api/analytics/diagnostics/ip'
+    | '/api/analytics/events/server'
     | '/api/ga4/oauth/callback'
     | '/api/gsc/oauth/callback'
+    | '/api/linkedin/oauth/callback'
+    | '/api/youtube/oauth/callback'
     | '/p/$projectId'
+    | '/p/$projectId/growth/$section'
+    | '/p/$projectId/growth/operations'
     | '/p/$projectId/rank-tracking/$configId'
+    | '/p/$projectId/settings/analytics'
     | '/p/$projectId/settings/context'
     | '/p/$projectId/settings/integrations'
     | '/p/$projectId/audit'
+    | '/p/$projectId/growth'
     | '/p/$projectId/rank-tracking'
     | '/p/$projectId/settings'
     | '/p/$projectId/audit/issues/$resultId'
@@ -539,12 +700,14 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/reset-password'
     | '/verify-email'
+    | '/workspace-invitation'
     | '/.well-known/openai-apps-challenge'
     | '/_app/ai'
     | '/_app/billing'
     | '/_app/projects'
     | '/_app/settings'
     | '/_app/support'
+    | '/_app/workspace-people'
     | '/_auth/sign-in'
     | '/_auth/sign-up'
     | '/_authenticated/oauth-consent'
@@ -555,13 +718,17 @@ export interface FileRouteTypes {
     | '/_app/help/dataforseo-api-key'
     | '/_app/help/openrouter-api-key'
     | '/_authenticated/onboarding/chat'
+    | '/api/analytics/collect'
     | '/api/auth/$'
     | '/api/autumn/$'
     | '/_authenticated/onboarding/'
+    | '/_project/p/$projectId/analytics'
     | '/_project/p/$projectId/audit'
     | '/_project/p/$projectId/backlinks'
     | '/_project/p/$projectId/brand-lookup'
+    | '/_project/p/$projectId/competitors'
     | '/_project/p/$projectId/domain'
+    | '/_project/p/$projectId/growth'
     | '/_project/p/$projectId/keywords'
     | '/_project/p/$projectId/prompt-explorer'
     | '/_project/p/$projectId/rank-tracking'
@@ -569,13 +736,21 @@ export interface FileRouteTypes {
     | '/_project/p/$projectId/saved'
     | '/_project/p/$projectId/search-performance'
     | '/_project/p/$projectId/settings'
+    | '/api/analytics/diagnostics/ip'
+    | '/api/analytics/events/server'
     | '/api/ga4/oauth/callback'
     | '/api/gsc/oauth/callback'
+    | '/api/linkedin/oauth/callback'
+    | '/api/youtube/oauth/callback'
     | '/_project/p/$projectId/'
+    | '/_project/p/$projectId/growth/$section'
+    | '/_project/p/$projectId/growth/operations'
     | '/_project/p/$projectId/rank-tracking/$configId'
+    | '/_project/p/$projectId/settings/analytics'
     | '/_project/p/$projectId/settings/context'
     | '/_project/p/$projectId/settings/integrations'
     | '/_project/p/$projectId/audit/'
+    | '/_project/p/$projectId/growth/'
     | '/_project/p/$projectId/rank-tracking/'
     | '/_project/p/$projectId/settings/'
     | '/_project/p/$projectId/audit/issues/$resultId'
@@ -589,16 +764,29 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
+  WorkspaceInvitationRoute: typeof WorkspaceInvitationRoute
   Char91DotwellKnownChar93OpenaiAppsChallengeRoute: typeof Char91DotwellKnownChar93OpenaiAppsChallengeRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiAnalyticsCollectRoute: typeof ApiAnalyticsCollectRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiAutumnSplatRoute: typeof ApiAutumnSplatRoute
+  ApiAnalyticsDiagnosticsIpRoute: typeof ApiAnalyticsDiagnosticsIpRoute
+  ApiAnalyticsEventsServerRoute: typeof ApiAnalyticsEventsServerRoute
   ApiGa4OauthCallbackRoute: typeof ApiGa4OauthCallbackRoute
   ApiGscOauthCallbackRoute: typeof ApiGscOauthCallbackRoute
+  ApiLinkedinOauthCallbackRoute: typeof ApiLinkedinOauthCallbackRoute
+  ApiYoutubeOauthCallbackRoute: typeof ApiYoutubeOauthCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/workspace-invitation': {
+      id: '/workspace-invitation'
+      path: '/workspace-invitation'
+      fullPath: '/workspace-invitation'
+      preLoaderRoute: typeof WorkspaceInvitationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/verify-email': {
       id: '/verify-email'
       path: '/verify-email'
@@ -690,6 +878,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthSignInRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_app/workspace-people': {
+      id: '/_app/workspace-people'
+      path: '/workspace-people'
+      fullPath: '/workspace-people'
+      preLoaderRoute: typeof AppWorkspacePeopleRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/_app/support': {
       id: '/_app/support'
       path: '/support'
@@ -753,6 +948,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/analytics/collect': {
+      id: '/api/analytics/collect'
+      path: '/api/analytics/collect'
+      fullPath: '/api/analytics/collect'
+      preLoaderRoute: typeof ApiAnalyticsCollectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/onboarding/chat': {
       id: '/_authenticated/onboarding/chat'
       path: '/onboarding/chat'
@@ -788,6 +990,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectPProjectIdIndexRouteImport
       parentRoute: typeof ProjectPProjectIdRouteRoute
     }
+    '/api/youtube/oauth/callback': {
+      id: '/api/youtube/oauth/callback'
+      path: '/api/youtube/oauth/callback'
+      fullPath: '/api/youtube/oauth/callback'
+      preLoaderRoute: typeof ApiYoutubeOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/linkedin/oauth/callback': {
+      id: '/api/linkedin/oauth/callback'
+      path: '/api/linkedin/oauth/callback'
+      fullPath: '/api/linkedin/oauth/callback'
+      preLoaderRoute: typeof ApiLinkedinOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/gsc/oauth/callback': {
       id: '/api/gsc/oauth/callback'
       path: '/api/gsc/oauth/callback'
@@ -800,6 +1016,20 @@ declare module '@tanstack/react-router' {
       path: '/api/ga4/oauth/callback'
       fullPath: '/api/ga4/oauth/callback'
       preLoaderRoute: typeof ApiGa4OauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/analytics/events/server': {
+      id: '/api/analytics/events/server'
+      path: '/api/analytics/events/server'
+      fullPath: '/api/analytics/events/server'
+      preLoaderRoute: typeof ApiAnalyticsEventsServerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/analytics/diagnostics/ip': {
+      id: '/api/analytics/diagnostics/ip'
+      path: '/api/analytics/diagnostics/ip'
+      fullPath: '/api/analytics/diagnostics/ip'
+      preLoaderRoute: typeof ApiAnalyticsDiagnosticsIpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_project/p/$projectId/settings': {
@@ -851,11 +1081,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectPProjectIdKeywordsRouteImport
       parentRoute: typeof ProjectPProjectIdRouteRoute
     }
+    '/_project/p/$projectId/growth': {
+      id: '/_project/p/$projectId/growth'
+      path: '/growth'
+      fullPath: '/p/$projectId/growth'
+      preLoaderRoute: typeof ProjectPProjectIdGrowthRouteImport
+      parentRoute: typeof ProjectPProjectIdRouteRoute
+    }
     '/_project/p/$projectId/domain': {
       id: '/_project/p/$projectId/domain'
       path: '/domain'
       fullPath: '/p/$projectId/domain'
       preLoaderRoute: typeof ProjectPProjectIdDomainRouteImport
+      parentRoute: typeof ProjectPProjectIdRouteRoute
+    }
+    '/_project/p/$projectId/competitors': {
+      id: '/_project/p/$projectId/competitors'
+      path: '/competitors'
+      fullPath: '/p/$projectId/competitors'
+      preLoaderRoute: typeof ProjectPProjectIdCompetitorsRouteImport
       parentRoute: typeof ProjectPProjectIdRouteRoute
     }
     '/_project/p/$projectId/brand-lookup': {
@@ -879,6 +1123,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectPProjectIdAuditRouteImport
       parentRoute: typeof ProjectPProjectIdRouteRoute
     }
+    '/_project/p/$projectId/analytics': {
+      id: '/_project/p/$projectId/analytics'
+      path: '/analytics'
+      fullPath: '/p/$projectId/analytics'
+      preLoaderRoute: typeof ProjectPProjectIdAnalyticsRouteImport
+      parentRoute: typeof ProjectPProjectIdRouteRoute
+    }
     '/_project/p/$projectId/settings/': {
       id: '/_project/p/$projectId/settings/'
       path: '/'
@@ -892,6 +1143,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/p/$projectId/rank-tracking/'
       preLoaderRoute: typeof ProjectPProjectIdRankTrackingIndexRouteImport
       parentRoute: typeof ProjectPProjectIdRankTrackingRoute
+    }
+    '/_project/p/$projectId/growth/': {
+      id: '/_project/p/$projectId/growth/'
+      path: '/'
+      fullPath: '/p/$projectId/growth/'
+      preLoaderRoute: typeof ProjectPProjectIdGrowthIndexRouteImport
+      parentRoute: typeof ProjectPProjectIdGrowthRoute
     }
     '/_project/p/$projectId/audit/': {
       id: '/_project/p/$projectId/audit/'
@@ -914,12 +1172,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectPProjectIdSettingsContextRouteImport
       parentRoute: typeof ProjectPProjectIdSettingsRoute
     }
+    '/_project/p/$projectId/settings/analytics': {
+      id: '/_project/p/$projectId/settings/analytics'
+      path: '/analytics'
+      fullPath: '/p/$projectId/settings/analytics'
+      preLoaderRoute: typeof ProjectPProjectIdSettingsAnalyticsRouteImport
+      parentRoute: typeof ProjectPProjectIdSettingsRoute
+    }
     '/_project/p/$projectId/rank-tracking/$configId': {
       id: '/_project/p/$projectId/rank-tracking/$configId'
       path: '/$configId'
       fullPath: '/p/$projectId/rank-tracking/$configId'
       preLoaderRoute: typeof ProjectPProjectIdRankTrackingConfigIdRouteImport
       parentRoute: typeof ProjectPProjectIdRankTrackingRoute
+    }
+    '/_project/p/$projectId/growth/operations': {
+      id: '/_project/p/$projectId/growth/operations'
+      path: '/operations'
+      fullPath: '/p/$projectId/growth/operations'
+      preLoaderRoute: typeof ProjectPProjectIdGrowthOperationsRouteImport
+      parentRoute: typeof ProjectPProjectIdGrowthRoute
+    }
+    '/_project/p/$projectId/growth/$section': {
+      id: '/_project/p/$projectId/growth/$section'
+      path: '/$section'
+      fullPath: '/p/$projectId/growth/$section'
+      preLoaderRoute: typeof ProjectPProjectIdGrowthSectionRouteImport
+      parentRoute: typeof ProjectPProjectIdGrowthRoute
     }
     '/_project/p/$projectId/audit/issues/$resultId': {
       id: '/_project/p/$projectId/audit/issues/$resultId'
@@ -937,6 +1216,7 @@ interface AppRouteRouteChildren {
   AppProjectsRoute: typeof AppProjectsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppSupportRoute: typeof AppSupportRoute
+  AppWorkspacePeopleRoute: typeof AppWorkspacePeopleRoute
   AppIndexRoute: typeof AppIndexRoute
   AppHelpDataforseoApiKeyRoute: typeof AppHelpDataforseoApiKeyRoute
   AppHelpOpenrouterApiKeyRoute: typeof AppHelpOpenrouterApiKeyRoute
@@ -948,6 +1228,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppProjectsRoute: AppProjectsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppSupportRoute: AppSupportRoute,
+  AppWorkspacePeopleRoute: AppWorkspacePeopleRoute,
   AppIndexRoute: AppIndexRoute,
   AppHelpDataforseoApiKeyRoute: AppHelpDataforseoApiKeyRoute,
   AppHelpOpenrouterApiKeyRoute: AppHelpOpenrouterApiKeyRoute,
@@ -974,6 +1255,25 @@ const ProjectPProjectIdAuditRouteWithChildren =
     ProjectPProjectIdAuditRouteChildren,
   )
 
+interface ProjectPProjectIdGrowthRouteChildren {
+  ProjectPProjectIdGrowthSectionRoute: typeof ProjectPProjectIdGrowthSectionRoute
+  ProjectPProjectIdGrowthOperationsRoute: typeof ProjectPProjectIdGrowthOperationsRoute
+  ProjectPProjectIdGrowthIndexRoute: typeof ProjectPProjectIdGrowthIndexRoute
+}
+
+const ProjectPProjectIdGrowthRouteChildren: ProjectPProjectIdGrowthRouteChildren =
+  {
+    ProjectPProjectIdGrowthSectionRoute: ProjectPProjectIdGrowthSectionRoute,
+    ProjectPProjectIdGrowthOperationsRoute:
+      ProjectPProjectIdGrowthOperationsRoute,
+    ProjectPProjectIdGrowthIndexRoute: ProjectPProjectIdGrowthIndexRoute,
+  }
+
+const ProjectPProjectIdGrowthRouteWithChildren =
+  ProjectPProjectIdGrowthRoute._addFileChildren(
+    ProjectPProjectIdGrowthRouteChildren,
+  )
+
 interface ProjectPProjectIdRankTrackingRouteChildren {
   ProjectPProjectIdRankTrackingConfigIdRoute: typeof ProjectPProjectIdRankTrackingConfigIdRoute
   ProjectPProjectIdRankTrackingIndexRoute: typeof ProjectPProjectIdRankTrackingIndexRoute
@@ -993,6 +1293,7 @@ const ProjectPProjectIdRankTrackingRouteWithChildren =
   )
 
 interface ProjectPProjectIdSettingsRouteChildren {
+  ProjectPProjectIdSettingsAnalyticsRoute: typeof ProjectPProjectIdSettingsAnalyticsRoute
   ProjectPProjectIdSettingsContextRoute: typeof ProjectPProjectIdSettingsContextRoute
   ProjectPProjectIdSettingsIntegrationsRoute: typeof ProjectPProjectIdSettingsIntegrationsRoute
   ProjectPProjectIdSettingsIndexRoute: typeof ProjectPProjectIdSettingsIndexRoute
@@ -1000,6 +1301,8 @@ interface ProjectPProjectIdSettingsRouteChildren {
 
 const ProjectPProjectIdSettingsRouteChildren: ProjectPProjectIdSettingsRouteChildren =
   {
+    ProjectPProjectIdSettingsAnalyticsRoute:
+      ProjectPProjectIdSettingsAnalyticsRoute,
     ProjectPProjectIdSettingsContextRoute:
       ProjectPProjectIdSettingsContextRoute,
     ProjectPProjectIdSettingsIntegrationsRoute:
@@ -1013,10 +1316,13 @@ const ProjectPProjectIdSettingsRouteWithChildren =
   )
 
 interface ProjectPProjectIdRouteRouteChildren {
+  ProjectPProjectIdAnalyticsRoute: typeof ProjectPProjectIdAnalyticsRoute
   ProjectPProjectIdAuditRoute: typeof ProjectPProjectIdAuditRouteWithChildren
   ProjectPProjectIdBacklinksRoute: typeof ProjectPProjectIdBacklinksRoute
   ProjectPProjectIdBrandLookupRoute: typeof ProjectPProjectIdBrandLookupRoute
+  ProjectPProjectIdCompetitorsRoute: typeof ProjectPProjectIdCompetitorsRoute
   ProjectPProjectIdDomainRoute: typeof ProjectPProjectIdDomainRoute
+  ProjectPProjectIdGrowthRoute: typeof ProjectPProjectIdGrowthRouteWithChildren
   ProjectPProjectIdKeywordsRoute: typeof ProjectPProjectIdKeywordsRoute
   ProjectPProjectIdPromptExplorerRoute: typeof ProjectPProjectIdPromptExplorerRoute
   ProjectPProjectIdRankTrackingRoute: typeof ProjectPProjectIdRankTrackingRouteWithChildren
@@ -1029,10 +1335,13 @@ interface ProjectPProjectIdRouteRouteChildren {
 
 const ProjectPProjectIdRouteRouteChildren: ProjectPProjectIdRouteRouteChildren =
   {
+    ProjectPProjectIdAnalyticsRoute: ProjectPProjectIdAnalyticsRoute,
     ProjectPProjectIdAuditRoute: ProjectPProjectIdAuditRouteWithChildren,
     ProjectPProjectIdBacklinksRoute: ProjectPProjectIdBacklinksRoute,
     ProjectPProjectIdBrandLookupRoute: ProjectPProjectIdBrandLookupRoute,
+    ProjectPProjectIdCompetitorsRoute: ProjectPProjectIdCompetitorsRoute,
     ProjectPProjectIdDomainRoute: ProjectPProjectIdDomainRoute,
+    ProjectPProjectIdGrowthRoute: ProjectPProjectIdGrowthRouteWithChildren,
     ProjectPProjectIdKeywordsRoute: ProjectPProjectIdKeywordsRoute,
     ProjectPProjectIdPromptExplorerRoute: ProjectPProjectIdPromptExplorerRoute,
     ProjectPProjectIdRankTrackingRoute:
@@ -1100,13 +1409,19 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   VerifyEmailRoute: VerifyEmailRoute,
+  WorkspaceInvitationRoute: WorkspaceInvitationRoute,
   Char91DotwellKnownChar93OpenaiAppsChallengeRoute:
     Char91DotwellKnownChar93OpenaiAppsChallengeRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiAnalyticsCollectRoute: ApiAnalyticsCollectRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiAutumnSplatRoute: ApiAutumnSplatRoute,
+  ApiAnalyticsDiagnosticsIpRoute: ApiAnalyticsDiagnosticsIpRoute,
+  ApiAnalyticsEventsServerRoute: ApiAnalyticsEventsServerRoute,
   ApiGa4OauthCallbackRoute: ApiGa4OauthCallbackRoute,
   ApiGscOauthCallbackRoute: ApiGscOauthCallbackRoute,
+  ApiLinkedinOauthCallbackRoute: ApiLinkedinOauthCallbackRoute,
+  ApiYoutubeOauthCallbackRoute: ApiYoutubeOauthCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

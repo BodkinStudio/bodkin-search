@@ -1,0 +1,24 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Keep the lock-first candidate-source statement before the conditional controller release.",
+      "location": "src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.ts:284-301, 756-768",
+      "evidence": "The source Run/Signal is read and share-locked as the first PostgreSQL transaction statement, before release. The refreshed verification records the forced terminalization interleaving test passing on PostgreSQL 16.",
+      "impact": "Prevents a terminal Run transition from leaving a released controller without a successor decision.",
+      "recommendation": "Retain this exact ordering and its live-provider regression test."
+    },
+    {
+      "summary": "Keep the provider-specific strict-time and successor-claim conditions.",
+      "location": "src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.ts:242-356",
+      "evidence": "The final diff retains exact project/template Action qualification, guarded PostgreSQL timestamp casts, D1 instant comparison, and releaseMarker AND noController. Refreshed D1, PostgreSQL, CI, full-suite, and build evidence all pass.",
+      "impact": "Preserves tenant-safe, fail-closed, deterministic controller release across both providers.",
+      "recommendation": "Do not simplify these guards without equivalent provider-backed concurrency and timestamp coverage."
+    }
+  ]
+}

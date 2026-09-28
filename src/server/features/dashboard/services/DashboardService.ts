@@ -5,6 +5,7 @@ import { getIssueTypePageCountsForAudit } from "@/server/features/audit/reposito
 import { BacklinkSnapshotRepository } from "@/server/features/dashboard/repositories/BacklinkSnapshotRepository";
 import { Ga4ConnectionRepository } from "@/server/features/ga4/repositories/Ga4ConnectionRepository";
 import { GscConnectionRepository } from "@/server/features/gsc/repositories/GscConnectionRepository";
+import { YouTubeConnectionRepository } from "@/server/features/youtube/repositories/YouTubeConnectionRepository";
 import { RankTrackingRepository } from "@/server/features/rank-tracking/repositories/RankTrackingRepository";
 import { getLatestResults } from "@/server/features/rank-tracking/services/rankTrackingResults";
 import {
@@ -27,6 +28,10 @@ export type DashboardActivation = {
     cardDismissedAt: string | null;
   };
   gsc: { connected: boolean; siteUrl: string | null };
+  youtube: {
+    connected: boolean;
+    channelTitle: string | null;
+  };
   mcp: {
     authorizedAt: string | null;
     firstToolCallAt: string | null;
@@ -80,12 +85,14 @@ async function getActivation(input: {
   organizationId: string;
   domain: string | null;
 }): Promise<DashboardActivation> {
-  const [ga4, gsc, orgActivation, projectActivation] = await Promise.all([
-    Ga4ConnectionRepository.getByProjectId(input.projectId),
-    GscConnectionRepository.getByProjectId(input.projectId),
-    ActivationRepository.getOrganizationActivation(input.organizationId),
-    ActivationRepository.getProjectActivation(input.projectId),
-  ]);
+  const [ga4, gsc, youtube, orgActivation, projectActivation] =
+    await Promise.all([
+      Ga4ConnectionRepository.getByProjectId(input.projectId),
+      GscConnectionRepository.getByProjectId(input.projectId),
+      YouTubeConnectionRepository.getByProjectId(input.projectId),
+      ActivationRepository.getOrganizationActivation(input.organizationId),
+      ActivationRepository.getProjectActivation(input.projectId),
+    ]);
 
   return {
     domain: input.domain,
@@ -95,6 +102,10 @@ async function getActivation(input: {
       cardDismissedAt: projectActivation?.ga4CardDismissedAt ?? null,
     },
     gsc: { connected: gsc !== null, siteUrl: gsc?.siteUrl ?? null },
+    youtube: {
+      connected: youtube !== null,
+      channelTitle: youtube?.channelTitle ?? null,
+    },
     mcp: {
       authorizedAt: orgActivation?.firstMcpAuthorizedAt ?? null,
       firstToolCallAt: orgActivation?.firstMcpToolCallAt ?? null,

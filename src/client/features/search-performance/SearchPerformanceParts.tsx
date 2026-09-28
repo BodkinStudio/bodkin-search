@@ -13,6 +13,11 @@ import {
 } from "@/client/components/table/TableBulkActionBar";
 import { TablePagination } from "@/client/components/table/TablePagination";
 import {
+  StatTile,
+  percentDelta,
+  type StatDelta,
+} from "@/client/components/StatTile";
+import {
   buildDimensionColumns,
   buildStrikingColumns,
   formatCount,
@@ -135,17 +140,8 @@ export function TabButton({
   );
 }
 
-type Delta = { text: string; improved: boolean } | null;
-
-function percentDelta(current: number, previous: number): Delta {
-  if (previous <= 0) return null;
-  const change = (current - previous) / previous;
-  const pct = (change * 100).toFixed(1);
-  return { text: `${change >= 0 ? "+" : ""}${pct}%`, improved: change >= 0 };
-}
-
 /** Position falls as rankings improve, so the delta is inverted. */
-function positionDelta(current: number, previous: number): Delta {
+function positionDelta(current: number, previous: number): StatDelta {
   if (previous <= 0 || current <= 0) return null;
   const change = previous - current;
   return {
@@ -159,61 +155,30 @@ export function TotalsCards({ report }: { report: Report }) {
   const deltaTitle = `vs ${range.prevStartDate} to ${range.prevEndDate}`;
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <TotalCard
+      <StatTile
         label="Clicks"
         value={formatCount(totals.clicks)}
         delta={percentDelta(totals.clicks, prevTotals.clicks)}
         deltaTitle={deltaTitle}
       />
-      <TotalCard
+      <StatTile
         label="Impressions"
         value={formatCount(totals.impressions)}
         delta={percentDelta(totals.impressions, prevTotals.impressions)}
         deltaTitle={deltaTitle}
       />
-      <TotalCard
+      <StatTile
         label="CTR"
         value={formatCtr(totals.ctr)}
         delta={percentDelta(totals.ctr, prevTotals.ctr)}
         deltaTitle={deltaTitle}
       />
-      <TotalCard
+      <StatTile
         label="Avg position"
         value={formatPosition(totals.position)}
         delta={positionDelta(totals.position, prevTotals.position)}
         deltaTitle={deltaTitle}
       />
-    </div>
-  );
-}
-
-function TotalCard({
-  label,
-  value,
-  delta,
-  deltaTitle,
-}: {
-  label: string;
-  value: string;
-  delta: Delta;
-  deltaTitle: string;
-}) {
-  return (
-    <div className="rounded-lg border border-base-300 bg-base-100 p-4">
-      <div className="text-xs uppercase tracking-wide text-base-content/60">
-        {label}
-      </div>
-      <div className="mt-1 flex items-baseline gap-2">
-        <span className="text-2xl font-semibold">{value}</span>
-        {delta ? (
-          <span
-            className={`text-xs ${delta.improved ? "text-success" : "text-error"}`}
-            title={deltaTitle}
-          >
-            {delta.text}
-          </span>
-        ) : null}
-      </div>
     </div>
   );
 }

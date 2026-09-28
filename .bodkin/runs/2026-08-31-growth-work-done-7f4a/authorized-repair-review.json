@@ -1,0 +1,23 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "Rendered UI acceptance remains unavailable.",
+      "location": "Growth Work UI acceptance gate",
+      "evidence": "verification.json records fresh desktop/narrow captures and independent visual review as blocked by the binding browser URL-policy denial. The refreshed CI and focused migration checks validate the test-only repair but cannot establish rendered default-Done selection, visible Mark done labeling, or responsive interaction.",
+      "impact": "The product/UX acceptance criteria remain unproven, so the overall change cannot receive evidence-based acceptance.",
+      "recommendation": "Obtain permitted fresh desktop and narrow rendered captures, then complete the independent visual UI review."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve the explicit non-coercing schema-name predicate: non-string names remain in the unchanged-schema comparison.",
+    "Preserve the direct approved/ready-to-implemented transitions and their one-event, one-version CAS behavior.",
+    "Preserve null startedAt for direct completion while retaining an existing recorded start.",
+    "Preserve the D1 migration's complete snapshot/restore closure and foreign-key-on rollback behavior.",
+    "Keep Done scoped to Work presentation and keep measurement/evaluation as separate lifecycle stages."
+  ]
+}

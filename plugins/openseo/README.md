@@ -1,8 +1,8 @@
-# OpenSEO for Cursor
+# Bodkin Search for Cursor
 
 SEO made simple.
 
-OpenSEO gives your agent real SEO data and guided workflows, so its advice is grounded in your website instead of generic recommendations.
+Bodkin Search gives your agent real SEO data and guided workflows, so its advice is grounded in your website instead of generic recommendations.
 
 ## What you can do
 
@@ -13,13 +13,13 @@ OpenSEO gives your agent real SEO data and guided workflows, so its advice is gr
 - Track organic and Google Maps rankings
 - Work with Google Search Console and Analytics data
 
-The plugin includes nine skills that guide Cursor through complete SEO workflows, plus the hosted OpenSEO MCP server for live data and project management.
+The plugin includes nine skills that guide Cursor through complete SEO workflows, plus the hosted Bodkin Search MCP server for live data and project management.
 
 ## Connect
 
-Install the OpenSEO plugin from the Cursor Marketplace. The first time Cursor uses an OpenSEO tool, follow the OAuth prompt to sign in and approve the connection.
+Install the Bodkin Search plugin from the Cursor Marketplace. The first time Cursor uses a Bodkin Search tool, follow the OAuth prompt to sign in and approve the connection.
 
-You need an OpenSEO account. The plugin package is free and open source. Hosted OpenSEO plans and usage credits are described at [openseo.so/pricing](https://openseo.so/pricing), and OpenSEO can also be [self-hosted](https://github.com/every-app/open-seo#self-hosting).
+You need a Bodkin Search account. The plugin package is free and open source. Hosted Bodkin Search plans and usage credits are described at [openseo.so/pricing](https://openseo.so/pricing), and Bodkin Search can also be [self-hosted](https://github.com/every-app/open-seo#self-hosting).
 
 ## Try it
 
@@ -43,7 +43,7 @@ You need an OpenSEO account. The plugin package is free and open source. Hosted 
 
 ## Links
 
-- [OpenSEO](https://openseo.so)
+- [Bodkin Search](https://openseo.so)
 - [MCP documentation](https://openseo.so/docs/mcp)
 - [Privacy policy](https://openseo.so/privacy)
 - [Terms](https://openseo.so/terms-and-conditions)

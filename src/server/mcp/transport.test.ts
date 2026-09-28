@@ -2,8 +2,15 @@ import type { CreateMcpHandlerOptions } from "agents/mcp/server";
 import { McpServer } from "@modelcontextprotocol/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  GROWTH_CHANGE_CREATE_SCOPE,
+  GROWTH_PLAN_WRITE_SCOPE,
+  MCP_OAUTH_SUPPORTED_SCOPES,
+} from "@/lib/oauth-resource";
+import { hasMcpOperationScope } from "@/server/mcp/operation-auth";
+import {
   createWorkersOAuthMcpProps,
   MCP_AUTH_CONTEXT_PROP,
+  workersOAuthMcpPropsSchema,
 } from "@/server/mcp/context";
 import {
   handleAuthenticatedOpenSeoMcpRequest,
@@ -26,6 +33,15 @@ vi.mock("@/middleware/ensure-user/delegated", () => ({
   resolveLocalNoAuthContext: selfHostedAuthMocks.resolveLocalNoAuthContext,
 }));
 
+// Outside client-workspace mode; workspace selection is never reached.
+vi.mock("@/server/features/workspaces/workspace-mode", () => ({
+  clientWorkspacesEnabled: () => false,
+}));
+
+vi.mock("@/server/features/workspaces/WorkspaceContext", () => ({
+  selectWorkspaceContext: vi.fn(),
+}));
+
 vi.mock("@/lib/auth", () => ({
   getHostedBaseUrl: () => "https://open-seo.test",
 }));
@@ -34,8 +50,8 @@ vi.mock("@/server/mcp/server", () => ({
   createOpenSeoMcpServer: (props?: unknown) => {
     selfHostedAuthMocks.createOpenSeoMcpServer(props);
     return new McpServer({
-      name: "OpenSEO MCP",
-      title: "OpenSEO",
+      name: "Bodkin Search MCP",
+      title: "Bodkin Search",
       version: "0.0.11",
       description: "SEO research tools for AI agents",
       websiteUrl: "https://openseo.so",
@@ -149,6 +165,8 @@ describe("handleSelfHostedOpenSeoMcpRequest", () => {
         userEmail: "admin@localhost",
         organizationId: "delegated-local-admin",
         baseUrl: "https://open-seo.test",
+        scopes: [...MCP_OAUTH_SUPPORTED_SCOPES],
+        clientId: "selfhost",
       },
     });
     // Self-hosted must not pin Origins to the request's own Host — the
@@ -179,8 +197,26 @@ describe("handleSelfHostedOpenSeoMcpRequest", () => {
         userEmail: "person@example.com",
         organizationId: "delegated-cloudflare-user",
         baseUrl: "https://open-seo.test",
+        scopes: [...MCP_OAUTH_SUPPORTED_SCOPES],
+        clientId: "selfhost",
       },
     });
+  });
+
+  it("grants the self-hosted operator every operation scope", async () => {
+    await handleSelfHostedOpenSeoMcpRequest(
+      createMcpRequest(),
+      "cloudflare_access",
+      {},
+      ctx,
+    );
+    // The scope gate the write tools register behind, run against the props the
+    // handler actually produced.
+    const props = workersOAuthMcpPropsSchema.parse(
+      selfHostedAuthMocks.createOpenSeoMcpServer.mock.lastCall?.[0],
+    );
+    expect(hasMcpOperationScope(props, GROWTH_PLAN_WRITE_SCOPE)).toBe(true);
+    expect(hasMcpOperationScope(props, GROWTH_CHANGE_CREATE_SCOPE)).toBe(true);
   });
 
   it("answers OPTIONS preflight without resolving an auth context", async () => {

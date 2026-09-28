@@ -1,0 +1,12 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "system_drift": [],
+  "do_not_change": [
+    "Preserve the saved target, observed click decline, unknown-cause wording and ordered steps before approval, with no AI, uplift or website-execution claim.",
+    "Keep the initially blank Due date (UTC) field, readable inline validation, visible focus and blue Approve investigation action within the existing disclosure.",
+    "Retain the existing Growth/DaisyUI surfaces and vertical Work list, with explicit Approved status, UTC dates and Open source check link readable at both desktop and 390px."
+  ]
+}

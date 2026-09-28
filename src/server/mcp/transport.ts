@@ -8,9 +8,12 @@ import {
   WebStandardStreamableHTTPServerTransport,
 } from "@modelcontextprotocol/server";
 import { getHostedBaseUrl } from "@/lib/auth";
+import { MCP_OAUTH_SUPPORTED_SCOPES } from "@/lib/oauth-resource";
 import { MCP_SCOPE } from "@/lib/oauth-resource";
 import { resolveCloudflareAccessContext } from "@/middleware/ensure-user/cloudflareAccess";
 import { resolveLocalNoAuthContext } from "@/middleware/ensure-user/delegated";
+import { selectWorkspaceContext } from "@/server/features/workspaces/WorkspaceContext";
+import { clientWorkspacesEnabled } from "@/server/features/workspaces/workspace-mode";
 import {
   createWorkersOAuthMcpProps,
   hostedWorkersOAuthMcpPropsSchema,
@@ -96,7 +99,7 @@ async function handleLegacyJsonRequest(request: Request, props: McpProps) {
   // buffers the response and lets the finally below tear everything down
   // before the request completes. JSON mode silently drops server-to-client
   // requests (sampling/elicitation) and would hang the buffered response —
-  // no OpenSEO tool issues them.
+  // no Bodkin Search tool issues them.
   const server = createOpenSeoMcpServer(props);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
@@ -187,15 +190,35 @@ export async function handleSelfHostedOpenSeoMcpRequest(
     return new Response(null, { headers: MCP_CORS_HEADERS });
   }
 
-  const identity =
+  const delegated =
     authMode === "local_noauth"
       ? await resolveLocalNoAuthContext()
       : await resolveCloudflareAccessContext(request.headers);
+  // Client workspaces carry no delegated org: select one of the caller's
+  // memberships for project-less tools. Every tool call then re-checks
+  // membership and role in the workspace that owns the project it names
+  // (authorizeMcpToolCall), so the full scope list below only narrows.
+  const identity = clientWorkspacesEnabled()
+    ? await selectWorkspaceContext(delegated, request.headers)
+    : delegated;
+  if (!identity.organizationId)
+    return withMcpCors(
+      new Response("No active workspace membership", { status: 403 }),
+    );
   const props = createWorkersOAuthMcpProps({
     userId: identity.userId,
     userEmail: identity.userEmail,
     organizationId: identity.organizationId,
     baseUrl: getPublicOrigin(request),
+    // Per-operation consent is a hosted-OAuth concept: it exists so a user can
+    // grant a third-party MCP client less than their full account. A
+    // self-hosted instance has no such client — the operator reaching this
+    // endpoint owns the deployment and is already authenticated by Cloudflare
+    // Access (or is the local developer) — so withholding write scopes here
+    // would hide the write tools from the only person entitled to them. In
+    // client workspaces the member's role still bounds every call.
+    scopes: [...MCP_OAUTH_SUPPORTED_SCOPES],
+    clientId: "selfhost",
   });
 
   return createRequestHandler(props)(request, env, ctx);

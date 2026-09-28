@@ -1,0 +1,81 @@
+{
+  "verdict": "pass",
+  "environment": {
+    "node_heap_limit": "4096 MB",
+    "vitest_workers": 1,
+    "browser_used": false,
+    "dev_server_used": false,
+    "new_dependencies": false,
+    "migration_added": false
+  },
+  "checks": [
+    {
+      "name": "focused application suite",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run src/types/schemas/growth-opportunities.test.ts src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.sources.test.ts src/server/features/growth/services/GrowthOpportunitiesService.test.ts src/serverFunctions/growthOpportunities.test.ts src/client/features/growth/GrowthOpportunities.test.ts src/client/features/growth/GrowthPreviewRender.test.ts src/client/features/growth/GrowthInvestigationSubmission.test.ts --reporter=dot --maxWorkers=1",
+      "result": "pass",
+      "evidence": "7 files passed; 24 tests passed"
+    },
+    {
+      "name": "live PostgreSQL 16 controller-source read",
+      "command": "TEST_POSTGRES_DATABASE_URL=<disposable-local-postgres-16> NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.sources.postgres.test.ts --reporter=verbose --maxWorkers=1",
+      "result": "pass",
+      "evidence": "1 file passed; 1 test passed in 78 ms after applying all PostgreSQL migrations. Authorized/requested active controller returned; released, suppressed, foreign and unrequested rows excluded. The memory-capped tmpfs container was removed after the run."
+    },
+    {
+      "name": "focused TypeScript",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec tsc --noEmit",
+      "result": "pass",
+      "evidence": "No diagnostics"
+    },
+    {
+      "name": "affected-file type-aware lint",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec oxlint --type-aware <16 affected TypeScript files>",
+      "result": "pass",
+      "evidence": "0 warnings; 0 errors"
+    },
+    {
+      "name": "repository CI check",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm ci:check",
+      "result": "pass",
+      "evidence": "Prettier, knip, root TypeScript, badseo TypeScript, type-aware lint over 1,121 files, plugin-skill sync and generated-skill cleanliness all passed; lint reported 0 warnings and 0 errors"
+    },
+    {
+      "name": "true one-worker full suite",
+      "command": "NODE_OPTIONS=--max-old-space-size=4096 pnpm exec vitest run --reporter=dot --maxWorkers=1",
+      "result": "pass",
+      "evidence": "268 files passed, 16 provider-gated files skipped; 2,225 tests passed, 36 skipped; duration 85.15 s"
+    },
+    {
+      "name": "production build",
+      "command": "WRANGLER_LOG_PATH=/tmp/bodkin-growth-opportunities-wrangler.log NODE_OPTIONS=--max-old-space-size=4096 pnpm build",
+      "result": "pass",
+      "evidence": "Client build passed in 5.88 s; SSR/Worker build passed in 26.95 s; trailing tsc --noEmit passed. Only the existing large-chunk advisory was emitted."
+    },
+    {
+      "name": "unstaged whitespace",
+      "command": "git diff --check",
+      "result": "pass",
+      "evidence": "No whitespace errors"
+    },
+    {
+      "name": "staged whitespace",
+      "command": "git diff --cached --check",
+      "result": "pass",
+      "evidence": "No whitespace errors"
+    },
+    {
+      "name": "staged credential-pattern scan",
+      "command": "Scan added staged lines for common private-key and provider-token signatures",
+      "result": "pass",
+      "evidence": "No matching credential signatures"
+    }
+  ],
+  "repair_evidence": [
+    "Renamed the static UI test from *.test.tsx to the repository's included *.test.ts pattern and logged the silent exclusion in .agents/PAPERCUTS.md.",
+    "Removed one unused exported request type reported by knip.",
+    "Wrapped the PostgreSQL repository read in withPgClient after adversarial review and proved it against a migrated live database.",
+    "Added direct loading, fetching, error retry and manual refresh dispatch coverage.",
+    "Expanded safe-display disclosure for truncated/redacted text, hidden URL coordinates, targets and steps."
+  ],
+  "evidence_boundary": "The standing session constraint prohibited browser, Playwright, dev-server and screenshot work. UI acceptance is limited to source review, static semantic rendering and callback dispatch tests; no responsive or pixel-level visual claim is made."
+}

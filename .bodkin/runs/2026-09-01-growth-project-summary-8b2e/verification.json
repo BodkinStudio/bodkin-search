@@ -1,0 +1,70 @@
+{
+  "runId": "2026-09-01-growth-project-summary-8b2e",
+  "status": "pass",
+  "generatedAt": "2026-09-01T18:25:47Z",
+  "checks": [
+    {
+      "name": "Focused project-summary acceptance",
+      "command": "pnpm exec vitest run src/types/schemas/growth-project-summary.test.ts src/server/features/growth/repositories/GrowthProjectSummaryRepository.query.test.ts src/server/features/growth/services/GrowthProjectSummaryService.test.ts src/server/mcp/tools/growth-project-summary-tool.test.ts src/server/mcp/server.growth.integration.test.ts src/server/features/sam/samChatGrowthTools.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 3300,
+      "output": "6 files passed; 26 tests passed. This covers strict DTO boundaries, privacy and post-sanitization caps, D1 queries, cap-plus-one service projection, one asOf, timezone and lifecycle states, auth-before-read, real no-network MCP Client/InMemoryTransport discovery/call, and SAM bound-project injection."
+    },
+    {
+      "name": "Disposable current-schema PostgreSQL 16 repository acceptance",
+      "command": "Derive the existing disposable container password without printing it, set TEST_POSTGRES_DATABASE_URL, then run pnpm exec vitest run src/server/features/growth/repositories/GrowthProjectSummaryRepository.postgres.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 4500,
+      "output": "1 file and 1 comprehensive repository test passed against PostgreSQL 16.14. It proves bounded Recommendation reads, C-collation ties for Recommendations, Actions, Signals, active Plans and latest Runs, future-Signal filtering before limits/aggregation, terminal-run filtering and foreign-project Signal exclusion."
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 43900,
+      "output": "Prettier, Knip, root and badseo TypeScript checks, type-aware Oxlint, plugin skill sync and generated-skill cleanliness passed. Oxlint reported 0 warnings and 0 errors across 1,043 files."
+    },
+    {
+      "name": "Full repository tests",
+      "command": "pnpm test",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 15400,
+      "output": "232 test files passed and 9 Postgres-gated files skipped in the final default run; 2,013 tests passed and 23 skipped. The required project-summary live Postgres suite was run separately and passed."
+    },
+    {
+      "name": "Production build",
+      "command": "pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 51000,
+      "output": "Client and SSR/Worker production bundles plus the trailing TypeScript check passed. The existing large-client-chunk warning remains. Wrangler emitted its known non-fatal sandbox log-file EPERM diagnostic; the command exited 0. Only test fixtures changed after this build, and the final ci:check TypeScript gate passed those changes."
+    },
+    {
+      "name": "Diff whitespace",
+      "command": "git diff --check (followed by staged diff check before commit)",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 100,
+      "output": "No whitespace errors. The staged check is repeated after adding every new file."
+    },
+    {
+      "name": "External HTTP and headless MCP consumer probes",
+      "command": "Not run",
+      "required": false,
+      "status": "waived",
+      "exitCode": null,
+      "durationMs": 0,
+      "output": "Waived under the user's standing prohibition on browser, HTTP, CDP, Playwright and screenshot work. The real in-process MCP protocol test covers discovery and invocation without crossing that boundary."
+    }
+  ]
+}

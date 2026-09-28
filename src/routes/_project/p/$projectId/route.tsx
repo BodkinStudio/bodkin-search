@@ -1,11 +1,12 @@
 import {
+  Link,
   Outlet,
   createFileRoute,
   useMatch,
   useNavigate,
 } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { setLastProjectId } from "@/client/lib/active-project";
 import { useHostedAuthRouteGuard } from "@/client/features/auth/useHostedAuthRouteGuard";
 import { FreePlanBanner } from "@/client/features/billing/FreePlanBanner";
@@ -17,6 +18,9 @@ import {
   getSignInSearch,
 } from "@/lib/auth-redirect";
 import { getProjectAccess } from "@/serverFunctions/projects";
+import { getProjectWorkspace } from "@/serverFunctions/clientWorkspaces";
+import { clientWorkspacesBuild } from "@/client/features/workspaces/useWorkspaceAccess";
+import { switchWorkspace } from "@/client/features/workspaces/WorkspaceSwitcher";
 
 export const Route = createFileRoute("/_project/p/$projectId")({
   // Everything under this subtree fetches its data client-side with
@@ -29,7 +33,9 @@ export const Route = createFileRoute("/_project/p/$projectId")({
 // renders immediately while the access check runs in the background, and the
 // browser only gets bounced if it lands on a project it can't see (stale
 // last-project id, foreign URL). Real authorization is enforced on every data
-// call; nothing sensitive renders from this check.
+// call; nothing sensitive renders from this check. In client workspaces the
+// project may live in another of the user's workspaces, so the caller shows
+// a switch prompt instead of bouncing (returns true while it should).
 function useProjectAccessRedirect(projectId: string) {
   const navigate = useNavigate();
   const access = useQuery({
@@ -54,15 +60,69 @@ function useProjectAccessRedirect(projectId: string) {
       });
       return;
     }
+    if (clientWorkspacesBuild()) return;
     void navigate({ to: "/", replace: true });
   }, [error, navigate]);
+  return (
+    clientWorkspacesBuild() &&
+    !!error &&
+    getErrorCode(error) !== "UNAUTHENTICATED"
+  );
+}
+
+function ProjectElsewhere({ projectId }: { projectId: string }) {
+  const cache = useQueryClient();
+  const [switching, setSwitching] = useState(false);
+  const owner = useQuery({
+    queryKey: ["projectWorkspace", projectId],
+    queryFn: () => getProjectWorkspace({ data: { id: projectId } }),
+    retry: false,
+  });
+  if (owner.isPending) return null;
+  const workspace = owner.data;
+  return (
+    <div className="mx-auto max-w-md space-y-3 p-8 text-center">
+      <h1 className="text-xl font-semibold">
+        {workspace
+          ? "This project is in another workspace"
+          : "Project not found"}
+      </h1>
+      <p className="text-sm text-base-content/70">
+        {workspace
+          ? `It belongs to ${workspace.name}. Switch workspace to open it.`
+          : "It may have been removed, or you may not have access to it."}
+      </p>
+      <div className="flex justify-center gap-2">
+        {workspace ? (
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            disabled={switching}
+            onClick={() => {
+              setSwitching(true);
+              void switchWorkspace(
+                cache,
+                workspace.id,
+                `/p/${projectId}`,
+              ).catch(() => setSwitching(false));
+            }}
+          >
+            Switch to {workspace.name}
+          </button>
+        ) : null}
+        <Link to="/" className="btn btn-ghost btn-sm">
+          Go to your projects
+        </Link>
+      </div>
+    </div>
+  );
 }
 
 function ProjectLayout() {
   const { projectId } = Route.useParams();
   const authGate = useHostedAuthRouteGuard();
   useOnboardingRedirect();
-  useProjectAccessRedirect(projectId);
+  const elsewhere = useProjectAccessRedirect(projectId);
 
   // Remember this as the last-visited project for the landing redirect.
   // Settings and its sub-pages are excluded: editing another project's
@@ -83,6 +143,13 @@ function ProjectLayout() {
   if (!authGate.canRenderAuthenticatedContent) {
     return null;
   }
+
+  if (elsewhere)
+    return (
+      <AuthenticatedAppLayout>
+        <ProjectElsewhere projectId={projectId} />
+      </AuthenticatedAppLayout>
+    );
 
   return (
     <AuthenticatedAppLayout

@@ -1,0 +1,9 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "note": "Superseded by the fresh acceptance audit, which identified the candidate-Run locking window repaired in round 2."
+}

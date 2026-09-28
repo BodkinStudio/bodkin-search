@@ -1,0 +1,14 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep the route-level `key={projectId}` remount boundary; it correctly clears nested query, filter, and selection state on project changes.",
+    "Keep the launcher restricted to Git-indexed, extension-allowlisted, regular in-repository files and preserve the disposable runtime exclusions.",
+    "Keep the preview fixture-only, read-only, project-authorized, and free of real project/provider/model content.",
+    "Keep the sample disclosure, unavailable-not-zero presentation, and explicitly partial non-causal change history."
+  ]
+}

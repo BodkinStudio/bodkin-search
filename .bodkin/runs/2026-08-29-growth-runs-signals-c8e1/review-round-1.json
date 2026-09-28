@@ -1,0 +1,47 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "D1/SQLite does not enforce integer minor-unit provider costs, so it diverges from Postgres and the required non-integer rejection.",
+      "location": "src/db/growth.schema.ts:106; drizzle/0044_glossy_komodo.sql:17",
+      "evidence": "The D1 column is SQLite INTEGER affinity plus only `provider_cost_minor IS NULL OR provider_cost_minor >= 0`. SQLite is not a STRICT table and stores a value such as 1.5 as REAL in an INTEGER-affinity column; the check passes. The Postgres migration instead declares `integer`, which rejects that value. The acceptance criteria explicitly require non-integer costs to fail.",
+      "impact": "A malformed trusted/internal caller or direct D1 write can persist a fractional minor-unit cost while the same write fails on Postgres, breaking provider parity and the cost invariant.",
+      "recommendation": "Add a SQLite-compatible integer-storage check (for example, require `typeof(provider_cost_minor) = 'integer'` when non-null), regenerate the migration/snapshot, and add a raw migration-backed D1 test for a fractional value alongside the existing negative-value test."
+    },
+    {
+      "summary": "The conditional Signal insert does not serialize against terminal transitions on Postgres, so a Signal can commit after its run becomes terminal.",
+      "location": "src/server/features/growth/repositories/GrowthRunsRepository.ts:142-187",
+      "evidence": "`INSERT ... SELECT` only filters `growth_runs.status = 'running'`; it takes no row lock and is not coordinated with `transitionRunningRun`'s status update. Under PostgreSQL READ COMMITTED, the insert can read a running row, a concurrent terminal update can commit, and the insert can then commit because the composite FK checks ownership, not status. The D1 test covers only a sequential terminal write and therefore does not establish the ADR-022 claim that Signals are written only while a run is running.",
+      "impact": "Terminal runs can acquire new immutable Signals after completion, violating the lifecycle boundary and making terminal history non-final under concurrency.",
+      "recommendation": "Make signal recording and terminal transition mutually serialize on the parent run (using a provider-appropriate transaction/lock strategy, such as locking the selected run row on Postgres), and add a real Postgres concurrent regression test proving exactly one ordering is possible."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "The authoritative verification record has no executed Postgres migration or repository-query evidence.",
+      "location": ".bodkin/runs/2026-08-29-growth-runs-signals-c8e1/verification.json; src/server/features/growth/repositories/GrowthRunsRepository.query.test.ts",
+      "evidence": "The record reports PostgreSQL SQL inspection, while the only repository query test creates a `drizzle-orm/libsql` database. Thus it neither executes `0022_young_thunderbolts.sql` on Postgres nor validates the insert-select/on-conflict lifecycle behavior under PostgreSQL concurrency.",
+      "impact": "The claimed dual-provider compatibility is not evidence-based for the highest-risk provider-specific behavior.",
+      "recommendation": "After repairing lifecycle serialization, apply the migration and run focused repository tests against PostgreSQL, including the concurrent terminal-vs-signal scenario."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve the composite project/run foreign key and project-level cascading deletion design.",
+      "location": "src/db/growth.schema.ts:175-183; src/db/pg/growth.schema.ts:169-177",
+      "evidence": "The paired composite FK correctly prevents a Signal from attaching a run owned by another project, and both migrations establish the required cascade path.",
+      "impact": "Replacing it with independent project and run foreign keys would reintroduce cross-project attachment risk.",
+      "recommendation": "Retain the composite `(project_id, run_id)` reference and its cascade behavior while repairing the identified defects."
+    },
+    {
+      "summary": "Preserve deterministic immutable Signal identities and scalar evidence references.",
+      "location": "src/server/features/growth/services/GrowthRunsService.ts:118-148; src/types/schemas/growth.ts:164-185",
+      "evidence": "The current identity derives from stable semantic coordinates and compares the complete stored fact/provenance before treating a retry as idempotent; evidence remains typed scalar data rather than copied raw payloads.",
+      "impact": "Changing this to overwrite-on-retry or payload storage would violate ADR-022 and scope constraints.",
+      "recommendation": "Keep the deterministic conflict semantics and one typed evidence reference when changing concurrency handling."
+    }
+  ]
+}

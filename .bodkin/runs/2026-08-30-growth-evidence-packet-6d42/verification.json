@@ -1,0 +1,70 @@
+{
+  "runId": "2026-08-30-growth-evidence-packet-6d42",
+  "status": "pass",
+  "generatedAt": "2026-08-30T02:07:11.791Z",
+  "checks": [
+    {
+      "name": "Final focused acceptance and upstream regressions",
+      "command": "time pnpm exec vitest run src/server/features/growth/services/GrowthEvidencePacket.test.ts src/server/features/growth/services/GrowthEvidencePacketAcceptance.test.ts src/server/features/growth/services/GrowthEvidencePacketBoundaryAcceptance.test.ts src/server/features/growth/services/GrowthEvidencePacketProjectionAcceptance.test.ts src/server/features/growth/services/PriorityPageClickDeclineDetector.test.ts src/server/features/growth/services/GrowthSearchPerformanceAcceptance.test.ts src/server/features/growth/services/GrowthRunsService.test.ts src/server/features/growth/services/GrowthChangeEventsService.test.ts src/server/features/project-context/services/ProjectContextService.test.ts src/server/features/gsc/searchPerformanceReport.test.ts src/server/features/ai-search/safeUrl.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 3858,
+      "output": "11 files / 186 tests pass: 103 new packet tests and 83 existing detector/Growth/GSC/project-context/URL checks. Covers all original and expanded failures, all 24 declared credential formats, text flags, safe hashing, bounds and canonical dates/IDs. Independent Director execution after repair round 2."
+    },
+    {
+      "name": "Final full repository tests",
+      "command": "time pnpm test:ci",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 14297,
+      "output": "172 files / 1625 tests pass. Six Postgres-gated files / eleven tests skip. No schema, SQL or repository implementation changes require a new live Postgres run; no live provider or product AI calls."
+    },
+    {
+      "name": "Final repository CI",
+      "command": "time pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 56076,
+      "output": "Prettier, Knip, root and badseo TypeScript, type-aware oxlint and plugin skill sync pass. Oxlint: 0 warnings/errors across 908 files. Plugin skill output remains clean. Later record-only artifacts are formatted before commit."
+    },
+    {
+      "name": "Final production build",
+      "command": "time pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 70670,
+      "output": "Client and SSR/Worker build plus TypeScript pass. Existing client bundle-size warning remains. Executed with approved permission for Wrangler diagnostic logs outside the workspace; no deployment."
+    },
+    {
+      "name": "Final code whitespace",
+      "command": "git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 0,
+      "output": "Pass below timer resolution after the two-line-area repair. No product edits followed this check."
+    },
+    {
+      "name": "Staged review-baseline whitespace",
+      "command": "git diff --cached --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 0,
+      "output": "Pass below timer resolution. Index remains the pre-round-2 baseline for repair-only review. Final complete staged whitespace is checked again before commit."
+    },
+    {
+      "name": "Complete reviewed staged whitespace",
+      "command": "git diff --cached --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 0,
+      "output": "Pass after staging the complete round-2 product diff, final review and records. No unstaged product changes remain; only final audit/sign-off records will be added."
+    }
+  ]
+}

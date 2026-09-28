@@ -1,0 +1,57 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "The feed cannot be populated in production because the proposed writer has no authorized invocation boundary.",
+      "location": "plan.md — explicit manual scan orchestration",
+      "evidence": "The scan service was intentionally excluded from MCP, scheduler, route, server function and UI, with no existing caller named.",
+      "impact": "The slice could pass tests while remaining an empty, test-only feed.",
+      "recommendation": "Add an explicitly authorized production boundary or narrow the claim to a persistence component."
+    },
+    {
+      "summary": "Mutable current Recommendation state cannot be reconstructed at a past asOf without status history.",
+      "location": "plan.md — saved-work suppression precedence",
+      "evidence": "Current status plus reviewedAt cannot recover a proposed state after a later dismissal.",
+      "impact": "Suppression could duplicate or hide work contrary to its stated time semantics.",
+      "recommendation": "Use explicitly current-state semantics or add immutable review history."
+    },
+    {
+      "summary": "Same-window Run claims do not prevent adjacent-window concurrent duplicate graphs.",
+      "location": "plan.md — cadence and concurrency",
+      "evidence": "Two adjacent-window scans can both observe no work before either graph is visible.",
+      "impact": "Duplicate unresolved Recommendations can enter the saved feed.",
+      "recommendation": "Serialize scans per project or add an atomic canonical-URL claim/recheck."
+    },
+    {
+      "summary": "The normalized graph permits multiple targets, Insights and Signals but the feed cardinality/query contract was underspecified.",
+      "location": "plan.md — saved opportunity feed",
+      "evidence": "No accepted-version graph predicate or bounded root-first child-query plan was defined.",
+      "impact": "Feed projection could duplicate roots, omit facts or expose ambiguous data.",
+      "recommendation": "Define cardinality and root-first bounded batch behavior with malformed-graph tests."
+    },
+    {
+      "summary": "Using Signal baseline fields for a rule threshold is not machine-readable to existing generic consumers.",
+      "location": "plan.md — Signal definition",
+      "evidence": "The current Signal schema has no comparison-kind or confidence-meaning discriminator.",
+      "impact": "A materiality floor could be rendered as a temporal baseline and overstate change.",
+      "recommendation": "Add durable semantics or do not reuse temporal comparison fields for the threshold rule."
+    },
+    {
+      "summary": "The no-schema-change constraint conflicts with project-plus-target bounded suppression queries.",
+      "location": "plan.md — suppression query and non-goals",
+      "evidence": "Existing target indexes lead with parent IDs rather than project and target URL.",
+      "impact": "Aggregate candidate filtering can scan unbounded project history at scale.",
+      "recommendation": "Add narrow indexes/migrations or prove suitable existing query plans."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep BG-0606 separate and do not add premature MCP/SAM exposure.",
+    "Preserve observed-only source-cap handling and never infer missing rows as zero.",
+    "Preserve fixed complete-day windows and same-window replay behavior.",
+    "Preserve investigation-only language and avoid uplift claims."
+  ]
+}

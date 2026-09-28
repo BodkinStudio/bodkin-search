@@ -1,0 +1,24 @@
+{
+  "checks": [
+    {
+      "name": "Growth regressions including actual Postgres approval and existing Actions",
+      "command": "TEST_POSTGRES_DATABASE_URL=postgres://growth_qa:growth_qa_disposable@127.0.0.1:55119/growth_atomic_qa pnpm exec vitest run GrowthApproval GrowthInvestigation growth-investigation growthInvestigations GrowthWork GrowthActions GrowthInsights GrowthRuns GrowthPriorityPageCheck GrowthPreview GrowthChangeLog --maxWorkers=1 --reporter=dot",
+      "required": true
+    },
+    {
+      "name": "Repository checks",
+      "command": "pnpm ci:check",
+      "required": true
+    },
+    {
+      "name": "Production build",
+      "command": "WRANGLER_LOG_PATH=/private/tmp/bodkin-growth-build-8c2e.log pnpm build",
+      "required": true
+    },
+    {
+      "name": "Diff whitespace",
+      "command": "git diff --check",
+      "required": true
+    }
+  ]
+}

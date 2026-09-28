@@ -1,0 +1,101 @@
+{
+  "runId": "2026-08-30-growth-work-status-f61b",
+  "status": "fail",
+  "generatedAt": "2026-08-30T22:03:39.626Z",
+  "checks": [
+    {
+      "name": "Focused Growth regressions",
+      "command": "pnpm exec vitest run GrowthApproval GrowthInvestigation growth-investigation growthInvestigations growthWork GrowthWork growth-work GrowthActions GrowthPriorityPageCheck GrowthPreview --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 40000,
+      "output": "RUN  v3.2.6 /Users/jamesward/Documents/Dev/bodkin-search\n\n\n\n Test Files  22 passed | 2 skipped (24)\n      Tests  146 passed | 7 skipped (153)\n   Start at  21:57:57\n   Duration  40.00s (transform 6.20s, setup 0ms, collect 19.91s, tests 7.22s, environment 10ms, prepare 3.31s)\n\n\nVitest-reported elapsed time is used above; optional Postgres suites were skipped (Docker readiness unavailable)."
+    },
+    {
+      "name": "Repository CI",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 1224689,
+      "output": "Repository ci:check started; initial formatting passed.\nFound 0 warnings and 0 errors.\nFinished in 22.2s on 967 files with 184 rules using 10 threads.\n\n> open-seo@0.1.6 sync-plugin-skills /Users/jamesward/Documents/Dev/bodkin-search\n> node scripts/sync-plugin-skills.mjs\n\nSynced 9 skills into plugins/openseo/skills/\n\nElapsed time is observed wall time from the process start timestamp to receipt of final completion."
+    },
+    {
+      "name": "Production bundle",
+      "command": "WRANGLER_LOG_PATH=/private/tmp/bodkin-growth-work-build-f61b-retry1.log pnpm exec vite build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 219700,
+      "output": "vite v7.3.6 building client environment for production...\ntransforming...\n/*! 🌼 daisyUI 5.5.19 */\n✓ 3692 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n✓ built in 20.70s\nvite v7.3.6 building ssr environment for production...\ntransforming...\n✓ 7634 modules transformed.\nrendering chunks...\n✓ built in 3m 19s\n\nBoth production environments completed: client 20.70s (3692 modules), SSR 3m 19s (7634 modules). Duration is the sum of Vite-reported build times. Asset-size listings omitted; the existing large-chunk warning remains. Type-checking was already covered by passing CI. The pre-restart incomplete build is preserved in verification-before-docker-restart.json."
+    },
+    {
+      "name": "Disposable Postgres readiness",
+      "command": "docker exec 7aa92e5f385ae1b69f68b30047ecee391571ffb89b385f55bfc2b5efcbbd1a27 pg_isready -U growth_qa -d growth_work_qa -t 5",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 986,
+      "output": "After the user-authorized Docker Desktop restart, engine 29.7.2 responded normally. The new task-labelled Postgres 16 container was running on 127.0.0.1:64713. pg_isready: /var/run/postgresql:5432 - accepting connections. The failed pre-restart attempt is preserved in verification-before-docker-restart.json."
+    },
+    {
+      "name": "Disposable Postgres migrations",
+      "command": "POSTGRES_DATABASE_URL=postgres://growth_qa:growth_qa_disposable@127.0.0.1:64713/growth_work_qa pnpm db:migrate:pg",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 12547,
+      "output": "Reading config file 'drizzle-pg.config.ts'. Using 'pg' driver for database querying. Migrations applied successfully. Progress-spinner output omitted; duration is observed wall time. Only the disposable database was migrated."
+    },
+    {
+      "name": "Executed Postgres Growth regressions",
+      "command": "TEST_POSTGRES_DATABASE_URL=postgres://growth_qa:growth_qa_disposable@127.0.0.1:64713/growth_work_qa pnpm exec vitest run src/server/features/growth/repositories/GrowthActionsRepository.postgres.test.ts src/server/features/growth/repositories/GrowthApprovalRepository.postgres.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 20000,
+      "output": "RUN  v3.2.6 /Users/jamesward/Documents/Dev/bodkin-search\n\n·······\n\n Test Files  2 passed (2)\n      Tests  7 passed (7)\n   Start at  22:56:22\n   Duration  20.00s (transform 2.41s, setup 0ms, collect 404ms, tests 18.20s, environment 1ms, prepare 390ms)\n\nAll seven formerly skipped opt-in cases executed. Vitest-reported duration. A fixture-only correction matched the new Action target to its recommendation and asserted full-list deduplication separately from the latest-one bound; application code was unchanged.",
+      "previousAttempt": {
+        "status": "fail",
+        "exitCode": 1,
+        "durationMs": 5810,
+        "output": "RUN  v3.2.6 /Users/jamesward/Documents/Dev/bodkin-search\n\n·····x·\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  src/server/features/growth/repositories/GrowthApprovalRepository.postgres.test.ts > Growth approval Postgres races and saved Work > rejects legacy accepted orphans and executes deduplicated, project-scoped Work\nAssertionError: expected [ { …(7) } ] to deeply equal [ ObjectContaining{…} ]\n\n- Expected\n+ Received\n\n  [\n-   ObjectContaining {\n-     \"id\": \"growth_approval_newer_action_growth_approval_signal_7c384f98-ee87-4e2c-aefe-76f791f2f7a5\",\n+   {\n+     \"createdAt\": \"2026-08-30T21:53:10.694Z\",\n+     \"dueAt\": \"2026-09-04T00:00:00.000Z\",\n+     \"id\": \"growth_approval_action_growth_approval_signal_7c384f98-ee87-4e2c-aefe-76f791f2f7a5\",\n      \"runId\": \"growth_approval_run_7c384f98-ee87-4e2c-aefe-76f791f2f7a5\",\n+     \"stateVersion\": 0,\n+     \"status\": \"approved\",\n+     \"title\": \"Investigate decline\",\n    },\n  ]\n\n ❯ src/server/features/growth/repositories/GrowthApprovalRepository.postgres.test.ts:459:24\n    457|         ),\n    458|       ]);\n    459|       expect(workRows).toEqual([\n       |                        ^\n    460|         expect.objectContaining({ id: newerActionId, runId: work.runId…\n    461|       ]);\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n\n Test Files  1 failed | 1 passed (2)\n      Tests  1 failed | 6 passed (7)\n   Start at  22:53:05\n   Duration  5.81s (transform 584ms, setup 0ms, collect 114ms, tests 5.04s, environment 0ms, prepare 203ms)"
+      }
+    },
+    {
+      "name": "Repair-2 fixture formatting, type-aware lint and whitespace",
+      "command": "pnpm exec prettier --check src/server/features/growth/repositories/GrowthApprovalRepository.postgres.test.ts .bodkin/runs/2026-08-30-growth-work-status-f61b/repair-2.md .bodkin/runs/2026-08-30-growth-work-status-f61b/run.json; pnpm exec oxlint src/server/features/growth/repositories/GrowthApprovalRepository.postgres.test.ts --type-aware; git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "All matched files use Prettier code style. Found 0 warnings and 0 errors. Type-aware lint finished in 12.0s on 1 file with 184 rules. git diff --check returned exit 0. No application source changed after the earlier passing CI and 146-test regression run."
+    },
+    {
+      "name": "UI preflight",
+      "command": "node /Users/jamesward/.codex/plugins/cache/bodkin-tools/bodkin-ui/0.1.0/scripts/ui-preflight.mjs .bodkin/runs/2026-08-30-growth-work-status-f61b/ui-preflight.config.json",
+      "required": true,
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": 813,
+      "output": "Whitespace, run and shape passed. Screenshot manifest empty: fresh desktop/narrow captures and UI review are blocked by the previously reported browser URL-policy denial. Old screenshots were not reused."
+    },
+    {
+      "name": "UI mechanical detector",
+      "command": "node /Users/jamesward/.codex/plugins/cache/bodkin-tools/bodkin-ui/0.1.0/skills/impeccable/scripts/detect.mjs --json src/client/features/growth/GrowthWork.tsx src/client/features/growth/GrowthWorkPresentation.ts src/client/features/growth/GrowthWorkStatusForm.tsx src/client/features/growth/GrowthWorkHistory.tsx src/client/features/growth/GrowthWorkDelivery.tsx",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 422,
+      "output": "[]"
+    },
+    {
+      "name": "Diff whitespace and final changed-file formatting",
+      "command": "pnpm exec prettier --check .bodkin/runs/2026-08-30-growth-work-status-f61b src/server/features/growth/repositories/GrowthApprovalRepository.postgres.test.ts && git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "output": "All matched files use Prettier code style. git diff --check passed. Final run artifacts and the repaired fixture were checked; earlier runtime-source formatting remains covered by ci:check."
+    }
+  ]
+}

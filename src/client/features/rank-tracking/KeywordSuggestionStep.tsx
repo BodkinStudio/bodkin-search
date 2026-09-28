@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   type ColumnDef,
@@ -28,8 +28,6 @@ type SuggestedKeyword = {
   searchVolume: number | null;
   traffic: number | null;
 };
-
-const PRE_SELECT_COUNT = 20;
 
 const baseColumns: ColumnDef<SuggestedKeyword>[] = [
   {
@@ -143,7 +141,6 @@ export function KeywordSuggestionStep({
   onClose,
 }: Props) {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [hasInitialized, setHasInitialized] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([
     { id: "traffic", desc: true },
   ]);
@@ -173,24 +170,6 @@ export function KeywordSuggestionStep({
   });
 
   const data = suggestionsQuery.data ?? [];
-
-  // Pre-select top 20 by traffic once data loads.
-  useEffect(() => {
-    const items = suggestionsQuery.data;
-    if (items && items.length > 0 && !hasInitialized) {
-      const indexed = items.map((item, i) => ({
-        index: i,
-        traffic: item.traffic ?? 0,
-      }));
-      indexed.sort((a, b) => b.traffic - a.traffic);
-      const initial: RowSelectionState = {};
-      for (let i = 0; i < Math.min(PRE_SELECT_COUNT, indexed.length); i++) {
-        initial[indexed[i].index] = true;
-      }
-      setRowSelection(initial);
-      setHasInitialized(true);
-    }
-  }, [suggestionsQuery.data, hasInitialized]);
 
   const table = useAppTable({
     data,
@@ -232,7 +211,11 @@ export function KeywordSuggestionStep({
       <h2 id="keyword-suggestions-title" className="text-lg font-semibold">
         {title}
       </h2>
-      <button className="btn btn-ghost btn-sm btn-square" onClick={onClose}>
+      <button
+        className="btn btn-ghost btn-sm btn-square"
+        onClick={onClose}
+        aria-label="Close keyword suggestions"
+      >
         <X className="size-4" />
       </button>
     </div>
@@ -314,7 +297,8 @@ export function KeywordSuggestionStep({
       {sectionHeader("Choose keywords to track")}
       <div className="flex items-center justify-between">
         <p className="text-sm text-base-content/60">
-          We found {data.length} keywords {domain} ranks for.
+          We found {data.length} keywords {domain} ranks for. Select the terms
+          you want to track.
         </p>
       </div>
 

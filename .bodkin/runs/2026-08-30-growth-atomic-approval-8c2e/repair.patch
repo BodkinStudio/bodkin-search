@@ -1,0 +1,797 @@
+--- a/src/server/features/growth/repositories/GrowthActionsWriter.ts
++++ b/src/server/features/growth/repositories/GrowthActionsWriter.ts
+@@ -8,6 +8,7 @@
+   growthRecommendations,
+   growthRecommendationTargets,
+ } from "@/db/schema";
++import { buildRecommendationReviewStatement } from "./GrowthInsightsRepository";
+
+ type ActionStatus = typeof growthActions.$inferSelect.status;
+ type ActionTarget = {
+@@ -36,182 +37,275 @@
+   note: string | null;
+ };
+
+-export async function createActionGraph(input: CreateActionGraphInput) {
+-  const createdAt = new Date().toISOString();
+-  await runBatch((tx) => {
+-    const source = tx
+-      .select({
+-        id: sql<string>`${input.id}`.as("id"),
+-        projectId: growthRecommendations.projectId,
+-        recommendationId: growthRecommendations.id,
+-        creationKey: sql<string>`${input.creationKey}`.as("creation_key"),
+-        factHash: sql<string>`${input.factHash}`.as("fact_hash"),
+-        title: sql<string>`${input.title}`.as("title"),
+-        description: sql<string>`${input.description}`.as("description"),
+-        category: growthRecommendations.category,
+-        priorityScore: growthRecommendations.priorityScore,
+-        status: sql<"approved">`'approved'`.as("status"),
+-        stateVersion: sql<number>`0`.as("state_version"),
+-        ownerUserId: sql<null>`NULL`.as("owner_user_id"),
+-        dueAt: sql<string>`${input.dueAt}`.as("due_at"),
+-        approvedAt: sql<string>`${createdAt}`.as("approved_at"),
+-        startedAt: sql<null>`NULL`.as("started_at"),
+-        implementedAt: sql<null>`NULL`.as("implemented_at"),
+-        evaluatedAt: sql<null>`NULL`.as("evaluated_at"),
+-        cancelledAt: sql<null>`NULL`.as("cancelled_at"),
+-        createdAt: sql<string>`${createdAt}`.as("created_at"),
+-        updatedAt: sql<string>`${createdAt}`.as("updated_at"),
+-      })
+-      .from(growthRecommendations)
+-      .where(
+-        and(
+-          eq(growthRecommendations.projectId, input.projectId),
+-          eq(growthRecommendations.runId, input.runId),
+-          eq(growthRecommendations.id, input.recommendationId),
+-          eq(growthRecommendations.status, "accepted"),
+-          eq(growthRecommendations.category, input.category),
+-          eq(growthRecommendations.priorityScore, input.priorityScore),
+-          sql`${input.targets.length} > 0`,
+-          ...input.targets.map((target) =>
+-            exists(
+-              tx
+-                .select({ value: sql<number>`1` })
+-                .from(growthRecommendationTargets)
+-                .where(
+-                  and(
+-                    eq(
+-                      growthRecommendationTargets.projectId,
+-                      growthRecommendations.projectId,
+-                    ),
+-                    eq(
+-                      growthRecommendationTargets.runId,
+-                      growthRecommendations.runId,
+-                    ),
+-                    eq(
+-                      growthRecommendationTargets.recommendationId,
+-                      growthRecommendations.id,
+-                    ),
+-                    eq(
+-                      growthRecommendationTargets.targetType,
+-                      target.targetType,
+-                    ),
+-                    eq(
+-                      growthRecommendationTargets.targetValue,
+-                      target.targetValue,
+-                    ),
++function buildActionCreationStatements(
++  tx: BatchExecutor,
++  input: CreateActionGraphInput,
++  createdAt: string,
++  expectedReviewVersion?: number,
++) {
++  const source = tx
++    .select({
++      id: sql<string>`${input.id}`.as("id"),
++      projectId: growthRecommendations.projectId,
++      recommendationId: growthRecommendations.id,
++      creationKey: sql<string>`${input.creationKey}`.as("creation_key"),
++      factHash: sql<string>`${input.factHash}`.as("fact_hash"),
++      title: sql<string>`${input.title}`.as("title"),
++      description: sql<string>`${input.description}`.as("description"),
++      category: growthRecommendations.category,
++      priorityScore: growthRecommendations.priorityScore,
++      status: sql<"approved">`'approved'`.as("status"),
++      stateVersion: sql<number>`0`.as("state_version"),
++      ownerUserId: sql<null>`NULL`.as("owner_user_id"),
++      dueAt: sql<string>`${input.dueAt}`.as("due_at"),
++      approvedAt: sql<string>`${createdAt}`.as("approved_at"),
++      startedAt: sql<null>`NULL`.as("started_at"),
++      implementedAt: sql<null>`NULL`.as("implemented_at"),
++      evaluatedAt: sql<null>`NULL`.as("evaluated_at"),
++      cancelledAt: sql<null>`NULL`.as("cancelled_at"),
++      createdAt: sql<string>`${createdAt}`.as("created_at"),
++      updatedAt: sql<string>`${createdAt}`.as("updated_at"),
++    })
++    .from(growthRecommendations)
++    .where(
++      and(
++        eq(growthRecommendations.projectId, input.projectId),
++        eq(growthRecommendations.runId, input.runId),
++        eq(growthRecommendations.id, input.recommendationId),
++        eq(
++          growthRecommendations.status,
++          expectedReviewVersion === undefined ? "accepted" : "proposed",
++        ),
++        expectedReviewVersion === undefined
++          ? undefined
++          : eq(growthRecommendations.reviewVersion, expectedReviewVersion),
++        eq(growthRecommendations.category, input.category),
++        eq(growthRecommendations.priorityScore, input.priorityScore),
++        sql`${input.targets.length} > 0`,
++        ...input.targets.map((target) =>
++          exists(
++            tx
++              .select({ value: sql<number>`1` })
++              .from(growthRecommendationTargets)
++              .where(
++                and(
++                  eq(
++                    growthRecommendationTargets.projectId,
++                    growthRecommendations.projectId,
+                   ),
++                  eq(
++                    growthRecommendationTargets.runId,
++                    growthRecommendations.runId,
++                  ),
++                  eq(
++                    growthRecommendationTargets.recommendationId,
++                    growthRecommendations.id,
++                  ),
++                  eq(growthRecommendationTargets.targetType, target.targetType),
++                  eq(
++                    growthRecommendationTargets.targetValue,
++                    target.targetValue,
++                  ),
+                 ),
+-            ),
++              ),
+           ),
+         ),
+-      );
+-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the provider guard proves this narrower Postgres builder surface
+-    const postgresSource = source as unknown as {
+-      for: (strength: "share") => typeof source;
+-    };
+-    const lockedSource =
+-      getDatabaseProvider() === "postgres"
+-        ? postgresSource.for("share")
+-        : source;
+-    const parent = tx
+-      .insert(growthActions)
+-      .select(lockedSource)
+-      .onConflictDoNothing({
+-        target: [growthActions.projectId, growthActions.creationKey],
+-      });
+-
+-    const parentWhere = and(
+-      eq(growthActions.projectId, input.projectId),
+-      eq(growthActions.creationKey, input.creationKey),
+-      eq(growthActions.factHash, input.factHash),
++      ),
+     );
+-    const targets = input.targets.map((target) =>
+-      tx
+-        .insert(growthActionTargets)
+-        .select(
+-          tx
+-            .select({
+-              projectId: growthActions.projectId,
+-              actionId: growthActions.id,
+-              targetType: growthRecommendationTargets.targetType,
+-              targetValue: growthRecommendationTargets.targetValue,
+-            })
+-            .from(growthActions)
+-            .innerJoin(
+-              growthRecommendations,
+-              and(
+-                eq(growthRecommendations.projectId, growthActions.projectId),
+-                eq(growthRecommendations.id, growthActions.recommendationId),
+-              ),
+-            )
+-            .innerJoin(
+-              growthRecommendationTargets,
+-              and(
+-                eq(
+-                  growthRecommendationTargets.projectId,
+-                  growthRecommendations.projectId,
+-                ),
+-                eq(
+-                  growthRecommendationTargets.runId,
+-                  growthRecommendations.runId,
+-                ),
+-                eq(
+-                  growthRecommendationTargets.recommendationId,
+-                  growthRecommendations.id,
+-                ),
+-                eq(growthRecommendationTargets.targetType, target.targetType),
+-                eq(growthRecommendationTargets.targetValue, target.targetValue),
+-              ),
+-            )
+-            .where(parentWhere),
++  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the provider guard proves this narrower Postgres builder surface
++  const postgresSource = source as unknown as {
++    for: (strength: "share" | "update") => typeof source;
++  };
++  const lockedSource =
++    getDatabaseProvider() === "postgres"
++      ? postgresSource.for(
++          expectedReviewVersion === undefined ? "share" : "update",
+         )
+-        .onConflictDoNothing({
+-          target: [
+-            growthActionTargets.projectId,
+-            growthActionTargets.actionId,
+-            growthActionTargets.targetType,
+-            growthActionTargets.targetValue,
+-          ],
+-        }),
+-    );
+-    const creationEvent = tx
+-      .insert(growthActionEvents)
++      : source;
++  const parent = tx
++    .insert(growthActions)
++    .select(lockedSource)
++    .onConflictDoNothing({
++      target: [growthActions.projectId, growthActions.creationKey],
++    });
++
++  const parentWhere = and(
++    eq(growthActions.projectId, input.projectId),
++    eq(growthActions.creationKey, input.creationKey),
++    eq(growthActions.factHash, input.factHash),
++    expectedReviewVersion === undefined
++      ? undefined
++      : eq(growthActions.id, input.id),
++  );
++  const targets = input.targets.map((target) =>
++    tx
++      .insert(growthActionTargets)
+       .select(
+         tx
+           .select({
+-            id: sql<string>`${input.eventId}`.as("id"),
+             projectId: growthActions.projectId,
+             actionId: growthActions.id,
+-            actionVersion: growthActions.stateVersion,
+-            factHash: sql<string>`${input.eventFactHash}`.as("fact_hash"),
+-            eventType: sql<"created">`'created'`.as("event_type"),
+-            actorType: sql<ActionActorType>`${input.actorType}`.as(
+-              "actor_type",
+-            ),
+-            actorId: sql<string>`${input.actorId}`.as("actor_id"),
+-            fromStatus: sql<null>`NULL`.as("from_status"),
+-            toStatus: growthActions.status,
+-            note: sql<string | null>`${input.note}`.as("note"),
+-            createdAt: sql<string>`${createdAt}`.as("created_at"),
++            targetType: growthRecommendationTargets.targetType,
++            targetValue: growthRecommendationTargets.targetValue,
+           })
+           .from(growthActions)
+-          .where(
++          .innerJoin(
++            growthRecommendations,
+             and(
+-              parentWhere,
+-              eq(growthActions.status, "approved"),
+-              eq(growthActions.stateVersion, 0),
++              eq(growthRecommendations.projectId, growthActions.projectId),
++              eq(growthRecommendations.id, growthActions.recommendationId),
+             ),
+-          ),
++          )
++          .innerJoin(
++            growthRecommendationTargets,
++            and(
++              eq(
++                growthRecommendationTargets.projectId,
++                growthRecommendations.projectId,
++              ),
++              eq(
++                growthRecommendationTargets.runId,
++                growthRecommendations.runId,
++              ),
++              eq(
++                growthRecommendationTargets.recommendationId,
++                growthRecommendations.id,
++              ),
++              eq(growthRecommendationTargets.targetType, target.targetType),
++              eq(growthRecommendationTargets.targetValue, target.targetValue),
++            ),
++          )
++          .where(parentWhere),
+       )
+       .onConflictDoNothing({
+         target: [
+-          growthActionEvents.projectId,
+-          growthActionEvents.actionId,
+-          growthActionEvents.actionVersion,
++          growthActionTargets.projectId,
++          growthActionTargets.actionId,
++          growthActionTargets.targetType,
++          growthActionTargets.targetValue,
+         ],
+-      });
++      }),
++  );
++  const creationEvent = tx
++    .insert(growthActionEvents)
++    .select(
++      tx
++        .select({
++          id: sql<string>`${input.eventId}`.as("id"),
++          projectId: growthActions.projectId,
++          actionId: growthActions.id,
++          actionVersion: growthActions.stateVersion,
++          factHash: sql<string>`${input.eventFactHash}`.as("fact_hash"),
++          eventType: sql<"created">`'created'`.as("event_type"),
++          actorType: sql<ActionActorType>`${input.actorType}`.as("actor_type"),
++          actorId: sql<string>`${input.actorId}`.as("actor_id"),
++          fromStatus: sql<null>`NULL`.as("from_status"),
++          toStatus: growthActions.status,
++          note: sql<string | null>`${input.note}`.as("note"),
++          createdAt: sql<string>`${createdAt}`.as("created_at"),
++        })
++        .from(growthActions)
++        .where(
++          and(
++            parentWhere,
++            eq(growthActions.status, "approved"),
++            eq(growthActions.stateVersion, 0),
++          ),
++        ),
++    )
++    .onConflictDoNothing({
++      target: [
++        growthActionEvents.projectId,
++        growthActionEvents.actionId,
++        growthActionEvents.actionVersion,
++      ],
++    });
+
+-    return [parent, ...targets, creationEvent];
++  return [parent, ...targets, creationEvent];
++}
++
++export async function createActionGraph(input: CreateActionGraphInput) {
++  const createdAt = new Date().toISOString();
++  await runBatch((tx) => buildActionCreationStatements(tx, input, createdAt));
++}
++
++export async function approveActionGraph(
++  input: CreateActionGraphInput & { expectedReviewVersion: number },
++) {
++  const createdAt = new Date().toISOString();
++  await runBatch((tx) => {
++    // Only this invocation's complete graph can accept the proposal. An
++    // occupied creation key must not accept it using a different saved Action.
++    const completeGraph = exists(
++      tx
++        .select({ value: sql<number>`1` })
++        .from(growthActions)
++        .innerJoin(
++          growthActionEvents,
++          and(
++            eq(growthActionEvents.projectId, growthActions.projectId),
++            eq(growthActionEvents.actionId, growthActions.id),
++          ),
++        )
++        .where(
++          and(
++            eq(growthActions.projectId, input.projectId),
++            eq(growthActions.id, input.id),
++            eq(growthActions.recommendationId, input.recommendationId),
++            eq(growthActions.creationKey, input.creationKey),
++            eq(growthActions.factHash, input.factHash),
++            eq(growthActions.status, "approved"),
++            eq(growthActions.stateVersion, 0),
++            eq(growthActionEvents.id, input.eventId),
++            eq(growthActionEvents.actionVersion, 0),
++            eq(growthActionEvents.factHash, input.eventFactHash),
++            eq(growthActionEvents.eventType, "created"),
++            eq(growthActionEvents.actorType, input.actorType),
++            eq(growthActionEvents.actorId, input.actorId),
++            ...input.targets.map((target) =>
++              exists(
++                tx
++                  .select({ value: sql<number>`1` })
++                  .from(growthActionTargets)
++                  .where(
++                    and(
++                      eq(
++                        growthActionTargets.projectId,
++                        growthActions.projectId,
++                      ),
++                      eq(growthActionTargets.actionId, growthActions.id),
++                      eq(growthActionTargets.targetType, target.targetType),
++                      eq(growthActionTargets.targetValue, target.targetValue),
++                    ),
++                  ),
++              ),
++            ),
++          ),
++        ),
++    );
++    return [
++      ...buildActionCreationStatements(
++        tx,
++        input,
++        createdAt,
++        input.expectedReviewVersion,
++      ),
++      buildRecommendationReviewStatement(
++        tx,
++        {
++          projectId: input.projectId,
++          recommendationId: input.recommendationId,
++          expectedStatus: "proposed",
++          expectedVersion: input.expectedReviewVersion,
++          status: "accepted",
++          dismissalReason: null,
++          snoozedUntil: null,
++          resolutionRecommendationId: null,
++          reviewedAt: createdAt,
++        },
++        completeGraph,
++      ),
++    ];
+   });
+ }
+
+--- a/src/server/features/growth/repositories/GrowthActionsRepository.ts
++++ b/src/server/features/growth/repositories/GrowthActionsRepository.ts
+@@ -12,7 +12,11 @@
+   growthSignals,
+   projects,
+ } from "@/db/schema";
+-import { createActionGraph, transitionAction } from "./GrowthActionsWriter";
++import {
++  approveActionGraph,
++  createActionGraph,
++  transitionAction,
++} from "./GrowthActionsWriter";
+
+ async function getAction(projectId: string, id: string) {
+   const [row] = await db
+@@ -100,6 +104,7 @@
+       projectId: growthRecommendations.projectId,
+       runId: growthRecommendations.runId,
+       status: growthRecommendations.status,
++      reviewVersion: growthRecommendations.reviewVersion,
+       category: growthRecommendations.category,
+       priorityScore: growthRecommendations.priorityScore,
+     })
+@@ -283,5 +288,6 @@
+   listInvestigationWork,
+   listActionTargetsForActions,
+   createActionGraph,
++  approveActionGraph,
+   transitionAction,
+ } as const;
+--- a/src/server/features/growth/repositories/GrowthInsightsRepository.ts
++++ b/src/server/features/growth/repositories/GrowthInsightsRepository.ts
+@@ -1,5 +1,6 @@
+-import { and, eq, inArray, sql } from "drizzle-orm";
++import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
+ import { db } from "@/db";
++import type { BatchExecutor } from "@/db/runBatch";
+ import {
+   growthInsightSignals,
+   growthInsights,
+@@ -286,7 +287,7 @@
+     .limit(1);
+   return row ?? null;
+ }
+-async function compareAndSetRecommendationReview(input: {
++type RecommendationReviewInput = {
+   projectId: string;
+   recommendationId: string;
+   expectedStatus: GrowthRecommendationRow["status"];
+@@ -296,8 +297,14 @@
+   snoozedUntil: string | null;
+   resolutionRecommendationId: string | null;
+   reviewedAt: string | null;
+-}) {
+-  const [row] = await db
++};
++
++export function buildRecommendationReviewStatement(
++  tx: BatchExecutor,
++  input: RecommendationReviewInput,
++  guard?: SQL,
++) {
++  return tx
+     .update(growthRecommendations)
+     .set({
+       status: input.status,
+@@ -313,9 +320,15 @@
+         eq(growthRecommendations.id, input.recommendationId),
+         eq(growthRecommendations.status, input.expectedStatus),
+         eq(growthRecommendations.reviewVersion, input.expectedVersion),
++        guard,
+       ),
+-    )
+-    .returning();
++    );
++}
++
++async function compareAndSetRecommendationReview(
++  input: RecommendationReviewInput,
++) {
++  const [row] = await buildRecommendationReviewStatement(db, input).returning();
+   return row ?? null;
+ }
+
+--- a/src/server/features/growth/services/GrowthActionsService.ts
++++ b/src/server/features/growth/services/GrowthActionsService.ts
+@@ -104,7 +104,10 @@
+   return graph;
+ }
+
+-async function createAction(input: CreateGrowthActionInput) {
++async function createActionGraph(
++  input: CreateGrowthActionInput,
++  expectedReviewVersion?: number,
++) {
+   const [domain, source, sourceTargetRows] = await Promise.all([
+     repo.projectDomain(input.projectId),
+     repo.getRecommendationSource(input.projectId, input.recommendationId),
+@@ -113,11 +116,17 @@
+   if (!domain) throw new AppError("NOT_FOUND", "Growth project not found");
+   if (!source)
+     throw new AppError("NOT_FOUND", "Growth Recommendation not found");
+-  if (source.status !== "accepted")
++  if (expectedReviewVersion === undefined && source.status !== "accepted")
+     throw new AppError(
+       "CONFLICT",
+       "Growth Recommendation must be accepted before creating an Action",
+     );
++  if (
++    expectedReviewVersion !== undefined &&
++    (source.status !== "proposed" ||
++      source.reviewVersion !== expectedReviewVersion)
++  )
++    throw new AppError("CONFLICT", "Growth Recommendation approval is stale");
+   if (!Number.isFinite(source.priorityScore) || source.priorityScore < 0)
+     throw new AppError("CONFLICT", "Growth Recommendation priority is invalid");
+
+@@ -193,7 +202,7 @@
+     actorId: input.actorId,
+     note: input.note ?? null,
+   });
+-  await repo.createActionGraph({
++  const write = {
+     id: actionId,
+     projectId: input.projectId,
+     runId: source.runId,
+@@ -211,7 +220,12 @@
+     actorType: input.actorType,
+     actorId: input.actorId,
+     note: input.note ?? null,
+-  });
++  };
++  if (expectedReviewVersion === undefined) {
++    await repo.createActionGraph(write);
++  } else {
++    await repo.approveActionGraph({ ...write, expectedReviewVersion });
++  }
+
+   const winner = await repo.getActionByKey(input.projectId, input.creationKey);
+   if (!winner) throw new AppError("CONFLICT", "Growth Action was not created");
+@@ -248,6 +262,17 @@
+   });
+ }
+
++async function createAction(input: CreateGrowthActionInput) {
++  return createActionGraph(input);
++}
++
++async function approveProposedRecommendation(
++  input: CreateGrowthActionInput,
++  expectedReviewVersion: number,
++) {
++  return createActionGraph(input, expectedReviewVersion);
++}
++
+ async function transitionAction(input: TransitionGrowthActionInput) {
+   const action = await repo.getAction(input.projectId, input.actionId);
+   if (!action) throw new AppError("NOT_FOUND", "Growth Action not found");
+@@ -329,6 +354,7 @@
+
+ export const GrowthActionsService = {
+   createAction,
++  approveProposedRecommendation,
+   transitionAction,
+   getAction: repo.getActionGraph,
+ } as const;
+--- a/src/server/features/growth/services/GrowthInvestigationsService.ts
++++ b/src/server/features/growth/services/GrowthInvestigationsService.ts
+@@ -110,32 +110,6 @@
+   };
+ }
+
+-async function workItem(
+-  projectId: string,
+-  actionId: string,
+-): Promise<GrowthWorkItem> {
+-  const graph = await GrowthActionsRepository.getActionGraph(
+-    projectId,
+-    actionId,
+-  );
+-  if (!graph) throw new AppError("NOT_FOUND", "Growth Action not found");
+-  const recommendation = await GrowthActionsRepository.getRecommendationSource(
+-    projectId,
+-    graph.action.recommendationId,
+-  );
+-  if (!recommendation)
+-    throw new AppError("NOT_FOUND", "Growth Recommendation not found");
+-  return {
+-    id: graph.action.id,
+-    title: graph.action.title,
+-    status: graph.action.status,
+-    dueOn: dueOn(graph.action.dueAt),
+-    createdAt: graph.action.createdAt,
+-    runId: recommendation.runId,
+-    displayUrls: displayUrls(graph.targets),
+-  };
+-}
+-
+ function projectedWorkItem(
+   action: {
+     id: string;
+@@ -167,11 +141,26 @@
+   const saved = await getSaved(input.projectId, input.signalId);
+   if (!saved) throw new AppError("NOT_FOUND", "Growth investigation not found");
+   const keys = investigationKeys(input.signalId);
+-  const existing = await GrowthActionsRepository.getActionByKey(
+-    input.projectId,
+-    keys.action,
+-  );
+-  if (existing) {
++  const actionInput = {
++    projectId: input.projectId,
++    recommendationId: saved.graph.recommendation.id,
++    creationKey: keys.action,
++    title: saved.graph.recommendation.title,
++    description: saved.graph.recommendation.rationale,
++    dueAt: `${input.dueOn}T00:00:00.000Z`,
++    targets: saved.graph.targets.map(({ targetType, targetValue }) => ({
++      type: targetType,
++      value: targetValue,
++    })),
++    actorType: "user" as const,
++    actorId: input.actorId,
++  };
++
++  async function replay(existing: {
++    id: string;
++    recommendationId: string;
++    dueAt: string;
++  }) {
+     if (existing.recommendationId !== saved.graph.recommendation.id)
+       throw new AppError(
+         "CONFLICT",
+@@ -182,39 +171,66 @@
+         "CONFLICT",
+         "Growth investigation action already has a different due date",
+       );
+-    return workItem(input.projectId, existing.id);
++    const graph = await GrowthActionsRepository.getActionGraph(
++      input.projectId,
++      existing.id,
++    );
++    if (!graph?.creationEvent)
++      throw new AppError(
++        "CONFLICT",
++        "Growth investigation approval history is incomplete",
++      );
++    // Validate the complete immutable graph with its original actor and note.
++    // A later reviewer can read that approval but cannot rewrite its intent.
++    const verified = await GrowthActionsService.createAction({
++      ...actionInput,
++      actorType: graph.creationEvent.actorType,
++      actorId: graph.creationEvent.actorId,
++      note: graph.creationEvent.note ?? undefined,
++    });
++    return projectedWorkItem(
++      { ...verified.action, runId: saved.run.id },
++      verified.targets,
++    );
+   }
+
+-  if (saved.graph.recommendation.status === "proposed") {
+-    await GrowthInsightsService.reviewRecommendation({
+-      projectId: input.projectId,
+-      recommendationId: saved.graph.recommendation.id,
+-      expectedStatus: "proposed",
+-      expectedVersion: saved.graph.recommendation.reviewVersion,
+-      status: "accepted",
+-    });
+-  } else if (saved.graph.recommendation.status !== "accepted") {
++  const existing = await GrowthActionsRepository.getActionByKey(
++    input.projectId,
++    keys.action,
++  );
++  if (existing) return replay(existing);
++  if (saved.graph.recommendation.status === "accepted") {
+     throw new AppError(
+       "CONFLICT",
++      "Growth investigation approval is incomplete and needs review; its original due date and actor were not recorded",
++    );
++  }
++  if (saved.graph.recommendation.status !== "proposed") {
++    throw new AppError(
++      "CONFLICT",
+       "Growth investigation is no longer available",
+     );
+   }
+
+-  const action = await GrowthActionsService.createAction({
+-    projectId: input.projectId,
+-    recommendationId: saved.graph.recommendation.id,
+-    creationKey: keys.action,
+-    title: saved.graph.recommendation.title,
+-    description: saved.graph.recommendation.rationale,
+-    dueAt: `${input.dueOn}T00:00:00.000Z`,
+-    targets: saved.graph.targets.map(({ targetType, targetValue }) => ({
+-      type: targetType,
+-      value: targetValue,
+-    })),
+-    actorType: "user",
+-    actorId: input.actorId,
+-  });
+-  return workItem(input.projectId, action.action.id);
++  try {
++    const graph = await GrowthActionsService.approveProposedRecommendation(
++      actionInput,
++      saved.graph.recommendation.reviewVersion,
++    );
++    return projectedWorkItem(
++      { ...graph.action, runId: saved.run.id },
++      graph.targets,
++    );
++  } catch (error) {
++    if (error instanceof AppError && error.code === "CONFLICT") {
++      const winner = await GrowthActionsRepository.getActionByKey(
++        input.projectId,
++        keys.action,
++      );
++      if (winner) return replay(winner);
++    }
++    throw error;
++  }
+ }
+
+ async function getWork(projectId: string): Promise<GrowthWorkOverview> {
+--- a/src/client/features/growth/GrowthInvestigation.tsx
++++ b/src/client/features/growth/GrowthInvestigation.tsx
+@@ -152,7 +152,13 @@
+             View work
+           </a>
+         </p>
+-      ) : saved.status === "proposed" || saved.status === "accepted" ? (
++      ) : saved.status === "accepted" ? (
++        <p role="status">
++          This older approval has no saved action. Its original due date and
++          approving user were not recorded. Ask a project administrator to
++          review it before creating work.
++        </p>
++      ) : saved.status === "proposed" ? (
+         <>
+           <p className="text-base-content/70">
+             Separate checks may suggest work for the same page.{" "}
+@@ -161,12 +167,6 @@
+             </a>{" "}
+             before approving.
+           </p>
+-          {saved.status === "accepted" ? (
+-            <p role="status">
+-              Approval was recorded, but no action is saved yet. Retry the
+-              approval to finish adding it to work.
+-            </p>
+-          ) : null}
+           <GrowthInvestigationForm
+             disabled={Boolean(submittedDueOn)}
+             pending={approve.isPending}

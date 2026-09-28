@@ -31,6 +31,7 @@ import {
 import { useSavedKeywordsExport } from "@/client/features/saved-keywords/useSavedKeywordsExport";
 import { useSavedKeywordsFilters } from "@/client/features/saved-keywords/useSavedKeywordsFilters";
 import { useTagManage } from "@/client/features/saved-keywords/useTagManage";
+import { useSavedKeywordsTracking } from "@/client/features/saved-keywords/useSavedKeywordsTracking";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { captureClientEvent } from "@/client/lib/posthog";
 import {
@@ -49,6 +50,10 @@ const FILTER_DEBOUNCE_MS = 350;
 
 function SavedKeywordsPage() {
   const { projectId } = Route.useParams();
+  return <SavedKeywordsPageContent key={projectId} projectId={projectId} />;
+}
+
+function SavedKeywordsPageContent({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -209,6 +214,11 @@ function SavedKeywordsPage() {
   });
 
   const tagManage = useTagManage(projectId);
+  const tracking = useSavedKeywordsTracking({
+    projectId,
+    selectedRows,
+    onSuccess: () => setRowSelection({}),
+  });
   const exporter = useSavedKeywordsExport({
     projectId,
     appliedFilters: exportFilters,
@@ -319,6 +329,7 @@ function SavedKeywordsPage() {
             );
           }}
           onOpenTags={() => setShowTagModal(true)}
+          onTrack={tracking.open}
           onExportCsv={() => exporter.exportSelectionCsv(selectedRows)}
           onExportSheets={() =>
             void exporter.exportSelectionSheets(selectedRows)
@@ -352,6 +363,8 @@ function SavedKeywordsPage() {
             }
           />
         ) : null}
+
+        {tracking.modal}
       </div>
     </div>
   );

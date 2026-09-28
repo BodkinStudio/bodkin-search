@@ -63,6 +63,10 @@ const keyPageInputSchema = z.object({
   role: keyPageRoleSchema.optional(),
   topic: z.string().trim().max(200).optional(),
   notes: z.string().trim().max(500).optional(),
+  // Undefined preserves a stored value on upsert; null explicitly clears it.
+  commercialWeight: z.number().int().min(1).max(5).nullable().optional(),
+  protected: z.boolean().optional(),
+  activelyOptimized: z.boolean().optional(),
 });
 
 // A patch op, discriminated by which key it carries. Strict objects keep the

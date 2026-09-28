@@ -1,0 +1,21 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "The plan overclaimed commit-time binding of advisory confounder discovery.",
+      "resolution": "Narrowed the revision to preflight candidate-state drift and explicitly stated that only Observation facts and selected confounders are protected through the atomic writer."
+    },
+    {
+      "summary": "The review revision trust model and tamper tests were underspecified.",
+      "resolution": "Defined a bounded deterministic SHA-256 state coordinate that is independently recomputed, never parsed or used as authorization, includes project/Plan/Action/Observation/discovery coordinates, and has malformed, substituted and cross-coordinate tests."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve the generic finalizer's single Observation-race retry for callers that do not supply the human expected-evidence option.",
+    "Preserve the writer's atomic Result, Plan, Action, lifecycle-event, selected-confounder and exact-Observation guards."
+  ]
+}

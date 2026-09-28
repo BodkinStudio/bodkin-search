@@ -1,0 +1,31 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Keep reviewSource limited to the controller Signal ID.",
+      "location": ".bodkin/runs/2026-09-02-growth-opportunities-inbox-c9e4/plan.md — App-only projection",
+      "evidence": "The revised wrapper serializes only signalId and keeps Run IDs and raw graph relationships server-only, consistent with ADR-045.",
+      "impact": "Preserves the existing investigation boundary without expanding browser-visible graph coordinates.",
+      "recommendation": "Do not add Run IDs, relationship rows or legacy-inference details to the app DTO."
+    },
+    {
+      "summary": "Retain POST as the established parameterized Growth-read transport while enforcing read-only behavior in the handler and service.",
+      "location": ".bodkin/runs/2026-09-02-growth-opportunities-inbox-c9e4/plan.md — Authorization and mutation boundary",
+      "evidence": "Sibling parameterized Growth reads consistently use POST, project context middleware, strict validators and read services; the plan prohibits provider calls and mutations.",
+      "impact": "Avoids a one-off transport convention without conflating POST transport with mutation authorization.",
+      "recommendation": "Preserve project-context reconstruction and test that the handler/service invoke only read dependencies."
+    },
+    {
+      "summary": "Preserve explicit read-only treatment of accepted Recommendations without an Action.",
+      "location": ".bodkin/runs/2026-09-02-growth-opportunities-inbox-c9e4/plan.md — UI shape and Required behaviour",
+      "evidence": "ADR-041 retains accepted rows until an Action exists, while ADR-045 defines review transitions only from proposed or snoozed.",
+      "impact": "Prevents a legacy lifecycle state from exposing approval or review controls.",
+      "recommendation": "Keep the eligibility gate independent of controller-source presence."
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "verdict": "PASS",
+  "unmet": [],
+  "superseded": true,
+  "notes": [
+    "This audit inspected repair round 1 and passed the written criteria, but it was superseded when the parallel adversarial reviewer identified an automatic refetch-on-mount gap. Final acceptance requires a new audit after repair round 2."
+  ]
+}

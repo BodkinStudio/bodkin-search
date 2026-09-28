@@ -1,0 +1,12 @@
+{
+  "verdict": "PASS",
+  "generatedAt": "2026-09-01T22:36:07Z",
+  "unmet": [],
+  "notes": [
+    "All 10 acceptance criteria are satisfied: one shared project-authorized MCP/SAM definition exposes only saved manual Change Event records through a strict privacy-safe keyset page and performs no provider or write work.",
+    "Schema, service, SQLite/D1 and live PostgreSQL evidence covers offset-cursor canonicalization before SQL, manual-only BINARY/C ordering, project isolation, provider-equivalent URL order, root-first per-parent 101-row child bounds, zero/overflow rejection and safe description/URL projection before the public cap.",
+    "MCP handler, real in-process protocol and SAM tests cover authorization-before-read, exact registration, truthful supplied-timestamp wording, Growth Change Log deep links and server-side project injection.",
+    "verification.json records passing focused tests, the live PostgreSQL fixture, the complete CI gate, 2,122 passing full-suite tests, the production build and whitespace checks. The first CI attempt found only a test-file line-limit breach; repair round 1 split the new SAM case into a focused file and every required gate then passed.",
+    "The latest fresh adversarial review passed with no findings or evidence gaps. No schema, migration, dependency, auth, provider, UI, report or scheduling change was introduced."
+  ]
+}

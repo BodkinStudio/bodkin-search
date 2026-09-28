@@ -1,0 +1,44 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "Ambiguous publication failures release the exact-request lock.",
+      "location": "src/client/features/growth/GrowthMonthlyReport.tsx, publish mutation onSettled",
+      "evidence": "publish.onSettled unconditionally clears both dispatch locks while the unresolved frozen publication request remains retained.",
+      "impact": "Competing work can run before exact recovery resolves an irreversible request.",
+      "recommendation": "Release the shared lock only after authoritative success or pre-dispatch Cancel; retain it after ambiguous failure."
+    }
+  ],
+  "minor": [
+    {
+      "summary": "ADR-035 still says publication UI is deferred.",
+      "location": "docs/growth/05_ARCHITECTURE_DECISIONS.md, ADR-035 Deferred",
+      "evidence": "The accepted decision adds publication UI while the deferred paragraph still lists it.",
+      "impact": "The ADR contradicts itself.",
+      "recommendation": "Remove publication UI from the deferred list while keeping future publication capabilities deferred."
+    }
+  ],
+  "verification_gaps": [
+    {
+      "summary": "Type checking fails on a changed DTO fixture.",
+      "location": "src/types/schemas/growth-monthly-reports.test.ts",
+      "evidence": "pnpm types:check reports a draft-inferred object assigned published status.",
+      "impact": "The repository type gate fails.",
+      "recommendation": "Construct a correctly typed published fixture and rerun types."
+    },
+    {
+      "summary": "Formatting and broader gates lack passing evidence.",
+      "location": "changed files and verification.json",
+      "evidence": "Prettier fails nine files; full tests, ci:check and build have not run.",
+      "impact": "Acceptance gates are unsatisfied.",
+      "recommendation": "Format, then run all required gates after repair."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep GrowthReportsService.publishGrowthReport and its writer as the sole atomic first-publisher-wins boundary.",
+    "Keep publication recovery as an exact coordinate read; do not route it through build recovery's current-period fallback.",
+    "Keep publication internal-only: it must not build, regenerate, share, send, or externally expose reports."
+  ]
+}

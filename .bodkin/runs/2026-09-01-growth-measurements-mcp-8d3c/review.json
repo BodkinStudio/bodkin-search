@@ -1,0 +1,11 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve the provider-aware createdAt expression used consistently in root ordering and cursor predicates, SQLite BINARY/PostgreSQL C ID ties, root-first cap-plus-one pagination, bounded per-parent Metric sentinel, Result lifecycle validation, project-qualified Action join, authorization-before-service boundary, shared MCP/SAM adaptation, and existing safe title/summary projectors."
+  ]
+}

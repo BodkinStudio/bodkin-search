@@ -1,0 +1,34 @@
+{
+  "runId": "2026-08-30-growth-atomic-approval-8c2e",
+  "status": "fail",
+  "generatedAt": "2026-08-30T20:15:17.708Z",
+  "checks": [
+    {
+      "name": "Postgres tests after test-only lint repair",
+      "command": "TEST_POSTGRES_DATABASE_URL=postgres://growth_qa:growth_qa_disposable@127.0.0.1:55119/growth_atomic_qa pnpm exec vitest run src/server/features/growth/repositories/GrowthApprovalRepository.postgres.test.ts --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 4903,
+      "output": "\n RUN  v3.2.6 /Users/jamesward/Documents/Dev/bodkin-search\n\n·····\n\n Test Files  1 passed (1)\n      Tests  5 passed (5)\n   Start at  21:13:53\n   Duration  3.67s (transform 465ms, setup 0ms, collect 71ms, tests 3.06s, environment 0ms, prepare 64ms)"
+    },
+    {
+      "name": "Repository checks",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": 80491,
+      "output": "\n> open-seo@0.1.6 ci:check /Users/jamesward/Documents/Dev/bodkin-search\n> prettier --check . && knip && tsc --noEmit && tsc --noEmit -p badseo/tsconfig.json && oxlint . --type-aware && pnpm sync-plugin-skills && test -z \"$(git status --porcelain -- plugins/openseo/skills)\"\n\nChecking formatting...\nAll matched files use Prettier code style!\n\n  x typescript-eslint(no-unnecessary-type-assertion): This assertion is unnecessary since it does not change the type of the expression.\n     ,-[src/server/features/growth/repositories/GrowthApprovalRepository.postgres.test.ts:168:25]\n 167 |   // This test never creates, drops, migrates, or truncates databases.\n 168 |   sql = postgres(testUrl!, { max: 10 });\n     :                  ^^^|^^^^\n     :                     `-- This expression already has the type 'string'\n 169 |   ({ GrowthActionsRepository } = await import(\"./GrowthActionsRepository\"));\n     `----\n\nFound 0 warnings and 1 error.\nFinished in 17.0s on 957 files with 184 rules using 10 threads.\n ELIFECYCLE  Command failed with exit code 1."
+    },
+    {
+      "name": "Diff whitespace",
+      "command": "git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 40,
+      "output": ""
+    }
+  ]
+}

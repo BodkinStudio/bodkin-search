@@ -64,6 +64,7 @@ export const emailAccessGate = (options: {
   policyName: string;
   applicationName: string;
   domain: string;
+  additionalDomains?: string[];
   emails: string[];
 }) =>
   Effect.gen(function* () {
@@ -76,6 +77,56 @@ export const emailAccessGate = (options: {
       type: "self_hosted",
       name: options.applicationName,
       domain: options.domain,
+      ...(options.additionalDomains?.length
+        ? {
+            destinations: [options.domain, ...options.additionalDomains].map(
+              (uri) => ({ type: "public" as const, uri }),
+            ),
+          }
+        : {}),
       policies: [allow.policyId],
     });
+  });
+
+/** Expose only browser ingestion while retaining the dashboard Access gate. */
+export const configurePublicAnalyticsAccess = (options: {
+  enabled: boolean;
+  stage: string;
+  authMode: string;
+  stagedClientAuth: boolean;
+  customHostname: string;
+}) =>
+  Effect.gen(function* () {
+    if (!options.enabled) return;
+    const { stage, authMode, stagedClientAuth, customHostname } = options;
+    if (
+      stage !== "selfhost" ||
+      (authMode !== "cloudflare_access" && !stagedClientAuth) ||
+      !customHostname
+    ) {
+      yield* Effect.die(
+        new Error(
+          "Public analytics requires a selfhost custom hostname protected by Cloudflare Access.",
+        ),
+      );
+    }
+    const publicPolicy = yield* Cloudflare.Access.Policy(
+      "AnalyticsPublicIngestionPolicy",
+      {
+        name: "Bodkin Search browser analytics ingestion",
+        decision: "bypass",
+        include: [{ everyone: {} }],
+      },
+    );
+    for (const [id, path] of [
+      ["AnalyticsTrackerAccess", "/bodkin-journeys.js"],
+      ["AnalyticsCollectorAccess", "/api/analytics/collect"],
+    ]) {
+      yield* Cloudflare.Access.Application(id, {
+        type: "self_hosted",
+        name: `Bodkin Search ${path}`,
+        domain: `${customHostname}${path}`,
+        policies: [publicPolicy.policyId],
+      });
+    }
   });

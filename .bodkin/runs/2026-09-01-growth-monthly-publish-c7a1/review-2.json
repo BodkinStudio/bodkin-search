@@ -1,0 +1,29 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "Cancel does not restore focus after the Publish trigger remounts.",
+      "location": "src/client/features/growth/GrowthMonthlyReport.tsx, cancelPublication",
+      "evidence": "The handler focuses a trigger ref while that trigger is still unmounted; React mounts it only after the state update.",
+      "impact": "Keyboard focus can be lost when confirmation closes.",
+      "recommendation": "Set a post-cancel focus flag and focus the remounted trigger in an effect; test the real two-render lifecycle."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "Required recovery and source-pruning acceptance coverage remains missing.",
+      "location": "monthly interaction and service tests",
+      "evidence": "Repair 1 added only the cache-rollover case; exact recovery/lock/focus and pruned draft/published coordinator branches remain uncovered.",
+      "impact": "The focused suite does not establish the acceptance contract.",
+      "recommendation": "Add the named tests and refresh all evidence."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep GrowthReportsService.publishGrowthReport and its writer as the sole atomic first-publisher-wins boundary.",
+    "Keep publication recovery as an exact coordinate read; do not route it through build recovery's current-period fallback.",
+    "Keep publication internal-only: it must not build, regenerate, share, send, or externally expose reports."
+  ]
+}

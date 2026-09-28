@@ -1,0 +1,70 @@
+{
+  "runId": "2026-09-01-growth-measurement-collection-7f3a",
+  "status": "pass",
+  "generatedAt": "2026-09-01T06:41:13Z",
+  "checks": [
+    {
+      "name": "Focused measurement collection and Work UI",
+      "command": "pnpm vitest run src/server/features/growth/services/GrowthMeasurementGscProjector.test.ts src/server/features/growth/services/GrowthSearchPerformanceAdapter.test.ts src/server/features/growth/services/GrowthSearchPerformanceProviderValidation.test.ts src/server/features/growth/services/GrowthMeasurementsService.test.ts src/server/features/growth/repositories/GrowthMeasurementsRepository.query.test.ts src/server/features/growth/services/GrowthWorkMeasurementCollectionService.test.ts src/server/features/growth/services/GrowthWorkMeasurementService.test.ts src/serverFunctions/growthWork.test.ts src/client/features/growth/GrowthWorkMeasurement.test.ts src/client/features/growth/GrowthWorkMeasurementSubmission.test.ts src/client/features/growth/GrowthWorkMeasurementCollection.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 6894,
+      "output": "11 test files passed; 98 tests passed."
+    },
+    {
+      "name": "Live Postgres measurement parity",
+      "command": "TEST_POSTGRES_DATABASE_URL=<disposable-local-postgres> pnpm vitest run src/server/features/growth/repositories/GrowthMeasurementsRepository.postgres.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 1950,
+      "output": "1 file and 3 tests passed against a fresh disposable Postgres 16 database, including multi-observation exact retry and conflict rollback. The standard migration command first reproduced the tracked drizzle-pg/0029 foreign-key-before-unique ordering defect; the test database was migrated from a temporary copy with only those two statements reordered. No repository migration was changed, and the disposable container/database was removed after the run."
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 62700,
+      "output": "Prettier, Knip, root and badseo TypeScript checks, type-aware Oxlint, plugin skill sync, and generated-skill cleanliness passed with 0 warnings and 0 errors."
+    },
+    {
+      "name": "Full repository tests",
+      "command": "pnpm test:ci",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 18826,
+      "output": "206 test files passed, 7 skipped; 1,842 tests passed, 18 skipped."
+    },
+    {
+      "name": "Production build",
+      "command": "pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 79712,
+      "output": "Client and SSR production bundles built and the trailing TypeScript check passed. Wrangler emitted a non-fatal sandbox log-file EPERM diagnostic; the command exited 0."
+    },
+    {
+      "name": "Whitespace",
+      "command": "git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 200,
+      "output": "No whitespace errors."
+    },
+    {
+      "name": "Rendered browser evidence",
+      "command": "Not run",
+      "required": false,
+      "status": "waived",
+      "exitCode": null,
+      "durationMs": 0,
+      "output": "Waived because the user explicitly prohibited browser, HTTP, CDP, Playwright, and old-screenshot evidence. Server-render and interaction tests provide the mechanical UI evidence for this slice."
+    }
+  ]
+}

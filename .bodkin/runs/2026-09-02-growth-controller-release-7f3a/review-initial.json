@@ -1,0 +1,47 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "The release marker is not write-local, so concurrent operations with the same millisecond timestamp can treat another operation's release as their own.",
+      "location": "src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.ts — release marker guard",
+      "evidence": "The create condition currently identifies release using only controller_released_at = createdAt, while ISO timestamps have millisecond precision.",
+      "impact": "A losing operation can enter the candidate-create path based on another operation's release timestamp.",
+      "recommendation": "Make release eligibility require the marker and absence of another active controller under the atomic batch invariant, and prove a same-timestamp race."
+    },
+    {
+      "summary": "The PostgreSQL race test does not prove service-level cycle identity or absence of orphan child rows.",
+      "location": "src/server/features/growth/repositories/GrowthInsightsRepository.postgres.test.ts — evaluated release race",
+      "evidence": "It calls repository writeDecision directly and counts only Recommendations and decision links.",
+      "impact": "Preflight/cycle-ID errors or leaked Insight/association rows could pass.",
+      "recommendation": "Race real service entries and assert exact decision relationships, release state, policy version and all normalized graph counts."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "Provider-backed timestamp, retry and exact-Action qualification coverage is incomplete.",
+      "location": "Growth decision D1/PostgreSQL tests and run verification artifacts",
+      "evidence": "Only one normal D1 release and one normal-time PostgreSQL repository race are covered.",
+      "impact": "Provider equivalence and fail-closed behavior are not established.",
+      "recommendation": "Add offset-order inversions, equality/malformed fail-closed, exact retry and unrelated/non-evaluated Action cases; record independent verification."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Preserve lazy release rather than coupling evaluation to a ledger mutation.",
+      "location": "GrowthOpportunityDecisionsService and repository",
+      "evidence": "Release occurs only while recording a later Signal.",
+      "impact": "Keeps evaluation independent from detector writes.",
+      "recommendation": "Repair only conditional-release authority and verification."
+    },
+    {
+      "summary": "Preserve project-, Recommendation- and template-key-scoped Action qualification.",
+      "location": "GrowthOpportunityDecisionsRepository exact Action predicate",
+      "evidence": "The current predicate uses the normalized controller Recommendation and Signal-derived Action key.",
+      "impact": "Maintains the correct authority boundary.",
+      "recommendation": "Keep the structure while adding regression cases."
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { useWorkspaceAccess } from "@/client/features/workspaces/useWorkspaceAccess";
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -5,7 +6,10 @@ import { isHostedClientAuthMode } from "@/lib/auth-mode";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
 import { captureClientEvent } from "@/client/lib/posthog";
 import { GoogleGlyph } from "@/client/features/gsc/GoogleGlyph";
-import { IntegrationConnectionCard } from "@/client/features/integrations/IntegrationConnectionCard";
+import {
+  AdminConnectsIntegrationCard,
+  IntegrationConnectionCard,
+} from "@/client/features/integrations/IntegrationConnectionCard";
 import { GoogleSearchConsoleLogo } from "@/client/features/integrations/GoogleProductLogos";
 import { SelfHostedSetupWarning } from "@/client/features/gsc/SelfHostedSetupWarning";
 import {
@@ -22,11 +26,22 @@ import {
 
 const GRANT_STATUS_KEY = ["gscGrantStatus"];
 
-export function SearchConsoleConnectionCard({
-  projectId,
-}: {
-  projectId: string;
-}) {
+// Connection status and the connect flow are admin-only; other members get a
+// note instead of a spinner that ends in a button they can't use.
+export function SearchConsoleConnectionCard(props: { projectId: string }) {
+  const access = useWorkspaceAccess();
+  if (!access.role) return null;
+  if (!access.can("configure"))
+    return (
+      <AdminConnectsIntegrationCard
+        title="Search Console"
+        icon={<GoogleSearchConsoleLogo className="size-5" />}
+      />
+    );
+  return <SearchConsoleConnectionCardFlow {...props} />;
+}
+
+function SearchConsoleConnectionCardFlow({ projectId }: { projectId: string }) {
   const hosted = isHostedClientAuthMode();
   const queryClient = useQueryClient();
   const [picking, setPicking] = React.useState(false);

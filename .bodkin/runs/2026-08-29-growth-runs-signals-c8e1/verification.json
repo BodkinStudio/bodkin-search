@@ -1,0 +1,79 @@
+{
+  "runId": "2026-08-29-growth-runs-signals-c8e1",
+  "verifiedAt": "2026-08-29T16:22:08Z",
+  "baseCommit": "0c3d45a4226a64bb9a4d3bfddf7cab793f50d79d",
+  "result": "pass",
+  "finalAcceptanceAudit": "PASS",
+  "checks": [
+    {
+      "command": "pnpm run db:generate",
+      "result": "pass",
+      "evidence": "Both generators completed and reported no remaining schema changes after producing D1 migration 0044_glossy_komodo and Postgres migration 0022_young_thunderbolts with their snapshots and journal entries."
+    },
+    {
+      "command": "focused Growth schema, repository, migration, service, Project Context and schema-parity tests",
+      "result": "pass",
+      "evidence": "Nine focused test files passed with 233 assertions, including the provider-gated live Postgres test. The migration-backed libSQL tests execute D1 migrations 0042, 0043 and 0044 in sequence, then exercise uniqueness, null/zero/integer-cost preservation, fractional/negative-cost rejection, provider-compatible signal insertion, immutable retries, terminal-run rejection, composite tenancy, lifecycle checks, cascade behavior and PRAGMA foreign_key_check. Zod and service tests explicitly cover nullable/zero/non-negative integer costs, bounded inputs, all three terminal outcomes and raced-transition conflict."
+    },
+    {
+      "command": "POSTGRES_DATABASE_URL=... pnpm run db:migrate:pg",
+      "result": "pass",
+      "evidence": "The complete checked-in Postgres migration tree, including 0022_young_thunderbolts, applied successfully to a dedicated disposable Postgres 16 container. No existing project database or remote environment was touched."
+    },
+    {
+      "command": "TEST_POSTGRES_DATABASE_URL=... pnpm vitest run GrowthRunsRepository.postgres.test.ts",
+      "result": "pass",
+      "evidence": "The actual provider-aware repository and withPgClient path passed a deterministic terminal-first concurrency regression. While a terminal UPDATE held the run-row lock, Signal insertion blocked; after the terminal commit, the FOR SHARE source SELECT re-evaluated status and inserted no Signal."
+    },
+    {
+      "command": "pnpm run test:ci",
+      "result": "pass",
+      "evidence": "Final normal run: 141 test files and 1,174 tests passed, with the explicitly provider-gated Postgres file skipped, in 18.28 seconds. The gated file passed separately against live Postgres."
+    },
+    {
+      "command": "pnpm run ci:check",
+      "result": "pass",
+      "evidence": "Prettier, Knip, root TypeScript, badseo TypeScript, type-aware Oxlint (827 files, zero warnings/errors), skill synchronization and generated-skill cleanliness passed."
+    },
+    {
+      "command": "pnpm vite build",
+      "result": "pass",
+      "evidence": "Client and SSR/Worker production bundles completed successfully (3,662 client modules in 12.36 seconds and 7,560 SSR modules in 1 minute 9 seconds)."
+    },
+    {
+      "command": "git diff --check and final scope audit",
+      "result": "pass",
+      "evidence": "No whitespace errors. No dependency manifest, lockfile, auth, scheduler, deployment, provider adapter, UI, MCP, Insight, Recommendation or Action implementation changed. Build artifacts remained ignored."
+    }
+  ],
+  "migrationReview": {
+    "d1": "Migration 0044 creates growth_runs and its composite parent unique key before growth_signals, then adds the project/run composite foreign key with cascade behavior. It was executed against the checked-in prior D1 state with representative project data. Its provider-cost CHECK now requires SQLite integer storage and the raw migration test rejects 1.5 as well as negative values.",
+    "postgres": "Migration 0022 defines the named (project_id, id) uniqueness inline in growth_runs before adding growth_signals_project_run_fk, avoiding PostgreSQL foreign-key ordering failure; numeric Signal facts use double precision. The full migration tree was applied to a disposable Postgres 16 database before the live repository test.",
+    "schemaParity": "Both providers expose matching table, column, index, key, cascade and named-check structure. The parity serializer now preserves positional local-to-foreign composite-key pairs instead of sorting each side independently."
+  },
+  "acceptanceAudit": {
+    "adrRecorded": true,
+    "manualRunCreation": true,
+    "cadenceSlotIdempotencyAndDriftConflict": true,
+    "projectIsolation": true,
+    "compareAndSetTerminalLifecycle": true,
+    "boundedFailureMetadata": true,
+    "integerMinorUnitCostOnBothProviders": true,
+    "deterministicImmutableSignals": true,
+    "signalTerminalTransitionSerialization": true,
+    "typedStableEvidenceReference": true,
+    "compositeProjectRunIntegrity": true,
+    "projectCascade": true,
+    "dualProviderSchemaAndMigrationParity": true,
+    "dependenciesChanged": false,
+    "productionMigrationPaidCallOrRemoteStateExecuted": false
+  },
+  "scopeNotes": [
+    "This is an internal service/repository slice. It intentionally exposes no server function, UI, MCP tool, scheduler or other caller-supplied project boundary.",
+    "Signals retain normalized scalar facts plus one typed stable evidence reference; raw upstream payloads are not duplicated.",
+    "Provider cost remains nullable and is stored only when a future trusted caller has an authoritative integer minor-unit value.",
+    "A PostgreSQL migration-ordering trap in the generator was resolved with the schema's inline named unique constraint and logged in .agents/PAPERCUTS.md.",
+    "Repair round 1 accepted both adversarial-review majors: D1 fractional minor-unit storage and Postgres terminal-vs-Signal concurrency. Both now have executed provider-specific regression evidence.",
+    "An attempted combined root-suite plus live-provider run and one normal-suite attempt timed out unrelated five-second tests under Vitest worker contention; each timed-out file passed independently and the final normal full suite passed. The authoritative normal suite and dedicated provider suite both pass independently; integration-worker isolation was logged as a papercut."
+  ]
+}

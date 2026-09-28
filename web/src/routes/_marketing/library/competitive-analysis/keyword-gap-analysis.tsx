@@ -17,7 +17,7 @@ export const Route = createFileRoute(
       title: "Keyword Gap Analysis: How to Run One That Works",
       description: frontmatter.description,
       path: PATH,
-      titleSuffix: "OpenSEO Library",
+      titleSuffix: "Bodkin Search Library",
       ogType: "article",
     }),
   component: () => (

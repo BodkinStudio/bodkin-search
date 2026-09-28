@@ -3,7 +3,7 @@ name: local-seo
 description: "Audit a Google Business Profile, compare it to local competitors, and map Maps visibility around a location."
 ---
 
-# OpenSEO Local SEO
+# Bodkin Search Local SEO
 
 ## Goal
 
@@ -27,7 +27,7 @@ The project-context tools are free and shared with the app and other agents.
 3. Before spending credits, check the research log. If the same research ran within the last 30 days, reuse that result and say so instead of re-buying it.
 4. On finish, write back what is durable with `update_project_context` — local competitors that have a website via `addCompetitors` (competitor rows are keyed by domain, so skip listings without one), a corrected `business_overview` — and append a research log entry: `{ appendResearchLog: { summary: "Local SEO: <business> near <area>. Verdict: <conclusion>" } }`.
 
-## OpenSEO MCP tools
+## Bodkin Search MCP tools
 
 - `search_local_businesses`: nearby listings, filterable by `minRating`, `minReviews`, and `isClaimed` — use `isClaimed: false` to find unclaimed listings when prospecting. One call with the brand name as `query` and a wide radius returns category, rating, review count, claimed status, coordinates, and `cid` for every location of a chain — usually enough that per-location `get_business_profile` calls are unnecessary.
 - `get_local_serp_results`: the Maps/Local Finder result set near a coordinate. The rows carry `cid` and `place_id` — collect them once and reuse them everywhere below.

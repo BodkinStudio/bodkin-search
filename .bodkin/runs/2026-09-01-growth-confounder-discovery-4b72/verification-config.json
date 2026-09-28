@@ -1,0 +1,29 @@
+{
+  "checks": [
+    {
+      "name": "Focused confounder discovery and Work UI",
+      "command": "pnpm vitest run src/server/features/growth/repositories/GrowthChangeEventsRepository.query.test.ts src/server/features/growth/services/GrowthMeasurementConfounders.test.ts src/server/features/growth/services/GrowthWorkMeasurementService.test.ts src/client/features/growth/GrowthWorkMeasurement.test.ts src/client/features/growth/GrowthWorkMeasurementConfounders.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "pnpm ci:check",
+      "required": true
+    },
+    {
+      "name": "Full repository tests",
+      "command": "pnpm test:ci",
+      "required": true
+    },
+    {
+      "name": "Production build",
+      "command": "pnpm build",
+      "required": true
+    },
+    {
+      "name": "Whitespace",
+      "command": "git diff --check",
+      "required": true
+    }
+  ]
+}

@@ -5,6 +5,15 @@ import { z } from "zod";
 import { createWorkersOAuthMcpProps } from "@/server/mcp/context";
 import { handleAuthenticatedOpenSeoMcpRequest } from "@/server/mcp/transport";
 
+// Outside client-workspace mode; workspace selection is never reached.
+vi.mock("@/server/features/workspaces/workspace-mode", () => ({
+  clientWorkspacesEnabled: () => false,
+}));
+
+vi.mock("@/server/features/workspaces/WorkspaceContext", () => ({
+  selectWorkspaceContext: vi.fn(),
+}));
+
 vi.mock("@/lib/auth", () => ({
   getHostedBaseUrl: () => "https://open-seo.test",
 }));

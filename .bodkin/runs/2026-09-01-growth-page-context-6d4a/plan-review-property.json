@@ -1,0 +1,17 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "The two GSC reads can compose rows from different selected Search Console properties.",
+      "location": ".bodkin/runs/2026-09-01-growth-page-context-6d4a/plan.md GSC constraints and acceptance item 6",
+      "evidence": "Each existing getPerformance call resolves the project's current connection independently.",
+      "impact": "Aggregate totals and top queries from different properties could be presented as one result.",
+      "recommendation": "Compare the two private siteUrl values and suppress all live GSC output on drift."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": []
+}

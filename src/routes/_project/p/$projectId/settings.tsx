@@ -2,12 +2,14 @@ import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft } from "lucide-react";
 import { getProjects } from "@/serverFunctions/projects";
+import { useWorkspaceAccess } from "@/client/features/workspaces/useWorkspaceAccess";
 
 export const Route = createFileRoute("/_project/p/$projectId/settings")({
   component: ProjectSettingsLayout,
 });
 
 const tabs = [
+  { to: "/p/$projectId/settings/analytics" as const, label: "Analytics" },
   { to: "/p/$projectId/settings" as const, label: "General", exact: true },
   { to: "/p/$projectId/settings/context" as const, label: "Context" },
   { to: "/p/$projectId/settings/integrations" as const, label: "Integrations" },
@@ -20,6 +22,7 @@ function ProjectSettingsLayout() {
     queryFn: () => getProjects(),
   });
   const project = projectsQuery.data?.find((entry) => entry.id === projectId);
+  const canConfigure = useWorkspaceAccess().can("configure");
 
   return (
     <div className="h-full overflow-auto bg-base-100">
@@ -40,7 +43,16 @@ function ProjectSettingsLayout() {
               {project?.name ?? " "}
             </p>
           </div>
-          <div role="tablist" className="tabs tabs-border">
+          {canConfigure ? null : (
+            <p className="text-sm text-base-content/70" role="status">
+              Project settings are managed by workspace admins. Ask an owner or
+              admin if something here needs to change.
+            </p>
+          )}
+          <div
+            role="tablist"
+            className={canConfigure ? "tabs tabs-border" : "hidden"}
+          >
             {tabs.map((tab) => (
               <Link
                 key={tab.to}
@@ -61,7 +73,7 @@ function ProjectSettingsLayout() {
           </div>
         </div>
 
-        <Outlet />
+        {canConfigure ? <Outlet /> : null}
       </div>
     </div>
   );

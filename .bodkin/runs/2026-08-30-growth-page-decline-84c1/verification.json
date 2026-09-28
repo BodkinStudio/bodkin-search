@@ -1,0 +1,70 @@
+{
+  "runId": "2026-08-30-growth-page-decline-84c1",
+  "status": "pass",
+  "generatedAt": "2026-08-30T01:11:12.534Z",
+  "checks": [
+    {
+      "name": "Repair focused acceptance and upstream regressions",
+      "command": "pnpm exec vitest run src/server/features/growth/services/GrowthSearchPerformanceAdapter.test.ts src/server/features/growth/services/PriorityPageClickDeclineDetector.test.ts src/server/features/growth/services/GrowthSearchPerformanceAcceptance.test.ts src/server/features/growth/services/GrowthSearchPerformanceProviderValidation.test.ts src/server/features/growth/services/GrowthSearchPerformanceSiteContext.test.ts src/server/features/gsc/searchAnalytics.test.ts src/server/features/gsc/searchPerformanceReport.test.ts src/server/features/gsc/services/GscService.test.ts src/server/features/project-context/services/ProjectContextService.test.ts src/server/features/project-context/services/ProjectContextGrowth.test.ts --maxWorkers=1 --reporter=verbose",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 2910,
+      "output": "10 files / 91 tests pass: 31 new Growth tests and 60 existing GSC/key-page regressions. The four initially failing cases, Unicode page-ID tie ordering and eight optional site-context cases pass. Independent Director execution after repair round 1; original failures remain in verification-initial.json."
+    },
+    {
+      "name": "Test-file type-aware lint",
+      "command": "pnpm exec oxlint --type-aware src/server/features/growth/services/GrowthSearchPerformanceAcceptance.test.ts src/server/features/growth/services/GrowthSearchPerformanceProviderValidation.test.ts src/server/features/growth/services/GrowthSearchPerformanceSiteContext.test.ts src/server/features/growth/services/PriorityPageClickDeclineDetector.test.ts",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 1300,
+      "output": "0 warnings and 0 errors. Tests were split by detector/provider responsibility, typed mocks replaced unsafe mock-call access, and the unbound-method exception explains explicit .call(this) in the allocation guard."
+    },
+    {
+      "name": "Repository CI gate after repair",
+      "command": "time pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 57391,
+      "output": "Prettier, Knip, root TypeScript, badseo TypeScript, type-aware oxlint and plugin skill sync pass. Oxlint: 0 warnings/errors across 901 files. Synced skill output remains clean. New record-only artifacts are formatted separately before commit."
+    },
+    {
+      "name": "Full repository tests after repair",
+      "command": "time pnpm test:ci",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 18306,
+      "output": "168 files / 1,522 tests pass; 6 Postgres-gated files / 11 tests skip. No schema, SQL or repository implementation changed in this slice, so a new live Postgres run is not required. No live provider calls."
+    },
+    {
+      "name": "Production build after repair",
+      "command": "time pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 46060,
+      "output": "Client and SSR/Worker build plus TypeScript pass. Existing client bundle-size warning remains. Initial sandbox build also exited 0 (70.470s) but Wrangler's diagnostic-log write hit EPERM; the recorded result is the approved rerun with log-write permission. No deployment."
+    },
+    {
+      "name": "Whitespace",
+      "command": "git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 0,
+      "output": "Pass; completed below timer resolution."
+    },
+    {
+      "name": "Final staged whitespace",
+      "command": "git diff --cached --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 0,
+      "output": "Pass after the reviewed repair and its evidence were staged. No unstaged tracked changes remained."
+    }
+  ]
+}

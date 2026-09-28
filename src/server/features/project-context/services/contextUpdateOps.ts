@@ -1,6 +1,10 @@
 import { normalizeBacklinksTarget } from "@/server/lib/dataforseoBacklinksTarget";
 import { AppError } from "@/server/lib/errors";
 import {
+  parseResearchTarget,
+  urlMatchesResearchTarget,
+} from "@/shared/researchScope";
+import {
   CUSTOM_SECTION_KEY_PREFIX,
   PROSE_MAX_CHARS,
   type KeyPageRole,
@@ -13,7 +17,7 @@ import {
  * and query — unlike backlinks targets, real pages may live behind a query
  * string. Bare "example.com" gets https:// prepended.
  */
-function normalizeKeyPageUrl(raw: string): string {
+export function normalizeKeyPageUrl(raw: string): string {
   const input = raw.trim();
   const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(input)
     ? input
@@ -26,6 +30,12 @@ function normalizeKeyPageUrl(raw: string): string {
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") {
     throw new AppError("VALIDATION_ERROR", `Not a valid page URL: ${raw}`);
+  }
+  if (url.username || url.password) {
+    throw new AppError(
+      "VALIDATION_ERROR",
+      "Key-page URLs cannot contain embedded credentials.",
+    );
   }
   url.protocol = "https:";
   url.hash = "";
@@ -81,6 +91,9 @@ type ResolvedOp =
         role: KeyPageRole | null;
         topic: string | null;
         notes: string | null;
+        commercialWeight?: number | null;
+        protected?: boolean;
+        activelyOptimized?: boolean;
       }[];
     }
   | { kind: "deleteKeyPages"; urls: string[] }
@@ -99,9 +112,10 @@ export function resolveContextUpdates(
     customKeys: Set<string>;
     domains: Set<string>;
     urls: Set<string>;
+    projectDomain: string | null;
   },
 ): ResolvedOp[] {
-  const { customKeys, domains, urls } = current;
+  const { customKeys, domains, urls, projectDomain } = current;
   const resolved: ResolvedOp[] = [];
 
   const resolveOne = (update: ProjectContextUpdate) => {
@@ -191,13 +205,44 @@ export function resolveContextUpdates(
     }
 
     if ("addKeyPages" in update) {
+      if (!projectDomain) {
+        throw new AppError(
+          "VALIDATION_ERROR",
+          "Set the project's primary domain before adding key pages.",
+        );
+      }
+      const parsedProject = parseResearchTarget(projectDomain, "subdomains");
+      if (!parsedProject.ok) {
+        throw new AppError(
+          "VALIDATION_ERROR",
+          "The project's primary domain is invalid. Update it before adding key pages.",
+        );
+      }
       const rows = dedupeBy(
-        update.addKeyPages.map((page) => ({
-          url: normalizeKeyPageUrl(page.url),
-          role: page.role ?? null,
-          topic: page.topic ?? null,
-          notes: page.notes ?? null,
-        })),
+        update.addKeyPages.map((page) => {
+          const url = normalizeKeyPageUrl(page.url);
+          if (!urlMatchesResearchTarget(url, parsedProject.target)) {
+            throw new AppError(
+              "VALIDATION_ERROR",
+              `Key pages must belong to ${parsedProject.target.hostname} or one of its subdomains: ${page.url}`,
+            );
+          }
+          return {
+            url,
+            role: page.role ?? null,
+            topic: page.topic ?? null,
+            notes: page.notes ?? null,
+            ...(page.commercialWeight !== undefined
+              ? { commercialWeight: page.commercialWeight }
+              : {}),
+            ...(page.protected !== undefined
+              ? { protected: page.protected }
+              : {}),
+            ...(page.activelyOptimized !== undefined
+              ? { activelyOptimized: page.activelyOptimized }
+              : {}),
+          };
+        }),
         (row) => row.url,
       );
       const additions = rows.filter((row) => !urls.has(row.url)).length;

@@ -1,22 +1,22 @@
-# OpenSEO
+# Bodkin Search
 
 > Open source alternative to Semrush and Ahrefs
 
-OpenSEO is an SEO tool for _the people_. If tools like Semrush or Ahrefs are too expensive or bloated, OpenSEO is a pay-as-you-go alternative that you actually control.
+Bodkin Search is an SEO tool for _the people_. If tools like Semrush or Ahrefs are too expensive or bloated, Bodkin Search is a pay-as-you-go alternative that you actually control.
 
 > All-in-one SEO tool for you and your AI agent.
 
-Connect with any agent like Claude Code, OpenClaw or Hermes. We have pre-built skills, but you can build your own to tailor OpenSEO to your needs.
+Connect with any agent like Claude Code, OpenClaw or Hermes. We have pre-built skills, but you can build your own to tailor Bodkin Search to your needs.
 
 <img width="1385" height="794" alt="Image" src="https://github.com/user-attachments/assets/fd208249-44ea-4849-bb4b-5fc896aeab73" />
 
 ## Hosted Version
 
-Try OpenSEO for free on our website. If you want to support the project, a hosted subscription is $10/month.
+Try Bodkin Search for free on our website. If you want to support the project, a hosted subscription is $10/month.
 
 [openseo.so](https://openseo.so)
 
-## Why use OpenSEO?
+## Why use Bodkin Search?
 
 - Best in class MCP and AI Skills.
 - Modern, simple UI.
@@ -34,16 +34,16 @@ Try OpenSEO for free on our website. If you want to support the project, a hoste
 - Site Audits
 - AI Visibility
 
-## OpenSEO MCP & Agent Skills
+## Bodkin Search MCP & Agent Skills
 
-OpenSEO exposes an MCP server so AI agents like Claude Code, OpenClaw, and Hermes can use your SEO data directly. Agent Skills are reusable workflows that guide your agent through SEO tasks using the MCP.
+Bodkin Search exposes an MCP server so AI agents like Claude Code, OpenClaw, and Hermes can use your SEO data directly. Agent Skills are reusable workflows that guide your agent through SEO tasks using the MCP.
 
-- [Set up OpenSEO MCP](https://openseo.so/docs/mcp)
-- [Set up OpenSEO Agent Skills](https://openseo.so/docs/skills/setup)
+- [Set up Bodkin Search MCP](https://openseo.so/docs/mcp)
+- [Set up Bodkin Search Agent Skills](https://openseo.so/docs/skills/setup)
 
 ## Self-Hosting
 
-OpenSEO supports two self-hosting paths:
+Bodkin Search supports two self-hosting paths:
 
 - **Simple: Docker (Best for testing it out)** - For personal use on your own machine. See [`docs/SELF_HOSTING_DOCKER.md`](./docs/SELF_HOSTING_DOCKER.md).
   - Unless you already are self-hosting other apps and are confident doing so, we recommend self-hosting with Cloudflare as opposed to Railway, Coolify or Dokploy.
@@ -54,7 +54,7 @@ Either way, you need a DataForSEO API key to get SEO data. See [`docs/DATAFORSEO
 
 ## Costs
 
-OpenSEO needs a [DataForSEO](https://dataforseo.com/?aff=255379) API key so that you can get SEO data. You pay them directly when self hosting.
+Bodkin Search needs a [DataForSEO](https://dataforseo.com/?aff=255379) API key so that you can get SEO data. You pay them directly when self hosting.
 
 See [openseo.so/pricing](https://openseo.so/pricing)
 

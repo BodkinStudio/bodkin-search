@@ -47,6 +47,9 @@ type ProjectContext = {
     role: KeyPageRole;
     topic: string | null;
     notes: string | null;
+    commercialWeight: number | null;
+    protected: boolean;
+    activelyOptimized: boolean;
     updatedAt: string;
     updatedBy: ContextAuthor;
   }[];
@@ -121,10 +124,11 @@ function dayStamp(offsetDays = 0): string {
  * at all rather than leaving the project half-updated.
  */
 export async function applyContextUpdates(
-  projectId: string,
+  project: { projectId: string; projectDomain: string | null },
   updates: ProjectContextUpdate[],
   updatedBy: ContextAuthor,
 ): Promise<ProjectContext> {
+  const { projectId, projectDomain } = project;
   const [sectionRows, competitorRows, keyPageRows] = await Promise.all([
     ProjectContextRepository.listSections(projectId),
     ProjectContextRepository.listCompetitors(projectId),
@@ -139,6 +143,7 @@ export async function applyContextUpdates(
     ),
     domains: new Set(competitorRows.map((row) => row.domain)),
     urls: new Set(keyPageRows.map((row) => row.url)),
+    projectDomain,
   });
 
   // One atomic batch (D1 batch / PG transaction): a mid-batch failure rolls
@@ -261,13 +266,21 @@ export function renderProjectContextMarkdown(context: ProjectContext): string {
   pushSection(
     lines,
     "Key pages",
-    context.keyPages.map((page) =>
-      [
+    context.keyPages.map((page) => {
+      const growthLabels = [
+        page.commercialWeight == null
+          ? null
+          : `commercial weight ${page.commercialWeight}`,
+        page.protected ? "protected" : null,
+        page.activelyOptimized ? "actively optimized" : null,
+      ].filter((label): label is string => label !== null);
+      return [
         `- ${page.url} — ${page.role}`,
         page.topic ? ` · ${page.topic}` : "",
+        growthLabels.length > 0 ? ` · ${growthLabels.join(", ")}` : "",
         page.notes ? ` (${page.notes})` : "",
-      ].join(""),
-    ),
+      ].join("");
+    }),
   );
 
   // The log is capped at the newest entries, so the heading counts what is

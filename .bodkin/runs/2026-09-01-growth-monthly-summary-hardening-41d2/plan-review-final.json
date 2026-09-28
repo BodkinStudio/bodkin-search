@@ -1,0 +1,11 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve the accepted source policy, section caps, Report immutability, first-writer-wins recovery, and browser-evidence prohibition."
+  ]
+}

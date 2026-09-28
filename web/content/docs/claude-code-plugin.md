@@ -1,9 +1,9 @@
 ---
-title: "Install the OpenSEO plugin for Claude Code"
-description: "Add OpenSEO MCP and Agent Skills to Claude Code with one marketplace and one install command."
+title: "Install the Bodkin Search plugin for Claude Code"
+description: "Add Bodkin Search MCP and Agent Skills to Claude Code with one marketplace and one install command."
 ---
 
-The OpenSEO plugin bundles OpenSEO MCP and all nine SEO Agent Skills into one install. This is the preferred way to set up OpenSEO in Claude Code.
+The Bodkin Search plugin bundles Bodkin Search MCP and all nine SEO Agent Skills into one install. This is the preferred way to set up Bodkin Search in Claude Code.
 
 ## Install
 
@@ -16,7 +16,7 @@ Run these two commands in Claude Code:
 
 If the install summary says `Run /reload-plugins to activate.`, run that command.
 
-Claude Code connects OpenSEO MCP at `https://app.openseo.so/mcp` and enables nine skills:
+Claude Code connects Bodkin Search MCP at `https://app.openseo.so/mcp` and enables nine skills:
 
 - SEO Project Setup
 - SEO Coach
@@ -30,7 +30,7 @@ Claude Code connects OpenSEO MCP at `https://app.openseo.so/mcp` and enables nin
 
 ## Finish the login
 
-Claude Code should prompt you to log in to OpenSEO right after install. If it doesn't, run `/mcp` and approve the OpenSEO connection from there.
+Claude Code should prompt you to log in to Bodkin Search right after install. If it doesn't, run `/mcp` and approve the Bodkin Search connection from there.
 
 ## Run a skill
 
@@ -50,7 +50,7 @@ Plugin skills are namespaced by the plugin name:
 
 ## Claude Desktop
 
-Claude Desktop doesn't support this plugin format — plugins are a Claude Code feature. For Claude Desktop, [add OpenSEO as an MCP connector](/docs/mcp#claude-desktop) instead.
+Claude Desktop doesn't support this plugin format — plugins are a Claude Code feature. For Claude Desktop, [add Bodkin Search as an MCP connector](/docs/mcp#claude-desktop) instead.
 
 ## Update or remove
 
@@ -69,10 +69,10 @@ If `/reload-plugins` reports `0 skills`, that's normal, not a failure — its su
 
 If `/plugin uninstall openseo@openseo` reports "not installed in this project," you likely installed to a different scope than the one being checked (User, Project, or Local). Run `/plugin list` to see the actual scope, or sidestep the picker entirely with the shell form: `claude plugin uninstall openseo@openseo --scope user`.
 
-If plugin skills don't appear, clear the plugin cache with `rm -rf ~/.claude/plugins/cache` — this clears every installed plugin's cache, not just OpenSEO's, so reinstall anything else you have after — then restart Claude Code and reinstall the plugin.
+If plugin skills don't appear, clear the plugin cache with `rm -rf ~/.claude/plugins/cache` — this clears every installed plugin's cache, not just Bodkin Search's, so reinstall anything else you have after — then restart Claude Code and reinstall the plugin.
 
-If the OpenSEO connection doesn't show as authenticated, run `/mcp`, select OpenSEO, and complete the login.
+If the Bodkin Search connection doesn't show as authenticated, run `/mcp`, select Bodkin Search, and complete the login.
 
 ## Other clients
 
-This plugin is for Claude Code. For Codex CLI, use the [OpenSEO plugin for Codex](/docs/codex-plugin) instead. For Cursor, Codex Desktop, Claude Desktop, or an API key setup, see [Set up OpenSEO MCP](/docs/mcp) and [Set up OpenSEO Agent Skills](/docs/skills/setup).
+This plugin is for Claude Code. For Codex CLI, use the [Bodkin Search plugin for Codex](/docs/codex-plugin) instead. For Cursor, Codex Desktop, Claude Desktop, or an API key setup, see [Set up Bodkin Search MCP](/docs/mcp) and [Set up Bodkin Search Agent Skills](/docs/skills/setup).

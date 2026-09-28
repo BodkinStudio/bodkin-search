@@ -1,0 +1,31 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Keep the all-Action repository page read separate from the qualified priority-page Work query.",
+      "location": "src/server/features/growth/repositories/GrowthActionsRepository.ts",
+      "evidence": "listActionsPage reads growth_actions directly with project-leading predicates, while listInvestigationWork remains the narrower joined Work query.",
+      "impact": "Reusing the Work query would omit valid Actions from this general agent read.",
+      "recommendation": "Preserve separate repository methods."
+    },
+    {
+      "summary": "Keep bounded safe-text projection after sanitization.",
+      "location": "src/server/features/growth/services/GrowthActionsReadService.ts",
+      "evidence": "The repaired safe-text boundary is covered by Unicode URL-expansion tests for title, category and prose targets; verification records the focused suite passing after repair round 1.",
+      "impact": "Removing this post-projection cap could violate DTO limits or make truncation flags untruthful when sanitization expands text.",
+      "recommendation": "Retain the shared post-projection bounding path and its redaction/truncation flags for title, category, description and prose targets."
+    },
+    {
+      "summary": "Keep immutable provider-aware Action pagination and shared MCP/SAM authorization path.",
+      "location": "src/server/features/growth/repositories/GrowthActionsRepository.ts; src/server/mcp/tools/growth-action-tools.ts; src/server/features/sam/samChatTools.ts",
+      "evidence": "The repository uses createdAt plus BINARY/C-collated ID keyset predicates; the required PostgreSQL 16 and SQLite/D1 coverage passed. MCP registration uses canonical project authorization and SAM removes model-supplied projectId before injecting the bound project.",
+      "impact": "Changing ordering or identity binding could cause skipped/duplicated pages or weaken tenancy isolation.",
+      "recommendation": "Retain limit-plus-one keyset pagination and the shared tool definition with server-bound SAM project injection."
+    }
+  ]
+}

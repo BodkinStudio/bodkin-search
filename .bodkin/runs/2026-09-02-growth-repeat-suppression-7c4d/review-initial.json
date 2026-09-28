@@ -1,0 +1,34 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "The ledger constraint accepted a suppressed decision with no suppression reason.",
+      "location": "src/db/growth-insights.schema.ts; src/db/pg/growth-insights.schema.ts; both generated migrations",
+      "evidence": "The suppressed CHECK branch used suppression_reason IN (...) without an explicit IS NOT NULL predicate; SQL CHECK accepts an unknown result.",
+      "impact": "A malformed stored decision could violate the immutable ledger contract and make its strict covered projection unreadable.",
+      "recommendation": "Require a non-null closed reason in both dialects and prove null rejection on SQLite and PostgreSQL."
+    },
+    {
+      "summary": "A terminal Run could race candidate graph insertion before the controller claim.",
+      "location": "src/server/features/growth/repositories/GrowthOpportunityDecisionsRepository.ts",
+      "evidence": "The candidate INSERT SELECT checked running state but did not hold the established PostgreSQL source-Run lock through the later controller insert.",
+      "impact": "A concurrent terminal transition could leave a complete graph with no decision link.",
+      "recommendation": "Take the provider-aware source lock and add a live terminal-first race proving no orphan graph or decision."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "Provider-level lifecycle evidence was incomplete.",
+      "location": "Growth decision repository and priority-page check integration tests",
+      "evidence": "Partial generation was mocked, and PostgreSQL had not directly covered suppressed-Signal deletion, restricted controller deletion or project cleanup.",
+      "impact": "The required cross-provider lifecycle boundaries were not yet demonstrated.",
+      "recommendation": "Add real SQLite partial-generation coverage and live PostgreSQL deletion/cascade coverage."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve the strict controller/suppressed DTO split, read-only covered UI, stable project/key-page/metric identity and conservative v1 controller policy."
+  ]
+}

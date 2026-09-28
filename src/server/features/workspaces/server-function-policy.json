@@ -1,0 +1,842 @@
+{
+  "src/serverFunctions/ahrefs.ts:getAhrefsDomainRatings": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/ai-search.ts:explorePrompt": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/ai-search.ts:getPromptExplorerSnapshot": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/ai-search.ts:listPromptExplorerSnapshots": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/ai-search.ts:lookupBrand": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:correctAnalyticsAttribution": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:createAnalyticsDiagnosticToken": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:createAnalyticsSource": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:eraseAnalyticsContext": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:eraseAnalyticsCustomer": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:getAnalyticsAcquisitionDimensions": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:getAnalyticsCustomerEvidence": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:getAnalyticsCustomers": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:getAnalyticsFunnels": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:getAnalyticsJourney": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:getAnalyticsJourneyMap": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:getAnalyticsOverview": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:getAnalyticsSettings": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:listAnalyticsJourneys": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:listAnalyticsSources": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:saveAnalyticsSettings": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analyticsConfiguration.ts:getAnalyticsCapabilities": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analyticsConfiguration.ts:getAnalyticsTrackingHealth": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analyticsConfiguration.ts:getAnalyticsReportingSettings": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analyticsConfiguration.ts:getAnalyticsRetainedHistory": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analyticsConfiguration.ts:getAnalyticsSearchContext": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analyticsConfiguration.ts:getAnalyticsStages": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analyticsConfiguration.ts:getAnalyticsTrackingRules": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analyticsConfiguration.ts:saveAnalyticsReportingSettings": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analyticsConfiguration.ts:saveAnalyticsStages": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analyticsConfiguration.ts:saveAnalyticsTrackingRules": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/audit.ts:deleteAudit": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/audit.ts:getAuditHistory": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/audit.ts:getAuditResults": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/audit.ts:getAuditStatus": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/audit.ts:getCrawlProgress": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/audit.ts:startAudit": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/backlinks.ts:getBacklinksOverview": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/backlinks.ts:getBacklinksReferringDomains": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/backlinks.ts:getBacklinksRows": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/backlinks.ts:getBacklinksTopPages": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/billing.ts:getBillingUsageEvents": {
+    "capability": "blocked",
+    "projectRequired": false
+  },
+  "src/serverFunctions/competitorResearch.ts:getCompetitorResearch": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/config.ts:getSeoApiKeyStatus": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/dashboard.ts:dismissDashboardGa4Card": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/dashboard.ts:dismissDashboardMcpCard": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/dashboard.ts:getDashboardActivation": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/dashboard.ts:getDashboardOverview": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/dashboard.ts:markDashboardCompetitorClicked": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/dashboard.ts:refreshDashboardBacklinkSnapshot": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/domain.ts:getDomainKeywordSuggestions": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/domain.ts:getDomainKeywordsPage": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/domain.ts:getDomainOverview": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/domain.ts:getDomainPagesPage": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/ga4.ts:disconnectGa4": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/ga4.ts:getGa4Connection": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/ga4.ts:getGa4DashboardReport": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/ga4.ts:listGa4Properties": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/ga4.ts:setGa4Property": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/ga4.ts:startSelfHostedGa4Link": {
+    "capability": "configure",
+    "projectRequired": false
+  },
+  "src/serverFunctions/growth.ts:getGrowthSettings": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growth.ts:updateGrowthSettings": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthAssessmentInvestigations.ts:getGrowthAssessmentInvestigation": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthAssessmentInvestigations.ts:runGrowthAssessmentInvestigation": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthAssessments.ts:confirmGrowthAssessment": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthAssessments.ts:generateGrowthAssessment": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthAssessments.ts:getGrowthAssessment": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthChangeLog.ts:getGrowthChangeLog": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthChangeLog.ts:recordGrowthPageChange": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthChecks.ts:getGrowthCheckEvidence": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthChecks.ts:getGrowthCheckRun": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthChecks.ts:getGrowthChecksOverview": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthChecks.ts:runGrowthCheck": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthChecks.ts:runGrowthCriticalAuditIssueCheck": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthChecks.ts:runGrowthLowCtrCheck": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthChecks.ts:runGrowthMeasurementDueCheck": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthChecks.ts:runGrowthPersistentRankDropCheck": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthChecks.ts:runGrowthStrikingDistanceCheck": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthInvestigations.ts:approveGrowthAiInvestigationBrief": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthInvestigations.ts:approveGrowthInvestigation": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthInvestigations.ts:generateGrowthAiInvestigationBrief": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthInvestigations.ts:getGrowthInvestigation": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthInvestigations.ts:getGrowthWork": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthInvestigations.ts:getSavedGrowthAiBrief": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthInvestigations.ts:reviewGrowthInvestigation": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthInvestigations.ts:saveGrowthAiInvestigationBrief": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthMonthlyReview.ts:runGrowthMonthlyReview": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthOperatingOverview.ts:getGrowthOperatingOverview": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthOpportunities.ts:getGrowthOpportunities": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:addGrowthActionEvidence": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:createGrowthPlanAction": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:createGrowthWorkstream": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:deleteGrowthWorkstream": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:getGrowthPlan": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:getGrowthPlanEvidence": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:getGrowthAnalystDigest": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:addGrowthFindingToPlan": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:dismissGrowthFinding": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:setGrowthAutoBriefs": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:removeGrowthActionEvidence": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:reorderGrowthWorkstreams": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:transitionGrowthPlanAction": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:updateGrowthPlanAction": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:updateGrowthPlanNarrative": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthPlan.ts:updateGrowthWorkstream": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthReports.ts:buildGrowthMonthlyReport": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthReports.ts:getGrowthMonthlyPublicationStatus": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthReports.ts:getGrowthMonthlyReport": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthReports.ts:publishGrowthMonthlyReport": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthRunInspector.ts:appendGrowthMonthlyCycleOperatorObservation": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthRunInspector.ts:getGrowthRunInspector": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthWork.ts:collectGrowthWorkMeasurement": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthWork.ts:finalizeGrowthWorkMeasurement": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthWork.ts:getGrowthWorkChanges": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthWork.ts:getGrowthWorkHistory": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthWork.ts:getGrowthWorkMeasurement": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthWork.ts:linkGrowthWorkChange": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthWork.ts:startGrowthWorkMeasurement": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/growthWork.ts:updateGrowthWorkStatus": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/gsc.ts:disconnectGsc": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/gsc.ts:getGscConnection": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/gsc.ts:getGscGrantStatus": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/gsc.ts:listGscSites": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/gsc.ts:setGscSite": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/gsc.ts:startSelfHostedGscLink": {
+    "capability": "configure",
+    "projectRequired": false
+  },
+  "src/serverFunctions/keywords.ts:deleteSavedKeywordTag": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/keywords.ts:exportSavedKeywords": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/keywords.ts:getSavedKeywords": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/keywords.ts:getSerpAnalysis": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/keywords.ts:refreshSavedKeywordMetrics": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/keywords.ts:removeSavedKeywords": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/keywords.ts:researchKeywords": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/keywords.ts:saveKeywords": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/keywords.ts:updateSavedKeywordTag": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/keywords.ts:updateSavedKeywordTags": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/lighthouse.ts:exportAuditLighthouseIssues": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/lighthouse.ts:getAuditLighthouseIssues": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/linkedin.ts:disconnectLinkedIn": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/linkedin.ts:getLinkedInConnection": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/linkedin.ts:getLinkedInPageOverview": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/linkedin.ts:getLinkedInPostPerformance": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/linkedin.ts:importLinkedInPageContent": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/linkedin.ts:listLinkedInPages": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/linkedin.ts:setLinkedInPage": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/linkedin.ts:startLinkedInLink": {
+    "capability": "configure",
+    "projectRequired": false
+  },
+  "src/serverFunctions/onboarding.ts:dismissGscNudge": {
+    "capability": "blocked",
+    "projectRequired": false
+  },
+  "src/serverFunctions/onboarding.ts:getOnboardingAnswers": {
+    "capability": "blocked",
+    "projectRequired": false
+  },
+  "src/serverFunctions/onboarding.ts:saveOnboardingAnswers": {
+    "capability": "blocked",
+    "projectRequired": false
+  },
+  "src/serverFunctions/onboardingChat.ts:getOnboardingChatState": {
+    "capability": "blocked",
+    "projectRequired": false
+  },
+  "src/serverFunctions/onboardingChat.ts:saveOnboardingSite": {
+    "capability": "blocked",
+    "projectRequired": false
+  },
+  "src/serverFunctions/projectContext.ts:getProjectContext": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/projectContext.ts:updateProjectContext": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/projects.ts:archiveProject": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/projects.ts:createProject": {
+    "capability": "configure",
+    "projectRequired": false
+  },
+  "src/serverFunctions/projects.ts:getArchivedProjects": {
+    "capability": "read",
+    "projectRequired": false
+  },
+  "src/serverFunctions/projects.ts:getProjectAccess": {
+    "capability": "read",
+    "projectRequired": false
+  },
+  "src/serverFunctions/projects.ts:getProjects": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/projects.ts:restoreProject": {
+    "capability": "configure",
+    "projectRequired": false
+  },
+  "src/serverFunctions/projects.ts:setProjectDomain": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/projects.ts:setProjectMarket": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/projects.ts:updateProject": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/rank-tracking.ts:addTrackingKeywords": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/rank-tracking.ts:createRankTrackingConfig": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/rank-tracking.ts:estimateRankCheckCost": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/rank-tracking.ts:getLatestRankResults": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/rank-tracking.ts:getLatestRankRun": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/rank-tracking.ts:getRankConfigTrend": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/rank-tracking.ts:getRankKeywordHistory": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/rank-tracking.ts:getRankPositionMatrix": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/rank-tracking.ts:getRankTrackingConfigSummaries": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/rank-tracking.ts:getRankTrackingConfigs": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/rank-tracking.ts:refreshTrackingKeywordMetrics": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/rank-tracking.ts:removeTrackingKeywords": {
+    "capability": "edit",
+    "projectRequired": true
+  },
+  "src/serverFunctions/rank-tracking.ts:triggerRankCheck": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/rank-tracking.ts:updateRankTrackingConfig": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/sam.ts:archiveSamSession": {
+    "capability": "run",
+    "projectRequired": false
+  },
+  "src/serverFunctions/sam.ts:createSamSession": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/sam.ts:listSamSessions": {
+    "capability": "run",
+    "projectRequired": true
+  },
+  "src/serverFunctions/samAccess.ts:getSamAccessSetupStatus": {
+    "capability": "self",
+    "projectRequired": true
+  },
+  "src/serverFunctions/searchPerformance.ts:exportSearchPerformanceTable": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/searchPerformance.ts:getSearchPerformanceReport": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/searchPerformance.ts:getSearchPerformanceTable": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/serp-locations.ts:prewarmSerpLocations": {
+    "capability": "run",
+    "projectRequired": false
+  },
+  "src/serverFunctions/serp-locations.ts:searchSerpLocations": {
+    "capability": "run",
+    "projectRequired": false
+  },
+  "src/serverFunctions/workspace.ts:getWorkspaceMergeStatus": {
+    "capability": "blocked",
+    "projectRequired": false
+  },
+  "src/serverFunctions/workspace.ts:mergeLegacyWorkspaces": {
+    "capability": "blocked",
+    "projectRequired": false
+  },
+  "src/serverFunctions/youtube.ts:disconnectYouTube": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/youtube.ts:getYouTubeChannelOverview": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/youtube.ts:getYouTubeConnection": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/youtube.ts:getYouTubeTrafficSources": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/youtube.ts:getYouTubeVideoPerformance": {
+    "capability": "read",
+    "projectRequired": true
+  },
+  "src/serverFunctions/youtube.ts:listYouTubeChannels": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/youtube.ts:setYouTubeChannel": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/youtube.ts:startSelfHostedYouTubeLink": {
+    "capability": "configure",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:getWorkspaceSession": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:getProjectWorkspace": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:moveProjectToWorkspace": {
+    "capability": "own",
+    "projectRequired": true
+  },
+  "src/serverFunctions/clientWorkspaces.ts:selectWorkspace": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:getWorkspacePeople": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:createClientWorkspace": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:inviteWorkspaceMember": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:updateWorkspaceMember": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:removeWorkspaceMember": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:revokeWorkspaceInvitation": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:getWorkspaceInvitation": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:acceptWorkspaceInvitation": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:listMyWorkspaceInvitations": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:acceptMyWorkspaceInvitation": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:resendWorkspaceInvitation": {
+    "capability": "self",
+    "projectRequired": false
+  },
+  "src/serverFunctions/clientWorkspaces.ts:transferWorkspaceOwnership": {
+    "capability": "self",
+    "projectRequired": false
+  }
+}

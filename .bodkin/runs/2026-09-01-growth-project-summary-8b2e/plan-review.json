@@ -1,0 +1,13 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep repository-level capturedAt <= asOf filtering before signal limits and freshness aggregation.",
+    "Keep the explicit lifecycle enum, precedence, and fixed critical -> warning -> info ordering.",
+    "Preserve saved-record-only, provider-free operation and Measurement overflow withholding."
+  ]
+}

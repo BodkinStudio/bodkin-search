@@ -1,0 +1,34 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [
+    {
+      "summary": "Focused privacy tests do not assert URL or secret redaction even though the stated edge cases require it.",
+      "location": "src/server/features/growth/services/GrowthMeasurementsReadService.test.ts",
+      "evidence": "The original fixture contained URLs in both the Action title and Result summary, but asserted only that email addresses were absent.",
+      "impact": "A regression in the existing display projectors could expose URLs or secrets through the MCP surface without the focused suite detecting it.",
+      "recommendation": "Assert that URLs and representative secret-shaped values are absent from both projected fields while retaining the email assertions."
+    },
+    {
+      "summary": "The focused service tests omit a completed Plan whose Result evaluatedAt differs from completedAt.",
+      "location": "src/server/features/growth/services/GrowthMeasurementsReadService.test.ts",
+      "evidence": "The original tests covered completed Plans without a Result and duplicate Results, but not the explicit mismatched-evaluation edge case.",
+      "impact": "A future regression could weaken the lifecycle equality rule without a targeted test.",
+      "recommendation": "Add a completed Plan fixture with a Result evaluatedAt different from completedAt and assert an INTERNAL_ERROR."
+    }
+  ],
+  "verification_gaps": [
+    {
+      "summary": "No independent verification artifact or executed-check results were supplied for the active run.",
+      "location": ".bodkin/runs/2026-09-01-growth-measurements-mcp-8d3c/",
+      "evidence": "At review time the run had no verification.json and run.json remained active.",
+      "impact": "Acceptance could not yet be evidence-based, particularly for cross-provider keyset behavior.",
+      "recommendation": "Run and record the specified sequential gates before final acceptance."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve the provider-aware createdAt expression used consistently in root ordering and cursor predicates, SQLite BINARY/PostgreSQL C ID ties, root-first cap-plus-one pagination, bounded per-parent Metric sentinel, Result lifecycle validation, project-qualified Action join, authorization-before-service boundary, shared MCP/SAM adaptation, and existing safe title/summary projectors."
+  ]
+}

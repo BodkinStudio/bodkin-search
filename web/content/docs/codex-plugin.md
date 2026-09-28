@@ -1,9 +1,9 @@
 ---
-title: "Install the OpenSEO plugin for Codex"
-description: "Add OpenSEO MCP and Agent Skills to Codex with one marketplace and one install command."
+title: "Install the Bodkin Search plugin for Codex"
+description: "Add Bodkin Search MCP and Agent Skills to Codex with one marketplace and one install command."
 ---
 
-The OpenSEO plugin bundles OpenSEO MCP and all nine SEO Agent Skills into one install. This is the preferred way to set up OpenSEO in Codex CLI.
+The Bodkin Search plugin bundles Bodkin Search MCP and all nine SEO Agent Skills into one install. This is the preferred way to set up Bodkin Search in Codex CLI.
 
 ## Install
 
@@ -15,9 +15,9 @@ codex plugin add openseo@openseo
 codex mcp login openseo
 ```
 
-`codex mcp login` opens a browser to approve the OpenSEO connection. If it reports that `openseo` isn't found, restart Codex first — bundled MCP servers only register after a restart, not immediately after install — then run `codex mcp login openseo` again.
+`codex mcp login` opens a browser to approve the Bodkin Search connection. If it reports that `openseo` isn't found, restart Codex first — bundled MCP servers only register after a restart, not immediately after install — then run `codex mcp login openseo` again.
 
-Codex connects OpenSEO MCP at `https://app.openseo.so/mcp` and enables nine skills:
+Codex connects Bodkin Search MCP at `https://app.openseo.so/mcp` and enables nine skills:
 
 - SEO Project Setup
 - SEO Coach
@@ -42,7 +42,7 @@ codex plugin remove openseo@openseo
 
 ## Troubleshooting
 
-If the OpenSEO MCP server doesn't appear after restart, run `/mcp` in the Codex TUI to check its status, then run `codex mcp login openseo` again.
+If the Bodkin Search MCP server doesn't appear after restart, run `/mcp` in the Codex TUI to check its status, then run `codex mcp login openseo` again.
 
 If it still doesn't authenticate, log out first and retry:
 
@@ -55,4 +55,4 @@ If a `codex plugin` command reports "unrecognized subcommand," run `codex plugin
 
 ## Other clients
 
-This plugin is for Codex CLI. For Claude Code, use the [OpenSEO plugin for Claude Code](/docs/claude-code-plugin) instead. For Claude Desktop, Cursor, Codex Desktop, or an API key setup, see [Set up OpenSEO MCP](/docs/mcp) and [Set up OpenSEO Agent Skills](/docs/skills/setup).
+This plugin is for Codex CLI. For Claude Code, use the [Bodkin Search plugin for Claude Code](/docs/claude-code-plugin) instead. For Claude Desktop, Cursor, Codex Desktop, or an API key setup, see [Set up Bodkin Search MCP](/docs/mcp) and [Set up Bodkin Search Agent Skills](/docs/skills/setup).

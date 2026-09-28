@@ -1,0 +1,14 @@
+{
+  "verdict": "missing_evidence",
+  "missing": [
+    {
+      "criteria": "7-10",
+      "evidence": "Fresh rendered UI evidence is unavailable under the user's prohibition on browser, HTTP, CDP, Playwright and screenshots. Draft, confirmation, pending, recovery and Published visual states therefore do not have an independent visual pass."
+    }
+  ],
+  "passed": [
+    "The final adversarial engineering review passed with no findings.",
+    "All 55 focused publication tests, 1,967 full-suite tests, CI, type checking, production build and whitespace checks passed.",
+    "Static render and hook interaction evidence covers content, focus, locking, exact recovery and lifecycle behavior without claiming visual quality."
+  ]
+}

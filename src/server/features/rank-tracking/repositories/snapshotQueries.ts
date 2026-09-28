@@ -137,6 +137,42 @@ export async function getPositionMatrix(
     .orderBy(asc(rankCheckRuns.startedAt));
 }
 
+/** Latest completed full checks used by detectors that need consecutive history. */
+export async function getRecentCompletedFullRuns(
+  configId: string,
+  limit: number,
+) {
+  return db
+    .select()
+    .from(rankCheckRuns)
+    .where(
+      and(
+        eq(rankCheckRuns.configId, configId),
+        eq(rankCheckRuns.status, "completed"),
+        eq(rankCheckRuns.isSubsetRun, false),
+      ),
+    )
+    .orderBy(desc(rankCheckRuns.startedAt), desc(rankCheckRuns.id))
+    .limit(limit);
+}
+
+export async function getSnapshotsForRuns(runIds: string[]) {
+  if (runIds.length === 0) return [];
+  return db
+    .select()
+    .from(rankSnapshots)
+    .where(inArray(rankSnapshots.runId, runIds))
+    .orderBy(asc(rankSnapshots.checkedAt), asc(rankSnapshots.id));
+}
+
+export async function getSnapshotsByIds(snapshotIds: number[]) {
+  if (snapshotIds.length === 0) return [];
+  return db
+    .select()
+    .from(rankSnapshots)
+    .where(inArray(rankSnapshots.id, snapshotIds));
+}
+
 /**
  * Pick one snapshot per keyword+device from completed runs, using SQL GROUP BY
  * + self-join instead of loading all snapshots into JS memory.

@@ -1,0 +1,13 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve authorization before the service call and pass the service only the authorized project ID/domain allowlist.",
+    "Preserve the four intentionally distinct URL identities, provider-private GSC property comparison, and safe public projection.",
+    "Preserve current-not-historical wording and cap-plus-one collection behavior."
+  ]
+}

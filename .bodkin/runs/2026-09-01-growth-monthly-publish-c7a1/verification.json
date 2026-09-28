@@ -1,0 +1,44 @@
+{
+  "base": "e28f53d",
+  "head": "working-tree",
+  "status": "passed",
+  "checks": [
+    {
+      "command": "pnpm vitest run src/types/schemas/growth-monthly-reports.test.ts src/server/features/growth/services/GrowthMonthlyReportsService.test.ts src/server/features/growth/services/GrowthMonthlyReportsPublicationService.test.ts src/serverFunctions/growthReports.test.ts src/client/features/growth/GrowthMonthlyReportRender.test.ts src/client/features/growth/GrowthMonthlyReportInteraction.test.ts src/server/features/growth/services/GrowthSignalToReport.test.ts",
+      "status": "passed",
+      "evidence": "Final repair: 7 files and 55 tests passed, including strict schema, exact coordinator, server authorization, static render, hook interaction and D1 signal-to-published-report coverage."
+    },
+    {
+      "command": "pnpm types:check",
+      "status": "passed",
+      "evidence": "TypeScript completed with exit code 0 after the final client-module split."
+    },
+    {
+      "command": "pnpm ci:check",
+      "status": "passed",
+      "evidence": "Prettier, Knip, both TypeScript projects, type-aware Oxlint, plugin skill synchronization and generated-tree cleanliness all passed. Oxlint reported 0 warnings and 0 errors across 1,021 files."
+    },
+    {
+      "command": "pnpm test",
+      "status": "passed",
+      "evidence": "221 test files passed and 7 conditional Postgres files were skipped; 1,967 tests passed and 21 conditional tests were skipped."
+    },
+    {
+      "command": "pnpm build",
+      "status": "passed",
+      "evidence": "Vite client and SSR production builds plus final TypeScript checking completed with exit code 0. Wrangler could not persist its optional debug log inside the sandbox, but the build completed successfully."
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed",
+      "evidence": "No whitespace errors."
+    }
+  ],
+  "constraints": [
+    {
+      "name": "rendered browser evidence",
+      "status": "waived_by_user",
+      "evidence": "The user prohibited browser, HTTP, CDP, Playwright and screenshot work. Static render and hook-interaction tests are recorded above; no older screenshot was represented as current evidence."
+    }
+  ]
+}

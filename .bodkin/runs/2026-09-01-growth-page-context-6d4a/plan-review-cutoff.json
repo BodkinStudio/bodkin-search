@@ -1,0 +1,17 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "Cutoff-aware saved Growth reads remain ambiguous for mutable current rows.",
+      "location": ".bodkin/runs/2026-09-01-growth-page-context-6d4a/plan.md implementation step 2; acceptance items 8, 9, 11 and 12",
+      "evidence": "Recommendations, Actions and Plans have different creation/review/update/completion fields, while target/link rows have no creation timestamp.",
+      "impact": "Implementations could disagree about future rows and accidentally imply historical lifecycle reconstruction.",
+      "recommendation": "Add a normative cutoff matrix and explicitly distinguish creation/fact cutoffs from current mutable lifecycle state."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": []
+}

@@ -1,0 +1,11 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Preserve the separate default versus supported OAuth scope lists, minimal protected-resource mcp metadata, stored-grant and verified-props refresh ceilings, capability-before-project authorization, discovery plus invocation defenses, external-MCP-only registration, API-key/self-hosted/SAM default-off behavior, principal-namespaced idempotency, delegation to existing Change Event validation and atomicity, and the shared privacy projector."
+  ]
+}

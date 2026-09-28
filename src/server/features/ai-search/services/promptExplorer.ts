@@ -74,12 +74,27 @@ export async function explorePrompt(
     },
   );
 
-  return {
+  const result: PromptExplorerResult = {
     prompt: input.prompt,
     highlightBrand,
     fetchedAt: new Date().toISOString(),
     results,
   };
+  try {
+    const { savePromptExplorerSnapshot } =
+      await import("@/server/features/ai-search/repositories/PromptExplorerSnapshotRepository");
+    result.snapshotId = await savePromptExplorerSnapshot({
+      projectId: input.projectId,
+      result,
+      webSearch: input.webSearch,
+      webSearchCountryCode: input.webSearchCountryCode ?? null,
+    });
+  } catch (error) {
+    console.error("ai-search.prompt-explorer.snapshot-save failed:", error);
+    result.snapshotSaveError =
+      "This response could not be saved. You can still review the results below.";
+  }
+  return result;
 }
 
 type RunModelArgs = {
@@ -113,11 +128,29 @@ async function runModel(
   if (cached.success && cached.data.status === "success") {
     // highlightBrand is not part of the cache key — re-apply it so the same
     // cached response can power different brand highlights for free.
-    return reapplyHighlightBrand(cached.data, args.highlightBrand);
+    return reapplyHighlightBrand(
+      {
+        ...cached.data,
+        cacheProvenance: {
+          source: "cached",
+          // The provider does not supply a generation timestamp; old cache timestamps
+          // may have represented server receipt, so they are not generation evidence.
+          generatedAt: null,
+        },
+      },
+      args.highlightBrand,
+    );
   }
 
   const rawResponse = await fetchModelResponse(args);
-  const shaped = shapeSuccess(args.model, rawResponse);
+  const shaped = {
+    ...shapeSuccess(args.model, rawResponse),
+    cacheProvenance: {
+      source: "fresh" as const,
+      // Capture time is recorded on the snapshot; upstream generation time is unknown.
+      generatedAt: null,
+    },
+  };
 
   waitUntil(
     setCached(cacheKey, shaped, PROMPT_RESPONSE_TTL_SECONDS, {

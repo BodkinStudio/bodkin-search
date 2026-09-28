@@ -1,0 +1,45 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [
+    {
+      "summary": "One user-triggered collection can exceed the required single 25-call Search Console budget.",
+      "location": "src/server/features/growth/services/GrowthWorkMeasurementCollectionService.ts:199; src/server/features/growth/services/GrowthSearchPerformanceAdapter.ts:353-375",
+      "evidence": "The orchestration invokes collectFrozenGrowthSearchPerformance independently for every mature missing period and supplies no shared remaining-call budget. The adapter shares its 25-call budget only across 90-day chunks within one period. With baseline, primary, and long-term periods all ready, one explicit collection can therefore issue up to 75 page requests. The existing orchestration test deliberately collects two periods but does not bound their combined requests.",
+      "impact": "A single user action can exceed the provider/request budget stated for this slice, increasing rate-limit exposure and violating the bounded-collection contract.",
+      "recommendation": "Make the 25-call allowance attempt-wide: carry a remaining budget across all ready periods and their 90-day chunks, and reject the attempt without writing facts if every ready period cannot be completely retrieved within that shared budget. Add a multi-period budget-exhaustion test."
+    },
+    {
+      "summary": "The Work UI omits the exact Google availability date once a period is ready or collected.",
+      "location": "src/client/features/growth/GrowthWorkMeasurementPresentation.tsx:149-167; src/client/features/growth/GrowthWorkMeasurementPresentation.tsx:267-274",
+      "evidence": "The table renders only Period, Saved dates, and Status. collectionPeriodStatus includes sourceAvailableOn only for waiting periods; ready and collected omit it.",
+      "impact": "This misses the requirement to show both frozen dates and the later Google source-availability date for each period, reducing the auditability of saved evidence.",
+      "recommendation": "Add a dedicated Google available column using period.sourceAvailableOn for every period, and extend render tests for ready and collected states."
+    }
+  ],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "No executed PostgreSQL evidence covers the new set-based JSON observation write path.",
+      "location": ".bodkin/runs/2026-09-01-growth-measurement-collection-7f3a/verification.json:16-22",
+      "evidence": "The PostgreSQL parity command reports all tests skipped because TEST_POSTGRES_DATABASE_URL is not configured. The changed writer contains PostgreSQL-specific jsonb_array_elements casts and locking behavior.",
+      "impact": "Atomicity and syntax of the new PostgreSQL path remain unverified for a core cross-dialect data-integrity requirement.",
+      "recommendation": "Run GrowthMeasurementsRepository.postgres.test.ts against a configured disposable PostgreSQL database and refresh verification.json before acceptance."
+    }
+  ],
+  "plan_gaps": [
+    {
+      "summary": "The plan does not define whether the 25-call limit applies across all periods fetched by one collection attempt.",
+      "location": ".bodkin/runs/2026-09-01-growth-measurement-collection-7f3a/plan.md:23-25; .bodkin/runs/2026-09-01-growth-measurement-collection-7f3a/plan.md:43-44",
+      "evidence": "The plan requires all mature missing periods in one attempt and mentions a 25-call cap, but does not state that the budget is shared across periods.",
+      "impact": "The governing criteria do not prevent an attempt-wide provider-budget regression.",
+      "recommendation": "State explicitly that the 25-call allowance is shared by all 90-day chunks and mature periods within one attempt, including no-write behavior when exhausted."
+    }
+  ],
+  "do_not_change": [
+    "Keep provider reads exclusively behind the explicit collection mutation; Work reads and rendering must remain provider-free.",
+    "Preserve raw exact matching of frozen URL targets; normalized, query, and trailing-slash variants must not substitute for a saved target.",
+    "Preserve all-or-nothing persistence of the complete validated observation batch and property-hash provenance checks.",
+    "Keep collection observational only: it must not set outcome, confidence, confounders, or transition Work out of Measuring."
+  ]
+}

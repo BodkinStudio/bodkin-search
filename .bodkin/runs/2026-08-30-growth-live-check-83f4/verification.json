@@ -1,0 +1,43 @@
+{
+  "runId": "2026-08-30-growth-live-check-83f4",
+  "status": "pass",
+  "generatedAt": "2026-08-30T09:33:52.446Z",
+  "checks": [
+    {
+      "name": "Targeted Growth workflow and evidence regressions",
+      "command": "pnpm exec vitest run GrowthPriorityPageCheck growth-checks growthChecks GrowthPreview GrowthRuns PriorityPageClickDecline GrowthSearchPerformance GrowthEvidencePacket --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 8128,
+      "output": "\n RUN  v3.2.6 /Users/jamesward/Documents/Dev/bodkin-search\n\n·····················································································································································································-\n\n Test Files  22 passed | 1 skipped (23)\n      Tests  181 passed | 1 skipped (182)\n   Start at  10:32:06\n   Duration  7.38s (transform 425ms, setup 0ms, collect 2.26s, tests 1.63s, environment 2ms, prepare 808ms)"
+    },
+    {
+      "name": "Repository checks",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 42088,
+      "output": "\n> open-seo@0.1.6 ci:check /Users/jamesward/Documents/Dev/bodkin-search\n> prettier --check . && knip && tsc --noEmit && tsc --noEmit -p badseo/tsconfig.json && oxlint . --type-aware && pnpm sync-plugin-skills && test -z \"$(git status --porcelain -- plugins/openseo/skills)\"\n\nChecking formatting...\nAll matched files use Prettier code style!\nFound 0 warnings and 0 errors.\nFinished in 5.7s on 931 files with 184 rules using 10 threads.\n\n> open-seo@0.1.6 sync-plugin-skills /Users/jamesward/Documents/Dev/bodkin-search\n> node scripts/sync-plugin-skills.mjs\n\nSynced 9 skills into plugins/openseo/skills/"
+    },
+    {
+      "name": "Production build",
+      "command": "WRANGLER_LOG_PATH=/private/tmp/bodkin-growth-build-83f4.log pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 56078,
+      "output": "[20222 earlier characters omitted]\nets/rank-tracking-DtSdBv_c.js                        13.91 kB\ndist/server/assets/_authenticated.onboarding.chat-BvZ40h2I.js       14.67 kB\ndist/server/assets/settings-C4lOZUvs.js                             16.29 kB\ndist/server/assets/SearchConsoleConnectionCard-CVgea5zF.js          16.53 kB\ndist/server/assets/sam-CsAclwHu.js                                  16.89 kB\ndist/server/assets/_tanstack-start-manifest_v-BGDIiHbs.js           17.31 kB\ndist/server/assets/GoogleAnalyticsConnectionCard-C6M9JxYn.js        17.69 kB\ndist/server/assets/_authenticated.onboarding.index-DsZYdLuw.js      20.56 kB\ndist/server/assets/useSearchTabNavigation-CNSfA3Ub.js               21.53 kB\ndist/server/assets/ErrorBarContext-DbnIXKkK.js                      21.68 kB\ndist/server/assets/LineChart-3O7_6l7V.js                            22.35 kB\ndist/server/assets/search-performance-Bx9undvN.js                   25.73 kB\ndist/server/assets/ai-search-ZkILETl6.js                            27.32 kB\ndist/server/assets/ai-kSDiziEh.js                                   28.53 kB\ndist/server/assets/_resultId-ChpltFNf.js                            32.56 kB\ndist/server/assets/prompt-explorer-BKT09xgw.js                      33.85 kB\ndist/server/assets/context-l7Ecnm7Z.js                              34.43 kB\ndist/server/assets/index-CfU3K4dB.js                                39.62 kB\ndist/server/assets/growthChecks-oa2IZsHo.js                         41.95 kB\ndist/server/assets/GrowthEvidencePacket-CvLRbO1U.js                 45.71 kB\ndist/server/assets/growth-CYQ4EuGF.js                               46.60 kB\ndist/server/assets/useOnboardingRedirect-RN-ti44U.js                50.31 kB\ndist/server/assets/billing-oWpd2fKF.js                              63.15 kB\ndist/server/assets/RankTrackingConfigModal-B38uu94o.js              68.41 kB\ndist/server/assets/brand-lookup-CbKpAHPK.js                         69.32 kB\ndist/server/assets/saved-ht45BpCT.js                                73.32 kB\ndist/server/assets/_configId-CzjAxWBg.js                            78.22 kB\ndist/server/assets/domain-cnQWgMEO.js                               84.08 kB\ndist/server/assets/Markdown-BEih5w8q.js                             91.14 kB\ndist/server/assets/page-analyzer-5Lna8pwz.js                        93.56 kB\ndist/server/assets/keywords-w1_CYinF.js                            100.07 kB\ndist/server/assets/sections-CgXFDZIP.js                            120.00 kB\ndist/server/assets/backlinks-PYAyjtA9.js                           121.42 kB\ndist/server/assets/mimetext.node.es-fZJM4Ybj.js                    223.47 kB\ndist/server/assets/OnboardingChatParts-M75tFMHy.js                 259.83 kB\ndist/server/assets/module-Bvs3CmIK.js                              290.91 kB\ndist/server/assets/index-DYttUzMU.js                               747.73 kB\ndist/server/assets/fetch-Be9XgB68.js                               856.50 kB\ndist/server/assets/router-CH6p2AKO.js                            1,552.94 kB\ndist/server/assets/core-VaumdkUi.js                              3,140.44 kB\ndist/server/assets/index-x4NuSe8W.js                             8,775.57 kB\n✓ built in 28.55s\n[stderr]\n\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit."
+    },
+    {
+      "name": "Whitespace",
+      "command": "git diff --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 32,
+      "output": ""
+    }
+  ]
+}

@@ -15,6 +15,9 @@ import {
   GscCard,
 } from "@/client/features/dashboard/DashboardCards";
 import { Ga4Card } from "@/client/features/dashboard/Ga4Card";
+import { YouTubeCard } from "@/client/features/dashboard/YouTubeCard";
+import { YouTubeContentCard } from "@/client/features/dashboard/YouTubeContentCard";
+import { LinkedInPageContentCard } from "@/client/features/dashboard/LinkedInPageContentCard";
 import { McpConnectCard } from "@/client/features/dashboard/McpConnectCard";
 import { WorkspaceMergeBanner } from "@/client/features/dashboard/WorkspaceMergeBanner";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
@@ -39,7 +42,7 @@ const HERO_COPY: Record<
   },
   mcp: {
     title: "Connect your AI agent",
-    body: "OpenSEO is built to be used from agents like Claude. Connect once, then ask it to use OpenSEO to help build your SEO strategy.",
+    body: "Bodkin Search is built to be used from agents like Claude. Connect once, then ask it to use Bodkin Search to help build your SEO strategy.",
     cta: "Show me how",
   },
   gsc: {
@@ -300,6 +303,7 @@ export function DashboardPage({ projectId }: { projectId: string }) {
   const showBacklinks = activation.domain !== null;
   const gscConnected = activation.gsc.connected;
   const ga4Connected = activation.ga4.connected;
+  const youtubeConnected = activation.youtube.connected;
 
   return (
     <div className="px-4 py-4 pb-24 md:px-6 md:py-6 md:pb-8">
@@ -346,6 +350,30 @@ export function DashboardPage({ projectId }: { projectId: string }) {
                   },
                 ]
               : []),
+            ...(youtubeConnected
+              ? [
+                  {
+                    key: "youtube",
+                    hasData: true,
+                    node: <YouTubeCard projectId={projectId} />,
+                  },
+                  {
+                    key: "youtube-content",
+                    hasData: true,
+                    node: <YouTubeContentCard projectId={projectId} />,
+                  },
+                ]
+              : []),
+            {
+              key: "linkedin-page-content",
+              hasData: false,
+              node: (
+                <LinkedInPageContentCard
+                  projectId={projectId}
+                  variant="summary"
+                />
+              ),
+            },
             {
               key: "audit",
               hasData: overview?.audit != null,
@@ -375,7 +403,9 @@ export function DashboardPage({ projectId }: { projectId: string }) {
           ]
             .toSorted((a, b) => Number(b.hasData) - Number(a.hasData))
             .map((card) => (
-              <div key={card.key}>{card.node}</div>
+              <div key={card.key} className="empty:hidden">
+                {card.node}
+              </div>
             ))}
         </div>
       </div>

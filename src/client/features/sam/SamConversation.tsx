@@ -2,7 +2,12 @@ import { useAgent } from "agents/react";
 // Think speaks the same chat protocol as @cloudflare/ai-chat, but its hook
 // variant skips the client->server transcript sync Think doesn't support.
 import { useAgentChat } from "@cloudflare/think/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { samChatErrorMessage } from "@/shared/samChatError";
+import {
+  readSamResearchDraft,
+  clearSamResearchDraft,
+} from "./samResearchDraft";
 import { ChatComposer } from "@/client/features/onboarding/OnboardingChatParts";
 import { invalidateSamSessions } from "@/client/features/sam/samQueries";
 import {
@@ -30,15 +35,19 @@ export function SamConversation({
   // session id. The WebSocket is authorized in the Worker (src/server.ts) before
   // it reaches the DO; billing gates come back as normal assistant messages.
   const agent = useAgent({ agent: "sam-chat", name: sessionId });
-  const { messages, sendMessage, setMessages, clearHistory, status } =
+  const { messages, sendMessage, setMessages, clearHistory, status, error } =
     useAgentChat({ agent });
 
+  const [researchDraft] = useState(() =>
+    readSamResearchDraft(projectId, sessionId),
+  );
   const isBusy = status === "submitted" || status === "streaming";
   const { scrollRef, onScroll, pinToBottom } = useStickToBottom(
     messages,
     status,
   );
   const sendText = (text: string) => {
+    clearSamResearchDraft(sessionId);
     pinToBottom();
     void sendMessage({ text });
   };
@@ -86,7 +95,7 @@ export function SamConversation({
     isBusy &&
     (lastMessage?.role !== "assistant" ||
       !messageHasVisibleContent(lastMessage));
-  const showSuggestions = messages.length === 0 && !isBusy;
+  const showSuggestions = messages.length === 0 && !isBusy && !researchDraft;
 
   return (
     <div className="relative flex min-w-0 flex-1 flex-col">
@@ -116,7 +125,9 @@ export function SamConversation({
                 and Search Console, and turn it into next steps for this
                 project.
               </p>
-              <p>Ask me anything, or start with one of these:</p>
+              {!researchDraft ? (
+                <p>Ask me anything, or start with one of these:</p>
+              ) : null}
             </div>
           ) : null}
 
@@ -157,9 +168,24 @@ export function SamConversation({
           ) : null}
 
           {status === "error" ? (
-            <p className="text-sm text-error">
-              Something went wrong. Please try again.
-            </p>
+            <div role="alert" className="space-y-3 text-sm">
+              <p className="font-medium">The response stopped</p>
+              <p>{samChatErrorMessage(error)}</p>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() =>
+                  sendText(
+                    "Continue the previous task from the results already in this conversation. Do not repeat completed actions. If you are still blocked, explain the exact blocker and what is needed to proceed.",
+                  )
+                }
+              >
+                Continue task
+              </button>
+              <p className="text-base-content/70">
+                Starts a new AI request using this conversation. Provider
+                charges may apply.
+              </p>
+            </div>
           ) : null}
 
           {showSuggestions ? (
@@ -181,7 +207,14 @@ export function SamConversation({
 
       <div className="flex-shrink-0 border-t border-base-300 px-5 py-3">
         <div className="mx-auto w-full max-w-2xl">
+          {researchDraft && messages.length === 0 ? (
+            <p className="mb-2 text-sm text-base-content/70">
+              Research task ready — review below, then press Send to start AI
+              research. Provider charges may apply.
+            </p>
+          ) : null}
           <ChatComposer
+            initialValue={researchDraft}
             busy={isBusy}
             onSend={sendText}
             placeholder="Ask SAM to research, analyze, or track anything…"

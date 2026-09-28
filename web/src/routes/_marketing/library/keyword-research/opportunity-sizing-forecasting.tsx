@@ -49,7 +49,7 @@ export const Route = createFileRoute(
       title: "SEO Forecasting: Size a Keyword Opportunity Before You Build",
       description: frontmatter.description,
       path: PATH,
-      titleSuffix: "OpenSEO Library",
+      titleSuffix: "Bodkin Search Library",
       ogType: "article",
     }),
   component: () => (

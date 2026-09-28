@@ -1,0 +1,28 @@
+{
+  "verdict": "revise",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [
+    {
+      "summary": "Required live PostgreSQL migration and concurrency verification did not run.",
+      "location": ".bodkin/runs/2026-09-01-growth-measurement-start-8a7d/verification.json",
+      "evidence": "The required disposable PostgreSQL migration/concurrency gate is recorded as failed because Docker never became ready; no live PostgreSQL database was used.",
+      "impact": "D1/Postgres behavioral parity, migration applicability, foreign-key semantics, and concurrent winner/retry behavior remain unproven on the required provider.",
+      "recommendation": "Restore a disposable PostgreSQL environment and execute the documented migration plus repository concurrency/anchor test gate; refresh verification.json with the actual result."
+    },
+    {
+      "summary": "Required rendered Work UI evidence and specialist review are absent.",
+      "location": ".bodkin/runs/2026-09-01-growth-measurement-start-8a7d/verification.json",
+      "evidence": "The Bodkin UI preflight is failed: fresh screenshots and their manifest are missing, so independent rendered desktop and narrow review was unavailable.",
+      "impact": "The acceptance contract cannot establish the lazy disclosure, selection/pending/uncertain/read-only states, responsive layout, or accessibility presentation in a running product.",
+      "recommendation": "Escalate or remove the browser-capture restriction, obtain fresh desktop and narrow screenshots from the current build, and complete the required independent rendered UI review."
+    }
+  ],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep the selected linked manual Change Event as a required immutable anchor for new plans; do not fall back to the Action Done timestamp.",
+    "Preserve legacy measurement-plan fact hashes and avoid fabricating anchor relations for them.",
+    "Preserve the stated separation between post-change measurement and causal attribution."
+  ]
+}

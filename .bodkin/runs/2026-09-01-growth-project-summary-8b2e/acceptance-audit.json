@@ -1,0 +1,170 @@
+{
+  "verdict": "pass",
+  "criteria": [
+    {
+      "criterion": "growth_get_project_summary is registered on the existing OpenSEO MCP server and mirrored from the same definition into SAM.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/tools/growth-project-summary-tool.ts",
+        "src/server/mcp/server.ts",
+        "src/server/features/sam/samChatTools.ts",
+        "src/server/mcp/server.growth.integration.test.ts"
+      ],
+      "note": "The shared definition is registered through the existing MCP and SAM adapters; no server or transport was added."
+    },
+    {
+      "criterion": "Canonical MCP project authorization completes before summary data is read, and only allowlisted authorized project fields enter the service.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/tools/growth-project-summary-tool.ts",
+        "src/server/mcp/tools/growth-project-summary-tool.test.ts"
+      ],
+      "note": "The unauthorized-path test proves the service is untouched, while the authorized-path test proves only id, name, url, countryCode and createdAt cross the boundary."
+    },
+    {
+      "criterion": "The summary is a strict, bounded, privacy-safe DTO with one canonical asOf and an explicit current-view consistency statement.",
+      "status": "pass",
+      "evidence": [
+        "src/types/schemas/growth-project-summary.ts",
+        "src/types/schemas/growth-project-summary.test.ts",
+        "src/server/features/growth/services/GrowthProjectSummaryService.test.ts"
+      ],
+      "note": "Strict schemas reject internal fields and oversized collections; one injected instant drives every time-sensitive projection and consistency is current_not_snapshot."
+    },
+    {
+      "criterion": "Project identity, typed context, Recommendations and Actions use existing privacy projectors and truthful post-projection caps without echoing the raw project domain.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/services/GrowthProjectSummaryService.ts",
+        "src/server/features/growth/services/GrowthProjectSummaryService.test.ts"
+      ],
+      "note": "Credential, URL and email safety projection is reused, smaller public caps are applied after sanitization, and tests cover redaction, omission, withholding and truncation state."
+    },
+    {
+      "criterion": "Context reports four typed-section presence states and counts other stored context without claiming prose quality, completeness or history.",
+      "status": "pass",
+      "evidence": [
+        "src/types/schemas/growth-project-summary.ts",
+        "src/server/features/growth/services/GrowthProjectSummaryService.ts",
+        "src/server/features/growth/services/GrowthProjectSummaryService.test.ts"
+      ],
+      "note": "The explicit scope is typed_sections_with_other_context_counts_only; missing sections and other counts are structural facts only."
+    },
+    {
+      "criterion": "Unresolved Recommendations use the exact proposed, snoozed and accepted-without-Action rule and stable bounded ordering.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/repositories/GrowthProjectSummaryRepository.ts",
+        "src/server/features/growth/repositories/GrowthProjectSummaryRepository.query.test.ts",
+        "src/server/features/growth/repositories/GrowthProjectSummaryRepository.postgres.test.ts",
+        "src/server/features/growth/services/GrowthProjectSummaryService.test.ts"
+      ],
+      "note": "Project-leading predicates, same-project NOT EXISTS, provider-specific code-unit ties and limit-plus-one are verified; the DTO exposes status plus snooze/action-needed state and at most five rows."
+    },
+    {
+      "criterion": "Current Actions include only the six nonterminal operational states and remain separate from detector-qualified Work.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/repositories/GrowthProjectSummaryRepository.ts",
+        "src/types/schemas/growth-project-summary.ts",
+        "src/server/features/growth/repositories/GrowthProjectSummaryRepository.query.test.ts",
+        "src/server/features/growth/services/GrowthProjectSummaryService.test.ts"
+      ],
+      "note": "The narrow Action query has no detector/run/signal qualification and returns priority/due/current order with five-row display plus truthful hasMore."
+    },
+    {
+      "criterion": "Recent Signals come only from terminal successful Runs, filter both Run completion and Signal capture at asOf before limiting, omit raw references and use explicit severity/recency/code-unit order.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/repositories/GrowthProjectSummaryRepository.ts",
+        "src/server/features/growth/repositories/GrowthProjectSummaryRepository.query.test.ts",
+        "src/server/features/growth/repositories/GrowthProjectSummaryRepository.postgres.test.ts",
+        "src/server/features/growth/services/GrowthProjectSummaryService.test.ts"
+      ],
+      "note": "D1 and live Postgres fixtures cover terminal-run membership, future filtering, foreign-project exclusion, explicit critical/warning/info order, ties and bounded projection."
+    },
+    {
+      "criterion": "Freshness is explicitly saved-Signal capture freshness, applies asOf in repository aggregates and keeps latest Run as a separate safe projection.",
+      "status": "pass",
+      "evidence": [
+        "src/types/schemas/growth-project-summary.ts",
+        "src/server/features/growth/repositories/GrowthProjectSummaryRepository.ts",
+        "src/server/features/growth/services/GrowthProjectSummaryService.test.ts"
+      ],
+      "note": "The DTO scope is saved_growth_signals; repository max capture times use the same terminal/asOf constraints and the service fails closed on future contract violations."
+    },
+    {
+      "criterion": "Active Measurement due dates use each Plan's frozen timezone, first-local-day-after-inclusive-end semantics and the required integrity precedence.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/repositories/GrowthProjectSummaryRepository.ts",
+        "src/server/features/growth/services/GrowthProjectSummaryService.ts",
+        "src/server/features/growth/services/GrowthProjectSummaryService.test.ts"
+      ],
+      "note": "Tests cover timezone boundaries, completed exclusion, action_missing, action_state_mismatch, action_version_mismatch and consistent without making evidence-completeness or finalization claims."
+    },
+    {
+      "criterion": "Measurement scanning evaluates every one of at most 50 active Plans and withholds partial results when a 51st candidate exists.",
+      "status": "pass",
+      "evidence": [
+        "src/types/schemas/growth-project-summary.ts",
+        "src/server/features/growth/services/GrowthProjectSummaryService.ts",
+        "src/server/features/growth/services/GrowthProjectSummaryService.test.ts"
+      ],
+      "note": "Complete scans display at most five due Plans with hasMore; overflow requires no items and hasMore true."
+    },
+    {
+      "criterion": "All deterministic query ties use SQLite BINARY or PostgreSQL C code-unit ID ordering with project-leading predicates and narrow selections.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/growth/repositories/GrowthProjectSummaryRepository.ts",
+        "src/server/features/growth/repositories/GrowthProjectSummaryRepository.query.test.ts",
+        "src/server/features/growth/repositories/GrowthProjectSummaryRepository.postgres.test.ts"
+      ],
+      "note": "Provider-specific fixtures prove ties across Recommendations, Actions, Signals, active Plans and latest Runs; selected columns are explicit."
+    },
+    {
+      "criterion": "The tool is read-only, closed-world, non-destructive, saved-data-only, zero-credit and provider-free and returns standard metadata plus a Growth deep link.",
+      "status": "pass",
+      "evidence": [
+        "src/server/mcp/tools/growth-project-summary-tool.ts",
+        "src/server/mcp/tools/growth-project-summary-tool.test.ts",
+        "src/server/mcp/server.growth.integration.test.ts"
+      ],
+      "note": "Tool annotations, schema, handler behavior and real in-memory MCP protocol discovery/call are verified; no live fetch or mutation is reachable."
+    },
+    {
+      "criterion": "SAM hides model-visible projectId, injects its bound project server-side and preserves the shared definition.",
+      "status": "pass",
+      "evidence": [
+        "src/server/features/sam/samChatTools.ts",
+        "src/server/features/sam/samChatGrowthTools.test.ts"
+      ],
+      "note": "The SAM test parses the model-facing schema, executes the tool and proves bound-project delegation without exposing projectId."
+    },
+    {
+      "criterion": "ADR documentation records the bounded current-composition boundary and no dependency, schema, migration, provider, billing, auth, scope, route, server-function, UI or print change was added.",
+      "status": "pass",
+      "evidence": [
+        "docs/growth/05_ARCHITECTURE_DECISIONS.md",
+        ".bodkin/runs/2026-09-01-growth-project-summary-8b2e/verification.json",
+        ".bodkin/runs/2026-09-01-growth-project-summary-8b2e/review-final.json",
+        "complete staged diff against df768d6"
+      ],
+      "note": "ADR-038 records the reuse and truthfulness constraints; the staged diff is confined to schemas, the existing repository/service/MCP/SAM layers, tests, ADR and run evidence."
+    }
+  ],
+  "missing": [],
+  "limitations": [
+    "External HTTP transport and headless MCP consumer probes were not run because the user's standing constraint prohibits browser, HTTP, CDP, Playwright and screenshot work. Those layers are not claimed as passed; a real no-network MCP client/server protocol exercise is included instead.",
+    "The live PostgreSQL check used the existing disposable PostgreSQL 16.14 test container and derived its credential without printing it."
+  ],
+  "do_not_change": [
+    "Keep this a bounded current composition and never describe it as an atomic historical snapshot.",
+    "Keep Signal freshness limited to saved Growth Signal capture time and latest Run separate.",
+    "Keep future and foreign-project Signal filtering in the repository before limits and aggregates.",
+    "Keep Measurement overflow fail-closed and the frozen-timezone due-date semantics.",
+    "Keep canonical MCP authorization and SAM's server-bound project injection.",
+    "Keep provider calls, credits, writes, UI and separate Growth infrastructure out of this summary tool."
+  ]
+}

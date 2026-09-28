@@ -1,0 +1,13 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    "Keep this slice read-only and internal-review-only: no AI egress, providers, scheduling, public endpoint, schema/query, or URL-normalizer behavior change.",
+    "Preserve the existing coarse Growth URL matching semantics and label included events only as `normalised_url_candidate`, not causal or exact matches.",
+    "Preserve canonical Signal facts separately from untrusted narrative context and hash only the final safe projection."
+  ]
+}

@@ -14,7 +14,8 @@ export default defineConfig(({ mode }) => {
     : env.PORT
       ? Number(env.PORT)
       : 3001;
-  const showDevtools = env.VITE_SHOW_DEVTOOLS !== "false";
+  // Opt-in: the devtools badge sits over the app in every screenshot and demo.
+  const showDevtools = env.VITE_SHOW_DEVTOOLS === "true";
   const allowedHosts = [
     env.ALLOWED_HOST,
     env.BETTER_AUTH_URL ? new URL(env.BETTER_AUTH_URL).hostname : undefined,
@@ -25,6 +26,7 @@ export default defineConfig(({ mode }) => {
     envPrefix: [
       "VITE_",
       "AUTH_MODE",
+      "CLIENT_WORKSPACES_ENABLED",
       "BYPASS_EMAIL_VERIFICATION",
       "POSTHOG_PUBLIC_KEY",
       "POSTHOG_HOST",

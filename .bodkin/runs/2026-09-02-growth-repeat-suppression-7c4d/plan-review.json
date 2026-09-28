@@ -1,0 +1,24 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Keep v1 conservative and defer controller release on material change or completed work.",
+      "location": ".bodkin/runs/2026-09-02-growth-repeat-suppression-7c4d/plan.md",
+      "evidence": "The revised plan consistently keeps every v1 controller active while recording the decision-time reason.",
+      "impact": "Implicit release would add unreviewed product policy and undermine stable replay.",
+      "recommendation": "Preserve the boundary in ADR, DTO copy and tests."
+    },
+    {
+      "summary": "Preserve the one-table project-qualified relation and exact per-Signal replay.",
+      "location": ".bodkin/runs/2026-09-02-growth-repeat-suppression-7c4d/plan.md",
+      "evidence": "Run guards, restricted controller deletion and deletion tests now define a coherent cross-run lifecycle without a backfill or auxiliary ledger.",
+      "impact": "An unqualified or mutable mapping would reintroduce tenant, replay and orphan risks.",
+      "recommendation": "Keep all decision reads/writes project-scoped and retain the cascade/restriction tests."
+    }
+  ]
+}

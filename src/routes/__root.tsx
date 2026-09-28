@@ -32,7 +32,7 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       {
-        title: "OpenSEO",
+        title: "Bodkin Search",
       },
       {
         charSet: "utf-8",
@@ -123,7 +123,7 @@ function PostHogBootstrap() {
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   const showDevtools =
-    import.meta.env.DEV && import.meta.env.VITE_SHOW_DEVTOOLS !== "false";
+    import.meta.env.DEV && import.meta.env.VITE_SHOW_DEVTOOLS === "true";
 
   return (
     <html suppressHydrationWarning translate="no">
@@ -152,7 +152,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                 />
                 {showDevtools ? (
                   <TanStackDevtools
-                    config={{ position: "bottom-right" }}
+                    config={{ position: "top-right" }}
                     eventBusConfig={{ connectToServerBus: true }}
                     plugins={[
                       {

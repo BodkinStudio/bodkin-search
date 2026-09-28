@@ -1,0 +1,19 @@
+{
+  "checks": [
+    {
+      "name": "Postgres tests after test-only lint repair",
+      "command": "TEST_POSTGRES_DATABASE_URL=postgres://growth_qa:growth_qa_disposable@127.0.0.1:55119/growth_atomic_qa pnpm exec vitest run src/server/features/growth/repositories/GrowthApprovalRepository.postgres.test.ts --reporter=dot",
+      "required": true
+    },
+    {
+      "name": "Repository checks",
+      "command": "pnpm ci:check",
+      "required": true
+    },
+    {
+      "name": "Diff whitespace",
+      "command": "git diff --check",
+      "required": true
+    }
+  ]
+}

@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_marketing/open-source-seo")({
       title: openSourceSeoFrontmatter.title,
       description: openSourceSeoFrontmatter.description,
       path: "/open-source-seo",
-      titleSuffix: "OpenSEO",
+      titleSuffix: "Bodkin Search",
       ogType: "article",
     }),
   component: OpenSourceSeoPage,
@@ -48,7 +48,7 @@ function OpenSourceSeoCta() {
   return (
     <section className="mt-14 rounded-xl border border-[var(--color-border-subtle)] bg-white p-6">
       <p className="text-xl font-semibold tracking-tight text-neutral-950">
-        Try OpenSEO, or follow along on GitHub
+        Try Bodkin Search, or follow along on GitHub
       </p>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--color-brand-muted)]">
         Try the hosted app if you want to get started right away. Or, check it
@@ -59,7 +59,7 @@ function OpenSourceSeoCta() {
           href="https://app.openseo.so/sign-up"
           className="inline-flex h-10 items-center justify-center rounded-lg bg-neutral-950 px-4 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
         >
-          Try OpenSEO
+          Try Bodkin Search
           <span className="ml-2" aria-hidden="true">
             &rarr;
           </span>

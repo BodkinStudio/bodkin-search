@@ -1,3 +1,4 @@
+import { useWorkspaceAccess } from "@/client/features/workspaces/useWorkspaceAccess";
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -7,7 +8,10 @@ import {
 } from "@/client/features/ga4/Ga4PropertyPicker";
 import { GoogleGlyph } from "@/client/features/gsc/GoogleGlyph";
 import { GoogleOAuthSetupWarning } from "@/client/features/integrations/GoogleOAuthSetupWarning";
-import { IntegrationConnectionCard } from "@/client/features/integrations/IntegrationConnectionCard";
+import {
+  AdminConnectsIntegrationCard,
+  IntegrationConnectionCard,
+} from "@/client/features/integrations/IntegrationConnectionCard";
 import { GoogleAnalyticsLogo } from "@/client/features/integrations/GoogleProductLogos";
 import { startGoogleLink } from "@/client/features/integrations/startGoogleLink";
 import { getStandardErrorMessage } from "@/client/lib/error-messages";
@@ -21,7 +25,24 @@ import {
 } from "@/serverFunctions/ga4";
 import { GA4_SELF_HOSTED_SETUP_DOCS_URL } from "@/shared/ga4";
 
-export function GoogleAnalyticsConnectionCard({
+// Connection status and the connect flow are admin-only; other members get a
+// note instead of a spinner that ends in a button they can't use.
+export function GoogleAnalyticsConnectionCard(
+  props: Parameters<typeof GoogleAnalyticsConnectionCardFlow>[0],
+) {
+  const access = useWorkspaceAccess();
+  if (!access.role) return null;
+  if (!access.can("configure"))
+    return (
+      <AdminConnectsIntegrationCard
+        title="Google Analytics"
+        icon={<GoogleAnalyticsLogo className="size-5" />}
+      />
+    );
+  return <GoogleAnalyticsConnectionCardFlow {...props} />;
+}
+
+function GoogleAnalyticsConnectionCardFlow({
   projectId,
   onDismiss,
   dismissing = false,

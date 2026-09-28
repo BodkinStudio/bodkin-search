@@ -1,0 +1,61 @@
+{
+  "runId": "2026-09-01-growth-recent-changes-4f2a",
+  "status": "pass",
+  "generatedAt": "2026-09-01T22:32:55Z",
+  "checks": [
+    {
+      "name": "Focused recent-change contract and agent regressions",
+      "command": "pnpm exec vitest run <7 recent-change and SAM files> --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 9520,
+      "output": "7 files and 25 tests passed. Coverage includes strict input/output, offset-cursor canonicalization before repository access, manual-only SQLite/D1 keyset paging, binary URL order, per-parent child sentinels, zero/overflow integrity rejection, privacy projection, authorization-first MCP handling, real in-process protocol registration, and SAM project binding."
+    },
+    {
+      "name": "Live PostgreSQL repository parity",
+      "command": "TEST_POSTGRES_DATABASE_URL=<existing disposable local PostgreSQL URL> pnpm exec vitest run src/server/features/growth/repositories/GrowthChangeEventsRepository.recent-changes.postgres.test.ts --maxWorkers=1 --reporter=dot",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 1150,
+      "output": "1 live PostgreSQL fixture passed. It covers manual-only C-collated happenedAt/ID paging, foreign-project exclusion, C-collated URL ordering, and the per-parent 101-row child sentinel."
+    },
+    {
+      "name": "Repository CI gate",
+      "command": "pnpm ci:check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 56200,
+      "output": "Prettier, Knip, root and badseo TypeScript, type-aware Oxlint across 1,082 files, plugin skill synchronization, and generated-skill cleanliness passed with zero warnings and zero errors. The first attempt exposed a max-lines violation in the shared SAM test; the new case was moved to a focused test file and the complete gate then passed."
+    },
+    {
+      "name": "Full repository tests",
+      "command": "pnpm exec vitest run --reporter=dot --maxWorkers=1",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 86400,
+      "output": "249 test files and 2,122 tests passed with one worker; 14 environment-gated files and 28 tests skipped. The new PostgreSQL fixture ran separately above."
+    },
+    {
+      "name": "Production build",
+      "command": "pnpm build",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 86500,
+      "output": "Client and SSR/Worker production bundles plus the trailing TypeScript check passed. Existing large-chunk warnings remained. Wrangler emitted a non-fatal sandbox-only log-file EPERM diagnostic; repository papercut rules explicitly exclude environment permission errors."
+    },
+    {
+      "name": "Whitespace",
+      "command": "git diff --check && git diff --cached --check",
+      "required": true,
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 200,
+      "output": "No unstaged or staged whitespace errors."
+    }
+  ]
+}

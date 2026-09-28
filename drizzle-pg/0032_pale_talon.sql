@@ -1,0 +1,2 @@
+ALTER TABLE "growth_project_settings" ADD COLUMN "settings_revision" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE "growth_project_settings" ADD CONSTRAINT "growth_project_settings_revision_check" CHECK ("growth_project_settings"."settings_revision" >= 1);

@@ -1,0 +1,38 @@
+{
+  "verdict": "pass",
+  "critical": [],
+  "major": [],
+  "minor": [],
+  "verification_gaps": [],
+  "plan_gaps": [],
+  "do_not_change": [
+    {
+      "summary": "Keep first-writer-wins monthly coordination and its pinned cutoff/settings policy.",
+      "location": "src/server/features/growth/services/GrowthMonthlyReportsService.ts",
+      "evidence": "The live Postgres contention fixture blocks both real coordinator calls at the settings-row write boundary, proves a single stored report, and asserts both callers receive that immutable winner.",
+      "impact": "Changing this to regeneration, comparison, or last-writer-wins would invalidate the frozen-report contract.",
+      "recommendation": "Preserve the coordinator's existing-coordinate read and recovery behavior."
+    },
+    {
+      "summary": "Keep database-provider-aware final ID ordering.",
+      "location": "src/server/features/growth/repositories/GrowthMonthlyReportsRepository.ts",
+      "evidence": "Focused SQLite query coverage and the live Postgres fixture exercise bounded candidate selection and code-unit-compatible tied IDs.",
+      "impact": "Removing explicit provider collation would make capped summaries non-deterministic across D1/SQLite and Postgres.",
+      "recommendation": "Retain the provider-specific SQL tie-breaker and JavaScript code-unit ordering in the builder."
+    },
+    {
+      "summary": "Keep the strict report DTO boundary and evidence sanitization before persistence.",
+      "location": "src/types/schemas/growth-monthly-reports.ts",
+      "evidence": "The implementation keeps source/evidence identifiers out of the client projection and the focused privacy tests cover credential, email and encoded-URL handling.",
+      "impact": "Relaxing this boundary could expose internal identifiers or mutable unsafe narrative in the monthly UI.",
+      "recommendation": "Add fields only through an explicit allowlist and the existing display projections."
+    },
+    {
+      "summary": "Keep the monthly card read-only until the explicit Build action.",
+      "location": "src/client/features/growth/GrowthMonthlyReport.tsx",
+      "evidence": "Interaction/render coverage distinguishes refresh/recovery reads from the explicit build mutation, with visible focused status feedback.",
+      "impact": "Implicit creation on render or refresh would violate the agreed user-control and snapshot semantics.",
+      "recommendation": "Preserve explicit Build and read-only Refresh/Check-saved-summary flows."
+    }
+  ]
+}

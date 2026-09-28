@@ -117,7 +117,9 @@ function tableQueryOptions(
   });
 }
 
-export function SearchPerformancePage({ projectId }: { projectId: string }) {
+// Google Search Console clicks, impressions, CTR and position, shown as the
+// Google Search area of Analytics.
+export function SearchPerformanceReport({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   const [range, setRange] =
     useState<SearchPerformanceDateRange>("last_28_days");
@@ -189,170 +191,165 @@ export function SearchPerformancePage({ projectId }: { projectId: string }) {
   };
 
   return (
-    <div className="px-4 py-4 pb-24 overflow-auto md:px-6 md:py-6 md:pb-8">
-      <div className="mx-auto max-w-7xl space-y-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">Search Performance</h1>
-            <p className="text-sm text-base-content/70">
-              See your site&apos;s clicks, impressions, CTR, and position from
-              Google Search Console.
-            </p>
-          </div>
-          {report?.connected ? (
-            <Link
-              to="/p/$projectId/settings/integrations"
-              params={{ projectId }}
-              className="link link-hover shrink-0 self-start text-sm font-medium text-base-content/60 transition-colors hover:text-base-content sm:mt-1"
-            >
-              Change property
-            </Link>
-          ) : null}
-        </div>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <p className="text-sm text-base-content/70">
+          How your site shows up in Google: clicks, impressions, click-through
+          rate and average position, from Search Console.
+        </p>
+        {report?.connected ? (
+          <Link
+            to="/p/$projectId/settings/integrations"
+            params={{ projectId }}
+            className="link link-hover shrink-0 self-start text-sm font-medium text-base-content/60 transition-colors hover:text-base-content sm:mt-1"
+          >
+            Change property
+          </Link>
+        ) : null}
+      </div>
 
-        {reportQuery.isPending ? (
-          <SearchPerformanceLoadingState />
-        ) : reportQuery.isError ? (
-          <div className="alert alert-error">
-            <span className="text-sm">
-              {getStandardErrorMessage(reportQuery.error)}
-            </span>
-          </div>
-        ) : !report?.connected ? (
-          <div className="max-w-2xl">
-            <SearchConsoleConnectionCard projectId={projectId} />
-          </div>
-        ) : (
-          <>
-            <TotalsCards report={report} />
-            <div className="overflow-hidden rounded-xl border border-base-300 bg-base-100">
-              <div className="flex flex-col gap-3 border-b border-base-300 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-                <div role="tablist" className="tabs tabs-border w-fit">
-                  <TabButton
-                    active={tab === "striking"}
-                    onClick={() => setTab("striking")}
-                    label={`Striking distance (${report.strikingDistance.length})`}
-                  />
-                  <TabButton
-                    active={tab === "queries"}
-                    onClick={() => setTab("queries")}
-                    label="Queries"
-                  />
-                  <TabButton
-                    active={tab === "pages"}
-                    onClick={() => setTab("pages")}
-                    label="Pages"
-                  />
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {reportQuery.isFetching && !reportQuery.isPending ? (
-                    <Loader2 className="size-4 animate-spin text-base-content/40" />
-                  ) : null}
-                  <select
-                    className="select select-bordered select-sm w-36"
-                    value={device}
-                    onChange={(event) => {
-                      setDevice(
-                        isDevice(event.target.value) ? event.target.value : ALL,
-                      );
-                    }}
-                    aria-label="Device filter"
-                  >
-                    <option value={ALL}>All devices</option>
-                    {DEVICE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="select select-bordered select-sm w-36"
-                    value={country}
-                    onChange={(event) => setCountry(event.target.value)}
-                    aria-label="Country filter"
-                  >
-                    <option value={ALL}>All countries</option>
-                    {report.countries.map((row) => (
-                      <option key={row.key} value={row.key}>
-                        {row.key.toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="select select-bordered select-sm w-36"
-                    value={range}
-                    onChange={(event) => {
-                      if (isDateRange(event.target.value)) {
-                        setRange(event.target.value);
-                      }
-                    }}
-                    aria-label="Date range"
-                  >
-                    {RANGE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <TableExportMenu
-                    buttonClassName="btn btn-ghost btn-sm gap-1"
-                    actions={[
-                      {
-                        label: "Export to Sheets",
-                        icon: <Sheet className="size-4" />,
-                        onClick: () => void handleExport("sheets"),
-                      },
-                      {
-                        label: "Download CSV",
-                        icon: <Download className="size-4" />,
-                        onClick: () => void handleExport("csv"),
-                      },
-                    ]}
-                  />
+      {reportQuery.isPending ? (
+        <SearchPerformanceLoadingState />
+      ) : reportQuery.isError ? (
+        <div className="alert alert-error">
+          <span className="text-sm">
+            {getStandardErrorMessage(reportQuery.error)}
+          </span>
+        </div>
+      ) : !report?.connected ? (
+        <div className="max-w-2xl">
+          <SearchConsoleConnectionCard projectId={projectId} />
+        </div>
+      ) : (
+        <>
+          <TotalsCards report={report} />
+          <div className="overflow-hidden rounded-xl border border-base-300 bg-base-100">
+            <div className="flex flex-col gap-3 border-b border-base-300 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+              <div role="tablist" className="tabs tabs-border w-fit">
+                <TabButton
+                  active={tab === "striking"}
+                  onClick={() => setTab("striking")}
+                  label={`Striking distance (${report.strikingDistance.length})`}
+                />
+                <TabButton
+                  active={tab === "queries"}
+                  onClick={() => setTab("queries")}
+                  label="Queries"
+                />
+                <TabButton
+                  active={tab === "pages"}
+                  onClick={() => setTab("pages")}
+                  label="Pages"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {reportQuery.isFetching && !reportQuery.isPending ? (
+                  <Loader2 className="size-4 animate-spin text-base-content/40" />
+                ) : null}
+                <select
+                  className="select select-bordered select-sm w-36"
+                  value={device}
+                  onChange={(event) => {
+                    setDevice(
+                      isDevice(event.target.value) ? event.target.value : ALL,
+                    );
+                  }}
+                  aria-label="Device filter"
+                >
+                  <option value={ALL}>All devices</option>
+                  {DEVICE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="select select-bordered select-sm w-36"
+                  value={country}
+                  onChange={(event) => setCountry(event.target.value)}
+                  aria-label="Country filter"
+                >
+                  <option value={ALL}>All countries</option>
+                  {report.countries.map((row) => (
+                    <option key={row.key} value={row.key}>
+                      {row.key.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="select select-bordered select-sm w-36"
+                  value={range}
+                  onChange={(event) => {
+                    if (isDateRange(event.target.value)) {
+                      setRange(event.target.value);
+                    }
+                  }}
+                  aria-label="Date range"
+                >
+                  {RANGE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <TableExportMenu
+                  buttonClassName="btn btn-ghost btn-sm gap-1"
+                  actions={[
+                    {
+                      label: "Export to Sheets",
+                      icon: <Sheet className="size-4" />,
+                      onClick: () => void handleExport("sheets"),
+                    },
+                    {
+                      label: "Download CSV",
+                      icon: <Download className="size-4" />,
+                      onClick: () => void handleExport("csv"),
+                    },
+                  ]}
+                />
+              </div>
+            </div>
+
+            {tab === "striking" ? (
+              <StrikingDistanceTable
+                projectId={projectId}
+                rows={report.strikingDistance}
+              />
+            ) : tableQuery.isPending ? (
+              <div className="flex items-center gap-2 p-8 text-sm text-base-content/60">
+                <Loader2 className="size-4 animate-spin" /> Loading…
+              </div>
+            ) : tableQuery.isError ? (
+              <div className="p-4">
+                <div className="alert alert-error">
+                  <span className="text-sm">
+                    {getStandardErrorMessage(tableQuery.error)}
+                  </span>
                 </div>
               </div>
-
-              {tab === "striking" ? (
-                <StrikingDistanceTable
-                  projectId={projectId}
-                  rows={report.strikingDistance}
-                />
-              ) : tableQuery.isPending ? (
-                <div className="flex items-center gap-2 p-8 text-sm text-base-content/60">
-                  <Loader2 className="size-4 animate-spin" /> Loading…
-                </div>
-              ) : tableQuery.isError ? (
+            ) : (
+              <>
                 <div className="p-4">
-                  <div className="alert alert-error">
-                    <span className="text-sm">
-                      {getStandardErrorMessage(tableQuery.error)}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="p-4">
-                    <DimensionTable
-                      rows={tableRows}
-                      keyLabel={tab === "queries" ? "Query" : "Page"}
-                    />
-                  </div>
-                  <TablePagination
-                    page={page}
-                    pageSize={pageSize}
-                    pageSizes={SEARCH_PERFORMANCE_PAGE_SIZES}
-                    totalCount={null}
-                    hasNextPage={hasNextPage}
-                    isLoading={tableQuery.isFetching}
-                    onPageChange={setPage}
-                    onPageSizeChange={setPageSize}
+                  <DimensionTable
+                    rows={tableRows}
+                    keyLabel={tab === "queries" ? "Query" : "Page"}
                   />
-                </>
-              )}
-            </div>
-          </>
-        )}
-      </div>
+                </div>
+                <TablePagination
+                  page={page}
+                  pageSize={pageSize}
+                  pageSizes={SEARCH_PERFORMANCE_PAGE_SIZES}
+                  totalCount={null}
+                  hasNextPage={hasNextPage}
+                  isLoading={tableQuery.isFetching}
+                  onPageChange={setPage}
+                  onPageSizeChange={setPageSize}
+                />
+              </>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
