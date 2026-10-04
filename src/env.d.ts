@@ -4,6 +4,10 @@
 declare namespace Cloudflare {
   interface Env {
     CLIENT_WORKSPACES_ENABLED?: string;
+    // A service API key (Better Auth key id) bound to one project and to
+    // free read tools: see src/server/mcp/service-key.ts.
+    MCP_SERVICE_KEY_ID?: string;
+    MCP_SERVICE_PROJECT_ID?: string;
     WORKSPACE_INVITATIONS_ENABLED?: string;
     LOOPS_TRANSACTIONAL_WORKSPACE_INVITE_ID?: string;
     WORKSPACE_APP_URL?: string;

@@ -7,6 +7,7 @@ import { captureServerError, captureServerEvent } from "@/server/lib/posthog";
 import { shouldCaptureAppErrorCode } from "@/shared/error-codes";
 import { type ToolContext } from "@/server/mcp/context";
 import { authorizeMcpToolCall } from "@/server/mcp/workspace-auth";
+import { enforceServiceKeyPolicy } from "@/server/mcp/service-key";
 import { incrementSelfHostMcpToolCallCount } from "@/server/lib/self-host-telemetry";
 
 type ToolHandler<TArgs> = (
@@ -88,6 +89,7 @@ export function instrumentMcpToolHandler<TArgs>(
     const startedAt = performance.now();
     let context = requestContext;
     try {
+      enforceServiceKeyPolicy(toolName, args, requestContext);
       context = await authorizeMcpToolCall(toolName, args, requestContext);
       const result = await handler(args, context);
       // The SDK converts an output-schema mismatch into a client-visible
