@@ -43,6 +43,9 @@ vi.mock("@/server/features/activation/mcpActivation", () => ({
   recordMcpAuthorized: mocks.recordMcpAuthorized,
 }));
 
+const workerEnv = vi.hoisted((): Record<string, string | undefined> => ({}));
+vi.mock("cloudflare:workers", () => ({ env: workerEnv }));
+
 vi.mock("@/server/mcp/transport", () => ({
   handleAuthenticatedOpenSeoMcpRequest:
     mocks.handleAuthenticatedOpenSeoMcpRequest,
@@ -115,6 +118,35 @@ describe("handleMcpApiKeyRequest", () => {
     expect(parsedProps[MCP_AUTH_CONTEXT_PROP].scopes).not.toContain(
       GROWTH_CHANGE_CREATE_SCOPE,
     );
+  });
+
+  it("marks only the deployment's named service key as a service caller", async () => {
+    workerEnv.MCP_SERVICE_KEY_ID = "key-svc";
+    try {
+      for (const [id, clientId] of [
+        ["key-svc", "service_key"],
+        ["key-other", "api_key"],
+      ] as const) {
+        mocks.handleAuthenticatedOpenSeoMcpRequest.mockClear();
+        mocks.verifyApiKey.mockResolvedValue({
+          valid: true,
+          error: null,
+          key: { id, referenceId: "user-1" },
+        });
+        await handleMcpApiKeyRequest(
+          request({ Authorization: "Bearer oseo_secret" }),
+          env,
+          ctx,
+        );
+        const [, props] =
+          mocks.handleAuthenticatedOpenSeoMcpRequest.mock.calls[0];
+        expect(props).toMatchObject({
+          [MCP_AUTH_CONTEXT_PROP]: { clientId },
+        });
+      }
+    } finally {
+      delete workerEnv.MCP_SERVICE_KEY_ID;
+    }
   });
 
   it("accepts the key via a case-insensitive bearer scheme", async () => {

@@ -5,6 +5,7 @@ import { getOrCreateDefaultHostedOrganization } from "@/server/auth/default-host
 import { AuthRepository } from "@/server/auth/repositories/AuthRepository";
 import { recordMcpAuthorized } from "@/server/features/activation/mcpActivation";
 import { createWorkersOAuthMcpProps, MCP_ROUTE } from "@/server/mcp/context";
+import { isServiceKey, SERVICE_CLIENT_ID } from "@/server/mcp/service-key";
 import { handleAuthenticatedOpenSeoMcpRequest } from "@/server/mcp/transport";
 
 function getApiKey(request: Request) {
@@ -116,7 +117,9 @@ export async function handleMcpApiKeyRequest(
       organizationId,
       baseUrl: getHostedBaseUrl(),
       scopes: [...MCP_OAUTH_SCOPES],
-      clientId: "api_key",
+      // A service key is bound to one project and to read tools
+      // (enforceServiceKeyPolicy, on every tool call).
+      clientId: isServiceKey(result.key.id) ? SERVICE_CLIENT_ID : "api_key",
     });
 
     await recordMcpAuthorized(organizationId);
