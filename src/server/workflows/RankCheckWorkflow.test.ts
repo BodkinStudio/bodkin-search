@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   failRunIfActive: vi.fn(),
   captureServerEvent: vi.fn(),
   isHostedServerAuthMode: vi.fn(),
+  usageMeteringDisabled: vi.fn(),
 }));
 
 vi.mock("cloudflare:workers", () => ({
@@ -53,6 +54,9 @@ vi.mock("@/server/lib/posthog", () => ({
 vi.mock("@/server/billing/autumn", () => ({
   autumn: { check: mocks.autumnCheck },
 }));
+vi.mock("@/server/billing/subscription", () => ({
+  usageMeteringDisabled: mocks.usageMeteringDisabled,
+}));
 vi.mock("@/server/lib/runtime-env", () => ({
   isHostedServerAuthMode: mocks.isHostedServerAuthMode,
 }));
@@ -74,6 +78,7 @@ describe("rank check workflow credit ceiling", () => {
     mocks.getRunById.mockResolvedValue(activeRun);
     mocks.updateRun.mockResolvedValue(undefined);
     mocks.isHostedServerAuthMode.mockResolvedValue(true);
+    mocks.usageMeteringDisabled.mockResolvedValue(false);
     mocks.autumnCheck.mockResolvedValue({ balance: { remaining: 1_000 } });
   });
 
@@ -158,6 +163,26 @@ describe("rank check workflow credit ceiling", () => {
     });
 
     expect(result.keywords).toHaveLength(5);
+    expect(mocks.autumnCheck).not.toHaveBeenCalled();
+  });
+
+  it("skips the balance check when hosted usage metering is disabled", async () => {
+    mocks.getKeywordsForConfig.mockResolvedValue([
+      { id: "kw_0", keyword: "keyword 0" },
+    ]);
+    mocks.usageMeteringDisabled.mockResolvedValue(true);
+
+    const result = await prepareRankCheckKeywords({
+      runId: "run_1",
+      configId: "config_1",
+      billingCustomer,
+      devices: "desktop",
+      serpDepth: 10,
+      trigger: "manual",
+      maxCostCredits: 12,
+    });
+
+    expect(result.keywords).toHaveLength(1);
     expect(mocks.autumnCheck).not.toHaveBeenCalled();
   });
 });
