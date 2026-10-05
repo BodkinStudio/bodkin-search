@@ -92,6 +92,31 @@ export function AnalyticsJourneyDetail({
                         {event.pagePath}
                       </p>
                     )}
+                    {event.channel && (
+                      <p className="mt-1 text-xs text-base-content/70">
+                        <span className="badge badge-sm badge-ghost mr-2">
+                          {event.channel}
+                        </span>
+                        {[
+                          [
+                            event.campaignSource,
+                            event.campaignMedium,
+                            event.campaignName,
+                          ]
+                            .filter(Boolean)
+                            .join(" / "),
+                          event.campaignContent &&
+                            `content ${event.campaignContent}`,
+                          event.campaignTerm && `term ${event.campaignTerm}`,
+                          event.clickIdType && `${event.clickIdType} click`,
+                          event.referrerHost &&
+                            event.referrerHost !== event.pageHost &&
+                            `from ${event.referrerHost}${event.referrerPath ?? ""}`,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    )}
                   </div>
                   <time
                     className="text-xs tabular-nums text-base-content/60"

@@ -5,9 +5,9 @@ import * as schema from "@/db/analytics.schema";
 import { createClient, type Client } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { eq } from "drizzle-orm";
-import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { now, ids, event } from "./collection-test-fixture";
+import { analyticsMigrationSql } from "./collection-test-fixture-db";
 
 let client: Client;
 let collect: typeof CollectionModule.collect;
@@ -38,11 +38,7 @@ beforeAll(async () => {
   await client.executeMultiple(
     [
       "CREATE TABLE projects (id text primary key);",
-      readFileSync("drizzle/0073_aspiring_inertia.sql", "utf8") +
-        readFileSync("drizzle/0074_right_mephisto.sql", "utf8") +
-        readFileSync("drizzle/0075_panoramic_namora.sql", "utf8") +
-        readFileSync("drizzle/0076_dazzling_wolf_cub.sql", "utf8") +
-        readFileSync("drizzle/0079_wandering_zarda.sql", "utf8"),
+      analyticsMigrationSql(),
       `
 INSERT INTO projects VALUES ('p');
 INSERT INTO analytics_settings(project_id,business_model,primary_outcome,matching_window_hours,retention_days,personal_access,webhook_url,updated_at) VALUES ('p','organisation','registration_completed',24,90,1,NULL,'2026-09-01T00:00:00.000Z');

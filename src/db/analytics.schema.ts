@@ -28,6 +28,8 @@ export const analyticsSettings = sqliteTable(
       .notNull()
       .default(false),
     webhookUrl: text("webhook_url"),
+    // Qualified leads a week the project is aiming for (the MQL report's target line).
+    weeklyMqlTarget: integer("weekly_mql_target"),
     anonymousCollection: integer("anonymous_collection", { mode: "boolean" })
       .notNull()
       .default(false),
@@ -140,6 +142,11 @@ export const analyticsEvents = sqliteTable(
     campaignSource: text("campaign_source"),
     campaignMedium: text("campaign_medium"),
     campaignName: text("campaign_name"),
+    campaignContent: text("campaign_content"),
+    campaignTerm: text("campaign_term"),
+    referrerPath: text("referrer_path"),
+    clickIdType: text("click_id_type"),
+    clickId: text("click_id"),
     action: text("action"),
     destination: text("destination"),
     placement: text("placement"),

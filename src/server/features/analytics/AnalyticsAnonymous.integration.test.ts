@@ -44,6 +44,8 @@ beforeAll(async () => {
         "0075_panoramic_namora",
         "0076_dazzling_wolf_cub",
         "0079_wandering_zarda",
+        "0082_milky_wolfpack",
+        "0083_crazy_newton_destine",
       ]
         .map((name) => readFileSync(`drizzle/${name}.sql`, "utf8"))
         .join("\n") +

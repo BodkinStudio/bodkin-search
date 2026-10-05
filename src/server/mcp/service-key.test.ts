@@ -58,7 +58,11 @@ describe("service key", () => {
       "get_google_analytics_page_performance",
     ]) {
       expect(() =>
-        enforceServiceKeyPolicy(tool, { projectId: PROJECT }, ctx(SERVICE_CLIENT_ID)),
+        enforceServiceKeyPolicy(
+          tool,
+          { projectId: PROJECT },
+          ctx(SERVICE_CLIENT_ID),
+        ),
       ).not.toThrow();
     }
     expect(() =>
@@ -78,7 +82,11 @@ describe("service key", () => {
       "not_a_tool",
     ]) {
       refused(() =>
-        enforceServiceKeyPolicy(tool, { projectId: PROJECT }, ctx(SERVICE_CLIENT_ID)),
+        enforceServiceKeyPolicy(
+          tool,
+          { projectId: PROJECT },
+          ctx(SERVICE_CLIENT_ID),
+        ),
       );
     }
   });
@@ -91,7 +99,9 @@ describe("service key", () => {
         ctx(SERVICE_CLIENT_ID),
       ),
     );
-    refused(() => enforceServiceKeyPolicy("list_projects", {}, ctx(SERVICE_CLIENT_ID)));
+    refused(() =>
+      enforceServiceKeyPolicy("list_projects", {}, ctx(SERVICE_CLIENT_ID)),
+    );
   });
 
   it("reaches nothing when no project is bound", () => {
@@ -107,8 +117,14 @@ describe("service key", () => {
 
   it("leaves every other caller unchanged", () => {
     expect(() =>
-      enforceServiceKeyPolicy("get_serp_results", { projectId: "x" }, ctx("api_key")),
+      enforceServiceKeyPolicy(
+        "get_serp_results",
+        { projectId: "x" },
+        ctx("api_key"),
+      ),
     ).not.toThrow();
-    expect(() => enforceServiceKeyPolicy("create_project", {}, ctx(null))).not.toThrow();
+    expect(() =>
+      enforceServiceKeyPolicy("create_project", {}, ctx(null)),
+    ).not.toThrow();
   });
 });

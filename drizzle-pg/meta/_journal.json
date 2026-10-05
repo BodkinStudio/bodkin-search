@@ -421,6 +421,20 @@
       "when": 1790542737860,
       "tag": "0059_superb_sheva_callister",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1791207740057,
+      "tag": "0060_easy_stingray",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1791207850485,
+      "tag": "0061_absent_gravity",
+      "breakpoints": true
     }
   ]
 }

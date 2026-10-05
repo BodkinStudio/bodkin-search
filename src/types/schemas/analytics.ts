@@ -49,6 +49,21 @@ export const journeyEventSchema = z
       })
       .strict()
       .optional(),
+    clickId: z
+      .object({
+        type: z.enum([
+          "gclid",
+          "gbraid",
+          "wbraid",
+          "msclkid",
+          "fbclid",
+          "li_fat_id",
+          "ttclid",
+        ]),
+        value: z.string().regex(/^[\w.~-]{1,200}$/),
+      })
+      .strict()
+      .optional(),
     properties: z
       .object({
         action: z.string().max(100).optional(),

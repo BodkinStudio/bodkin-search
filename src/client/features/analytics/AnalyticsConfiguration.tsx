@@ -54,6 +54,9 @@ function ConfigurationForm({
   const [personal, setPersonal] = useState(value.personalAccess);
   const [anonymous, setAnonymous] = useState(value.anonymousCollection);
   const [webhook, setWebhook] = useState(value.webhookUrl ?? "");
+  const [target, setTarget] = useState(
+    value.weeklyMqlTarget ? String(value.weeklyMqlTarget) : "",
+  );
   const queryClient = useQueryClient();
   const save = useMutation({
     mutationFn: () =>
@@ -77,6 +80,10 @@ function ConfigurationForm({
           personalAccess: personal,
           anonymousCollection: anonymous,
           webhookUrl: webhook || null,
+          weeklyMqlTarget:
+            Number.parseInt(target, 10) > 0
+              ? Number.parseInt(target, 10)
+              : null,
         },
       }),
     onSuccess: () => {
@@ -120,6 +127,21 @@ function ConfigurationForm({
             <option value="customer_acquired">Customer acquired</option>
             <option value="payment_succeeded">First payment</option>
           </select>
+        </label>
+        <label className="grid gap-1 text-sm">
+          Qualified leads target per week
+          <input
+            type="number"
+            min={1}
+            inputMode="numeric"
+            className="input w-full"
+            placeholder="No target"
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+          />
+          <span className="text-xs text-base-content/70">
+            Drawn as the target line on the qualified leads report.
+          </span>
         </label>
       </div>
       <label className="flex items-start gap-3 text-sm">

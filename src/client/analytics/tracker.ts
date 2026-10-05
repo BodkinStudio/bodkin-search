@@ -1,3 +1,4 @@
+import { campaignFrom, clickIdFrom } from "./url-tags";
 /** Consent-first browser tracker. Import as a module or use the async script build. */
 export interface JourneyConsent {
   analytics: boolean;
@@ -40,6 +41,7 @@ type BrowserEvent = {
   page?: { host: string; path: string };
   referrer?: { host: string; path: string };
   campaign?: Record<string, string>;
+  clickId?: { type: string; value: string };
   properties?: EventProperties;
   identityAssertion?: string;
 };
@@ -198,12 +200,6 @@ export function initJourneyTracker(
     if (mode() === "anonymous") ids = { mode: "anonymous" };
     else if (ensureContext() && contextId) ids = { contextId, sessionId };
     else return;
-    const campaign: Record<string, string> = {};
-    for (const field of ["source", "medium", "campaign", "content", "term"]) {
-      const value = url.searchParams.get(`utm_${field}`);
-      if (value && !/@|bearer|token=/i.test(value))
-        campaign[field] = value.slice(0, 150);
-    }
     let referrer: BrowserEvent["referrer"];
     try {
       const ref = new URL(document.referrer);
@@ -224,7 +220,8 @@ export function initJourneyTracker(
       consent: { ...consent },
       page: { host: url.hostname, path: safeJourneyPath(path) },
       referrer,
-      campaign,
+      campaign: campaignFrom(url),
+      clickId: clickIdFrom(url),
       properties,
       identityAssertion: assertion,
     });

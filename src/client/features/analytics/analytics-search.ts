@@ -19,6 +19,7 @@ export const analyticsSearchSchema = z.object({
   view: z
     .enum([
       "overview",
+      "mqls",
       "journeys",
       "acquisition",
       "funnels",

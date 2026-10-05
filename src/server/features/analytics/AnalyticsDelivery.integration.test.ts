@@ -45,7 +45,9 @@ beforeAll(async () => {
     INSERT INTO analytics_outbox(id,project_id,customer_id,version,created_at,next_attempt_at,delivered_at) VALUES ('legacy-delivery','delivery','legacy',4,'2026-01-01','2026-01-01','2026-01-01');`);
   await client.executeMultiple(
     readFileSync("drizzle/0076_dazzling_wolf_cub.sql", "utf8") +
-      readFileSync("drizzle/0079_wandering_zarda.sql", "utf8"),
+      readFileSync("drizzle/0079_wandering_zarda.sql", "utf8") +
+      readFileSync("drizzle/0082_milky_wolfpack.sql", "utf8") +
+      readFileSync("drizzle/0083_crazy_newton_destine.sql", "utf8"),
   );
   ({ deliverOutbox } = await import("./AnalyticsDelivery"));
   ({ recordOutcome } = await import("./AnalyticsOutcomes"));

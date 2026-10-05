@@ -1,6 +1,7 @@
 import { reportingSettings } from "./AnalyticsReportingConfiguration";
 import { onboardingStatus } from "./onboarding";
 import { calendarDay } from "@/shared/analytics/calendar";
+import { channelFor } from "@/shared/analytics/channels";
 import { funnels } from "./AnalyticsFunnels";
 import { AnalyticsRepository as repo } from "./AnalyticsRepository";
 import type { AnalyticsQuery } from "@/types/schemas/analytics";
@@ -210,6 +211,22 @@ async function journey(q: AnalyticsQuery, contextId: string) {
       trust: e.trust,
       action: e.action,
       destination: e.destination,
+      // Where this step came from, when it says (a landing from an ad, a
+      // search, another site): the journey's source, shown on its first step.
+      referrerHost: e.referrerHost,
+      referrerPath: e.referrerPath,
+      campaignSource: e.campaignSource,
+      campaignMedium: e.campaignMedium,
+      campaignName: e.campaignName,
+      campaignContent: e.campaignContent,
+      campaignTerm: e.campaignTerm,
+      clickIdType: e.clickIdType,
+      channel:
+        e.clickIdType ||
+        e.campaignSource ||
+        (e.referrerHost && e.referrerHost !== e.pageHost)
+          ? channelFor(e)
+          : null,
     }));
 }
 async function journeyMap(q: AnalyticsQuery) {

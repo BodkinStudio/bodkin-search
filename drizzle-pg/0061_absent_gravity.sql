@@ -1,0 +1,1 @@
+ALTER TABLE "analytics_settings" ADD COLUMN "weekly_mql_target" integer;

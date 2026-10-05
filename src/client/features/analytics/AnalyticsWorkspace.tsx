@@ -23,8 +23,10 @@ import {
   getAnalyticsJourneyMap,
   getAnalyticsCustomers,
   getAnalyticsFunnels,
+  getAnalyticsMqls,
   listAnalyticsSources,
 } from "@/serverFunctions/analytics";
+import { AnalyticsMqlsPanel } from "./AnalyticsMqlsPanel";
 import { AnalyticsJourneyDetail } from "./AnalyticsJourneyDetail";
 import { AnalyticsJourneysPanel } from "./AnalyticsJourneysPanel";
 import {
@@ -48,6 +50,7 @@ import { AnalyticsChannels } from "./AnalyticsChannels";
 // those who may inspect them (or can switch inspection on).
 const views = [
   { value: "overview", label: "Overview", personal: false },
+  { value: "mqls", label: "Qualified leads", personal: false },
   { value: "acquisition", label: "Sources", personal: false },
   { value: "funnels", label: "Funnels", personal: false },
   { value: "journeys", label: "Journeys", personal: true },
@@ -124,6 +127,11 @@ function AnalyticsWebsite({
         data: { ...filters, template: search.template, action: search.action },
       }),
     enabled: search.view === "funnels",
+  });
+  const mqls = useQuery({
+    queryKey: ["analyticsMqls", filters],
+    queryFn: () => getAnalyticsMqls({ data: filters }),
+    enabled: environmentKnown && search.view === "mqls",
   });
   const openJourney = (context: string) =>
     onSearch({ view: "journeys", context, customer: undefined });
@@ -236,6 +244,15 @@ function AnalyticsWebsite({
                   data={overview.data}
                   canAdminister={canAdminister}
                   onSearch={onSearch}
+                />
+              )}
+              {search.view === "mqls" && (
+                <AnalyticsMqlsPanel
+                  data={mqls.data}
+                  pending={mqls.isPending}
+                  error={mqls.isError}
+                  canInspect={canInspect}
+                  onOpenJourney={openJourney}
                 />
               )}
               {search.view === "journeys" && (
