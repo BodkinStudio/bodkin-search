@@ -33,7 +33,8 @@ function ProjectIntegrationsRoute() {
         <LinkedInConnectionCard projectId={projectId} />
       </section>
 
-      <section id="google-ads" className="scroll-mt-6 space-y-3">
+      {/* Not "google-ads": ad blockers hide elements with that id (EasyList). */}
+      <section id="advertising" className="scroll-mt-6 space-y-3">
         <h2 className="text-sm font-medium text-base-content/50">
           Advertising
         </h2>
