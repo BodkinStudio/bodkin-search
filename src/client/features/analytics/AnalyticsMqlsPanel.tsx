@@ -180,6 +180,8 @@ export function AnalyticsMqlsPanel({
         </details>
       </section>
 
+      <AdsSpend ads={data.ads} />
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Breakdown
           title="By channel"
@@ -279,7 +281,9 @@ function touchLabel(lead: Lead) {
   const extra = [
     t.content && `content ${t.content}`,
     t.term && `term ${t.term}`,
-    t.clickIdType && `${t.clickIdType} click`,
+    lead.adCampaign
+      ? `Google Ads: ${lead.adCampaign.campaignName}${lead.adCampaign.keyword ? ` (${lead.adCampaign.keyword})` : ""}`
+      : t.clickIdType && `${t.clickIdType} click`,
   ]
     .filter(Boolean)
     .join(", ");
@@ -312,6 +316,87 @@ function Breakdown({
           </tbody>
         </table>
       )}
+    </section>
+  );
+}
+
+function AdsSpend({ ads }: { ads: Report["ads"] }) {
+  if (!ads.connected)
+    return (
+      <p className="text-sm text-base-content/70">
+        Connect Google Ads in Settings → Integrations to see what each campaign
+        costs per qualified lead.
+      </p>
+    );
+  if (!("campaigns" in ads) || !ads.campaigns)
+    return (
+      <p role="alert" className="text-sm text-warning">
+        Google Ads couldn’t be read: {ads.error}
+      </p>
+    );
+  const money = (n: number | null) =>
+    n === null
+      ? "—"
+      : new Intl.NumberFormat(undefined, {
+          style: "currency",
+          currency: ads.currency || "GBP",
+          maximumFractionDigits: 0,
+        }).format(n);
+  return (
+    <section
+      aria-labelledby="mqls-ads"
+      className="rounded-lg border border-base-300 p-4"
+    >
+      <h2 id="mqls-ads" className="mb-3 font-semibold">
+        Google Ads: cost per qualified lead
+      </h2>
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <StatTile label="Spend" value={money(ads.spend)} hint={ads.account} />
+        <StatTile label="Qualified leads from ads" value={ads.mqls} />
+        <StatTile
+          label="Cost per qualified lead"
+          value={money(ads.costPerMql)}
+        />
+      </div>
+      {ads.campaigns.length === 0 ? (
+        <p className="text-sm text-base-content/70">
+          No campaign had impressions in this period.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="table table-sm">
+            <thead>
+              <tr>
+                <th>Campaign</th>
+                <th className="text-right">Spend</th>
+                <th className="text-right">Clicks</th>
+                <th className="text-right">Qualified leads</th>
+                <th className="text-right">Demos / trials</th>
+                <th className="text-right">Cost per lead</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ads.campaigns.map((c) => (
+                <tr key={c.campaignId}>
+                  <td>{c.campaignName}</td>
+                  <td className="text-right">{money(c.spend)}</td>
+                  <td className="text-right">{c.clicks}</td>
+                  <td className="text-right">{c.mqls}</td>
+                  <td className="text-right">
+                    {c.enquiries} / {c.trials}
+                  </td>
+                  <td className="text-right">{money(c.costPerMql)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="mt-2 text-xs text-base-content/60">
+        A lead counts for a campaign when its ad click or its UTM campaign
+        matches it. Leads from ads clicked before the period, or never tracked,
+        are not counted here.
+      </p>
     </section>
   );
 }

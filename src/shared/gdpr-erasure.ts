@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GOOGLE_ADS_OAUTH_PROVIDER_ID } from "@/shared/google-ads";
 import { GA4_OAUTH_PROVIDER_ID } from "./ga4";
 import { GSC_OAUTH_PROVIDER_ID } from "./gsc";
 import { YOUTUBE_OAUTH_PROVIDER_ID } from "./youtube";
@@ -26,6 +27,7 @@ export const gdprStorageErasurePayloadSchema = z
             GSC_OAUTH_PROVIDER_ID,
             GA4_OAUTH_PROVIDER_ID,
             YOUTUBE_OAUTH_PROVIDER_ID,
+            GOOGLE_ADS_OAUTH_PROVIDER_ID,
           ]),
           accountId: z.string().min(1).max(512),
         }),

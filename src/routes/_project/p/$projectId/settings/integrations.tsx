@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SearchConsoleConnectionCard } from "@/client/features/gsc/SearchConsoleConnectionCard";
 import { GoogleAnalyticsConnectionCard } from "@/client/features/ga4/GoogleAnalyticsConnectionCard";
+import { GoogleAdsConnectionCard } from "@/client/features/google-ads/GoogleAdsConnectionCard";
 import { YouTubeConnectionCard } from "@/client/features/youtube/YouTubeConnectionCard";
 import { LinkedInConnectionCard } from "@/client/features/linkedin/LinkedInConnectionCard";
 
@@ -30,6 +31,13 @@ function ProjectIntegrationsRoute() {
       <section id="linkedin" className="scroll-mt-6 space-y-3">
         <h2 className="text-sm font-medium text-base-content/50">LinkedIn</h2>
         <LinkedInConnectionCard projectId={projectId} />
+      </section>
+
+      <section id="google-ads" className="scroll-mt-6 space-y-3">
+        <h2 className="text-sm font-medium text-base-content/50">
+          Advertising
+        </h2>
+        <GoogleAdsConnectionCard projectId={projectId} />
       </section>
 
       <section id="google-analytics" className="scroll-mt-6 space-y-3">

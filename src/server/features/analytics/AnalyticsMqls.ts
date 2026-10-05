@@ -2,6 +2,7 @@ import { calendarDay } from "@/shared/analytics/calendar";
 import { analyticsChannels, channelFor } from "@/shared/analytics/channels";
 import type { AnalyticsQuery } from "@/types/schemas/analytics";
 import { AnalyticsRepository as repo } from "./AnalyticsRepository";
+import { adsSpendForReport } from "./AnalyticsAdsSpend";
 
 // Qualified leads (MQLs): every verified lead_qualified outcome in the
 // period, per calendar week against the project's weekly target, split by
@@ -75,6 +76,9 @@ export function firstTouch(history: Event[]) {
       ? `${sourced.referrerHost}${sourced.referrerPath ?? ""}`
       : null,
     clickIdType: sourced.clickIdType,
+    // Internal: resolves an ad click to its campaign; never returned.
+    clickId: sourced.clickId,
+    sourcedAt: sourced.receivedAt,
   };
 }
 
@@ -146,6 +150,31 @@ export async function mqlReport(q: AnalyticsQuery) {
     };
   });
 
+  // Google Ads spend for the period, attributed to these leads (cost per MQL).
+  const ads = await adsSpendForReport(
+    q.projectId,
+    window,
+    rows.map((r) => ({
+      outcomeId: r.outcomeId,
+      kind: r.kind,
+      utmCampaign: r.firstTouch?.campaign ?? null,
+      gclid:
+        r.firstTouch?.clickIdType === "gclid"
+          ? (r.firstTouch.clickId ?? null)
+          : null,
+      clickAt: r.firstTouch?.sourcedAt ?? null,
+    })),
+  );
+  const adClicks: Record<
+    string,
+    {
+      campaignId: string;
+      campaignName: string;
+      adGroupName: string | null;
+      keyword: string | null;
+    }
+  > = "clicksByLead" in ads ? ads.clicksByLead : {};
+
   // Every calendar week in the period, so a quiet week shows as zero.
   const weeks = new Map<
     string,
@@ -212,14 +241,25 @@ export async function mqlReport(q: AnalyticsQuery) {
       (r) => r.firstTouch?.source ?? (r.tracked ? "Direct / unknown" : null),
     ),
     // Individual rows only where the project allows personal inspection.
+    ads: "clicksByLead" in ads ? { ...ads, clicksByLead: undefined } : ads,
     leads: config.personalAccess
-      ? rows.toReversed().slice(q.offset, q.offset + q.limit)
+      ? rows
+          .toReversed()
+          .slice(q.offset, q.offset + q.limit)
+          .map(({ firstTouch: touch, ...r }) => ({
+            ...r,
+            firstTouch: touch
+              ? { ...touch, clickId: undefined, sourcedAt: undefined }
+              : null,
+            adCampaign: adClicks[r.outcomeId] ?? null,
+          }))
       : null,
     definitions: {
       mql: "A verified lead_qualified outcome: the project sends one for each demo booked or trial started.",
       kind: "What qualified it: the customer's enquiry (e.g. a demo booking) or trial nearest the lead.",
       attribution:
         "First touch in the 30 days before the lead, across every visitor identified as the customer.",
+      ads: "Google Ads spend in the period (account time zone) and cost per qualified lead: a lead belongs to a campaign by its Google click id, else by its UTM campaign matching the campaign name or id.",
       untracked:
         "Leads with no permitted journey (no consent, a direct calendar link, or a blocked tracker): counted, not attributed.",
       weeks: `Calendar weeks starting Monday, in ${timezone}.`,

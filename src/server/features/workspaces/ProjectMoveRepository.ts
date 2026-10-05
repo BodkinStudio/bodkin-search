@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   ga4Connections,
+  googleAdsConnections,
   gscConnections,
   linkedinPageConnections,
   projects,
@@ -17,6 +18,7 @@ import { actorCanManage, lockWorkspace } from "./WorkspaceRepository";
 const projectOrganizationTables = {
   gsc_connections: gscConnections,
   ga4_connections: ga4Connections,
+  google_ads_connections: googleAdsConnections,
   youtube_connections: youtubeConnections,
   linkedin_page_connections: linkedinPageConnections,
 } satisfies Record<(typeof PROJECT_ORGANIZATION_TABLES)[number], unknown>;

@@ -49,6 +49,7 @@ beforeAll(async () => {
     ...(await import("@/db/app.schema")),
     ...(await import("@/db/gsc.schema")),
     ...(await import("@/db/ga4.schema")),
+    ...(await import("@/db/google-ads.schema")),
     ...(await import("@/db/youtube.schema")),
     ...(await import("@/db/linkedin.schema")),
   }));
@@ -92,6 +93,7 @@ beforeAll(async () => {
     CREATE TABLE projects (id text PRIMARY KEY, organization_id text NOT NULL, name text NOT NULL);
     CREATE TABLE gsc_connections (id text PRIMARY KEY, project_id text NOT NULL, organization_id text NOT NULL);
     CREATE TABLE ga4_connections (id text PRIMARY KEY, project_id text NOT NULL, organization_id text NOT NULL);
+    CREATE TABLE google_ads_connections (id text PRIMARY KEY, project_id text NOT NULL, organization_id text NOT NULL);
     CREATE TABLE youtube_connections (id text PRIMARY KEY, project_id text NOT NULL, organization_id text NOT NULL);
     CREATE TABLE linkedin_page_connections (id text PRIMARY KEY, project_id text NOT NULL, organization_id text NOT NULL);
     INSERT INTO projects VALUES ('site','a','Client site');

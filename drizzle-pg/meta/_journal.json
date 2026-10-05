@@ -435,6 +435,13 @@
       "when": 1791207850485,
       "tag": "0061_absent_gravity",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1791214389713,
+      "tag": "0062_omniscient_owl",
+      "breakpoints": true
     }
   ]
 }
