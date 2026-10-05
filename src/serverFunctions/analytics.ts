@@ -20,6 +20,15 @@ export const getAnalyticsOverview = createServerFn({ method: "POST" })
   .handler(({ data, context }) =>
     overviewReport({ ...data, projectId: context.projectId }),
   );
+export const getAnalyticsMqls = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(analyticsQuerySchema)
+  .handler(async ({ data, context }) => {
+    const report = await service.mqls({ ...data, projectId: context.projectId });
+    // Individual leads are personal: administrators only, as with journeys.
+    if (!(await canAdministerAnalytics(context.userId, context.organizationId))) report.leads = null;
+    return report;
+  });
 export const listAnalyticsJourneys = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
   .validator(analyticsQuerySchema)
@@ -106,6 +115,7 @@ export const saveAnalyticsSettings = createServerFn({ method: "POST" })
       personalAccess: z.boolean(),
       anonymousCollection: z.boolean(),
       webhookUrl: z.string().url().nullable(),
+      weeklyMqlTarget: z.number().int().min(1).max(100000).nullable().optional(),
     }),
   )
   .handler(async ({ data, context }) => {

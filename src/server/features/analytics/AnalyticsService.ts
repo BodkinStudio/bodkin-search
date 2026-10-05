@@ -11,6 +11,7 @@ import {
   eraseCustomer,
 } from "./AnalyticsOperations";
 import { AnalyticsRepository } from "./AnalyticsRepository";
+import { mqlReport } from "./AnalyticsMqls";
 export const AnalyticsService = {
   collect,
   eraseContext,
@@ -24,4 +25,5 @@ export const AnalyticsService = {
   deliverOutbox,
   eraseCustomer,
   settings: AnalyticsRepository.settings,
+  mqls: mqlReport,
 };

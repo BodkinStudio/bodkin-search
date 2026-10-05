@@ -382,6 +382,11 @@ function eventRow({
     campaignSource: safeCampaign(event.campaign?.source),
     campaignMedium: safeCampaign(event.campaign?.medium),
     campaignName: safeCampaign(event.campaign?.campaign),
+    campaignContent: safeCampaign(event.campaign?.content),
+    campaignTerm: safeCampaign(event.campaign?.term),
+    referrerPath: event.referrer?.path ? safeAnalyticsPath(event.referrer.path) : null,
+    clickIdType: event.clickId?.type ?? null,
+    clickId: event.clickId?.value ?? null,
     action: event.properties?.action ?? null,
     destination:
       event.name === "product_opened"

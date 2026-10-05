@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db";
 import {
   analyticsSettings,
@@ -18,6 +18,7 @@ const defaults = {
   personalAccess: false,
   webhookUrl: null,
   anonymousCollection: false,
+  weeklyMqlTarget: null,
 };
 async function settings(projectId: string) {
   return (
@@ -149,4 +150,40 @@ export const AnalyticsRepository = {
   customers,
   outcomes,
   windowFor,
+  customerContexts,
+  contextEvents,
 };
+/** The visitor contexts identified as these customers. */
+async function customerContexts(projectId: string, environment: string, customerIds: string[]) {
+  if (!customerIds.length) return [];
+  return db
+    .select({ id: analyticsContexts.id, customerId: analyticsContexts.customerId })
+    .from(analyticsContexts)
+    .where(
+      and(
+        eq(analyticsContexts.projectId, projectId),
+        eq(analyticsContexts.environment, environment),
+        inArray(analyticsContexts.customerId, customerIds.slice(0, 1000)),
+      ),
+    )
+    .limit(5001);
+}
+/** Every event of these contexts in a window, in order: the journeys behind outcomes. */
+async function contextEvents(projectId: string, contextIds: string[], from: string, to: string) {
+  if (!contextIds.length) return [];
+  const rows = await db
+    .select()
+    .from(analyticsEvents)
+    .where(
+      and(
+        eq(analyticsEvents.projectId, projectId),
+        inArray(analyticsEvents.contextId, contextIds.slice(0, 2000)),
+        gte(analyticsEvents.receivedAt, from),
+        lte(analyticsEvents.receivedAt, to),
+      ),
+    )
+    .orderBy(asc(analyticsEvents.receivedAt), asc(analyticsEvents.sequence))
+    .limit(20001);
+  if (rows.length > 20000) throw new Error("Reporting limit reached; choose a shorter period");
+  return rows;
+}
