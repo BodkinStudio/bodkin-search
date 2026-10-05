@@ -65,10 +65,10 @@ export function AnalyticsTrafficSection({
       </section>
 
       <section
-        aria-labelledby="traffic-ads"
+        aria-labelledby="traffic-campaigns"
         className="rounded-lg border border-base-300 p-4"
       >
-        <h2 id="traffic-ads" className="mb-1 font-semibold">
+        <h2 id="traffic-campaigns" className="mb-1 font-semibold">
           Ad visitors by campaign
         </h2>
         {data.ads.connected && "error" in data.ads && data.ads.error ? (
