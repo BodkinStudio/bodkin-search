@@ -38,6 +38,8 @@ declare namespace Cloudflare {
     };
     GOOGLE_CLIENT_ID?: string;
     GOOGLE_CLIENT_SECRET?: string;
+    // Google Ads API version override (default in googleAdsClient.ts).
+    GOOGLE_ADS_API_VERSION?: string;
     LINKEDIN_CLIENT_ID?: string;
     LINKEDIN_CLIENT_SECRET?: string;
     LINKEDIN_PAGE_ANALYTICS_ENABLED?: string;

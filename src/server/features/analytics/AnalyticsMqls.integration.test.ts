@@ -4,7 +4,15 @@ import type * as MqlsModule from "./AnalyticsMqls";
 import { createClient, type Client } from "@libsql/client";
 import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import { readFileSync } from "node:fs";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { now, ids, event } from "./collection-test-fixture";
 import { signIdentityAssertion } from "./crypto";
 
@@ -13,6 +21,8 @@ let db: LibSQLDatabase;
 let collect: typeof CollectionModule.collect;
 let recordOutcome: typeof OutcomesModule.recordOutcome;
 let mqlReport: typeof MqlsModule.mqlReport;
+// The connected Google Ads account, faked at the service boundary.
+const ads = vi.hoisted(() => ({ clientFor: vi.fn() }));
 
 beforeAll(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -20,6 +30,9 @@ beforeAll(async () => {
   client = createClient({ url: "file::memory:" });
   db = drizzle(client);
   vi.doMock("@/db", () => ({ db }));
+  vi.doMock("@/server/features/google-ads/GoogleAdsService", () => ({
+    GoogleAdsService: ads,
+  }));
   vi.doMock("@/db/schema", async () => ({
     ...(await import("@/db/analytics.schema")),
     ...(await import("@/db/analytics-reporting.schema")),
@@ -87,6 +100,10 @@ const outcome = (
     name,
     occurredAt: at.toISOString(),
   });
+
+beforeEach(() => {
+  ads.clientFor.mockResolvedValue(null);
+});
 
 describe("mqlReport", () => {
   it("counts qualified leads per week against the target, splits demo enquiries from trials, and attributes each to its first touch", async () => {
@@ -194,6 +211,83 @@ describe("mqlReport", () => {
         clickIdType: "gclid",
       },
     });
+  });
+
+  it("adds Google Ads spend and cost per qualified lead, placing an ad click's lead in its campaign", async () => {
+    const clickCampaign = vi.fn().mockResolvedValue({
+      campaignId: "111",
+      campaignName: "Teams SMS UK",
+      adGroupName: "Teams texting",
+      keyword: "teams sms",
+    });
+    ads.clientFor.mockResolvedValue({
+      connection: {
+        timeZone: "Europe/London",
+        customerName: "YakChat",
+        currencyCode: "GBP",
+      },
+      account: { customerId: "1234567890", loginCustomerId: null },
+      client: {
+        campaignSpend: vi.fn().mockResolvedValue([
+          {
+            campaignId: "111",
+            campaignName: "Teams SMS UK",
+            spend: 300,
+            clicks: 120,
+            impressions: 4000,
+          },
+          {
+            campaignId: "222",
+            campaignName: "Brand",
+            spend: 50,
+            clicks: 40,
+            impressions: 900,
+          },
+        ]),
+        clickCampaign,
+      },
+    });
+    const report = await mqlReport({
+      projectId: "p",
+      environment: "production",
+      from: new Date(now.getTime() - 7 * 86400_000).toISOString(),
+      to: new Date(now.getTime() + 3600_000).toISOString(),
+      timezone: "UTC",
+      limit: 100,
+      offset: 0,
+    });
+    expect(clickCampaign).toHaveBeenCalledWith(
+      { customerId: "1234567890", loginCustomerId: null },
+      "Cj0KCQ-test_click.id",
+      "2026-09-15",
+    );
+    expect(report.ads).toMatchObject({
+      connected: true,
+      currency: "GBP",
+      spend: 350,
+      mqls: 1,
+      costPerMql: 350,
+    });
+    if (!("campaigns" in report.ads)) throw new Error("expected campaigns");
+    expect(report.ads.campaigns[0]).toMatchObject({
+      campaignName: "Teams SMS UK",
+      spend: 300,
+      mqls: 1,
+      enquiries: 1,
+      costPerMql: 300,
+    });
+    expect(report.ads.campaigns[1]).toMatchObject({
+      campaignName: "Brand",
+      mqls: 0,
+      costPerMql: null,
+    });
+    const demo = report.leads?.find((l) => l.kind === "enquiry");
+    expect(demo?.adCampaign).toMatchObject({
+      campaignName: "Teams SMS UK",
+      keyword: "teams sms",
+    });
+    // The raw click id stays inside the report.
+    expect(JSON.stringify(report)).not.toContain("Cj0KCQ-test_click.id");
   });
 
   it("keeps individual leads out unless the project allows personal inspection", async () => {

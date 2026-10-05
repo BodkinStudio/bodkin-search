@@ -479,6 +479,22 @@
     "capability": "edit",
     "projectRequired": true
   },
+  "src/serverFunctions/googleAds.ts:disconnectGoogleAds": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/googleAds.ts:getGoogleAdsConnection": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/googleAds.ts:listGoogleAdsAccounts": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/googleAds.ts:setGoogleAdsAccount": {
+    "capability": "configure",
+    "projectRequired": true
+  },
   "src/serverFunctions/gsc.ts:disconnectGsc": {
     "capability": "configure",
     "projectRequired": true

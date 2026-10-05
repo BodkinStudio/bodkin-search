@@ -8,6 +8,7 @@ import { GA4_OAUTH_PROVIDER_ID } from "@/shared/ga4";
 import { YOUTUBE_OAUTH_PROVIDER_ID } from "@/shared/youtube";
 import { startSelfHostedYouTubeLink } from "@/serverFunctions/youtube";
 import { GSC_OAUTH_PROVIDER_ID } from "@/shared/gsc";
+import { GOOGLE_ADS_OAUTH_PROVIDER_ID } from "@/shared/google-ads";
 
 const googleProviders = {
   gsc: {
@@ -32,10 +33,30 @@ const googleProviders = {
  * one place — callers keep their own analytics and dismissal behavior.
  */
 export async function startGoogleLink(
-  provider: "gsc" | "ga4" | "youtube",
+  provider: "gsc" | "ga4" | "youtube" | "ads",
   callbackURL: string,
 ): Promise<void> {
   try {
+    if (provider === "ads") {
+      // Google Ads is hosted-only for now: self-hosted installs have no
+      // Google Ads OAuth route yet.
+      if (!isHostedClientAuthMode()) {
+        toast.error(
+          "Google Ads can only be connected on the hosted app for now.",
+        );
+        return;
+      }
+      const res = await authClient.oauth2.link({
+        providerId: GOOGLE_ADS_OAUTH_PROVIDER_ID,
+        callbackURL,
+      });
+      if (res.error) {
+        toast.error(res.error.message ?? "Could not start Google sign-in");
+        return;
+      }
+      if (res.data?.url) window.location.href = res.data.url;
+      return;
+    }
     const config = googleProviders[provider];
     if (!isHostedClientAuthMode()) {
       const res = await config.startSelfHosted({ data: { callbackURL } });

@@ -5,6 +5,7 @@
 export const PROJECT_ORGANIZATION_TABLES = [
   "gsc_connections",
   "ga4_connections",
+  "google_ads_connections",
   "youtube_connections",
   "linkedin_page_connections",
 ] as const;
