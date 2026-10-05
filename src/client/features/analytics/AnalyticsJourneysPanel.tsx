@@ -23,11 +23,16 @@ export function AnalyticsJourneysPanel({
 }) {
   const openJourney = (context: string) =>
     onSearch({ view: "journeys", context });
-  const filtering = !!search.page || !!search.source || search.method !== "all";
+  const filtering =
+    !!search.page ||
+    !!search.source ||
+    !!search.channel ||
+    search.method !== "all";
   const filteredJourneys = journeys.data?.filter(
     (j) =>
       (!search.page || j.landingPage === search.page) &&
       (!search.source || j.source === search.source) &&
+      (!search.channel || j.channel === search.channel) &&
       (search.method === "all" || j.method === search.method),
   );
   return (
@@ -47,6 +52,15 @@ export function AnalyticsJourneysPanel({
             Website map
           </button>
         </div>
+        {search.channel ? (
+          <button
+            type="button"
+            className="btn btn-xs"
+            onClick={() => onSearch({ channel: undefined })}
+          >
+            Channel: {search.channel} ✕
+          </button>
+        ) : null}
         <label className="flex items-center gap-2 text-xs">
           Connection
           <select
@@ -101,6 +115,7 @@ export function AnalyticsJourneysPanel({
             <thead>
               <tr>
                 <th>Visitor</th>
+                <th>Channel</th>
                 <th>First source / landing</th>
                 <th>Latest activity</th>
                 <th>Visits</th>
@@ -124,7 +139,25 @@ export function AnalyticsJourneysPanel({
                     )}
                   </td>
                   <td>
-                    <p>{j.source || "Direct / unknown"}</p>
+                    <span className="badge badge-sm badge-ghost whitespace-nowrap">
+                      {j.channel}
+                    </span>
+                    {j.actions.length ? (
+                      <p className="mt-1 text-xs text-base-content/60">
+                        Clicked{" "}
+                        {j.actions
+                          .map((a) => a.replaceAll("_", " "))
+                          .join(", ")}
+                      </p>
+                    ) : null}
+                  </td>
+                  <td>
+                    <p>{j.campaign || j.source || "Direct / unknown"}</p>
+                    {j.term ? (
+                      <p className="text-xs text-base-content/60">
+                        Keyword: {j.term}
+                      </p>
+                    ) : null}
                     <p className="max-w-64 truncate text-xs text-base-content/60">
                       {j.landingPage ?? "No page observed"}
                     </p>

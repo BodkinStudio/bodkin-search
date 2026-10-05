@@ -41,6 +41,7 @@ export const analyticsSearchSchema = z.object({
   customer: z.string().uuid().optional().catch(undefined),
   page: z.string().optional(),
   source: z.string().optional(),
+  channel: z.string().max(40).optional(),
   method: z
     .enum(["all", "exact", "ip_time", "unattributed"])
     .default("all")

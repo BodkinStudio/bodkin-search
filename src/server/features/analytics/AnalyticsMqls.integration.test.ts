@@ -1,6 +1,7 @@
 import type * as CollectionModule from "./AnalyticsCollection";
 import type * as OutcomesModule from "./AnalyticsOutcomes";
 import type * as MqlsModule from "./AnalyticsMqls";
+import type * as TrafficModule from "./AnalyticsTraffic";
 import { createClient, type Client } from "@libsql/client";
 import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import { readFileSync } from "node:fs";
@@ -21,6 +22,7 @@ let db: LibSQLDatabase;
 let collect: typeof CollectionModule.collect;
 let recordOutcome: typeof OutcomesModule.recordOutcome;
 let mqlReport: typeof MqlsModule.mqlReport;
+let trafficReport: typeof TrafficModule.trafficReport;
 // The connected Google Ads account, faked at the service boundary.
 const ads = vi.hoisted(() => ({ clientFor: vi.fn() }));
 
@@ -67,6 +69,7 @@ INSERT INTO analytics_sources VALUES ('${ids.website}','p','00000000-0000-4000-8
   ({ collect } = await import("./AnalyticsCollection"));
   ({ recordOutcome } = await import("./AnalyticsOutcomes"));
   ({ mqlReport } = await import("./AnalyticsMqls"));
+  ({ trafficReport } = await import("./AnalyticsTraffic"));
 });
 afterAll(() => {
   client.close();
@@ -288,6 +291,38 @@ describe("mqlReport", () => {
     });
     // The raw click id stays inside the report.
     expect(JSON.stringify(report)).not.toContain("Cj0KCQ-test_click.id");
+  });
+
+  it("shows where visitors came from: the ad visitor by channel and campaign, where they landed, and that they became a lead", async () => {
+    const report = await trafficReport({
+      projectId: "p",
+      environment: "production",
+      from: new Date(now.getTime() - 7 * 86400_000).toISOString(),
+      to: new Date(now.getTime() + 3600_000).toISOString(),
+      timezone: "UTC",
+      limit: 100,
+      offset: 0,
+    });
+    expect(report.byChannel).toContainEqual(
+      expect.objectContaining({
+        channel: "Paid search",
+        visitors: 1,
+        leads: 1,
+        pagesPerVisitor: 2,
+        topLandings: [{ path: "/sms-for-microsoft-teams", visitors: 1 }],
+      }),
+    );
+    expect(report.byAdCampaign).toEqual([
+      expect.objectContaining({
+        label: "teams-sms",
+        visitors: 1,
+        leads: 1,
+        spend: null,
+      }),
+    ]);
+    expect(report.byKeyword).toEqual([
+      expect.objectContaining({ label: "teams sms", visitors: 1 }),
+    ]);
   });
 
   it("keeps individual leads out unless the project allows personal inspection", async () => {

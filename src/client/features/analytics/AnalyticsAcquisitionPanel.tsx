@@ -2,6 +2,7 @@ import { AnalyticsSearchEvidence } from "./AnalyticsSearchEvidence";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { getAnalyticsAcquisitionDimensions } from "@/serverFunctions/analytics";
+import { AnalyticsTrafficSection } from "./AnalyticsTrafficSection";
 const DIMENSION_LABELS = {
   sources: "Source",
   campaigns: "Campaign",
@@ -20,6 +21,7 @@ export function AnalyticsAcquisitionPanel({
     environment: "test" | "production";
     from: string;
     to: string;
+    timezone?: string;
   };
   dimension: keyof typeof DIMENSION_LABELS;
   onDimension: (
@@ -29,6 +31,7 @@ export function AnalyticsAcquisitionPanel({
     view: "journeys";
     source?: string;
     page?: string;
+    channel?: string;
   }) => void;
 }) {
   const query = useQuery({
@@ -37,6 +40,10 @@ export function AnalyticsAcquisitionPanel({
   });
   return (
     <section className="space-y-5">
+      <AnalyticsTrafficSection
+        filters={filters}
+        onOpenChannel={(channel) => onSelect({ view: "journeys", channel })}
+      />
       <h2 className="text-lg font-semibold">Acquisition evidence</h2>
       <div className="flex flex-wrap gap-2" aria-label="Acquisition dimension">
         {(["sources", "campaigns", "pages", "destinations"] as const).map(
