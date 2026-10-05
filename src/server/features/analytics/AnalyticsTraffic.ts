@@ -28,6 +28,7 @@ type Visitor = {
   landing: string | null;
   pages: number;
   actions: Set<Action>;
+  signedUp: boolean;
   lead: boolean;
 };
 
@@ -36,6 +37,7 @@ type Row = {
   visitors: number;
   pagesPerVisitor: number;
   clicked: Record<Action, number>;
+  signedUp: number;
   leads: number;
   topLandings: { path: string; visitors: number }[];
 };
@@ -56,6 +58,7 @@ function summarise(label: string, visitors: Visitor[]): Row {
       book_demo: visitors.filter((v) => v.actions.has("book_demo")).length,
       contact: visitors.filter((v) => v.actions.has("contact")).length,
     },
+    signedUp: visitors.filter((v) => v.signedUp).length,
     leads: visitors.filter((v) => v.lead).length,
     topLandings: [...landings]
       .map(([path, count]) => ({ path, visitors: count }))
@@ -108,6 +111,8 @@ export async function trafficReport(q: AnalyticsQuery) {
               : [],
           ),
         ),
+        // Identified: gave a work email on the trial page, or booked a demo.
+        signedUp: history.some((e) => e.name === "identity_known"),
         lead: leadContexts.has(contextId),
       };
     },
@@ -193,6 +198,8 @@ export async function trafficReport(q: AnalyticsQuery) {
         "From the visitor's first touch in the period: an ad click id, UTM tags, or the referring site.",
       clicked:
         "Visitors who clicked that call to action (start trial, book a demo, contact) at least once.",
+      signedUp:
+        "Visitors who identified themselves: gave a work email to start a trial, or booked a demo. A trial only becomes a qualified lead once it has started in the product.",
       leads:
         "Visitors who became a qualified lead (a demo booked or a trial started), directly or as the same customer.",
       adClicks:
