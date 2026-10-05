@@ -38,9 +38,7 @@ declare namespace Cloudflare {
     };
     GOOGLE_CLIENT_ID?: string;
     GOOGLE_CLIENT_SECRET?: string;
-    // Google Ads API developer token (API Center of a manager account), and an
-    // optional API version override (default in googleAdsClient.ts).
-    GOOGLE_ADS_DEVELOPER_TOKEN?: string;
+    // Google Ads API version override (default in googleAdsClient.ts).
     GOOGLE_ADS_API_VERSION?: string;
     LINKEDIN_CLIENT_ID?: string;
     LINKEDIN_CLIENT_SECRET?: string;

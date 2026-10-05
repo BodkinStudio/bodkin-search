@@ -83,8 +83,14 @@ async function accessToken(userId: string, googleAccountId: string) {
 }
 
 function messageForStatus(status: number, reason?: string) {
-  if (reason === "DEVELOPER_TOKEN_NOT_APPROVED")
-    return "The Google Ads developer token is only approved for test accounts. Apply for Basic access in the API Center.";
+  if (
+    reason === "DEVELOPER_TOKEN_NOT_APPROVED" ||
+    reason === "PROJECT_NOT_APPROVED" ||
+    reason === "ACCESS_LEVEL_NOT_APPROVED"
+  )
+    return "This Google Cloud project only has test access to the Google Ads API. In Google Cloud Console, open Google Ads API → Upgrade access level → Apply for access (Explorer is enough to read spend).";
+  if (reason === "SERVICE_DISABLED" || reason === "API_DISABLED")
+    return "The Google Ads API is not enabled in this Google Cloud project. Enable it in Google Cloud Console (APIs & Services → Library).";
   if (status === 401) return "Google Ads connection expired.";
   if (status === 403)
     return "Google Ads denied access. Check the signed-in account can see this Ads account.";
@@ -107,14 +113,8 @@ export function createGoogleAdsClient(opts: {
       loginCustomerId?: string | null;
     },
   ) => {
-    const developerToken = (
-      await getOptionalEnvValue("GOOGLE_ADS_DEVELOPER_TOKEN")
-    )?.trim();
-    if (!developerToken)
-      throw new GoogleAdsApiError(
-        "Google Ads is not set up on this deployment (no developer token).",
-        503,
-      );
+    // No developer token: Google retired them on 9 Sep 2026. Access comes
+    // from the Google Cloud project behind the OAuth client.
     const version =
       (await getOptionalEnvValue("GOOGLE_ADS_API_VERSION"))?.trim() ||
       DEFAULT_API_VERSION;
@@ -125,7 +125,6 @@ export function createGoogleAdsClient(opts: {
         method: init.method,
         headers: {
           authorization: `Bearer ${await token}`,
-          "developer-token": developerToken,
           ...(init.loginCustomerId
             ? { "login-customer-id": init.loginCustomerId }
             : {}),

@@ -114,8 +114,8 @@ function GoogleAdsConnectionFlow({ projectId }: { projectId: string }) {
         <p className="text-sm text-base-content/60">Checking…</p>
       ) : !state?.configured ? (
         <p className="text-sm text-base-content/70">
-          Google Ads needs a developer token on this deployment
-          (GOOGLE_ADS_DEVELOPER_TOKEN) before an account can be connected.
+          Google sign-in isn&apos;t set up on this deployment
+          (GOOGLE_CLIENT_ID), so Google Ads can&apos;t be connected yet.
         </p>
       ) : connected && !picking && state.connection ? (
         <div className="space-y-3 text-sm">

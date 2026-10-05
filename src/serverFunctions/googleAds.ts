@@ -10,15 +10,17 @@ export const getGoogleAdsConnection = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
   .validator(projectScopedSchema)
   .handler(async ({ context }) => {
-    const [connection, currentUserHasGrant, developerToken] = await Promise.all(
+    const [connection, currentUserHasGrant, googleClientId] = await Promise.all(
       [
         GoogleAdsService.getConnection(context.projectId),
         GoogleAdsService.userHasGrant(context.userId),
-        getOptionalEnvValue("GOOGLE_ADS_DEVELOPER_TOKEN"),
+        getOptionalEnvValue("GOOGLE_CLIENT_ID"),
       ],
     );
     return {
-      configured: Boolean(developerToken?.trim()),
+      // Google sign-in (the OAuth client) is all a deployment needs: Google
+      // Ads API access now belongs to that client's Google Cloud project.
+      configured: Boolean(googleClientId?.trim()),
       currentUserHasGrant,
       connection: connection
         ? {
