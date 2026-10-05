@@ -84,8 +84,23 @@ export function AnalyticsJourneyDetail({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">
-                      {event.name.replaceAll("_", " ")}
+                      {event.name === "acquisition_clicked" && event.action
+                        ? `Clicked ${event.action.replaceAll("_", " ")}`
+                        : event.name === "page_view"
+                          ? "Viewed page"
+                          : event.name.replaceAll("_", " ")}
                     </p>
+                    {event.name === "acquisition_clicked" &&
+                    (event.destination || event.placement) ? (
+                      <p className="mt-1 text-xs text-base-content/70">
+                        {[
+                          event.destination && `to ${event.destination}`,
+                          event.placement && `from the ${event.placement}`,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+                    ) : null}
                     {event.pagePath && (
                       <p className="mt-1 break-all text-sm text-base-content/70">
                         {event.pageHost}

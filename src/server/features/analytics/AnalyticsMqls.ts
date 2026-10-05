@@ -1,8 +1,9 @@
 import { calendarDay } from "@/shared/analytics/calendar";
-import { analyticsChannels, channelFor } from "@/shared/analytics/channels";
+import { analyticsChannels } from "@/shared/analytics/channels";
 import type { AnalyticsQuery } from "@/types/schemas/analytics";
 import { AnalyticsRepository as repo } from "./AnalyticsRepository";
 import { adsSpendForReport } from "./AnalyticsAdsSpend";
+import { firstTouch } from "./journey-touch";
 
 // Qualified leads (MQLs): every verified lead_qualified outcome in the
 // period, per calendar week against the project's weekly target, split by
@@ -10,7 +11,6 @@ import { adsSpendForReport } from "./AnalyticsAdsSpend";
 // attributed to the visitor's first touch in the 30 days before: the
 // channel, source and campaign that brought them, and where they landed.
 
-type Event = Awaited<ReturnType<typeof repo.contextEvents>>[number];
 type Outcome = Awaited<ReturnType<typeof repo.outcomes>>[number];
 export type MqlKind = "enquiry" | "trial" | "other";
 
@@ -45,41 +45,6 @@ export function kindOf(mql: Outcome, customerOutcomes: Outcome[]): MqlKind {
     )[0];
   if (!qualifying) return "other";
   return qualifying.name === "trial_started" ? "trial" : "enquiry";
-}
-
-/** The first touch of a journey: its first event that says where it came from, else its first event. */
-export function firstTouch(history: Event[]) {
-  const first = history[0];
-  if (!first) return null;
-  const sourced =
-    history.find(
-      (e) =>
-        e.clickIdType ||
-        e.campaignSource ||
-        (e.referrerHost && e.referrerHost !== e.pageHost),
-    ) ?? first;
-  return {
-    at: first.receivedAt,
-    landingPage:
-      history.find((e) => e.name === "page_view")?.pagePath ?? first.pagePath,
-    channel: channelFor(sourced),
-    source:
-      sourced.campaignSource ??
-      (sourced.referrerHost && sourced.referrerHost !== sourced.pageHost
-        ? sourced.referrerHost
-        : null),
-    medium: sourced.campaignMedium,
-    campaign: sourced.campaignName,
-    content: sourced.campaignContent,
-    term: sourced.campaignTerm,
-    referrer: sourced.referrerHost
-      ? `${sourced.referrerHost}${sourced.referrerPath ?? ""}`
-      : null,
-    clickIdType: sourced.clickIdType,
-    // Internal: resolves an ad click to its campaign; never returned.
-    clickId: sourced.clickId,
-    sourcedAt: sourced.receivedAt,
-  };
 }
 
 export async function mqlReport(q: AnalyticsQuery) {

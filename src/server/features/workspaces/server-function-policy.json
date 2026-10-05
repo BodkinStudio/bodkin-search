@@ -71,6 +71,10 @@
     "capability": "read",
     "projectRequired": true
   },
+  "src/serverFunctions/analytics.ts:getAnalyticsTraffic": {
+    "capability": "read",
+    "projectRequired": true
+  },
   "src/serverFunctions/analytics.ts:getAnalyticsSettings": {
     "capability": "configure",
     "projectRequired": true

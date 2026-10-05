@@ -374,6 +374,7 @@ function filterJourneys<
   J extends {
     landingPage: string | null;
     source: string | null;
+    channel?: string | null;
     method: string;
   },
 >(journeys: J[] | undefined, search: AnalyticsSearch) {
@@ -381,6 +382,7 @@ function filterJourneys<
     (j) =>
       (!search.page || j.landingPage === search.page) &&
       (!search.source || j.source === search.source) &&
+      (!search.channel || j.channel === search.channel) &&
       (search.method === "all" || j.method === search.method),
   );
 }

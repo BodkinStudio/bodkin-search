@@ -20,6 +20,12 @@ export const getAnalyticsOverview = createServerFn({ method: "POST" })
   .handler(({ data, context }) =>
     overviewReport({ ...data, projectId: context.projectId }),
   );
+export const getAnalyticsTraffic = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(analyticsQuerySchema)
+  .handler(({ data, context }) =>
+    service.traffic({ ...data, projectId: context.projectId }),
+  );
 export const getAnalyticsMqls = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
   .validator(analyticsQuerySchema)

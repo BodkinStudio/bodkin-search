@@ -2,6 +2,7 @@ import { reportingSettings } from "./AnalyticsReportingConfiguration";
 import { onboardingStatus } from "./onboarding";
 import { calendarDay } from "@/shared/analytics/calendar";
 import { channelFor } from "@/shared/analytics/channels";
+import { firstTouch } from "./journey-touch";
 import { funnels } from "./AnalyticsFunnels";
 import { AnalyticsRepository as repo } from "./AnalyticsRepository";
 import type { AnalyticsQuery } from "@/types/schemas/analytics";
@@ -26,6 +27,26 @@ const groupEvents = (events: Event[]) => {
 const sourceOf = (events: Event[]) => {
   const event = events.find((e) => e.campaignSource || e.referrerHost);
   return event?.campaignSource ?? event?.referrerHost ?? "Direct / unknown";
+};
+/** A journey's channel, campaign and keyword (first touch), and the calls to action it clicked. */
+const journeyTouch = (history: Event[]) => {
+  const touch = firstTouch(history);
+  return {
+    channel: touch?.channel ?? "Direct",
+    campaign: touch
+      ? [touch.source, touch.medium, touch.campaign]
+          .filter(Boolean)
+          .join(" / ") || null
+      : null,
+    term: touch?.term ?? null,
+    actions: [
+      ...new Set(
+        history.flatMap((e) =>
+          e.name === "acquisition_clicked" && e.action ? [e.action] : [],
+        ),
+      ),
+    ],
+  };
 };
 const inWindow = (date: string | null, q: AnalyticsQuery) => {
   const w = repo.windowFor(q);
@@ -183,6 +204,7 @@ async function journeys(q: AnalyticsQuery) {
       landingPage:
         history.find((e) => e.name === "page_view")?.pagePath ?? null,
       source: sourceOf(history),
+      ...journeyTouch(history),
       events: history.length,
       sessions: new Set(history.map((e) => e.sessionId)).size,
       organizationId: customer?.externalId ?? null,
@@ -211,6 +233,7 @@ async function journey(q: AnalyticsQuery, contextId: string) {
       trust: e.trust,
       action: e.action,
       destination: e.destination,
+      placement: e.placement,
       // Where this step came from, when it says (a landing from an ad, a
       // search, another site): the journey's source, shown on its first step.
       referrerHost: e.referrerHost,
