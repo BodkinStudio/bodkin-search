@@ -63,6 +63,10 @@
     "capability": "configure",
     "projectRequired": true
   },
+  "src/serverFunctions/analytics.ts:getAnalyticsMqls": {
+    "capability": "read",
+    "projectRequired": true
+  },
   "src/serverFunctions/analytics.ts:getAnalyticsOverview": {
     "capability": "read",
     "projectRequired": true

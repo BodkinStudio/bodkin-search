@@ -6,7 +6,10 @@ describe("channelFor", () => {
     [{ clickIdType: "gclid" }, "Paid search"],
     [{ campaignSource: "google", campaignMedium: "cpc" }, "Paid search"],
     [{ campaignSource: "linkedin", campaignMedium: "paid" }, "Paid social"],
-    [{ clickIdType: "fbclid", referrerHost: "l.facebook.com" }, "Organic social"],
+    [
+      { clickIdType: "fbclid", referrerHost: "l.facebook.com" },
+      "Organic social",
+    ],
     [{ referrerHost: "www.google.com" }, "Organic search"],
     [{ referrerHost: "chatgpt.com" }, "AI answer"],
     [{ referrerHost: "gemini.google.com" }, "AI answer"],

@@ -70,7 +70,12 @@ const send = (events: Parameters<typeof collect>[0]["events"], at: Date) =>
     secrets: { networkSecret: "network", identitySecret: "identity" },
     now: at,
   });
-const outcome = (name: string, customerId: string, at: Date, contextId?: string) =>
+const outcome = (
+  name: Parameters<typeof recordOutcome>[0]["name"],
+  customerId: string,
+  at: Date,
+  contextId?: string,
+) =>
   recordOutcome({
     projectId: "p",
     sourceId: ids.website,
@@ -94,7 +99,13 @@ describe("mqlReport", () => {
           properties: undefined,
           page: { host: "site.test", path: "/sms-for-microsoft-teams" },
           referrer: { host: "www.google.com", path: "/" },
-          campaign: { source: "google", medium: "cpc", campaign: "teams-sms", term: "teams sms", content: "ad-1" },
+          campaign: {
+            source: "google",
+            medium: "cpc",
+            campaign: "teams-sms",
+            term: "teams sms",
+            content: "ad-1",
+          },
           clickId: { type: "gclid", value: "Cj0KCQ-test_click.id" },
           occurredAt: landed.toISOString(),
         }),
@@ -124,7 +135,15 @@ describe("mqlReport", () => {
       "identity",
     );
     await send(
-      [event({ eventId: ids.identity, name: "identity_known", properties: undefined, page: { host: "site.test", path: "/book-a-demo" }, identityAssertion: assertion })],
+      [
+        event({
+          eventId: ids.identity,
+          name: "identity_known",
+          properties: undefined,
+          page: { host: "site.test", path: "/book-a-demo" },
+          identityAssertion: assertion,
+        }),
+      ],
       now,
     );
     // A demo booked on the site (with its visitor), and a trial with no tracked journey.
@@ -144,10 +163,23 @@ describe("mqlReport", () => {
       offset: 0,
     });
 
-    expect(report).toMatchObject({ target: 45, total: 2, enquiries: 1, trials: 1, untracked: 1 });
-    expect(report.weekly.find((w) => w.week === "2026-09-14")).toEqual({ week: "2026-09-14", mqls: 2, enquiries: 1, trials: 1 });
+    expect(report).toMatchObject({
+      target: 45,
+      total: 2,
+      enquiries: 1,
+      trials: 1,
+      untracked: 1,
+    });
+    expect(report.weekly.find((w) => w.week === "2026-09-14")).toEqual({
+      week: "2026-09-14",
+      mqls: 2,
+      enquiries: 1,
+      trials: 1,
+    });
     expect(report.byChannel).toContainEqual({ label: "Paid search", mqls: 1 });
-    expect(report.byCampaign).toEqual([{ label: "google / cpc / teams-sms", mqls: 1 }]);
+    expect(report.byCampaign).toEqual([
+      { label: "google / cpc / teams-sms", mqls: 1 },
+    ]);
     const demo = report.leads?.find((l) => l.kind === "enquiry");
     expect(demo).toMatchObject({
       pagesViewed: 2,
@@ -166,7 +198,13 @@ describe("mqlReport", () => {
 
   it("keeps individual leads out unless the project allows personal inspection", async () => {
     await client.execute("UPDATE analytics_settings SET personal_access = 0");
-    const report = await mqlReport({ projectId: "p", environment: "production", timezone: "UTC", limit: 100, offset: 0 });
+    const report = await mqlReport({
+      projectId: "p",
+      environment: "production",
+      timezone: "UTC",
+      limit: 100,
+      offset: 0,
+    });
     expect(report.leads).toBeNull();
     expect(report.total).toBe(2);
   });

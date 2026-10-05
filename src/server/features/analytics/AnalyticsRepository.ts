@@ -154,10 +154,17 @@ export const AnalyticsRepository = {
   contextEvents,
 };
 /** The visitor contexts identified as these customers. */
-async function customerContexts(projectId: string, environment: string, customerIds: string[]) {
+async function customerContexts(
+  projectId: string,
+  environment: string,
+  customerIds: string[],
+) {
   if (!customerIds.length) return [];
   return db
-    .select({ id: analyticsContexts.id, customerId: analyticsContexts.customerId })
+    .select({
+      id: analyticsContexts.id,
+      customerId: analyticsContexts.customerId,
+    })
     .from(analyticsContexts)
     .where(
       and(
@@ -169,7 +176,12 @@ async function customerContexts(projectId: string, environment: string, customer
     .limit(5001);
 }
 /** Every event of these contexts in a window, in order: the journeys behind outcomes. */
-async function contextEvents(projectId: string, contextIds: string[], from: string, to: string) {
+async function contextEvents(
+  projectId: string,
+  contextIds: string[],
+  from: string,
+  to: string,
+) {
   if (!contextIds.length) return [];
   const rows = await db
     .select()
@@ -184,6 +196,7 @@ async function contextEvents(projectId: string, contextIds: string[], from: stri
     )
     .orderBy(asc(analyticsEvents.receivedAt), asc(analyticsEvents.sequence))
     .limit(20001);
-  if (rows.length > 20000) throw new Error("Reporting limit reached; choose a shorter period");
+  if (rows.length > 20000)
+    throw new Error("Reporting limit reached; choose a shorter period");
   return rows;
 }

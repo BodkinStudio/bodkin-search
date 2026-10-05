@@ -1,3 +1,4 @@
+import { campaignFrom, clickIdFrom } from "./url-tags";
 /** Consent-first browser tracker. Import as a module or use the async script build. */
 export interface JourneyConsent {
   analytics: boolean;
@@ -55,8 +56,6 @@ export interface JourneyTracker {
   flush(): Promise<void>;
   destroy(): void;
 }
-/** Ad click ids, in order of preference when a URL carries several. */
-export const CLICK_ID_PARAMS = ["gclid", "gbraid", "wbraid", "msclkid", "fbclid", "li_fat_id", "ttclid"] as const;
 const trackers = new Map<string, JourneyTracker>();
 const lastNavigation = new Map<
   string,
@@ -201,22 +200,6 @@ export function initJourneyTracker(
     if (mode() === "anonymous") ids = { mode: "anonymous" };
     else if (ensureContext() && contextId) ids = { contextId, sessionId };
     else return;
-    const campaign: Record<string, string> = {};
-    for (const field of ["source", "medium", "campaign", "content", "term"]) {
-      const value = url.searchParams.get(`utm_${field}`);
-      if (value && !/@|bearer|token=/i.test(value))
-        campaign[field] = value.slice(0, 150);
-    }
-    // An ad platform's click id (Google, Microsoft, Meta, LinkedIn, TikTok):
-    // it marks a paid click even when the ad carries no UTM tags.
-    let clickId: BrowserEvent["clickId"];
-    for (const type of CLICK_ID_PARAMS) {
-      const value = url.searchParams.get(type);
-      if (value && /^[\w.~-]{1,200}$/.test(value)) {
-        clickId = { type, value };
-        break;
-      }
-    }
     let referrer: BrowserEvent["referrer"];
     try {
       const ref = new URL(document.referrer);
@@ -237,8 +220,8 @@ export function initJourneyTracker(
       consent: { ...consent },
       page: { host: url.hostname, path: safeJourneyPath(path) },
       referrer,
-      campaign,
-      clickId,
+      campaign: campaignFrom(url),
+      clickId: clickIdFrom(url),
       properties,
       identityAssertion: assertion,
     });
