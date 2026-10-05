@@ -136,7 +136,18 @@ function TrafficTable({
             <th className="text-right">Start trial</th>
             <th className="text-right">Book a demo</th>
             <th className="text-right">Contact</th>
-            <th className="text-right">Qualified leads</th>
+            <th
+              className="text-right"
+              title="Gave a work email to start a trial, or booked a demo"
+            >
+              Signed up
+            </th>
+            <th
+              className="text-right"
+              title="A trial started in the product, or a demo booked"
+            >
+              Qualified leads
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -178,6 +189,7 @@ function TrafficTable({
                 {row.clicked.book_demo}
               </td>
               <td className="text-right tabular-nums">{row.clicked.contact}</td>
+              <td className="text-right tabular-nums">{row.signedUp}</td>
               <td className="text-right tabular-nums">{row.leads}</td>
             </tr>
           ))}

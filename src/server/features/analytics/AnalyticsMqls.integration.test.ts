@@ -306,6 +306,7 @@ describe("mqlReport", () => {
     expect(report.byChannel).toContainEqual(
       expect.objectContaining({
         channel: "Paid search",
+        signedUp: 1,
         visitors: 1,
         leads: 1,
         pagesPerVisitor: 2,
