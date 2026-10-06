@@ -82,7 +82,16 @@ export function AnalyticsAdsInsightsSection({
             No responsive search ad text served in this period.
           </p>
         ) : (
-          <AssetTable rows={data.assets.all} />
+          <>
+            {data.assets.all.every((a) => a.rating === "Unrated") ? (
+              <p className="mb-2 text-sm text-base-content/70">
+                Google returned no ratings for this account, so text is ranked
+                by click rate. Compare text within a campaign: brand searches
+                click far more often than everything else.
+              </p>
+            ) : null}
+            <AssetTable rows={data.assets.all} />
+          </>
         )}
       </div>
     </section>
@@ -151,6 +160,12 @@ function TermTable({
 }
 
 function AssetTable({ rows }: { rows: Asset[] }) {
+  // Google has stopped rating assets for many accounts: when nothing is rated,
+  // rank by click rate instead and leave the rating out.
+  const rated = rows.some((a) => a.rating !== "Unrated");
+  const shown = rated
+    ? rows
+    : rows.toSorted((a, b) => b.clickRate - a.clickRate);
   return (
     <div className="overflow-x-auto">
       <table className="table table-sm">
@@ -158,20 +173,24 @@ function AssetTable({ rows }: { rows: Asset[] }) {
           <tr>
             <th>Text</th>
             <th>Type</th>
-            <th>Google’s rating</th>
+            <th>Campaigns</th>
+            {rated ? <th>Google’s rating</th> : null}
             <th className="text-right">Impressions</th>
             <th className="text-right">Click rate</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((a) => (
+          {shown.map((a) => (
             <tr key={`${a.fieldType}|${a.text}`}>
               <td className="font-medium">{a.text}</td>
               <td className="text-xs">{a.fieldType}</td>
-              <td className="text-xs">
-                {a.rating}
-                {a.low && a.rating !== "Low" ? " (low in some ads)" : ""}
-              </td>
+              <td className="text-xs">{a.campaigns.join(", ")}</td>
+              {rated ? (
+                <td className="text-xs">
+                  {a.rating}
+                  {a.low && a.rating !== "Low" ? " (low in some ads)" : ""}
+                </td>
+              ) : null}
               <td className="text-right tabular-nums">{a.impressions}</td>
               <td className="text-right tabular-nums">{a.clickRate}%</td>
             </tr>
