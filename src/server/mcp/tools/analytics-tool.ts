@@ -20,6 +20,7 @@ const inputSchema = analyticsQuerySchema.extend({
     "health",
     "mqls",
     "traffic",
+    "ads",
   ]),
 });
 type Input = z.infer<typeof inputSchema>;
@@ -28,7 +29,7 @@ export const analyticsQueryTool = {
   config: {
     title: "Inspect journey analytics",
     description:
-      "Read saved project analytics only: overview, source/landing acquisition, ordered funnel cohort, permitted journeys/customers, tracking health, or qualified leads (mqls: MQLs per calendar week against the weekly target, split enquiry/demo vs trial, by first-touch channel, source and campaign; individual leads with their first touch for administrators where personal inspection is on), or traffic (visitors by first-touch channel and by ad campaign and keyword: landing pages, pages per visitor, start-trial/book-demo/contact clicks, qualified leads, Google Ads spend). Zero paid research calls. Counts are observed permitted contexts, never a census of humans. Exact and inferred acquisition are separate. Date boundaries are ISO instants with timezone-aware reporting; production and test are isolated. Personal reads require administrator permission and the project's individual-inspection setting. Returns observation window, metric definitions and internal evidence links; never returns IPs, network hashes or secrets.",
+      "Read saved project analytics only: overview, source/landing acquisition, ordered funnel cohort, permitted journeys/customers, tracking health, or qualified leads (mqls: MQLs per calendar week against the weekly target, split enquiry/demo vs trial, by first-touch channel, source and campaign; individual leads with their first touch for administrators where personal inspection is on), or traffic (visitors by first-touch channel and by ad campaign and keyword: landing pages, pages per visitor, start-trial/book-demo/contact clicks, qualified leads, Google Ads spend), or ads (the Google Ads learning read: search terms people typed before clicking a Search ad, each judged promising, spending with no result, or too early against what its keyword's visitors did on the site; and Google's Best/Good/Low/Learning rating of each headline and description). Zero paid research calls. Counts are observed permitted contexts, never a census of humans. Exact and inferred acquisition are separate. Date boundaries are ISO instants with timezone-aware reporting; production and test are isolated. Personal reads require administrator permission and the project's individual-inspection setting. Returns observation window, metric definitions and internal evidence links; never returns IPs, network hashes or secrets.",
     inputSchema,
     annotations: {
       readOnlyHint: true,
@@ -87,6 +88,9 @@ export const analyticsQueryTool = {
         break;
       case "traffic":
         data = await AnalyticsService.traffic(args);
+        break;
+      case "ads":
+        data = await AnalyticsService.adsInsights(args);
         break;
       case "mqls": {
         const report = await AnalyticsService.mqls(args);

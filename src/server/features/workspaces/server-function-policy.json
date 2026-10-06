@@ -59,6 +59,10 @@
     "capability": "configure",
     "projectRequired": true
   },
+  "src/serverFunctions/analytics.ts:getAnalyticsAdsInsights": {
+    "capability": "read",
+    "projectRequired": true
+  },
   "src/serverFunctions/analytics.ts:getAnalyticsJourneyMap": {
     "capability": "configure",
     "projectRequired": true
