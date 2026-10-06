@@ -102,6 +102,7 @@ export function summariseAssets(rows: AssetRow[]) {
       impressions: number;
       clicks: number;
       adGroups: Set<string>;
+      campaigns: Set<string>;
     }
   >();
   for (const row of rows) {
@@ -118,10 +119,12 @@ export function summariseAssets(rows: AssetRow[]) {
       impressions: 0,
       clicks: 0,
       adGroups: new Set<string>(),
+      campaigns: new Set<string>(),
     };
     current.impressions += row.impressions;
     current.clicks += row.clicks;
     if (row.adGroupName) current.adGroups.add(row.adGroupName);
+    if (row.campaignName) current.campaigns.add(row.campaignName);
     if (row.rating === "LOW") current.low = true;
     if (rank > current.rank) {
       current.rank = rank;
@@ -130,12 +133,13 @@ export function summariseAssets(rows: AssetRow[]) {
     byText.set(key, current);
   }
   return [...byText.values()]
-    .map(({ rank: _rank, adGroups, ...asset }) => ({
+    .map(({ rank: _rank, adGroups, campaigns, ...asset }) => ({
       ...asset,
       clickRate: asset.impressions
         ? Math.round((asset.clicks / asset.impressions) * 1000) / 10
         : 0,
       adGroups: adGroups.size,
+      campaigns: [...campaigns].toSorted(),
     }))
     .toSorted((a, b) => b.impressions - a.impressions);
 }

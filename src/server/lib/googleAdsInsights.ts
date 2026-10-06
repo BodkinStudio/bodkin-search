@@ -187,7 +187,7 @@ export function adsInsightQueries(search: Search) {
         ),
         search(
           account.customerId,
-          "SELECT conversion_action.name, conversion_action.category, conversion_action.primary_for_goal, conversion_action.type FROM conversion_action WHERE conversion_action.status = 'ENABLED'",
+          "SELECT conversion_action.name, conversion_action.category, conversion_action.primary_for_goal, conversion_action.type, conversion_action.phone_call_duration_seconds FROM conversion_action WHERE conversion_action.status = 'ENABLED'",
           account.loginCustomerId,
         ),
       ]);
@@ -212,6 +212,7 @@ export function adsInsightQueries(search: Search) {
           category: z.string().optional(),
           primaryForGoal: z.boolean().optional(),
           type: z.string().optional(),
+          phoneCallDurationSeconds: z.string().optional(),
         }),
       });
       return {
@@ -234,11 +235,52 @@ export function adsInsightQueries(search: Search) {
                   category: a.category ?? null,
                   primary: a.primaryForGoal ?? false,
                   type: a.type ?? null,
+                  // Calls shorter than this are not counted (call actions only).
+                  minCallSeconds:
+                    a.phoneCallDurationSeconds === undefined
+                      ? null
+                      : Number(a.phoneCallDurationSeconds),
                 },
               ]
             : [];
         }),
       };
+    },
+
+    /**
+     * Every call Google tracked from an ad (its forwarding numbers), started in
+     * the range (account time zone): when, how long, answered or missed, and
+     * the campaign. No caller details are read.
+     */
+    async calls(
+      account: { customerId: string; loginCustomerId: string | null },
+      from: string,
+      to: string,
+    ) {
+      const rows = await search(
+        account.customerId,
+        `SELECT call_view.start_call_date_time, call_view.call_duration_seconds, call_view.call_status, call_view.type, campaign.name FROM call_view WHERE call_view.start_call_date_time >= '${from} 00:00:00' AND call_view.start_call_date_time <= '${to} 23:59:59'`,
+        account.loginCustomerId,
+      );
+      const row = z.object({
+        callView: z.object({
+          startCallDateTime: z.string().optional(),
+          callDurationSeconds: z.string().optional(),
+          callStatus: z.string().optional(),
+          type: z.string().optional(),
+        }),
+        campaign: z.object({ name: z.string().optional() }).optional(),
+      });
+      return rows.map((raw) => {
+        const r = row.parse(raw);
+        return {
+          startedAt: r.callView.startCallDateTime ?? null,
+          seconds: Number(r.callView.callDurationSeconds ?? 0),
+          status: r.callView.callStatus ?? null,
+          type: r.callView.type ?? null,
+          campaignName: r.campaign?.name ?? null,
+        };
+      });
     },
   };
 }

@@ -107,6 +107,7 @@ describe("summariseAssets", () => {
         clicks: 12,
         clickRate: 3,
         adGroups: 2,
+        campaigns: ["c"],
       },
       {
         text: "Reply from one inbox",
@@ -117,6 +118,7 @@ describe("summariseAssets", () => {
         clicks: 1,
         clickRate: 2,
         adGroups: 1,
+        campaigns: ["c"],
       },
     ]);
   });

@@ -4,7 +4,7 @@ import {
   NO_RESULT_MIN_CLICKS,
   summariseAssets,
 } from "@/shared/analytics/ads-insights";
-import { adsScorecard } from "@/shared/analytics/ads-scorecard";
+import { adsScorecard, summariseCalls } from "@/shared/analytics/ads-scorecard";
 import type { AnalyticsQuery } from "@/types/schemas/analytics";
 import { GoogleAdsService } from "@/server/features/google-ads/GoogleAdsService";
 import { trafficReport } from "./AnalyticsTraffic";
@@ -36,12 +36,15 @@ export async function adsInsightsReport(q: AnalyticsQuery) {
     ]),
   );
   // Each read stands alone: one failing never hides the other.
-  const [terms, assets, results, conversions] = await Promise.allSettled([
-    ads.client.searchTerms(ads.account, from, to),
-    ads.client.assetRatings(ads.account, from, to),
-    ads.client.campaignResults(ads.account, from, to),
-    ads.client.conversionBreakdown(ads.account, from, to),
-  ]);
+  const [terms, assets, results, conversions, calls] = await Promise.allSettled(
+    [
+      ads.client.searchTerms(ads.account, from, to),
+      ads.client.assetRatings(ads.account, from, to),
+      ads.client.campaignResults(ads.account, from, to),
+      ads.client.conversionBreakdown(ads.account, from, to),
+      ads.client.calls(ads.account, from, to),
+    ],
+  );
   const searchTerms =
     terms.status === "fulfilled"
       ? judgeSearchTerms(terms.value, byKeyword)
@@ -73,6 +76,18 @@ export async function adsInsightsReport(q: AnalyticsQuery) {
         }
       : null,
     scorecardError: failure(results),
+    calls:
+      calls.status === "fulfilled"
+        ? {
+            ...summariseCalls(
+              calls.value,
+              conversions.status === "fulfilled"
+                ? conversions.value.actions
+                : [],
+            ),
+            error: null,
+          }
+        : { error: failure(calls) },
     searchTerms: {
       promising: searchTerms
         .filter((t) => t.verdict === "promising")
@@ -108,6 +123,8 @@ export async function adsInsightsReport(q: AnalyticsQuery) {
       spendingNoResult: `At least ${NO_RESULT_MIN_CLICKS} clicks with no conversion, no sign-up and no qualified lead on its keyword: a candidate negative keyword or a landing page to fix. Not yet a verdict at low volume.`,
       siteResults:
         "Site results are per keyword (from the ad's keyword tag), shared by every search that matched it.",
+      calls:
+        "Calls Google tracked from the phone number shown in ads (its forwarding numbers). A call conversion action counts a call only if it lasts at least its call length setting; a very low setting counts accidental taps and short calls as conversions.",
       assets:
         "Google's rating of each responsive search ad headline and description against the others in its ad: Best, Good, Low, or Learning while it gathers data. Best rating across ad groups shown; low means rated Low somewhere.",
     },

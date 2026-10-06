@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { StatTile } from "@/client/components/StatTile";
 import { getAnalyticsAdsInsights } from "@/serverFunctions/analytics";
+import { SHORT_CALL_SECONDS } from "@/shared/analytics/ads-scorecard";
 
 type Report = Awaited<ReturnType<typeof getAnalyticsAdsInsights>>;
 type Connected = Extract<Report, { connected: true }>;
@@ -73,10 +74,6 @@ function Scorecard({
 }) {
   const t = card.totals;
   const lowCoverage = t.seenRate !== null && t.seenRate < LOW_COVERAGE;
-  const notLeads =
-    t.biddingOnLeadsRate === null
-      ? null
-      : Math.round((100 - t.biddingOnLeadsRate) * 10) / 10;
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -121,11 +118,14 @@ function Scorecard({
           the site saw <strong>{t.leads} qualified leads</strong> and{" "}
           <strong>{t.signedUp} sign-ups</strong> from ad visitors.
         </li>
-        {notLeads !== null ? (
+        {t.biddingConversions > 0 ? (
           <li>
             Of the {t.biddingConversions} conversions Google’s bidding optimises
-            for, <strong>{notLeads}%</strong> record a page view, click or other
-            action rather than a lead.
+            for: <strong>{t.biddingOnCallsRate ?? 0}%</strong> are phone calls
+            (not checked against demos or trials),{" "}
+            <strong>{t.biddingOnOtherRate ?? 0}%</strong> are page views, clicks
+            or other actions, and <strong>{t.biddingOnLeadsRate ?? 0}%</strong>{" "}
+            record a lead or sale.
           </li>
         ) : null}
         {lowCoverage ? (
@@ -215,7 +215,7 @@ function Scorecard({
                 <tr>
                   <th>Conversion action</th>
                   <th>Google’s category</th>
-                  <th>Records a lead</th>
+                  <th>What it records</th>
                   <th>Bidding optimises for it</th>
                   <th className="text-right">Conversions</th>
                 </tr>
@@ -225,7 +225,7 @@ function Scorecard({
                   <tr key={a.action}>
                     <td className="font-medium">{a.action}</td>
                     <td className="text-xs">{a.category}</td>
-                    <td className="text-xs">{a.recordsALead ? "Yes" : "No"}</td>
+                    <td className="text-xs">{recordsLabel(a)}</td>
                     <td className="text-xs">
                       {a.usedForBidding ? "Yes" : "No"}
                     </td>
@@ -239,6 +239,8 @@ function Scorecard({
           </div>
         )}
       </div>
+
+      <CallsTable data={data} />
 
       <div className="rounded-lg border border-base-300 p-4">
         <h3 className="mb-2 font-medium">Ad visitors against other visitors</h3>
@@ -284,5 +286,106 @@ function Scorecard({
         </div>
       </div>
     </>
+  );
+}
+
+function recordsLabel(a: Scorecard["conversionActions"][number]) {
+  if (a.kind === "lead") return "A lead or sale";
+  if (a.kind === "other") return "A visit or click";
+  return a.minCallSeconds === null
+    ? "A phone call (not checked against demos or trials)"
+    : `A phone call of ${a.minCallSeconds}s or more (not checked against demos or trials)`;
+}
+
+const seconds = (n: number | null) => (n === null ? "—" : `${n}s`);
+
+function CallsTable({ data }: { data: Connected }) {
+  const calls = data.calls;
+  return (
+    <div className="rounded-lg border border-base-300 p-4">
+      <h3 className="font-medium">Calls Google counted</h3>
+      <p className="mb-2 text-sm text-base-content/70">
+        {data.definitions.calls}
+      </p>
+      {"total" in calls ? (
+        calls.total === 0 ? (
+          <p className="text-sm text-base-content/70">
+            No calls from ads in this period.
+          </p>
+        ) : (
+          <>
+            <ul className="mb-3 list-disc space-y-1 pl-5 text-sm">
+              <li>
+                <strong>{calls.total} calls</strong>: {calls.answered} answered,{" "}
+                {calls.missed} missed. Answered calls lasted{" "}
+                <strong>{seconds(calls.medianSeconds)}</strong> at the median;{" "}
+                <strong>{calls.short}</strong> lasted under {SHORT_CALL_SECONDS}{" "}
+                seconds.
+              </li>
+              <li>
+                {calls.minCallSeconds === null
+                  ? "No call length setting was read for the call conversion actions."
+                  : `The call conversion action counts any call of ${calls.minCallSeconds} seconds or more.`}
+              </li>
+            </ul>
+            <div className="overflow-x-auto">
+              <table className="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Campaign</th>
+                    <th className="text-right">Calls</th>
+                    <th className="text-right">Answered</th>
+                    <th className="text-right">Median length</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {calls.byCampaign.map((c) => (
+                    <tr key={c.campaignName}>
+                      <td className="font-medium">{c.campaignName}</td>
+                      <td className="text-right tabular-nums">{c.calls}</td>
+                      <td className="text-right tabular-nums">{c.answered}</td>
+                      <td className="text-right tabular-nums">
+                        {seconds(c.medianSeconds)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <details className="mt-2 text-sm">
+              <summary className="cursor-pointer">Each call</summary>
+              <div className="overflow-x-auto">
+                <table className="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Started</th>
+                      <th>Campaign</th>
+                      <th>Answered</th>
+                      <th className="text-right">Length</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {calls.recent.map((c, index) => (
+                      <tr key={`${c.startedAt ?? ""}-${index}`}>
+                        <td className="tabular-nums">{c.startedAt ?? "—"}</td>
+                        <td>{c.campaignName ?? "—"}</td>
+                        <td>{c.answered ? "Yes" : "No"}</td>
+                        <td className="text-right tabular-nums">
+                          {seconds(c.seconds)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          </>
+        )
+      ) : (
+        <p role="alert" className="text-sm text-warning">
+          Calls couldn’t be read: {calls.error}
+        </p>
+      )}
+    </div>
   );
 }

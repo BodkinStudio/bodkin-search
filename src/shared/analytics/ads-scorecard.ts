@@ -29,7 +29,19 @@ type Counted = {
   allConversions: number;
 };
 
-type Action = { name: string; category: string | null; primary: boolean };
+type Action = {
+  name: string;
+  category: string | null;
+  primary: boolean;
+  minCallSeconds?: number | null;
+};
+
+type Call = {
+  startedAt: string | null;
+  seconds: number;
+  status: string | null;
+  campaignName: string | null;
+};
 
 const CHANNEL_TYPE: Record<string, string> = {
   PERFORMANCE_MAX: "Performance Max",
@@ -63,6 +75,9 @@ const CATEGORY: Record<string, string> = {
   STORE_VISIT: "Store visit",
 };
 
+/** Calls: possibly a lead, but never checked against demos or trials. */
+const CALL_CATEGORIES = new Set(["PHONE_CALL_LEAD"]);
+
 /** Google categories that record a lead or a sale, rather than a visit or a click. */
 const LEAD_CATEGORIES = new Set([
   "SUBMIT_LEAD_FORM",
@@ -86,6 +101,70 @@ const per = (spend: number, count: number) =>
 const rate = (part: number, whole: number) =>
   whole > 0 ? Math.round((part / whole) * 1000) / 10 : null;
 const norm = (value: string) => value.trim().toLowerCase();
+
+function kindOf(category: string | null): "lead" | "call" | "other" {
+  if (category && LEAD_CATEGORIES.has(category)) return "lead";
+  if (category && CALL_CATEGORIES.has(category)) return "call";
+  return "other";
+}
+
+const median = (values: number[]) => {
+  if (values.length === 0) return null;
+  const sorted = values.toSorted((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2
+    ? (sorted[mid] ?? 0)
+    : Math.round(((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2);
+};
+
+/** Calls shorter than this are reported as short (not long enough to be a sales conversation). */
+export const SHORT_CALL_SECONDS = 30;
+
+/**
+ * The calls Google tracked from ads: how many were answered, how long they
+ * lasted, by campaign, and the shortest call a call conversion action counts.
+ */
+export function summariseCalls(calls: Call[], actions: Action[]) {
+  const thresholds = actions.flatMap((a) =>
+    a.minCallSeconds === null || a.minCallSeconds === undefined
+      ? []
+      : [a.minCallSeconds],
+  );
+  const answered = calls.filter((c) => c.status === "RECEIVED");
+  const byCampaign = new Map<string, Call[]>();
+  for (const call of calls) {
+    const key = call.campaignName ?? "Unknown campaign";
+    byCampaign.set(key, [...(byCampaign.get(key) ?? []), call]);
+  }
+  return {
+    total: calls.length,
+    answered: answered.length,
+    missed: calls.filter((c) => c.status === "MISSED").length,
+    short: answered.filter((c) => c.seconds < SHORT_CALL_SECONDS).length,
+    medianSeconds: median(answered.map((c) => c.seconds)),
+    /** The lowest call length any call conversion action counts (null when none set). */
+    minCallSeconds: thresholds.length ? Math.min(...thresholds) : null,
+    byCampaign: [...byCampaign]
+      .map(([campaignName, group]) => ({
+        campaignName,
+        calls: group.length,
+        answered: group.filter((c) => c.status === "RECEIVED").length,
+        medianSeconds: median(
+          group.filter((c) => c.status === "RECEIVED").map((c) => c.seconds),
+        ),
+      }))
+      .toSorted((a, b) => b.calls - a.calls),
+    recent: calls
+      .toSorted((a, b) => (b.startedAt ?? "").localeCompare(a.startedAt ?? ""))
+      .slice(0, 50)
+      .map((c) => ({
+        startedAt: c.startedAt,
+        seconds: c.seconds,
+        answered: c.status === "RECEIVED",
+        campaignName: c.campaignName,
+      })),
+  };
+}
 
 export function adsScorecard(input: {
   campaigns: Campaign[];
@@ -142,7 +221,7 @@ export function adsScorecard(input: {
   const signedUp = sum("signedUp");
   const leads = sum("leads");
 
-  const primary = new Map(input.actions.map((a) => [a.name, a.primary]));
+  const actionByName = new Map(input.actions.map((a) => [a.name, a]));
   const byAction = new Map<
     string,
     {
@@ -167,8 +246,9 @@ export function adsScorecard(input: {
     .map((a) => ({
       action: a.action,
       category: label(CATEGORY, a.category),
-      recordsALead: a.category ? LEAD_CATEGORIES.has(a.category) : false,
-      usedForBidding: primary.get(a.action) ?? false,
+      kind: kindOf(a.category),
+      usedForBidding: actionByName.get(a.action)?.primary ?? false,
+      minCallSeconds: actionByName.get(a.action)?.minCallSeconds ?? null,
       conversions: Math.round(a.conversions * 10) / 10,
       allConversions: Math.round(a.allConversions * 10) / 10,
     }))
@@ -176,9 +256,10 @@ export function adsScorecard(input: {
   const biddingConversions = conversionActions
     .filter((a) => a.usedForBidding)
     .reduce((total, a) => total + a.conversions, 0);
-  const biddingOnLeads = conversionActions
-    .filter((a) => a.usedForBidding && a.recordsALead)
-    .reduce((total, a) => total + a.conversions, 0);
+  const biddingOn = (kind: ReturnType<typeof kindOf>) =>
+    conversionActions
+      .filter((a) => a.usedForBidding && a.kind === kind)
+      .reduce((total, a) => total + a.conversions, 0);
 
   const channelRow = (name: string, rows: SiteRow[]) => {
     const visitors = rows.reduce((t, r) => t + r.visitors, 0);
@@ -227,8 +308,10 @@ export function adsScorecard(input: {
       leads,
       costPerLead: per(spend, leads),
       biddingConversions: Math.round(biddingConversions * 10) / 10,
-      /** Share of the conversions bidding optimises for that record a lead rather than a visit or click. */
-      biddingOnLeadsRate: rate(biddingOnLeads, biddingConversions),
+      /** Shares of the conversions bidding optimises for: leads or sales, phone calls, and visits or clicks. */
+      biddingOnLeadsRate: rate(biddingOn("lead"), biddingConversions),
+      biddingOnCallsRate: rate(biddingOn("call"), biddingConversions),
+      biddingOnOtherRate: rate(biddingOn("other"), biddingConversions),
     },
     campaigns,
     conversionActions,
