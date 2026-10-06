@@ -129,6 +129,9 @@ export const serverEventSchema = z
       .regex(/^[A-Z]{3}$/)
       .optional(),
     paymentId: z.string().max(200).optional(),
+    // Where the outcome came from when no website visit led to it, e.g. an
+    // app store ("Microsoft Teams store"). A tracked journey takes precedence.
+    source: z.string().trim().min(1).max(100).optional(),
   })
   .strict()
   .superRefine((v, c) => {

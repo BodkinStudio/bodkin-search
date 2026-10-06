@@ -59,6 +59,7 @@ beforeAll(async () => {
         "0079_wandering_zarda",
         "0082_milky_wolfpack",
         "0083_crazy_newton_destine",
+        "0085_wakeful_sunspot",
       ]
         .map((name) => readFileSync(`drizzle/${name}.sql`, "utf8"))
         .join("\n") +
@@ -326,6 +327,57 @@ describe("mqlReport", () => {
     ]);
   });
 
+  it("a trial started straight from an app store counts in the App marketplace channel, with the store as its source", async () => {
+    const at = new Date(now.getTime() - 600_000);
+    await recordOutcome({
+      projectId: "p",
+      sourceId: ids.website,
+      environment: "production",
+      eventId: "store:trial",
+      issuer: "yakchat-website",
+      customerId: "org-store",
+      name: "trial_started",
+      occurredAt: at.toISOString(),
+      source: "Microsoft Teams store",
+    });
+    await recordOutcome({
+      projectId: "p",
+      sourceId: ids.website,
+      environment: "production",
+      eventId: "store:mql",
+      issuer: "yakchat-website",
+      customerId: "org-store",
+      name: "lead_qualified",
+      occurredAt: at.toISOString(),
+      source: "Microsoft Teams store",
+    });
+    const report = await mqlReport({
+      projectId: "p",
+      environment: "production",
+      from: new Date(now.getTime() - 7 * 86400_000).toISOString(),
+      to: new Date(now.getTime() + 3600_000).toISOString(),
+      timezone: "UTC",
+      limit: 100,
+      offset: 0,
+    });
+    expect(report.byChannel).toContainEqual({
+      label: "App marketplace",
+      mqls: 1,
+    });
+    expect(report.bySource).toContainEqual({
+      label: "Microsoft Teams store",
+      mqls: 1,
+    });
+    const lead = report.leads?.find(
+      (l) => l.firstTouch?.source === "Microsoft Teams store",
+    );
+    expect(lead).toMatchObject({
+      kind: "trial",
+      channel: "App marketplace",
+      tracked: true,
+    });
+  });
+
   it("keeps individual leads out unless the project allows personal inspection", async () => {
     await client.execute("UPDATE analytics_settings SET personal_access = 0");
     const report = await mqlReport({
@@ -336,6 +388,6 @@ describe("mqlReport", () => {
       offset: 0,
     });
     expect(report.leads).toBeNull();
-    expect(report.total).toBe(2);
+    expect(report.total).toBe(3);
   });
 });

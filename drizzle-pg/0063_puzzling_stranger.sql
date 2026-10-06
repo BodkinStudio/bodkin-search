@@ -1,0 +1,1 @@
+ALTER TABLE "analytics_outcomes" ADD COLUMN "source" text;

@@ -302,6 +302,7 @@ export const analyticsOutcomes = pgTable(
     refundedMinor: integer("refunded_minor").notNull().default(0),
     currency: text("currency"),
     paymentId: text("payment_id"),
+    source: text("source"),
   },
   (t) => [
     check(

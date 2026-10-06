@@ -10,6 +10,7 @@ export const analyticsChannels = [
   "Organic social",
   "Email",
   "Referral",
+  "App marketplace",
   "Direct",
 ] as const;
 type AnalyticsChannel = (typeof analyticsChannels)[number];
