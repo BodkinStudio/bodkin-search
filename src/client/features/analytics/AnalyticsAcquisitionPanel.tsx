@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { getAnalyticsAcquisitionDimensions } from "@/serverFunctions/analytics";
 import { AnalyticsTrafficSection } from "./AnalyticsTrafficSection";
 import { AnalyticsAdsInsightsSection } from "./AnalyticsAdsInsightsSection";
+import { AnalyticsAdsScorecardSection } from "./AnalyticsAdsScorecardSection";
 const DIMENSION_LABELS = {
   sources: "Source",
   campaigns: "Campaign",
@@ -41,6 +42,7 @@ export function AnalyticsAcquisitionPanel({
   });
   return (
     <section className="space-y-5">
+      <AnalyticsAdsScorecardSection filters={filters} />
       <AnalyticsTrafficSection
         filters={filters}
         onOpenChannel={(channel) => onSelect({ view: "journeys", channel })}
