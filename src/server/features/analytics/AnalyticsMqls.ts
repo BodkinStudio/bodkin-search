@@ -100,7 +100,26 @@ export async function mqlReport(q: AnalyticsQuery) {
         (a, b) =>
           a.receivedAt.localeCompare(b.receivedAt) || a.sequence - b.sequence,
       );
-    const touch = firstTouch(history);
+    // No website visit led to it, but the outcome says where it came from
+    // (an app store): that is its source, in the App marketplace channel.
+    const touch =
+      firstTouch(history) ??
+      (o.source
+        ? {
+            at: o.occurredAt,
+            landingPage: null,
+            channel: "App marketplace" as const,
+            source: o.source,
+            medium: "marketplace",
+            campaign: null,
+            content: null,
+            term: null,
+            referrer: null,
+            clickIdType: null,
+            clickId: null,
+            sourcedAt: null,
+          }
+        : null);
     return {
       outcomeId: o.id,
       occurredAt: o.occurredAt,
@@ -111,7 +130,8 @@ export async function mqlReport(q: AnalyticsQuery) {
       pagesViewed: history.filter((e) => e.name === "page_view").length,
       firstTouch: touch,
       channel: touch?.channel ?? "Direct",
-      tracked: history.length > 0,
+      // Attributed: a website journey, or a source the outcome carried.
+      tracked: history.length > 0 || Boolean(o.source),
     };
   });
 
@@ -226,7 +246,9 @@ export async function mqlReport(q: AnalyticsQuery) {
         "First touch in the 30 days before the lead, across every visitor identified as the customer.",
       ads: "Google Ads spend in the period (account time zone) and cost per qualified lead: a lead belongs to a campaign by its Google click id, else by its UTM campaign matching the campaign name or id.",
       untracked:
-        "Leads with no permitted journey (no consent, a direct calendar link, or a blocked tracker): counted, not attributed.",
+        "Leads with no permitted journey and no stated source (no consent, a direct calendar link, or a blocked tracker): counted, not attributed.",
+      marketplace:
+        "A trial started straight from an app store, with no website visit, is attributed to that store in the App marketplace channel.",
       weeks: `Calendar weeks starting Monday, in ${timezone}.`,
     },
     window,

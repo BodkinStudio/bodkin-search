@@ -47,7 +47,8 @@ beforeAll(async () => {
     readFileSync("drizzle/0076_dazzling_wolf_cub.sql", "utf8") +
       readFileSync("drizzle/0079_wandering_zarda.sql", "utf8") +
       readFileSync("drizzle/0082_milky_wolfpack.sql", "utf8") +
-      readFileSync("drizzle/0083_crazy_newton_destine.sql", "utf8"),
+      readFileSync("drizzle/0083_crazy_newton_destine.sql", "utf8") +
+      readFileSync("drizzle/0085_wakeful_sunspot.sql", "utf8"),
   );
   ({ deliverOutbox } = await import("./AnalyticsDelivery"));
   ({ recordOutcome } = await import("./AnalyticsOutcomes"));

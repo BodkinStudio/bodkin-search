@@ -442,6 +442,13 @@
       "when": 1791214389713,
       "tag": "0062_omniscient_owl",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1791287463363,
+      "tag": "0063_puzzling_stranger",
+      "breakpoints": true
     }
   ]
 }

@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import type { ServerJourneyEvent } from "@/types/schemas/analytics";
 import { AnalyticsRepository as repo } from "./AnalyticsRepository";
+import { outcomeRow } from "./outcome-row";
 
 export async function recordOutcome(event: ServerJourneyEvent) {
   await validateOutcomeSource(event);
@@ -124,23 +125,7 @@ export async function recordOutcome(event: ServerJourneyEvent) {
   const version = customer.decisionVersion + 1;
   const touch = await touchEvidence(event.projectId, evidence.clickEventId);
   const lifecycle = lifecycleFor(event.name);
-  const outcome = {
-    id: crypto.randomUUID(),
-    projectId: event.projectId,
-    environment: event.environment,
-    issuer: event.issuer,
-    externalId:
-      event.name === "payment_succeeded"
-        ? `payment:${event.paymentId}`
-        : event.eventId,
-    customerId: customer.id,
-    contextId: journey?.id ?? null,
-    name: event.name,
-    occurredAt: event.occurredAt,
-    amountMinor: event.amountMinor ?? null,
-    currency: event.currency ?? null,
-    paymentId: event.paymentId ?? null,
-  };
+  const outcome = outcomeRow(event, customer.id, journey?.id ?? null);
   await runBatch((tx) => [
     tx.insert(analyticsOutcomes).values(outcome),
     tx
