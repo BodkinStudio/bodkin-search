@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getAuth } from "@/lib/auth";
 import { getOptionalEnvValue } from "@/server/lib/runtime-env";
 import { GOOGLE_ADS_OAUTH_PROVIDER_ID } from "@/shared/google-ads";
+import { adsInsightQueries } from "./googleAdsInsights";
 
 // Read-only Google Ads API client: account discovery, campaign spend, and
 // click lookups (which campaign a gclid came from). Every call is a GAQL
@@ -303,6 +304,8 @@ export function createGoogleAdsClient(opts: {
         };
       });
     },
+
+    ...adsInsightQueries(search),
 
     /** The campaign a Google click id came from; click_view needs the click's date (account time zone). */
     async clickCampaign(

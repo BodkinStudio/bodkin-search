@@ -26,6 +26,12 @@ export const getAnalyticsTraffic = createServerFn({ method: "POST" })
   .handler(({ data, context }) =>
     service.traffic({ ...data, projectId: context.projectId }),
   );
+export const getAnalyticsAdsInsights = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(analyticsQuerySchema)
+  .handler(({ data, context }) =>
+    service.adsInsights({ ...data, projectId: context.projectId }),
+  );
 export const getAnalyticsMqls = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
   .validator(analyticsQuerySchema)

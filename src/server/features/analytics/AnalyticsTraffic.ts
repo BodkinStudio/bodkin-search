@@ -76,7 +76,10 @@ const groupBy = <T>(items: T[], key: (item: T) => string | null) => {
   return groups;
 };
 
-export async function trafficReport(q: AnalyticsQuery) {
+export async function trafficReport(
+  q: AnalyticsQuery,
+  opts: { keywordLimit?: number } = {},
+) {
   const window = repo.windowFor(q);
   const [events, outcomes] = await Promise.all([
     repo.events(q),
@@ -185,7 +188,7 @@ export async function trafficReport(q: AnalyticsQuery) {
     byKeyword: [...groupBy(paid, (v) => v.term)]
       .map(([label, group]) => summarise(label, group))
       .toSorted((a, b) => b.visitors - a.visitors)
-      .slice(0, 25),
+      .slice(0, opts.keywordLimit ?? 25),
     ads: ads
       ? {
           connected: true,
