@@ -4,6 +4,7 @@ import {
   NO_RESULT_MIN_CLICKS,
   summariseAssets,
 } from "@/shared/analytics/ads-insights";
+import { adsScorecard } from "@/shared/analytics/ads-scorecard";
 import type { AnalyticsQuery } from "@/types/schemas/analytics";
 import { GoogleAdsService } from "@/server/features/google-ads/GoogleAdsService";
 import { trafficReport } from "./AnalyticsTraffic";
@@ -35,9 +36,11 @@ export async function adsInsightsReport(q: AnalyticsQuery) {
     ]),
   );
   // Each read stands alone: one failing never hides the other.
-  const [terms, assets] = await Promise.allSettled([
+  const [terms, assets, results, conversions] = await Promise.allSettled([
     ads.client.searchTerms(ads.account, from, to),
     ads.client.assetRatings(ads.account, from, to),
+    ads.client.campaignResults(ads.account, from, to),
+    ads.client.conversionBreakdown(ads.account, from, to),
   ]);
   const searchTerms =
     terms.status === "fulfilled"
@@ -45,10 +48,31 @@ export async function adsInsightsReport(q: AnalyticsQuery) {
       : [];
   const ratedAssets =
     assets.status === "fulfilled" ? summariseAssets(assets.value) : [];
+  // Spend against results. Without the conversion breakdown the scorecard
+  // still stands; without campaign results there is nothing to score.
+  const scorecard =
+    results.status === "fulfilled"
+      ? adsScorecard({
+          campaigns: results.value,
+          siteCampaigns: traffic.byAdCampaign,
+          siteChannels: traffic.byChannel,
+          counted:
+            conversions.status === "fulfilled" ? conversions.value.counted : [],
+          actions:
+            conversions.status === "fulfilled" ? conversions.value.actions : [],
+        })
+      : null;
   return {
     connected: true as const,
     account: ads.connection.customerName,
     currency: ads.connection.currencyCode,
+    scorecard: scorecard
+      ? {
+          ...scorecard,
+          error: failure(conversions),
+        }
+      : null,
+    scorecardError: failure(results),
     searchTerms: {
       promising: searchTerms
         .filter((t) => t.verdict === "promising")
@@ -67,6 +91,16 @@ export async function adsInsightsReport(q: AnalyticsQuery) {
       error: failure(assets),
     },
     definitions: {
+      scorecard:
+        "Spend, clicks and conversions are Google's own figures for the period. Visitors, sign-ups and qualified leads are what the site saw those ad visitors do, matched by the campaign on the ad click.",
+      seenRate:
+        "Ad visitors the site saw, as a share of the clicks Google charged for. Low coverage means ad visits lost their click tag (for example through a redirect) or blocked tracking: judge cost per lead only over a period with good coverage.",
+      googleConversions:
+        "Whatever the account's conversion actions count, which may be page views or clicks rather than leads. The conversion actions table shows what is counted and which ones bidding optimises for.",
+      signedUp:
+        "Ad visitors who gave a work email to start a trial or booked a demo.",
+      leads:
+        "Ad visitors who became a qualified lead: a demo booked or a trial started.",
       searchTerms:
         "What people typed before clicking a Search campaign ad (Performance Max does not report individual searches here), biggest spend first.",
       promising:

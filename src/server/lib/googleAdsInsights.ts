@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 // The Google Ads learning reads (self-learning ads loop, phase 1): search
-// terms and responsive search ad asset ratings. Read-only GAQL, run through
+// terms, responsive search ad asset ratings, and what each campaign spent
+// against what Google counted as a conversion. Read-only GAQL, run through
 // the client's own search.
 
 type Search = (
@@ -124,6 +125,120 @@ export function adsInsightQueries(search: Search) {
           },
         ];
       });
+    },
+
+    /**
+     * Each campaign's type, spend, clicks and the conversions Google reported,
+     * for a date range (account time zone), every campaign that served.
+     */
+    async campaignResults(
+      account: { customerId: string; loginCustomerId: string | null },
+      from: string,
+      to: string,
+    ) {
+      const rows = await search(
+        account.customerId,
+        `SELECT campaign.id, campaign.name, campaign.advertising_channel_type, metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.conversions FROM campaign WHERE segments.date BETWEEN '${from}' AND '${to}' AND metrics.impressions > 0`,
+        account.loginCustomerId,
+      );
+      const row = z.object({
+        campaign: z.object({
+          id: z.string(),
+          name: z.string().optional(),
+          advertisingChannelType: z.string().optional(),
+        }),
+        metrics: z
+          .object({
+            costMicros: z.string().optional(),
+            clicks: z.string().optional(),
+            impressions: z.string().optional(),
+            conversions: z.number().optional(),
+          })
+          .optional(),
+      });
+      return rows.map((raw) => {
+        const r = row.parse(raw);
+        return {
+          campaignId: r.campaign.id,
+          campaignName: r.campaign.name ?? r.campaign.id,
+          channelType: r.campaign.advertisingChannelType ?? null,
+          spend: Number(r.metrics?.costMicros ?? 0) / 1_000_000,
+          clicks: Number(r.metrics?.clicks ?? 0),
+          impressions: Number(r.metrics?.impressions ?? 0),
+          googleConversions: r.metrics?.conversions ?? 0,
+        };
+      });
+    },
+
+    /**
+     * What Google counted as a conversion: per campaign and conversion action,
+     * with each action's category and whether bidding optimises for it.
+     */
+    async conversionBreakdown(
+      account: { customerId: string; loginCustomerId: string | null },
+      from: string,
+      to: string,
+    ) {
+      const [counted, actions] = await Promise.all([
+        search(
+          account.customerId,
+          `SELECT campaign.name, segments.conversion_action_name, segments.conversion_action_category, metrics.conversions, metrics.all_conversions FROM campaign WHERE segments.date BETWEEN '${from}' AND '${to}' AND metrics.all_conversions > 0`,
+          account.loginCustomerId,
+        ),
+        search(
+          account.customerId,
+          "SELECT conversion_action.name, conversion_action.category, conversion_action.primary_for_goal, conversion_action.type FROM conversion_action WHERE conversion_action.status = 'ENABLED'",
+          account.loginCustomerId,
+        ),
+      ]);
+      const countedRow = z.object({
+        campaign: z.object({ name: z.string().optional() }).optional(),
+        segments: z
+          .object({
+            conversionActionName: z.string().optional(),
+            conversionActionCategory: z.string().optional(),
+          })
+          .optional(),
+        metrics: z
+          .object({
+            conversions: z.number().optional(),
+            allConversions: z.number().optional(),
+          })
+          .optional(),
+      });
+      const actionRow = z.object({
+        conversionAction: z.object({
+          name: z.string().optional(),
+          category: z.string().optional(),
+          primaryForGoal: z.boolean().optional(),
+          type: z.string().optional(),
+        }),
+      });
+      return {
+        counted: counted.map((raw) => {
+          const r = countedRow.parse(raw);
+          return {
+            campaignName: r.campaign?.name ?? null,
+            action: r.segments?.conversionActionName ?? "(unnamed)",
+            category: r.segments?.conversionActionCategory ?? null,
+            conversions: r.metrics?.conversions ?? 0,
+            allConversions: r.metrics?.allConversions ?? 0,
+          };
+        }),
+        actions: actions.flatMap((raw) => {
+          const a = actionRow.parse(raw).conversionAction;
+          return a.name
+            ? [
+                {
+                  name: a.name,
+                  category: a.category ?? null,
+                  primary: a.primaryForGoal ?? false,
+                  type: a.type ?? null,
+                },
+              ]
+            : [];
+        }),
+      };
     },
   };
 }
