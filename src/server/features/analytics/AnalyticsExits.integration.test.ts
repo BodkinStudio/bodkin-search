@@ -25,6 +25,7 @@ beforeAll(async () => {
   vi.doMock("@/db/schema", async () => ({
     ...(await import("@/db/analytics.schema")),
     ...(await import("@/db/analytics-reporting.schema")),
+    ...(await import("@/db/analytics-clarity.schema")),
   }));
   vi.doMock("@/db/runBatch", () => ({
     runBatch: async (build: (tx: typeof db) => Promise<unknown>[]) => {
@@ -141,6 +142,11 @@ it("shows where visits end, and which of them left without acting, for all visit
     view("/sms-for-teams"),
   ]);
 
+  // What Clarity measured on pricing that day (the daily snapshot's row).
+  await client.execute(
+    `INSERT INTO analytics_clarity_pages (id, project_id, day, page_path, sessions, scroll_depth, rage_click_pct) VALUES ('c1', 'p', '${now.toISOString().slice(0, 10)}', '/pricing', 40, 50, 2.5)`,
+  );
+
   const report = await exitsReport({
     projectId: "p",
     environment: "production",
@@ -152,13 +158,21 @@ it("shows where visits end, and which of them left without acting, for all visit
   });
 
   expect(report.visits).toBe(5);
-  expect(report.pages[0]).toEqual({
+  expect(report.clarityDays).toBe(1);
+  expect(report.pages[0]).toMatchObject({
     path: "/pricing",
     visits: 4,
     exits: 3,
     exitRate: 75,
     onlyPage: 2,
     leftWithoutActing: 2,
+    // Joined by page path; a measure Clarity had none of stays null.
+    clarity: {
+      sessions: 40,
+      scrollDepth: 50,
+      rageClickPct: 2.5,
+      deadClickPct: null,
+    },
   });
   expect(report.pages).toContainEqual({
     path: "/sms-for-teams",
@@ -167,6 +181,7 @@ it("shows where visits end, and which of them left without acting, for all visit
     exitRate: 50,
     onlyPage: 0,
     leftWithoutActing: 0,
+    clarity: null,
   });
   expect(report.pages).toContainEqual({
     path: "/book-a-demo",
@@ -175,17 +190,19 @@ it("shows where visits end, and which of them left without acting, for all visit
     exitRate: 100,
     onlyPage: 1,
     leftWithoutActing: 0,
+    clarity: null,
   });
   expect(report.byChannel.map((row) => [row.channel, row.visits])).toEqual([
     ["Paid search", 2],
     ["Direct", 3],
   ]);
-  expect(report.byChannel[0]?.pages[0]).toEqual({
+  expect(report.byChannel[0]?.pages[0]).toMatchObject({
     path: "/pricing",
     visits: 2,
     exits: 2,
     exitRate: 100,
     onlyPage: 1,
     leftWithoutActing: 1,
+    clarity: { scrollDepth: 50 },
   });
 });

@@ -87,6 +87,18 @@
     "capability": "configure",
     "projectRequired": true
   },
+  "src/serverFunctions/analytics.ts:getClarityConnection": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:saveClarityConnection": {
+    "capability": "configure",
+    "projectRequired": true
+  },
+  "src/serverFunctions/analytics.ts:removeClarityConnection": {
+    "capability": "configure",
+    "projectRequired": true
+  },
   "src/serverFunctions/analytics.ts:listAnalyticsJourneys": {
     "capability": "configure",
     "projectRequired": true

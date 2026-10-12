@@ -2,6 +2,11 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAnalyticsExits } from "@/serverFunctions/analytics";
 
+const percent = (value: number | null | undefined) =>
+  value === null || value === undefined
+    ? "—"
+    : `${value > 0 && value < 10 ? value.toFixed(1) : Math.round(value)}%`;
+
 // Where visits end: for each page, the visits that saw it, the visits that
 // ended on it, and how many of those left without acting. For every visit,
 // or for the visitors one channel brought.
@@ -26,6 +31,7 @@ export function AnalyticsExitsSection({
   const data = query.data;
   const selected = data.byChannel.find((row) => row.channel === channel);
   const pages = selected ? selected.pages : data.pages.slice(0, 15);
+  const withClarity = data.clarityDays > 0;
   return (
     <section
       aria-labelledby="exits-pages"
@@ -83,14 +89,36 @@ export function AnalyticsExitsSection({
                   Exit rate
                 </th>
                 <th className="text-right" title={data.definitions.onlyPage}>
-                  Only page seen
+                  Only page
                 </th>
                 <th
-                  className="text-right"
+                  className="min-w-24 text-right whitespace-normal"
                   title={data.definitions.leftWithoutActing}
                 >
                   Left without acting
                 </th>
+                {withClarity ? (
+                  <>
+                    <th
+                      className="min-w-16 text-right whitespace-normal"
+                      title="Clarity: how far down the page sessions scrolled, on average"
+                    >
+                      Scroll depth
+                    </th>
+                    <th
+                      className="min-w-16 text-right whitespace-normal"
+                      title="Clarity: sessions with a rage click"
+                    >
+                      Rage clicks
+                    </th>
+                    <th
+                      className="min-w-16 text-right whitespace-normal"
+                      title="Clarity: sessions with a click that did nothing"
+                    >
+                      Dead clicks
+                    </th>
+                  </>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -109,6 +137,19 @@ export function AnalyticsExitsSection({
                   <td className="text-right tabular-nums">
                     {row.leftWithoutActing}
                   </td>
+                  {withClarity ? (
+                    <>
+                      <td className="text-right tabular-nums">
+                        {percent(row.clarity?.scrollDepth)}
+                      </td>
+                      <td className="text-right tabular-nums">
+                        {percent(row.clarity?.rageClickPct)}
+                      </td>
+                      <td className="text-right tabular-nums">
+                        {percent(row.clarity?.deadClickPct)}
+                      </td>
+                    </>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
@@ -117,6 +158,11 @@ export function AnalyticsExitsSection({
       )}
       <p className="mt-3 text-xs text-base-content/60">
         {data.definitions.visit} {data.definitions.leftWithoutActing}
+      </p>
+      <p className="mt-1 text-xs text-base-content/60">
+        {withClarity
+          ? `${data.definitions.clarity} ${data.clarityDays} of this period’s days have a snapshot.`
+          : "Connect Microsoft Clarity under Tracking setup, Measurement, to add scroll depth and click frustration to each page."}
       </p>
     </section>
   );

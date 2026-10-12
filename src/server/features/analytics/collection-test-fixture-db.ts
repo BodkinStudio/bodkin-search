@@ -11,6 +11,7 @@ const ANALYTICS_MIGRATIONS = [
   "0082_milky_wolfpack",
   "0083_crazy_newton_destine",
   "0085_wakeful_sunspot",
+  "0086_broken_nightmare",
 ];
 
 export const analyticsMigrationSql = () =>

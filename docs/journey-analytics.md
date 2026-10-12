@@ -6,6 +6,17 @@ Project navigation → Analytics contains Overview, Journeys, Acquisition, Funne
 
 The local demonstration is the project **DEMO — Journey Analytics**, environment **Test**. Its events pass through the collection and outcome services. It is synthetic evidence, not a completed external pilot or production data.
 
+### Microsoft Clarity (optional)
+
+Settings → Analytics → Measurement connects a project to its Microsoft Clarity project with a Data Export token (Clarity → Settings → Data Export; project admins only). Once connected, the daily tick asks Clarity once for the last 24 hours by page and keeps the result in `analytics_clarity_pages`: sessions, average scroll depth, active time, and the share of sessions with a rage click, a dead click or a quick back. Where visits end then shows scroll depth, rage clicks and dead clicks beside each page.
+
+- Clarity's export only reaches back three days and allows ten requests a project a day, so history exists from the first snapshot on and one request a day is all the job spends.
+- Only pages on the hostnames registered as the project's live, enabled sources are kept, by the same redacted path journeys use. Rows are aggregate; nothing individual is stored.
+- The token is encrypted with a key derived for the project from `ANALYTICS_SERVER_EVENT_SECRET` (`deriveProjectSecret`, purpose `provider`) and is never returned to the browser, the audit trail or MCP. Rotating that secret makes stored tokens unreadable; reconnect afterwards.
+- A token made in a different Clarity project reads that project's pages, usually none. Saving warns when the token's subject names another project, and a snapshot that finds no pages is shown as a fault on the connection, leaving the days already kept alone.
+- Bot sessions, excessive scrolling, error clicks and script errors come in the same reply and are kept too, though the report does not show them yet.
+- A site whose tracker maps URLs with a custom `route()` stores route names, not paths, so Clarity's pages will not match its journeys.
+
 ## Installation
 
 1. Apply all new migrations for your database provider using the existing migration command. SQLite and Postgres schemas are mirrored; migrations have been applied successfully on local SQLite and an isolated Postgres 16 database.

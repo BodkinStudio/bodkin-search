@@ -15,6 +15,7 @@ import * as sqliteAnalytics from "./analytics.schema";
 import * as sqliteWorkspaces from "./workspaces.schema";
 import * as pgWorkspaces from "./pg/workspaces.schema";
 import * as sqliteAnalyticsReporting from "./analytics-reporting.schema";
+import * as sqliteAnalyticsClarity from "./analytics-clarity.schema";
 import * as sqliteGrowth from "./growth.schema";
 import * as sqliteGrowthInsights from "./growth-insights.schema";
 import * as sqliteGrowthWorkstreams from "./growth-workstreams.schema";
@@ -41,6 +42,7 @@ import * as pgLinkedIn from "./pg/linkedin.schema";
 import * as pgTelemetry from "./pg/telemetry.schema";
 import * as pgAnalytics from "./pg/analytics.schema";
 import * as pgAnalyticsReporting from "./pg/analytics-reporting.schema";
+import * as pgAnalyticsClarity from "./pg/analytics-clarity.schema";
 import * as pgGrowth from "./pg/growth.schema";
 import * as pgGrowthInsights from "./pg/growth-insights.schema";
 import * as pgGrowthWorkstreams from "./pg/growth-workstreams.schema";
@@ -79,6 +81,7 @@ type AppSchema = typeof sqliteApp &
   typeof sqliteAnalytics &
   typeof sqliteWorkspaces &
   typeof sqliteAnalyticsReporting &
+  typeof sqliteAnalyticsClarity &
   typeof sqliteGrowth &
   typeof sqliteGrowthInsights &
   typeof sqliteGrowthWorkstreams &
@@ -110,6 +113,7 @@ const runtimeSchema =
         ...pgAnalytics,
         ...pgWorkspaces,
         ...pgAnalyticsReporting,
+        ...pgAnalyticsClarity,
         ...pgGrowth,
         ...pgGrowthInsights,
         ...pgGrowthWorkstreams,
@@ -139,6 +143,7 @@ const runtimeSchema =
         ...sqliteAnalytics,
         ...sqliteWorkspaces,
         ...sqliteAnalyticsReporting,
+        ...sqliteAnalyticsClarity,
         ...sqliteGrowth,
         ...sqliteGrowthInsights,
         ...sqliteGrowthWorkstreams,
@@ -204,6 +209,8 @@ export const {
   workspaceConfiguration,
   workspaceAudit,
   analyticsDailyAggregates,
+  analyticsClarityConnections,
+  analyticsClarityPages,
   analyticsErasureKeys,
   analyticsSettings,
   analyticsSources,

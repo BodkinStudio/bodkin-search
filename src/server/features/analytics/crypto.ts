@@ -172,7 +172,7 @@ export async function verifyBackendRequest(
 export async function deriveProjectSecret(
   root: string,
   projectId: string,
-  purpose: "identity" | "server" | "outbox",
+  purpose: "identity" | "server" | "outbox" | "provider",
 ) {
   return hex(await mac(root, `bodkin-analytics:v1|${purpose}|${projectId}`));
 }

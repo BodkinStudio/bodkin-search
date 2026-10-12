@@ -157,6 +157,47 @@ export const saveAnalyticsSettings = createServerFn({ method: "POST" })
       context.userId,
     );
   });
+export const getClarityConnection = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(project)
+  .handler(async ({ context }) => {
+    await requireAdmin(context.userId, context.organizationId);
+    return service.clarityConnection(context.projectId);
+  });
+export const saveClarityConnection = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(
+    project.extend({
+      clarityProjectId: z
+        .string()
+        .trim()
+        .regex(/^[a-z0-9]{6,20}$/),
+      token: z
+        .string()
+        .trim()
+        .max(4000)
+        .regex(/^[\w-]{2,}\.[\w-]{2,}\.[\w-]{2,}$/),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context.userId, context.organizationId);
+    return service.saveClarityConnection(
+      {
+        projectId: context.projectId,
+        clarityProjectId: data.clarityProjectId,
+        token: data.token,
+      },
+      context.userId,
+    );
+  });
+export const removeClarityConnection = createServerFn({ method: "POST" })
+  .middleware(requireProjectContext)
+  .validator(project)
+  .handler(async ({ context }) => {
+    await requireAdmin(context.userId, context.organizationId);
+    await service.removeClarityConnection(context.projectId, context.userId);
+    return { removed: true };
+  });
 export const eraseAnalyticsContext = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
   .validator(project.extend({ contextId: z.string() }))

@@ -232,9 +232,20 @@ export default {
     _ctx: ExecutionContext,
   ) {
     if (controller.cron === ANALYTICS_RETENTION_CRON) {
-      await withPgClient(async () => {
-        await AnalyticsService.purgeExpired();
-      });
+      try {
+        await withPgClient(async () => {
+          await AnalyticsService.purgeExpired();
+        });
+      } finally {
+        // Clarity only reaches back three days, so each connected project's
+        // pages are read once a day and kept, whatever the purge did. A
+        // failure here must not stop the jobs that share this tick.
+        try {
+          await withPgClient(() => AnalyticsService.syncClarityPages());
+        } catch (error) {
+          console.error("[clarity] daily page snapshot failed", error);
+        }
+      }
     }
     if (controller.cron === MCP_OAUTH_PURGE_CRON) {
       // Only hosted mode runs the OAuth provider (and has OAUTH_KV bound).
