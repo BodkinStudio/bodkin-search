@@ -41,3 +41,13 @@ export function firstTouch(history: Event[]) {
     sourcedAt: sourced.receivedAt,
   };
 }
+
+/** Items by key, in the order first seen. Items with no key are left out. */
+export const groupBy = <T>(items: T[], key: (item: T) => string | null) => {
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const k = key(item);
+    if (k) groups.set(k, [...(groups.get(k) ?? []), item]);
+  }
+  return groups;
+};

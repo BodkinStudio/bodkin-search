@@ -3,7 +3,7 @@ import { analyticsChannels } from "@/shared/analytics/channels";
 import type { AnalyticsQuery } from "@/types/schemas/analytics";
 import { GoogleAdsService } from "@/server/features/google-ads/GoogleAdsService";
 import { AnalyticsRepository as repo } from "./AnalyticsRepository";
-import { firstTouch } from "./journey-touch";
+import { firstTouch, groupBy } from "./journey-touch";
 
 // Where visitors come from and what they do next: every visitor in the
 // period by the channel of their first touch (paid search, organic search,
@@ -67,15 +67,6 @@ function summarise(label: string, visitors: Visitor[]): Row {
   };
 }
 
-const groupBy = <T>(items: T[], key: (item: T) => string | null) => {
-  const groups = new Map<string, T[]>();
-  for (const item of items) {
-    const k = key(item);
-    if (k) groups.set(k, [...(groups.get(k) ?? []), item]);
-  }
-  return groups;
-};
-
 export async function trafficReport(
   q: AnalyticsQuery,
   opts: { keywordLimit?: number } = {},
@@ -85,16 +76,7 @@ export async function trafficReport(
     repo.events(q),
     repo.outcomes(q),
   ]);
-  const mqls = outcomes.filter((o) => o.name === "lead_qualified");
-  // A visitor became a lead when an MQL names them, or names the customer
-  // they were identified as.
-  const leadContexts = new Set(
-    mqls.flatMap((o) => (o.contextId ? [o.contextId] : [])),
-  );
-  const contexts = await repo.customerContexts(q.projectId, q.environment, [
-    ...new Set(mqls.map((o) => o.customerId)),
-  ]);
-  for (const c of contexts) leadContexts.add(c.id);
+  const leadContexts = await repo.leadContextIds(q, outcomes);
 
   const visitors: Visitor[] = [...groupBy(events, (e) => e.contextId)].map(
     ([contextId, history]) => {

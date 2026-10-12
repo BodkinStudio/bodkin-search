@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-Project navigation → Analytics contains Overview, Journeys, Acquisition, Funnels and Customers. Settings → Analytics registers sources and controls consent-related inspection, matching windows, outcomes, diagnostics and erasure. The website map draws **observed pages**, directed transitions and repeat visits from retained page events. Select a journey to highlight its ordered steps. Verified customer paths are separate from inferred acquisition evidence.
+Project navigation → Analytics contains Overview, Journeys, Acquisition, Funnels and Customers. Settings → Analytics registers sources and controls consent-related inspection, matching windows, outcomes, diagnostics and erasure. The website map draws **observed pages**, directed transitions and repeat visits from retained page events. Select a journey to highlight its ordered steps. Acquisition also shows **where visits end**: for each page, the visits that saw it, the visits that ended on it, and how many of those left without a call to action clicked, a sign-up or a qualified lead, for all visits or one channel's (MCP: `analytics_query` view `exits`). Verified customer paths are separate from inferred acquisition evidence.
 
 The local demonstration is the project **DEMO — Journey Analytics**, environment **Test**. Its events pass through the collection and outcome services. It is synthetic evidence, not a completed external pilot or production data.
 

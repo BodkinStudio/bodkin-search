@@ -13,6 +13,7 @@ import {
 import { AnalyticsRepository } from "./AnalyticsRepository";
 import { mqlReport } from "./AnalyticsMqls";
 import { trafficReport } from "./AnalyticsTraffic";
+import { exitsReport } from "./AnalyticsExits";
 import { adsInsightsReport } from "./AnalyticsAdsInsights";
 export const AnalyticsService = {
   collect,
@@ -29,5 +30,6 @@ export const AnalyticsService = {
   settings: AnalyticsRepository.settings,
   mqls: mqlReport,
   traffic: trafficReport,
+  exits: exitsReport,
   adsInsights: adsInsightsReport,
 };

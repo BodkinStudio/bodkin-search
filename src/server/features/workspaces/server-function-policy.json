@@ -79,6 +79,10 @@
     "capability": "read",
     "projectRequired": true
   },
+  "src/serverFunctions/analytics.ts:getAnalyticsExits": {
+    "capability": "read",
+    "projectRequired": true
+  },
   "src/serverFunctions/analytics.ts:getAnalyticsSettings": {
     "capability": "configure",
     "projectRequired": true
