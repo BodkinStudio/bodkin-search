@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { getAnalyticsAcquisitionDimensions } from "@/serverFunctions/analytics";
 import { AnalyticsTrafficSection } from "./AnalyticsTrafficSection";
+import { AnalyticsExitsSection } from "./AnalyticsExitsSection";
 import { AnalyticsAdsInsightsSection } from "./AnalyticsAdsInsightsSection";
 import { AnalyticsAdsScorecardSection } from "./AnalyticsAdsScorecardSection";
 const DIMENSION_LABELS = {
@@ -47,6 +48,7 @@ export function AnalyticsAcquisitionPanel({
         filters={filters}
         onOpenChannel={(channel) => onSelect({ view: "journeys", channel })}
       />
+      <AnalyticsExitsSection filters={filters} />
       <AnalyticsAdsInsightsSection filters={filters} />
       <h2 className="text-lg font-semibold">Acquisition evidence</h2>
       <div className="flex flex-wrap gap-2" aria-label="Acquisition dimension">

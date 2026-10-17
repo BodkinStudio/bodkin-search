@@ -151,6 +151,7 @@ export const AnalyticsRepository = {
   outcomes,
   windowFor,
   customerContexts,
+  leadContextIds,
   contextEvents,
 };
 /** The visitor contexts identified as these customers. */
@@ -174,6 +175,21 @@ async function customerContexts(
       ),
     )
     .limit(5001);
+}
+/** The visitors who became a qualified lead: an MQL names them, or names the customer they were identified as. */
+async function leadContextIds(
+  q: AnalyticsQuery,
+  windowOutcomes: Awaited<ReturnType<typeof outcomes>>,
+) {
+  const mqls = windowOutcomes.filter((o) => o.name === "lead_qualified");
+  const leads = new Set(
+    mqls.flatMap((o) => (o.contextId ? [o.contextId] : [])),
+  );
+  const contexts = await customerContexts(q.projectId, q.environment, [
+    ...new Set(mqls.map((o) => o.customerId)),
+  ]);
+  for (const c of contexts) leads.add(c.id);
+  return leads;
 }
 /** Every event of these contexts in a window, in order: the journeys behind outcomes. */
 async function contextEvents(
