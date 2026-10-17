@@ -1,5 +1,6 @@
 import { analyticsChannels } from "@/shared/analytics/channels";
 import type { AnalyticsQuery } from "@/types/schemas/analytics";
+import { clarityPages } from "./AnalyticsClarity";
 import { AnalyticsRepository as repo } from "./AnalyticsRepository";
 import { firstTouch, groupBy } from "./journey-touch";
 
@@ -9,6 +10,9 @@ import { firstTouch, groupBy } from "./journey-touch";
 // visits that saw nothing else, and the visits that ended on it without
 // acting. Shown for every visit and by the channel of the visitor's first
 // touch, so a page that loses ad visitors is not hidden by organic ones.
+// Where the project has a Clarity connection, each page also carries what
+// Clarity measured on it over the same days: how far down people scrolled,
+// and how many sessions hit a dead or rage click.
 
 const ACTIONS = new Set(["start_trial", "book_demo", "contact"]);
 
@@ -63,11 +67,17 @@ function pagesWhereVisitsEnd(visits: Visit[], limit: number) {
 }
 
 export async function exitsReport(q: AnalyticsQuery) {
-  const [events, outcomes] = await Promise.all([
+  const [events, outcomes, clarity] = await Promise.all([
     repo.events(q),
     repo.outcomes(q),
+    clarityPages(q),
   ]);
   const leads = await repo.leadContextIds(q, outcomes);
+  const pagesFor = (visits: Visit[], limit: number) =>
+    pagesWhereVisitsEnd(visits, limit).map((row) => ({
+      ...row,
+      clarity: clarity.pages.get(row.path) ?? null,
+    }));
 
   const visits: Visit[] = [];
   for (const [contextId, history] of groupBy(events, (e) => e.contextId)) {
@@ -93,17 +103,19 @@ export async function exitsReport(q: AnalyticsQuery) {
 
   return {
     visits: visits.length,
-    pages: pagesWhereVisitsEnd(visits, q.limit),
+    pages: pagesFor(visits, q.limit),
     byChannel: analyticsChannels
       .map((channel) => {
         const own = visits.filter((v) => v.channel === channel);
         return {
           channel,
           visits: own.length,
-          pages: pagesWhereVisitsEnd(own, 5),
+          pages: pagesFor(own, 5),
         };
       })
       .filter((row) => row.visits > 0),
+    // Days in the period Clarity has a snapshot for; 0 when not connected.
+    clarityDays: clarity.days,
     definitions: {
       visit:
         "One visitor's activity with no gap longer than 30 minutes. A visit still under way counts the page it has reached, and one that began before the period is counted from its first page inside it.",
@@ -112,6 +124,8 @@ export async function exitsReport(q: AnalyticsQuery) {
       onlyPage: "Visits that ended here having seen no other page.",
       leftWithoutActing:
         "Visits that ended here with no call to action clicked (start trial, book a demo, contact) and no sign-up, by a visitor who did not become a qualified lead in the period.",
+      clarity:
+        "From Microsoft Clarity, for every session Clarity recorded on the page on the days it has a snapshot for, whichever channel is shown: average scroll depth, and the share of sessions with a rage click or a dead click. Clarity only records visitors who accepted cookies.",
     },
     window: repo.windowFor(q),
   };

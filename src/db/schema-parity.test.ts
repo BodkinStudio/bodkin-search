@@ -17,6 +17,7 @@ import * as sqliteLinkedIn from "./linkedin.schema";
 import * as sqliteTelemetry from "./telemetry.schema";
 import * as sqliteAnalytics from "./analytics.schema";
 import * as sqliteAnalyticsReporting from "./analytics-reporting.schema";
+import * as sqliteAnalyticsClarity from "./analytics-clarity.schema";
 import * as sqliteGrowth from "./growth.schema";
 import * as sqliteGrowthInsights from "./growth-insights.schema";
 import * as sqliteGrowthWorkstreams from "./growth-workstreams.schema";
@@ -41,6 +42,7 @@ import * as pgLinkedIn from "./pg/linkedin.schema";
 import * as pgTelemetry from "./pg/telemetry.schema";
 import * as pgAnalytics from "./pg/analytics.schema";
 import * as pgAnalyticsReporting from "./pg/analytics-reporting.schema";
+import * as pgAnalyticsClarity from "./pg/analytics-clarity.schema";
 import * as pgGrowth from "./pg/growth.schema";
 import * as pgGrowthInsights from "./pg/growth-insights.schema";
 import * as pgGrowthWorkstreams from "./pg/growth-workstreams.schema";
@@ -186,6 +188,7 @@ const sqliteAppTables = tablesFrom(
   sqliteTelemetry,
   sqliteAnalytics,
   sqliteAnalyticsReporting,
+  sqliteAnalyticsClarity,
   sqliteGrowth,
   sqliteGrowthInsights,
   sqliteGrowthWorkstreams,
@@ -211,6 +214,7 @@ const pgAppTables = tablesFrom(
   pgTelemetry,
   pgAnalytics,
   pgAnalyticsReporting,
+  pgAnalyticsClarity,
   pgGrowth,
   pgGrowthInsights,
   pgGrowthWorkstreams,

@@ -14,6 +14,12 @@ import { AnalyticsRepository } from "./AnalyticsRepository";
 import { mqlReport } from "./AnalyticsMqls";
 import { trafficReport } from "./AnalyticsTraffic";
 import { exitsReport } from "./AnalyticsExits";
+import {
+  clarityConnection,
+  saveClarityConnection,
+  removeClarityConnection,
+  syncClarityPages,
+} from "./AnalyticsClarity";
 import { adsInsightsReport } from "./AnalyticsAdsInsights";
 export const AnalyticsService = {
   collect,
@@ -31,5 +37,9 @@ export const AnalyticsService = {
   mqls: mqlReport,
   traffic: trafficReport,
   exits: exitsReport,
+  clarityConnection,
+  saveClarityConnection,
+  removeClarityConnection,
+  syncClarityPages,
   adsInsights: adsInsightsReport,
 };

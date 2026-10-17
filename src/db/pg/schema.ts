@@ -26,5 +26,6 @@ export * from "./prompt-explorer-snapshots.schema";
 export * from "./growth-ai-briefs.schema";
 
 export * from "./analytics-reporting.schema";
+export * from "./analytics-clarity.schema";
 
 export * from "./workspaces.schema";

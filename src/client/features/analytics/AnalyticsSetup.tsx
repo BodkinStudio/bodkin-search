@@ -3,6 +3,7 @@ import { AnalyticsTrackingRules } from "./AnalyticsTrackingRules";
 import { AnalyticsPrivacyControls } from "./AnalyticsPrivacyControls";
 import { AnalyticsNetworkTest } from "./AnalyticsNetworkTest";
 import { AnalyticsConfiguration } from "./AnalyticsConfiguration";
+import { AnalyticsClaritySetup } from "./AnalyticsClaritySetup";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -236,6 +237,7 @@ export function AnalyticsSetup({
       {section === "measurement" ? (
         <>
           <AnalyticsConfiguration projectId={projectId} />
+          <AnalyticsClaritySetup projectId={projectId} />
           <AnalyticsNetworkTest projectId={projectId} />
         </>
       ) : null}
