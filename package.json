@@ -53,7 +53,7 @@
     "gdpr:erase-user": "tsx scripts/erase-user-data.ts",
     "seed:rank-tracking": "tsx scripts/seed-rank-tracking.ts",
     "seed:projects": "tsx scripts/seed-projects.ts",
-    "ci:check": "prettier --check . && knip && tsc --noEmit && tsc --noEmit -p badseo/tsconfig.json && oxlint . --type-aware && pnpm sync-plugin-skills && test -z \"$(git status --porcelain -- plugins/openseo/skills)\"",
+    "ci:check": "prettier --check . && knip && tsc --noEmit && tsc --noEmit -p badseo/tsconfig.json && oxlint . --type-aware && pnpm sync-plugin-skills && test -z \"$(git status --porcelain -- plugins/openseo/skills)\" && pnpm build:tracker && test -z \"$(git status --porcelain -- public/bodkin-journeys public/bodkin-journeys.js src/client/analytics/tracker-release.json)\"",
     "build:tracker": "node scripts/build-journey-tracker.mjs",
     "lint:analytics": "oxlint src/client/features/analytics src/client/analytics src/server/features/analytics src/serverFunctions/analytics.ts src/serverFunctions/analyticsConfiguration.ts src/shared/analytics src/db/analytics.schema.ts src/db/analytics-reporting.schema.ts src/db/analytics-clarity.schema.ts src/db/pg/analytics.schema.ts src/db/pg/analytics-reporting.schema.ts src/db/pg/analytics-clarity.schema.ts src/types/schemas/analytics.ts src/server/mcp/tools/analytics-tool.ts --type-aware",
     "lint:workspaces": "oxlint src/client/features/workspaces src/routes/_app/workspace-people.tsx src/routes/workspace-invitation.tsx src/server/features/workspaces src/serverFunctions/clientWorkspaces.ts src/shared/workspaces --type-aware"

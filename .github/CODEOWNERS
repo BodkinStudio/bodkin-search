@@ -1,13 +1,23 @@
 # Request explicit maintainer review for review-control changes.
-/.github/ @bensenescu
-/.greptile/ @bensenescu
-/AGENTS.md @bensenescu
-/CLAUDE.md @bensenescu
-/.agents/skills/ @bensenescu
+/.github/ @jamesdward
+/.greptile/ @jamesdward
+/AGENTS.md @jamesdward
+/CLAUDE.md @jamesdward
+/.agents/skills/ @jamesdward
 
 # Plugin distribution — these files define the MCP endpoint and skills
 # every plugin installer connects to; a silent change here ships to all
 # installed users on the next update.
-/plugins/ @bensenescu
-/.claude-plugin/ @bensenescu
-/.agents/plugins/ @bensenescu
+/plugins/ @jamesdward
+/.claude-plugin/ @jamesdward
+/.agents/plugins/ @jamesdward
+
+# Journey tracker — customer websites run this script, so whoever can change
+# it can run code on every installed site. Releases are pinned by integrity
+# hash; a change here becomes a new release customers opt into.
+/src/client/analytics/tracker.ts @jamesdward
+/src/client/analytics/tracker-release.json @jamesdward
+/scripts/build-journey-tracker.mjs @jamesdward
+/public/bodkin-journeys.js @jamesdward
+/public/bodkin-journeys/ @jamesdward
+/public/_headers @jamesdward

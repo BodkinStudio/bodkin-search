@@ -10,6 +10,7 @@ import {
   createAnalyticsSource,
   listAnalyticsSources,
 } from "@/serverFunctions/analytics";
+import trackerRelease from "@/client/analytics/tracker-release.json";
 function AnalyticsInstall({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   const [hostname, setHostname] = useState("");
@@ -152,7 +153,21 @@ function AnalyticsInstall({ projectId }: { projectId: string }) {
                   Public source key; it routes telemetry and cannot verify
                   identity or outcomes.
                 </p>
-                <pre className="overflow-x-auto rounded bg-base-200 p-3 text-xs">{`<script async src="${origin}/bodkin-journeys.js"></script>\n\n// Run after the script loads. Use your real consent adapter.\nconst tracker = BodkinJourneys.initJourneyTracker({\n  projectKey: "${source.publicKey}",\n  sourceId: "${source.id}",\n  environment: "${source.environment}",\n  collectorUrl: "${origin}/api/analytics/collect",\n  consent: yourExistingConsentAdapter\n});`}</pre>
+                <pre className="overflow-x-auto rounded bg-base-200 p-3 text-xs">{`<script async src="${origin}${trackerRelease.path}"\n  integrity="${trackerRelease.integrity}"\n  crossorigin="anonymous"></script>\n\n// Run after the script loads. Use your real consent adapter.\nconst tracker = BodkinJourneys.initJourneyTracker({\n  projectKey: "${source.publicKey}",\n  sourceId: "${source.id}",\n  environment: "${source.environment}",\n  collectorUrl: "${origin}/api/analytics/collect",\n  consent: yourExistingConsentAdapter\n});`}</pre>
+                <p>
+                  The integrity hash pins this exact release: the browser
+                  refuses the script if its contents ever change, so a site only
+                  runs a new tracker after you paste a new snippet. To load
+                  nothing from us at all,{" "}
+                  <a
+                    className="link"
+                    href={trackerRelease.path}
+                    download="bodkin-journeys.js"
+                  >
+                    download the file
+                  </a>
+                  , host it yourself and keep the integrity attribute.
+                </p>
                 <p>
                   Your adapter supplies <code>getState()</code> and{" "}
                   <code>subscribe(listener)</code>. Return separate analytics,
@@ -168,11 +183,12 @@ function AnalyticsInstall({ projectId }: { projectId: string }) {
       <section className="space-y-3 border-t border-base-300 pt-6">
         <h3 className="font-medium">CSP and transport</h3>
         <p className="text-sm text-base-content/70">
-          Add the collector origin to your existing policy. Keep your other
-          directives. The collector accepts only registered source origins and
-          does not use third-party cookies.
+          Allow only the pinned script and the collector, not this whole origin.
+          Keep your other directives. If you host the script yourself, drop the
+          script-src entry. The collector accepts only registered source origins
+          and does not use third-party cookies.
         </p>
-        <pre className="overflow-x-auto rounded bg-base-200 p-3 text-xs">{`script-src … ${origin};\nconnect-src … ${origin};`}</pre>
+        <pre className="overflow-x-auto rounded bg-base-200 p-3 text-xs">{`script-src … ${origin}${trackerRelease.path};\nconnect-src … ${origin}/api/analytics/collect;`}</pre>
         <p className="text-sm text-base-content/70">
           Exclude this endpoint from instrumentation that injects unsupported
           headers. Do not disable browser security. Verify the website and

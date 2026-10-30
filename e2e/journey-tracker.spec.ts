@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { expect, test } from "@playwright/test";
+import trackerRelease from "../src/client/analytics/tracker-release.json" with { type: "json" };
 import type {
   JourneyConsent,
   JourneyTracker,
@@ -50,7 +51,7 @@ test("consent, ordered navigation, reset and returning sessions", async ({
       });
   });
   await page.goto("https://example.test/");
-  await page.addScriptTag({ path: "public/bodkin-journeys.js" });
+  await page.addScriptTag({ path: `public${trackerRelease.path}` });
   await page.evaluate(() => {
     const state = {
       analytics: false,
