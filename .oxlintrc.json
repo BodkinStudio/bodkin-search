@@ -13,7 +13,8 @@
     "src/routeTree.gen.ts",
     "worker-configuration.d.ts",
     "scripts",
-    "public/bodkin-journeys.js"
+    "public/bodkin-journeys.js",
+    "public/bodkin-journeys"
   ],
   "rules": {
     "react/react-in-jsx-scope": "off",

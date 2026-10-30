@@ -41,7 +41,11 @@
     "!.alchemy/**",
     "!badseo/**",
   ],
-  "ignore": ["drizzle-prod.config.ts", "public/bodkin-journeys.js"],
+  "ignore": [
+    "drizzle-prod.config.ts",
+    "public/bodkin-journeys.js",
+    "public/bodkin-journeys/**",
+  ],
   // Disable Drizzle plugin - it tries to load drizzle.config.ts which imports cloudflare:workers
   "drizzle": false,
   "ignoreDependencies": [

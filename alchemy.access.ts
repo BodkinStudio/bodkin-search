@@ -120,6 +120,7 @@ export const configurePublicAnalyticsAccess = (options: {
     );
     for (const [id, path] of [
       ["AnalyticsTrackerAccess", "/bodkin-journeys.js"],
+      ["AnalyticsTrackerReleasesAccess", "/bodkin-journeys/*"],
       ["AnalyticsCollectorAccess", "/api/analytics/collect"],
     ]) {
       yield* Cloudflare.Access.Application(id, {

@@ -11,3 +11,13 @@
 /plugins/ @bensenescu
 /.claude-plugin/ @bensenescu
 /.agents/plugins/ @bensenescu
+
+# Journey tracker — customer websites run this script, so whoever can change
+# it can run code on every installed site. Releases are pinned by integrity
+# hash; a change here becomes a new release customers opt into.
+/src/client/analytics/tracker.ts @bensenescu
+/src/client/analytics/tracker-release.json @bensenescu
+/scripts/build-journey-tracker.mjs @bensenescu
+/public/bodkin-journeys.js @bensenescu
+/public/bodkin-journeys/ @bensenescu
+/public/_headers @bensenescu
