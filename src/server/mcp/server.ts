@@ -176,7 +176,7 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
     },
     {
       instructions:
-        "Bodkin Search research tools use credits. Proceed with normal focused research, but ask the user for confirmation before planned batches over 2,000 credits.",
+        "Bodkin Search research tools use credits when this server meters usage; whoami reports whether it does and the balance. Do not treat credits as a limit unless whoami says usage is metered. Proceed with normal focused research, but ask the user for confirmation before planned batches over 2,000 credits.",
     },
   );
 
